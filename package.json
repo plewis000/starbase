@@ -1,0 +1,35 @@
+{
+  "name": "starbase",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "qa": "node qa/run-all.js",
+    "qa:select": "node qa/select-string-linter.js",
+    "qa:forms": "node qa/form-value-checker.js",
+    "qa:config": "node qa/config-hardcode-detector.js",
+    "qa:contracts": "node qa/api-contract-checker.js",
+    "qa:preflight": "node qa/deploy-preflight.js"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.5.2",
+    "@supabase/supabase-js": "^2.47.0",
+    "next": "15.2.6",
+    "react": "^19.0.1",
+    "react-dom": "^19.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^8",
+    "autoprefixer": "^10.4.20",
+    "eslint-config-next": "15.2.6",
+    "postcss": "^8",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5"
+  }
+}
