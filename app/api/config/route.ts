@@ -20,7 +20,7 @@ export async function GET() {
   const [
     statuses, priorities, types, efforts, locations,
     goalCategories, goalTimeframes, habitFrequencies, habitTimePreferences,
-    shoppingCategories,
+    shoppingCategories, expenseCategories,
   ] = await Promise.all([
     config(supabase).from("task_statuses").select("id, name, display_color, icon, sort_order").eq("active", true).order("sort_order"),
     config(supabase).from("task_priorities").select("id, name, display_color, icon, sort_order").eq("active", true).order("sort_order"),
@@ -32,6 +32,7 @@ export async function GET() {
     config(supabase).from("habit_frequencies").select("id, name, slug, target_type, default_target, sort_order").eq("active", true).order("sort_order"),
     config(supabase).from("habit_time_preferences").select("id, name, slug, display_color, icon, sort_order").eq("active", true).order("sort_order"),
     config(supabase).from("shopping_categories").select("id, name, display_color, icon, sort_order").eq("active", true).order("sort_order"),
+    config(supabase).from("expense_categories").select("id, name, slug, display_color, icon, sort_order, is_income").eq("active", true).order("sort_order"),
   ]);
 
   return NextResponse.json({
@@ -49,5 +50,7 @@ export async function GET() {
     habit_time_preferences: habitTimePreferences.data || [],
     // Shopping config
     shopping_categories: shoppingCategories.data || [],
+    // Finance config
+    expense_categories: expenseCategories.data || [],
   });
 }

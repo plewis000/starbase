@@ -13,6 +13,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { href: "/tasks", label: "Tasks", icon: "📋" },
+  { href: "/budget", label: "Budget", icon: "💰" },
   { href: "/goals", label: "Goals", icon: "🎯" },
   { href: "/habits", label: "Habits", icon: "🔄" },
   { href: "/shopping", label: "Shop", icon: "🛒" },
