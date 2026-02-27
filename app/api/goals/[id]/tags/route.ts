@@ -47,7 +47,7 @@ export async function GET(
   const enriched = (goalTags || []).map((gt) => ({
     ...gt,
     tag: tagMap.get(gt.tag_id) || null,
-  }));
+  })) as Record<string, unknown>[];
 
   return NextResponse.json({ tags: enriched });
 }

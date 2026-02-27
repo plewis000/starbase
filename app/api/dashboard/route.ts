@@ -132,7 +132,7 @@ export async function GET() {
     status: goal.status as string,
     target_date: goal.target_date as string,
     linked_habit_ids: goalHabitMap[goal.id as string] || [],
-  }));
+  })) as Record<string, unknown>[];
 
   // Build habits summary list
   const habitsList = (activeHabitsRes.data || []).map((habit) => ({
@@ -141,7 +141,7 @@ export async function GET() {
     current_streak: habit.current_streak as number,
     checked_today: checkedTodaySet.has(habit.id as string),
     linked_goal_ids: habitGoalMap[habit.id as string] || [],
-  }));
+  })) as Record<string, unknown>[];
 
   // Calculate average goal progress
   const avgProgress =
@@ -153,7 +153,7 @@ export async function GET() {
   const streaksLeaderboard = (topStreaksRes.data || []).map((habit) => ({
     title: habit.title as string,
     current_streak: habit.current_streak as number,
-  }));
+  })) as Record<string, unknown>[];
 
   return NextResponse.json({
     tasks_summary: {

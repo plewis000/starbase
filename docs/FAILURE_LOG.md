@@ -185,14 +185,54 @@ Each failure is tagged with:
 
 ---
 
+### F-014: TypeScript Enrichment Type Loss — 10 Files Broke Vercel Build
+- **Date**: 2026-02-26
+- **Session**: 4
+- **Category**: `type-safety`, `build-failure`, `deployment`
+- **Severity**: Critical
+- **Symptom**: Two consecutive Vercel builds failed with TypeScript errors. Build #1: `Property 'parent_id' does not exist on type '{ author: ... }'` in comments route (line 108). Build #2: `Property 'id' does not exist on type '{ category: any; timeframe: any; owner: ... }'` in goals route (line 69).
+- **Root Cause**: Every enrichment function (enrichGoals, enrichHabits, enrichCommentsWithAuthors) uses `.map()` to spread a `Record<string, unknown>` and add new fields. TypeScript infers the return type as only the explicitly added fields (e.g., `{ author, category, owner }`), losing access to all original columns (`id`, `parent_id`, `title`, etc.). This compiled locally (likely with less strict checks or cached builds) but failed in Vercel's clean `tsc` build.
+- **Fix**: Added `as Record<string, unknown>[]` type assertion to all enrichment function call sites across 10 files:
+  - `app/api/goals/route.ts` (2 assertions)
+  - `app/api/habits/route.ts` (2 assertions)
+  - `app/api/dashboard/route.ts` (3 assertions)
+  - `app/api/comments/[entityType]/[entityId]/route.ts` (3 assertions)
+  - `app/api/goals/[id]/route.ts`
+  - `app/api/goals/[id]/habits/route.ts`
+  - `app/api/goals/[id]/tasks/route.ts`
+  - `app/api/goals/[id]/tags/route.ts`
+  - `app/api/habits/[id]/tags/route.ts`
+  - `app/api/tasks/[id]/route.ts`
+- **Pattern**: **When `.map()` spreads `Record<string, unknown>` and adds new properties, TypeScript narrows the return type to only the new properties. All enrichment-pattern functions that add fields to opaque records need explicit type assertions.** This is a systematic pattern — if one enrichment function has the bug, ALL of them likely do.
+- **QA Rule**: Add to deploy-preflight: run a full `tsc --noEmit` in a clean environment (no incremental cache) before any deploy. Also: any `.map()` that spreads a Supabase query result and adds new fields should have a type assertion. Search pattern: `.map((.*) => ({ ...` where the source is a Supabase query result.
+- **Promoted to OS-level**: Yes — this is the same type-loss pattern that will appear in any TypeScript + Supabase project using enrichment functions.
+
+---
+
+### F-015: Meta-Failure — Not Auto-Logging Build Failures
+- **Date**: 2026-02-26
+- **Session**: 4
+- **Category**: `process`, `sisyphus-core`
+- **Severity**: Critical
+- **Symptom**: After Vercel build failures, I fixed the code but did NOT automatically log the failures to FAILURE_LOG.md. The user had to explicitly say "log failure for iterative improvement. If you aren't doing it automatically that is also a failure."
+- **Root Cause**: Failure logging was treated as a manual step rather than an automatic reflex. The improvement pipeline (DISCOVER → LOG → EXTRACT → AUTOMATE → VERIFY) was not being followed — steps were skipped when under time pressure to fix the build.
+- **Fix**: Establishing as a hard rule: **Every build failure, runtime error, or bug fix MUST be accompanied by an immediate FAILURE_LOG.md entry BEFORE moving to the next task.** The fix-then-log sequence is: (1) identify error, (2) log to FAILURE_LOG immediately, (3) fix the code, (4) push fix, (5) verify build. Logging happens at step 2, not as an afterthought.
+- **Pattern**: **The improvement pipeline is not optional and not deferrable. Logging IS part of the fix. If a failure happens and isn't logged, the system hasn't learned — which means the same class of failure can repeat. Auto-log everything.**
+- **QA Rule**: At the end of every session, the scribe skill should verify that any errors encountered during the session have corresponding FAILURE_LOG entries. Missing entries should be flagged.
+- **Promoted to OS-level**: Yes — this is a core Sisyphus principle. The boulder rolls back when you skip the logging.
+
+---
+
 ## Trend Summary
 
 | Pattern | Count | Categories |
 |---------|-------|------------|
 | Sandbox/environment deployment assumptions | 4 | F-008, F-009, F-010, F-011 |
+| TypeScript type loss in enrichment patterns | 1 | F-014 |
 | Display labels used where machine values needed | 2 | F-003, F-004 |
 | Cross-schema assumptions in ORM/query builder | 2 | F-001, F-002 |
 | Configuration placeholders not validated | 2 | F-006, F-012 |
+| Process/pipeline discipline failures | 1 | F-015 |
 | Context summary path inaccuracy | 1 | F-013 |
 | Unvalidated user input to database | 1 | F-007 |
 | String manipulation during refactoring | 1 | F-005 |

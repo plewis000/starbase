@@ -120,7 +120,7 @@ export async function GET(
         reactions: reactionsByComment.get(c.id as string) || {},
         replies: replyMap.get(c.id as string) || [],
         reply_count: (replyMap.get(c.id as string) || []).length,
-      }));
+      })) as Record<string, unknown>[];
 
     return NextResponse.json({ comments: threaded });
   }
@@ -129,7 +129,7 @@ export async function GET(
   const flatComments = enriched.map((c) => ({
     ...c,
     reactions: reactionsByComment.get(c.id as string) || {},
-  }));
+  })) as Record<string, unknown>[];
 
   return NextResponse.json({ comments: flatComments });
 }

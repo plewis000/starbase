@@ -93,7 +93,7 @@ export async function GET(
           (l: Record<string, unknown>) => l.habit_id === h.id
         );
         return { ...h, weight: link ? (link as Record<string, unknown>).weight : 1.0 };
-      }),
+      }) as Record<string, unknown>[],
       linked_tasks: linkedTasks,
       sub_goals: subgoalsRes.data || [],
       activity: activityRes.data || [],

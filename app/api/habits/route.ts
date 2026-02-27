@@ -45,7 +45,7 @@ export async function GET(request: Request) {
 
   // Enrich with config data
   const lookups = await getGoalHabitLookups(supabase);
-  let enrichedHabits = enrichHabits(habits || [], lookups);
+  let enrichedHabits = enrichHabits(habits || [], lookups) as Record<string, unknown>[];
 
   // Filter by category slug if provided
   if (category) {
@@ -93,7 +93,7 @@ export async function GET(request: Request) {
       ...h,
       checked_today: checkedToday.has(h.id),
       completions_this_week: weekCounts.get(h.id as string) || 0,
-    }));
+    })) as Record<string, unknown>[];
   }
 
   return NextResponse.json({ habits: enrichedHabits, total: count || 0 });
