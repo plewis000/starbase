@@ -30,6 +30,7 @@ const navItems: NavItem[] = [
   { href: "/tasks", label: "Tasks", icon: "📋" },
   { href: "/goals", label: "Goals", icon: "🎯" },
   { href: "/habits", label: "Habits", icon: "🔄" },
+  { href: "/shopping", label: "Shopping", icon: "🛒" },
   { href: "/notifications", label: "Notifications", icon: "🔔" },
 ];
 

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import CommentThread from "@/components/ui/CommentThread";
 
 interface CheckIn {
   id: string;
@@ -437,6 +438,14 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
             </button>
           </div>
         )}
+
+        {/* Comments */}
+        <div>
+          <h3 className="text-sm font-semibold text-slate-100 mb-3">Comments</h3>
+          <div className="bg-slate-800/50 rounded-lg p-4">
+            <CommentThread entityType="habit" entityId={habitId} />
+          </div>
+        </div>
 
         {/* Recent check-ins */}
         {habit.check_in_history && habit.check_in_history.length > 0 && (

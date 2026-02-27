@@ -15,7 +15,7 @@ const navItems: NavItem[] = [
   { href: "/tasks", label: "Tasks", icon: "📋" },
   { href: "/goals", label: "Goals", icon: "🎯" },
   { href: "/habits", label: "Habits", icon: "🔄" },
-  { href: "/notifications", label: "Alerts", icon: "🔔" },
+  { href: "/shopping", label: "Shop", icon: "🛒" },
 ];
 
 export default function BottomNav() {

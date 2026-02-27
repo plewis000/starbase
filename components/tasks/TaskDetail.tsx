@@ -6,13 +6,12 @@ import PriorityBadge from "@/components/ui/PriorityBadge";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import Modal from "@/components/ui/Modal";
 import ChecklistWidget from "./ChecklistWidget";
-import CommentThread from "./CommentThread";
+import CommentThread from "@/components/ui/CommentThread";
 import TaskForm from "./TaskForm";
 import {
   Task,
   Tag,
   ChecklistItem,
-  Comment,
   ActivityEntry,
   Dependency,
   Subtask,
@@ -382,9 +381,8 @@ export default function TaskDetail({
         <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
           <h3 className="text-sm font-semibold text-slate-100 mb-3">Comments</h3>
           <CommentThread
-            taskId={task.id}
-            comments={task.comments}
-            onCommentAdded={fetchTask}
+            entityType="task"
+            entityId={task.id}
           />
         </div>
 
