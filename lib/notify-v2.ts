@@ -288,7 +288,8 @@ async function dispatchExternalChannels(
   if (!prefs) return;
 
   for (const pref of prefs) {
-    const channelSlug = (pref.channel as { slug: string })?.slug;
+    const channelData = pref.channel as unknown as { slug: string } | { slug: string }[] | null;
+    const channelSlug = Array.isArray(channelData) ? channelData[0]?.slug : channelData?.slug;
     if (channelSlug === "discord" && pref.config?.webhook_url) {
       await sendDiscordWebhook(
         pref.config.webhook_url as string,

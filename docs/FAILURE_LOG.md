@@ -251,12 +251,26 @@ Each failure is tagged with:
 
 ---
 
+### F-018: FK Join Result Cast as Object Instead of Array
+- **Date**: 2026-02-27
+- **Session**: 4
+- **Category**: `type-safety`, `build-failure`, `supabase-types`
+- **Severity**: Critical
+- **Symptom**: Vercel build #5 failed: `Conversion of type '{ slug: any; }[]' to type '{ slug: string; }' may be a mistake` at `notify-v2.ts:291`.
+- **Root Cause**: Supabase FK joins (`.select("channel:notification_channels!fk(slug)")`) return an **array** `{ slug: any }[]`, not a single object `{ slug: string }`. Casting directly from array to object fails strict TypeScript overlap checking. Same bug existed in `notify.ts:69`.
+- **Fix**: Cast through `unknown` first, then handle both array and object cases: `const data = pref.channel as unknown as { slug: string } | { slug: string }[] | null; const slug = Array.isArray(data) ? data[0]?.slug : data?.slug;`
+- **Pattern**: **Supabase FK join results are always arrays, even for 1:1 relationships.** Never cast a FK join result directly to a single object type. Always handle the array case.
+- **QA Rule**: Any `as { ... }` cast on a Supabase FK join field (identifiable by `table!fk_name(columns)` in the select string) should be flagged.
+
+---
+
 ## Trend Summary
 
 | Pattern | Count | Categories |
 |---------|-------|------------|
 | Sandbox/environment deployment assumptions | 4 | F-008, F-009, F-010, F-011 |
 | TypeScript type loss in enrichment patterns | 2 | F-014, F-016 |
+| Supabase FK join type miscast | 1 | F-018 |
 | Supabase API misuse (non-Promise chaining) | 1 | F-017 |
 | Display labels used where machine values needed | 2 | F-003, F-004 |
 | Cross-schema assumptions in ORM/query builder | 2 | F-001, F-002 |
