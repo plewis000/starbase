@@ -60,7 +60,7 @@ export async function GET(
       link_id: link?.id,
       linked_at: link?.created_at,
     };
-  }) as Record<string, unknown>[];
+  });
 
   return NextResponse.json({ habits: enrichedHabits });
 }

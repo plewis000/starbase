@@ -34,7 +34,7 @@ export async function getGoalHabitLookups(supabase: SupabaseClient) {
 /**
  * Enrich a single goal with resolved config data.
  */
-export function enrichGoal(goal: Record<string, unknown>, lookups: GoalHabitLookups) {
+export function enrichGoal(goal: Record<string, unknown>, lookups: GoalHabitLookups): Record<string, unknown> {
   return {
     ...goal,
     category: goal.category_id ? lookups.categories.get(goal.category_id as string) || null : null,
@@ -46,7 +46,7 @@ export function enrichGoal(goal: Record<string, unknown>, lookups: GoalHabitLook
 /**
  * Enrich an array of goals.
  */
-export function enrichGoals(goals: Record<string, unknown>[], lookups: GoalHabitLookups) {
+export function enrichGoals(goals: Record<string, unknown>[], lookups: GoalHabitLookups): Record<string, unknown>[] {
   return goals.map((g) => enrichGoal(g, lookups));
 }
 
@@ -55,7 +55,7 @@ export function enrichGoals(goals: Record<string, unknown>[], lookups: GoalHabit
 /**
  * Enrich a single habit with resolved config data.
  */
-export function enrichHabit(habit: Record<string, unknown>, lookups: GoalHabitLookups) {
+export function enrichHabit(habit: Record<string, unknown>, lookups: GoalHabitLookups): Record<string, unknown> {
   return {
     ...habit,
     category: habit.category_id ? lookups.categories.get(habit.category_id as string) || null : null,
@@ -70,6 +70,6 @@ export function enrichHabit(habit: Record<string, unknown>, lookups: GoalHabitLo
 /**
  * Enrich an array of habits.
  */
-export function enrichHabits(habits: Record<string, unknown>[], lookups: GoalHabitLookups) {
+export function enrichHabits(habits: Record<string, unknown>[], lookups: GoalHabitLookups): Record<string, unknown>[] {
   return habits.map((h) => enrichHabit(h, lookups));
 }

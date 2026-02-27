@@ -63,7 +63,7 @@ export async function GET(
     status: st.status_id ? lookups.statuses.get(st.status_id) || null : null,
     priority: st.priority_id ? lookups.priorities.get(st.priority_id) || null : null,
     assignee: st.assigned_to ? lookups.users.get(st.assigned_to) || null : null,
-  })) as Record<string, unknown>[];
+  }));
 
   // Fetch dependencies separately (bidirectional — same-schema joins should work)
   const { data: blocks } = await platform(supabase)

@@ -12,7 +12,7 @@ const VALID_ENTITY_TYPES = ["task", "goal", "habit"] as const;
 async function enrichCommentsWithAuthors(
   supabase: ReturnType<typeof createClient> extends Promise<infer T> ? T : never,
   comments: Record<string, unknown>[]
-) {
+): Promise<Record<string, unknown>[]> {
   const userIds = [...new Set(comments.map((c) => c.user_id as string).filter(Boolean))];
   if (userIds.length === 0) return comments;
 
@@ -81,7 +81,7 @@ export async function GET(
 
   // Enrich all comments with author data
   const allComments = [...(rawComments || []), ...replies] as Record<string, unknown>[];
-  const enriched = await enrichCommentsWithAuthors(supabase, allComments) as Record<string, unknown>[];
+  const enriched = await enrichCommentsWithAuthors(supabase, allComments);
 
   // Fetch reaction counts for all comments
   const commentIds = allComments.map((c) => c.id as string);
@@ -120,7 +120,7 @@ export async function GET(
         reactions: reactionsByComment.get(c.id as string) || {},
         replies: replyMap.get(c.id as string) || [],
         reply_count: (replyMap.get(c.id as string) || []).length,
-      })) as Record<string, unknown>[];
+      }));
 
     return NextResponse.json({ comments: threaded });
   }
@@ -129,7 +129,7 @@ export async function GET(
   const flatComments = enriched.map((c) => ({
     ...c,
     reactions: reactionsByComment.get(c.id as string) || {},
-  })) as Record<string, unknown>[];
+  }));
 
   return NextResponse.json({ comments: flatComments });
 }

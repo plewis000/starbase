@@ -47,7 +47,7 @@ export async function GET(
   const enriched = (habitTags || []).map((ht) => ({
     ...ht,
     tag: tagMap.get(ht.tag_id) || null,
-  })) as Record<string, unknown>[];
+  }));
 
   return NextResponse.json({ tags: enriched });
 }

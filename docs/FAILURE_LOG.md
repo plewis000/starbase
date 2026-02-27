@@ -223,12 +223,26 @@ Each failure is tagged with:
 
 ---
 
+### F-016: Wrong Fix for F-014 — `as Record<string, unknown>[]` Broke Property Access
+- **Date**: 2026-02-27
+- **Session**: 4
+- **Category**: `type-safety`, `build-failure`, `fix-regression`
+- **Severity**: Critical
+- **Symptom**: Vercel build #3 failed: `Type error: 'g.progress_value' is of type 'unknown'` at `dashboard/route.ts:149`. The fix for F-014 (`as Record<string, unknown>[]`) made ALL property values `unknown`, breaking arithmetic operations like `sum + g.progress_value`.
+- **Root Cause**: Two separate issues were conflated. (A) Enrichment functions like `enrichGoals()` lose TypeScript's index signature when spreading `Record<string, unknown>` in `.map()` return — TypeScript infers only the explicit new fields. (B) Dashboard route builds fresh objects with explicit type casts (`as number`, `as string`). Adding `as Record<string, unknown>[]` to both cases was wrong — for (A) it partially fixed property *existence* but made values `unknown`; for (B) it UNDID the explicit casts.
+- **Fix**: Two-part fix: (1) Added explicit return types to all enrichment functions: `enrichGoal(): Record<string, unknown>`, `enrichGoals(): Record<string, unknown>[]`, etc. This preserves the index signature without caller-side assertions. (2) Removed ALL `as Record<string, unknown>[]` assertions from call sites — they're now unnecessary because the function signatures guarantee the type.
+- **Pattern**: **When TypeScript loses type information from spread operations, fix it at the SOURCE (the function return type) not the CONSUMER (caller-side assertions). Caller-side type assertions are fragile — they can be correct at one call site but harmful at another. Source-level return types are authoritative.**
+- **QA Rule**: Enrichment functions must always have explicit return types. Never rely on TypeScript inference for functions that spread `Record<string, unknown>`.
+- **Promoted to OS-level**: Yes — extends F-014 pattern. This is the second iteration of the same bug class, proving the "fix at source, not consumer" principle.
+
+---
+
 ## Trend Summary
 
 | Pattern | Count | Categories |
 |---------|-------|------------|
 | Sandbox/environment deployment assumptions | 4 | F-008, F-009, F-010, F-011 |
-| TypeScript type loss in enrichment patterns | 1 | F-014 |
+| TypeScript type loss in enrichment patterns | 2 | F-014, F-016 |
 | Display labels used where machine values needed | 2 | F-003, F-004 |
 | Cross-schema assumptions in ORM/query builder | 2 | F-001, F-002 |
 | Configuration placeholders not validated | 2 | F-006, F-012 |

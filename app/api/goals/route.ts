@@ -57,7 +57,7 @@ export async function GET(request: Request) {
   const lookups = await getGoalHabitLookups(supabase);
 
   // Filter by category slug if provided (post-query since it's cross-schema)
-  let enrichedGoals = enrichGoals(goals || [], lookups) as Record<string, unknown>[];
+  let enrichedGoals = enrichGoals(goals || [], lookups);
   if (category) {
     enrichedGoals = enrichedGoals.filter(
       (g) => g.category && (g.category as Record<string, unknown>).slug === category
@@ -100,7 +100,7 @@ export async function GET(request: Request) {
       linked_habits: habitLinksByGoal.get(g.id as string) || [],
       linked_tasks: taskLinksByGoal.get(g.id as string) || [],
       sub_goals: subgoalsByGoal.get(g.id as string) || [],
-    })) as Record<string, unknown>[];
+    }));
   }
 
   return NextResponse.json({ goals: enrichedGoals, total: count || 0 });
