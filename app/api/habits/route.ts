@@ -177,7 +177,10 @@ export async function POST(request: Request) {
       habit_id: habit.id,
       weight: 1.0,
     }));
-    await platform(supabase).from("goal_habits").insert(goalLinks).catch(console.error);
+    const { error: linkError } = await platform(supabase).from("goal_habits").insert(goalLinks);
+    if (linkError) {
+      console.error("Failed to link goals to habit:", linkError.message);
+    }
   }
 
   // Log activity

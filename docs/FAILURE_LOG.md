@@ -237,12 +237,27 @@ Each failure is tagged with:
 
 ---
 
+### F-017: `.catch()` Chained on Supabase Query Builder (Not a Promise)
+- **Date**: 2026-02-27
+- **Session**: 4
+- **Category**: `type-safety`, `build-failure`, `api-misuse`
+- **Severity**: Critical
+- **Symptom**: Vercel build #4 failed: `Property 'catch' does not exist on type 'PostgrestFilterBuilder<...>'. Did you mean 'match'?` at `habits/route.ts:180`.
+- **Root Cause**: `platform(supabase).from("goal_habits").insert(goalLinks).catch(console.error)` — Supabase's `PostgrestFilterBuilder` is thenable (has `.then()`) but does NOT have `.catch()`. Chaining `.catch()` directly on the builder is a type error. This passed locally because of cached/incremental builds but fails on Vercel's clean `tsc`.
+- **Fix**: Replaced with destructured error handling: `const { error: linkError } = await platform(supabase).from("goal_habits").insert(goalLinks); if (linkError) console.error(...)`. Scanned all other `.catch()` usages — the rest are on async functions (logActivity, recalculateAndUpdateGoalProgress, etc.) which return real Promises, so they're fine.
+- **Pattern**: **Never chain `.catch()` directly on Supabase query builders. Use `const { error } = await query` + conditional error handling instead.** The builder is thenable but not a full Promise — it lacks `.catch()` and `.finally()`.
+- **QA Rule**: Add to linter: any `.from(...)...insert|update|delete|upsert(...).catch(` pattern should be flagged. Only async function calls should use `.catch()`.
+- **Trend Note**: This is build failure #4 from TypeScript strictness differences between local (incremental) and Vercel (clean) builds. Pattern: **always validate with clean `tsc --noEmit` before deploy.**
+
+---
+
 ## Trend Summary
 
 | Pattern | Count | Categories |
 |---------|-------|------------|
 | Sandbox/environment deployment assumptions | 4 | F-008, F-009, F-010, F-011 |
 | TypeScript type loss in enrichment patterns | 2 | F-014, F-016 |
+| Supabase API misuse (non-Promise chaining) | 1 | F-017 |
 | Display labels used where machine values needed | 2 | F-003, F-004 |
 | Cross-schema assumptions in ORM/query builder | 2 | F-001, F-002 |
 | Configuration placeholders not validated | 2 | F-006, F-012 |
