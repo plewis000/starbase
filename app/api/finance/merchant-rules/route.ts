@@ -11,7 +11,8 @@ export async function GET() {
   const { data: rules, error } = await finance(supabase)
     .from("merchant_rules")
     .select("*")
-    .order("match_count", { ascending: false });
+    .order("match_count", { ascending: false })
+    .limit(500);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

@@ -97,6 +97,16 @@ export async function DELETE(
 
   const { id } = await params;
 
+  // Verify parent transaction belongs to the user before touching splits
+  const { data: parent } = await finance(supabase)
+    .from("transactions")
+    .select("id")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .single();
+
+  if (!parent) return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
+
   // Delete all splits
   const { error: deleteError } = await finance(supabase)
     .from("transaction_splits")

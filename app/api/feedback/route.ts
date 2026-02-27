@@ -12,19 +12,23 @@ export async function GET(request: NextRequest) {
   const status = params.get("status");
   const type = params.get("type");
 
+  const limit = Math.min(parseInt(params.get("limit") || "100"), 200);
+  const offset = parseInt(params.get("offset") || "0");
+
   let query = platform(supabase)
     .from("feedback")
-    .select("*")
-    .order("created_at", { ascending: false });
+    .select("*", { count: "exact" })
+    .order("created_at", { ascending: false })
+    .range(offset, offset + limit - 1);
 
   if (status) query = query.eq("status", status);
   if (type) query = query.eq("type", type);
 
-  const { data: feedback, error } = await query;
+  const { data: feedback, error, count } = await query;
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  return NextResponse.json({ feedback: feedback || [] });
+  return NextResponse.json({ feedback: feedback || [], total: count });
 }
 
 // POST /api/feedback — Submit feedback
