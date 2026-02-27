@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyKey } from "discord-interactions";
-import { sendMessage, sendEmbed, CHANNELS, ZEV_COLOR, getGuildChannels } from "@/lib/discord";
+import { sendMessage, CHANNELS, ZEV_COLOR, getGuildChannels } from "@/lib/discord";
 import { createClient } from "@/lib/supabase/server";
-import { platform } from "@/lib/supabase/schemas";
+import { platform, config, household, finance } from "@/lib/supabase/schemas";
 import {
   anthropic,
   getModel,
@@ -37,14 +37,14 @@ Functional rules:
 - If a tool fails, say what happened without drama.
 - If the user asks something outside your capabilities, say so plainly.`;
 
+type Supabase = Awaited<ReturnType<typeof createClient>>;
+
 // POST /api/discord — Discord Interactions endpoint
-// Handles: ping verification, slash commands, and deferred responses
 export async function POST(request: NextRequest) {
   const body = await request.text();
   const signature = request.headers.get("x-signature-ed25519") || "";
   const timestamp = request.headers.get("x-signature-timestamp") || "";
 
-  // Verify the request is from Discord
   const isValid = await verifyKey(body, signature, timestamp, DISCORD_PUBLIC_KEY);
   if (!isValid) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
@@ -52,31 +52,23 @@ export async function POST(request: NextRequest) {
 
   const interaction = JSON.parse(body);
 
-  // Type 1: Ping (Discord verification)
   if (interaction.type === 1) {
     return NextResponse.json({ type: 1 });
   }
 
-  // Type 2: Slash command
   if (interaction.type === 2) {
     const commandName = interaction.data.name;
     const options = parseOptions(interaction.data.options || []);
     const discordUserId = interaction.member?.user?.id || interaction.user?.id;
 
-    // Respond with "thinking..." immediately, then process async
-    // Type 5 = DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
     const deferResponse = NextResponse.json({ type: 5 });
-
-    // Process the command asynchronously
     processCommand(commandName, options, discordUserId, interaction).catch(console.error);
-
     return deferResponse;
   }
 
   return NextResponse.json({ type: 1 });
 }
 
-// Parse slash command options into a flat object
 function parseOptions(options: { name: string; value: unknown }[]): Record<string, unknown> {
   const result: Record<string, unknown> = {};
   for (const opt of options) {
@@ -85,7 +77,7 @@ function parseOptions(options: { name: string; value: unknown }[]): Record<strin
   return result;
 }
 
-// Process a slash command asynchronously and send the response via webhook
+// Route commands: direct DB for structured commands, agent for /ask
 async function processCommand(
   commandName: string,
   options: Record<string, unknown>,
@@ -96,83 +88,465 @@ async function processCommand(
   const webhookUrl = `https://discord.com/api/v10/webhooks/${APP_ID}/${interaction.token}`;
 
   try {
-    // Map Discord user to Supabase user
     const supabase = await createClient();
     const userId = await resolveUser(supabase, discordUserId);
 
     if (!userId) {
-      await fetch(webhookUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          content: "I don't know who you are. Ask Parker to link your Discord account — I don't just talk to strangers.",
-        }),
+      await sendWebhook(webhookUrl, {
+        content: "I don't know who you are. Ask Parker to link your Discord account — I don't just talk to strangers.",
       });
       return;
     }
 
-    let message: string;
-
-    // Convert slash commands to natural language for the agent
+    // Direct DB commands (free, no Claude API)
     switch (commandName) {
       case "task":
-        message = `Create a task: "${options.title}"${options.due ? ` due ${options.due}` : ""}${options.priority ? ` priority ${options.priority}` : ""}`;
-        break;
+        return await handleTask(supabase, userId, options, webhookUrl);
       case "habit":
-        message = `Check in to my habit "${options.name}"`;
-        break;
+        return await handleHabit(supabase, userId, options, webhookUrl);
       case "budget":
-        message = `Show me my spending summary for ${options.period || "this month"}`;
-        break;
-      case "ask":
-        message = options.message as string;
-        break;
+        return await handleBudget(supabase, userId, options, webhookUrl);
       case "shop":
-        message = `Add these to my shopping list: ${options.items}`;
-        break;
+        return await handleShop(supabase, userId, options, webhookUrl);
       case "dashboard":
-        message = "Give me my daily dashboard overview";
-        break;
+        return await handleDashboard(supabase, userId, webhookUrl);
       case "usage":
-        message = "Show me my API usage and costs for this month";
-        break;
+        return await handleUsage(supabase, webhookUrl);
+      case "ask":
+        return await handleAsk(supabase, userId, options, interaction, webhookUrl);
       default:
-        message = `${commandName} ${Object.values(options).join(" ")}`;
-    }
-
-    // Run through the agent
-    const response = await runAgent(supabase, userId, message, "discord", interaction.channel_id);
-
-    // Send response back via webhook
-    await fetch(webhookUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: response.text }),
-    });
-
-    // Log to #logs channel if it exists
-    if (response.toolRounds > 0) {
-      await logToChannel(response.summary);
+        await sendWebhook(webhookUrl, { content: `Unknown command: ${commandName}` });
     }
   } catch (err) {
     console.error("Discord command error:", err);
-    await fetch(webhookUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: "Something broke on my end. Not your fault. Try again in a sec." }),
+    await sendWebhook(webhookUrl, {
+      content: "Something broke on my end. Not your fault. Try again in a sec.",
     });
   }
 }
 
-// Run the agent (shared logic between slash commands and channel messages)
+// ── Direct command handlers (no Claude API cost) ──────────────────────
+
+async function handleTask(supabase: Supabase, userId: string, options: Record<string, unknown>, webhookUrl: string) {
+  const title = options.title as string;
+  const due = options.due as string | undefined;
+  const priorityName = options.priority as string | undefined;
+
+  // Resolve priority name to UUID
+  let priorityId: string | undefined;
+  if (priorityName) {
+    const { data: priorities } = await config(supabase)
+      .from("task_priorities")
+      .select("id, name")
+      .eq("active", true);
+    const match = priorities?.find((p) => p.name.toLowerCase() === priorityName.toLowerCase());
+    if (match) priorityId = match.id;
+  }
+
+  // Get default status (first active status, usually "To Do")
+  const { data: statuses } = await config(supabase)
+    .from("task_statuses")
+    .select("id")
+    .eq("active", true)
+    .order("sort_order")
+    .limit(1);
+
+  const statusId = statuses?.[0]?.id;
+
+  const insertData: Record<string, unknown> = {
+    title,
+    assigned_to: userId,
+    created_by: userId,
+  };
+  if (statusId) insertData.status_id = statusId;
+  if (priorityId) insertData.priority_id = priorityId;
+  if (due) insertData.due_date = due;
+
+  const { data: task, error } = await platform(supabase)
+    .from("tasks")
+    .insert(insertData)
+    .select("id, title, due_date")
+    .single();
+
+  if (error) {
+    await sendWebhook(webhookUrl, { content: `Couldn't create task. ${error.message}` });
+    return;
+  }
+
+  const fields = [];
+  if (due) fields.push({ name: "Due", value: due, inline: true });
+  if (priorityName) fields.push({ name: "Priority", value: priorityName.charAt(0).toUpperCase() + priorityName.slice(1), inline: true });
+
+  await sendWebhook(webhookUrl, {
+    embeds: [{
+      title: "Task created",
+      description: `**${task.title}**`,
+      color: ZEV_COLOR,
+      fields,
+      footer: { text: "Free command — no API cost" },
+    }],
+  });
+}
+
+async function handleHabit(supabase: Supabase, userId: string, options: Record<string, unknown>, webhookUrl: string) {
+  const searchName = (options.name as string).toLowerCase();
+
+  // Find habit by name (fuzzy match)
+  const { data: habits } = await platform(supabase)
+    .from("habits")
+    .select("id, title, current_streak, longest_streak")
+    .eq("owner_id", userId)
+    .eq("status", "active");
+
+  if (!habits || habits.length === 0) {
+    await sendWebhook(webhookUrl, { content: "You don't have any active habits. Create one on the web first." });
+    return;
+  }
+
+  // Find best match: exact, starts with, or contains
+  const match = habits.find((h) => h.title.toLowerCase() === searchName)
+    || habits.find((h) => h.title.toLowerCase().startsWith(searchName))
+    || habits.find((h) => h.title.toLowerCase().includes(searchName));
+
+  if (!match) {
+    const names = habits.map((h) => h.title).join(", ");
+    await sendWebhook(webhookUrl, { content: `No habit matching "${options.name}". Your habits: ${names}` });
+    return;
+  }
+
+  // Check if already checked in today
+  const today = new Date().toISOString().slice(0, 10);
+  const { data: existing } = await platform(supabase)
+    .from("habit_check_ins")
+    .select("id")
+    .eq("habit_id", match.id)
+    .eq("checked_by", userId)
+    .eq("check_in_date", today)
+    .limit(1);
+
+  if (existing && existing.length > 0) {
+    await sendWebhook(webhookUrl, {
+      embeds: [{
+        description: `You already checked in **${match.title}** today. Streak: **${match.current_streak}** days.`,
+        color: ZEV_COLOR,
+      }],
+    });
+    return;
+  }
+
+  // Create check-in
+  const { error } = await platform(supabase)
+    .from("habit_check_ins")
+    .insert({ habit_id: match.id, checked_by: userId, check_in_date: today, status: "done" });
+
+  if (error) {
+    await sendWebhook(webhookUrl, { content: `Check-in failed. ${error.message}` });
+    return;
+  }
+
+  // Update streak
+  const newStreak = (match.current_streak || 0) + 1;
+  const newLongest = Math.max(newStreak, match.longest_streak || 0);
+  await platform(supabase)
+    .from("habits")
+    .update({ current_streak: newStreak, longest_streak: newLongest, last_completed_at: new Date().toISOString() })
+    .eq("id", match.id);
+
+  const streakEmoji = newStreak >= 7 ? "🔥" : newStreak >= 3 ? "⚡" : "✓";
+
+  await sendWebhook(webhookUrl, {
+    embeds: [{
+      description: `${streakEmoji} **${match.title}** — checked in. Streak: **${newStreak}** day${newStreak !== 1 ? "s" : ""}.`,
+      color: ZEV_COLOR,
+      footer: { text: "Free command — no API cost" },
+    }],
+  });
+}
+
+async function handleBudget(supabase: Supabase, userId: string, options: Record<string, unknown>, webhookUrl: string) {
+  const period = (options.period as string) || "month";
+  const now = new Date();
+  let startDate: string;
+
+  if (period === "week") {
+    const day = now.getDay();
+    const sun = new Date(now);
+    sun.setDate(now.getDate() - day);
+    startDate = sun.toISOString().slice(0, 10);
+  } else if (period === "year") {
+    startDate = `${now.getFullYear()}-01-01`;
+  } else {
+    startDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+  }
+  const endDate = now.toISOString().slice(0, 10);
+
+  // Get categories and transactions in parallel
+  const [catResult, txResult] = await Promise.all([
+    config(supabase).from("expense_categories").select("id, name, is_income, icon").eq("active", true),
+    finance(supabase).from("transactions").select("amount, category_id, is_pending")
+      .eq("user_id", userId).eq("excluded", false).is("split_parent_id", null)
+      .gte("date", startDate).lte("date", endDate),
+  ]);
+
+  const categories = catResult.data || [];
+  const transactions = txResult.data || [];
+  const catMap = new Map(categories.map((c) => [c.id, c]));
+
+  let totalSpent = 0;
+  let totalIncome = 0;
+  const byCategory = new Map<string, number>();
+
+  for (const tx of transactions) {
+    if (tx.is_pending) continue;
+    const cat = tx.category_id ? catMap.get(tx.category_id) : null;
+    const amount = Math.abs(tx.amount);
+
+    if (cat?.is_income) {
+      totalIncome += amount;
+    } else {
+      totalSpent += amount;
+      const catName = cat?.name || "Uncategorized";
+      byCategory.set(catName, (byCategory.get(catName) || 0) + amount);
+    }
+  }
+
+  // Sort categories by spend descending
+  const sorted = [...byCategory.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
+
+  const periodLabel = period === "week" ? "This Week" : period === "year" ? "This Year" : "This Month";
+  const breakdown = sorted.map(([name, amt]) => `${name}: **$${amt.toFixed(2)}**`).join("\n") || "No transactions yet.";
+
+  const daysElapsed = Math.max(1, Math.ceil((now.getTime() - new Date(startDate).getTime()) / 86400000));
+  const dailyAvg = totalSpent / daysElapsed;
+
+  await sendWebhook(webhookUrl, {
+    embeds: [{
+      title: `${periodLabel} Spending`,
+      fields: [
+        { name: "Spent", value: `$${totalSpent.toFixed(2)}`, inline: true },
+        { name: "Income", value: `$${totalIncome.toFixed(2)}`, inline: true },
+        { name: "Net", value: `$${(totalIncome - totalSpent).toFixed(2)}`, inline: true },
+        { name: "Daily Avg", value: `$${dailyAvg.toFixed(2)}/day`, inline: true },
+        { name: "Transactions", value: `${transactions.length}`, inline: true },
+      ],
+      description: `**Top Categories**\n${breakdown}`,
+      color: ZEV_COLOR,
+      footer: { text: "Free command — no API cost" },
+    }],
+  });
+}
+
+async function handleShop(supabase: Supabase, userId: string, options: Record<string, unknown>, webhookUrl: string) {
+  const itemsRaw = options.items as string;
+  const items = itemsRaw.split(",").map((s) => s.trim()).filter(Boolean);
+
+  if (items.length === 0) {
+    await sendWebhook(webhookUrl, { content: "No items provided." });
+    return;
+  }
+
+  // Get default shopping list
+  const { data: lists } = await household(supabase)
+    .from("shopping_lists")
+    .select("id, name")
+    .eq("created_by", userId)
+    .order("is_default", { ascending: false })
+    .limit(1);
+
+  let listId: string;
+  let listName: string;
+
+  if (lists && lists.length > 0) {
+    listId = lists[0].id;
+    listName = lists[0].name;
+  } else {
+    // Create a default list
+    const { data: newList, error } = await household(supabase)
+      .from("shopping_lists")
+      .insert({ name: "Shopping List", created_by: userId, is_default: true })
+      .select("id, name")
+      .single();
+
+    if (error || !newList) {
+      await sendWebhook(webhookUrl, { content: `Couldn't create shopping list. ${error?.message}` });
+      return;
+    }
+    listId = newList.id;
+    listName = newList.name;
+  }
+
+  // Insert items
+  const insertData = items.map((name, i) => ({
+    list_id: listId,
+    name,
+    added_by: userId,
+    sort_order: i,
+  }));
+
+  const { error } = await household(supabase)
+    .from("shopping_items")
+    .insert(insertData);
+
+  if (error) {
+    await sendWebhook(webhookUrl, { content: `Couldn't add items. ${error.message}` });
+    return;
+  }
+
+  await sendWebhook(webhookUrl, {
+    embeds: [{
+      description: `Added **${items.length}** item${items.length !== 1 ? "s" : ""} to **${listName}**:\n${items.map((i) => `• ${i}`).join("\n")}`,
+      color: ZEV_COLOR,
+      footer: { text: "Free command — no API cost" },
+    }],
+  });
+}
+
+async function handleDashboard(supabase: Supabase, userId: string, webhookUrl: string) {
+  const today = new Date().toISOString().slice(0, 10);
+
+  const [overdueResult, todayResult, activeGoals, activeHabits, streaks] = await Promise.all([
+    platform(supabase).from("tasks").select("id", { count: "exact", head: true })
+      .eq("assigned_to", userId).is("completed_at", null).lt("due_date", today),
+    platform(supabase).from("tasks").select("id, title, due_date", { count: "exact" })
+      .eq("assigned_to", userId).is("completed_at", null).eq("due_date", today).limit(5),
+    platform(supabase).from("goals").select("id", { count: "exact", head: true })
+      .eq("owner_id", userId).eq("status", "active"),
+    platform(supabase).from("habits").select("id", { count: "exact", head: true })
+      .eq("owner_id", userId).eq("status", "active"),
+    platform(supabase).from("habits").select("title, current_streak")
+      .eq("owner_id", userId).eq("status", "active").gt("current_streak", 0)
+      .order("current_streak", { ascending: false }).limit(3),
+  ]);
+
+  // Check today's habit completions
+  const { count: habitsCompletedToday } = await platform(supabase)
+    .from("habit_check_ins")
+    .select("id", { count: "exact", head: true })
+    .eq("checked_by", userId)
+    .eq("check_in_date", today);
+
+  const overdueCount = overdueResult.count || 0;
+  const todayCount = todayResult.count || 0;
+  const todayTasks = todayResult.data || [];
+  const goalCount = activeGoals.count || 0;
+  const habitCount = activeHabits.count || 0;
+  const completedCount = habitsCompletedToday || 0;
+  const topStreaks = streaks.data || [];
+
+  const taskList = todayTasks.length > 0
+    ? todayTasks.map((t) => `• ${t.title}`).join("\n")
+    : "Nothing due today.";
+
+  const streakList = topStreaks.length > 0
+    ? topStreaks.map((s) => `• ${s.title}: **${s.current_streak}** days`).join("\n")
+    : "No active streaks.";
+
+  const overdueNote = overdueCount > 0 ? `⚠️ **${overdueCount} overdue task${overdueCount !== 1 ? "s" : ""}**` : "";
+
+  await sendWebhook(webhookUrl, {
+    embeds: [{
+      title: `Dashboard — ${new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}`,
+      fields: [
+        { name: "Tasks Due Today", value: `${todayCount}`, inline: true },
+        { name: "Active Goals", value: `${goalCount}`, inline: true },
+        { name: "Habits", value: `${completedCount}/${habitCount} done`, inline: true },
+      ],
+      description: [
+        overdueNote,
+        todayCount > 0 ? `**Today's Tasks**\n${taskList}` : "",
+        topStreaks.length > 0 ? `**Top Streaks**\n${streakList}` : "",
+      ].filter(Boolean).join("\n\n"),
+      color: ZEV_COLOR,
+      footer: { text: "Free command — no API cost" },
+    }],
+  });
+}
+
+async function handleUsage(supabase: Supabase, webhookUrl: string) {
+  const now = new Date();
+  const startOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01T00:00:00Z`;
+
+  const { data: messages } = await platform(supabase)
+    .from("agent_messages")
+    .select("tokens_used, cost_cents, model, conversation_id")
+    .eq("role", "assistant")
+    .gte("created_at", startOfMonth);
+
+  if (!messages || messages.length === 0) {
+    await sendWebhook(webhookUrl, {
+      embeds: [{
+        description: "No API usage this month. Your wallet is safe.",
+        color: ZEV_COLOR,
+      }],
+    });
+    return;
+  }
+
+  let totalTokens = 0;
+  let totalCost = 0;
+  const byModel = new Map<string, { messages: number; cost: number }>();
+  const convos = new Set<string>();
+
+  for (const msg of messages) {
+    totalTokens += msg.tokens_used || 0;
+    totalCost += msg.cost_cents || 0;
+    convos.add(msg.conversation_id);
+
+    const model = msg.model || "unknown";
+    const existing = byModel.get(model) || { messages: 0, cost: 0 };
+    existing.messages++;
+    existing.cost += msg.cost_cents || 0;
+    byModel.set(model, existing);
+  }
+
+  const modelBreakdown = [...byModel.entries()]
+    .map(([model, stats]) => `${model}: ${stats.messages} msg${stats.messages !== 1 ? "s" : ""} ($${(stats.cost / 100).toFixed(4)})`)
+    .join("\n");
+
+  await sendWebhook(webhookUrl, {
+    embeds: [{
+      title: "API Usage — This Month",
+      fields: [
+        { name: "Total Cost", value: `$${(totalCost / 100).toFixed(4)}`, inline: true },
+        { name: "Messages", value: `${messages.length}`, inline: true },
+        { name: "Conversations", value: `${convos.size}`, inline: true },
+        { name: "Total Tokens", value: totalTokens.toLocaleString(), inline: true },
+      ],
+      description: `**By Model**\n${modelBreakdown}`,
+      color: ZEV_COLOR,
+      footer: { text: "Free command — no API cost" },
+    }],
+  });
+}
+
+// ── Agent-powered handler (costs API credits) ─────────────────────────
+
+async function handleAsk(
+  supabase: Supabase,
+  userId: string,
+  options: Record<string, unknown>,
+  interaction: { token: string; application_id: string; channel_id: string },
+  webhookUrl: string,
+) {
+  const message = options.message as string;
+  const response = await runAgent(supabase, userId, message, "discord", interaction.channel_id);
+
+  await sendWebhook(webhookUrl, { content: response.text });
+
+  if (response.toolRounds > 0) {
+    await logToChannel(response.summary);
+  }
+}
+
+// ── Agent runner (shared with future channel message handling) ─────────
+
 async function runAgent(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  supabase: Supabase,
   userId: string,
   message: string,
   channel: string,
   channelId: string,
 ): Promise<{ text: string; toolRounds: number; costCents: number; summary: string }> {
-  // Create conversation
   const { data: conv } = await platform(supabase)
     .from("agent_conversations")
     .insert({ user_id: userId, channel, channel_id: channelId })
@@ -181,7 +555,6 @@ async function runAgent(
 
   const conversationId = conv?.id;
 
-  // Store user message
   if (conversationId) {
     await platform(supabase)
       .from("agent_messages")
@@ -204,7 +577,6 @@ async function runAgent(
   let toolRounds = 0;
   const toolNames: string[] = [];
 
-  // Tool loop
   while (response.stop_reason === "tool_use" && toolRounds < MAX_TOOL_ROUNDS) {
     toolRounds++;
 
@@ -261,7 +633,6 @@ async function runAgent(
   const costs = MODEL_COSTS[model] || { input: 0, output: 0 };
   const costCents = ((totalInputTokens / 1000) * costs.input + (totalOutputTokens / 1000) * costs.output) * 100;
 
-  // Store assistant response
   if (conversationId) {
     await platform(supabase)
       .from("agent_messages")
@@ -283,10 +654,9 @@ async function runAgent(
   };
 }
 
-// Resolve Discord user ID to Supabase user ID
-// For now, maps Parker's Discord ID. Can be expanded to a lookup table.
-async function resolveUser(supabase: Awaited<ReturnType<typeof createClient>>, discordUserId: string): Promise<string | null> {
-  // Check user_preferences for discord_user_id mapping
+// ── Helpers ───────────────────────────────────────────────────────────
+
+async function resolveUser(supabase: Supabase, discordUserId: string): Promise<string | null> {
   const { data } = await platform(supabase)
     .from("user_preferences")
     .select("user_id")
@@ -296,18 +666,23 @@ async function resolveUser(supabase: Awaited<ReturnType<typeof createClient>>, d
 
   if (data) return data.user_id;
 
-  // Fallback: if only one user exists, use them (single-household mode)
   const { data: users } = await supabase.schema("platform")
     .from("users")
     .select("id")
     .limit(2);
 
   if (users && users.length === 1) return users[0].id;
-
   return null;
 }
 
-// Log agent actions to the #logs channel
+async function sendWebhook(url: string, body: Record<string, unknown>) {
+  await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
 async function logToChannel(summary: string) {
   try {
     const channels = await getGuildChannels();
@@ -316,7 +691,7 @@ async function logToChannel(summary: string) {
       await sendMessage(logsChannel.id, `\`${new Date().toISOString().slice(11, 19)}\` ${summary}`);
     }
   } catch {
-    // Non-critical — don't fail if logging fails
+    // Non-critical
   }
 }
 
