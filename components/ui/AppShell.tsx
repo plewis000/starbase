@@ -6,6 +6,8 @@ import { usePathname } from "next/navigation";
 import NotificationBell from "@/components/NotificationBell";
 import SignOutButton from "@/components/SignOutButton";
 import BottomNav from "./BottomNav";
+import ChatBubble from "@/components/zev/ChatBubble";
+import CommandPalette from "@/components/ui/CommandPalette";
 
 interface NavItem {
   href: string;
@@ -33,6 +35,7 @@ const navItems: NavItem[] = [
   { href: "/habits", label: "Habits", icon: "🔄" },
   { href: "/shopping", label: "Shopping", icon: "🛒" },
   { href: "/notifications", label: "Notifications", icon: "🔔" },
+  { href: "/settings", label: "Settings", icon: "⚙️" },
 ];
 
 export default function AppShell({ user, children }: AppShellProps) {
@@ -69,7 +72,7 @@ export default function AppShell({ user, children }: AppShellProps) {
             </button>
 
             <Link href="/dashboard" className="text-xl font-bold text-slate-100">
-              ⭐ Starbase
+              Starbase
             </Link>
           </div>
 
@@ -166,6 +169,12 @@ export default function AppShell({ user, children }: AppShellProps) {
 
       {/* Bottom nav - Mobile */}
       <BottomNav />
+
+      {/* Zev Chat Bubble */}
+      <ChatBubble />
+
+      {/* Command Palette (Cmd+K) */}
+      <CommandPalette />
 
       {/* Overlay on mobile when sidebar is open */}
       {sidebarOpen && (

@@ -52,6 +52,7 @@ interface TaskCardProps {
     checklist_items?: ChecklistItem[];
   };
   onSelect: (id: string) => void;
+  onQuickComplete?: (id: string) => void;
   isSelected?: boolean;
 }
 
@@ -106,6 +107,7 @@ const getInitials = (fullName?: string): string => {
 export default function TaskCard({
   task,
   onSelect,
+  onQuickComplete,
   isSelected = false,
 }: TaskCardProps) {
   const checklist = task.checklist_items || [];
@@ -113,6 +115,12 @@ export default function TaskCard({
   const hasChecklist = checklist.length > 0;
   const displayTags = (task.tags || []).slice(0, 2);
   const hiddenTagsCount = Math.max(0, (task.tags || []).length - 2);
+  const isCompleted = !!task.completed_at;
+
+  const handleCheckbox = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onQuickComplete) onQuickComplete(task.id);
+  };
 
   return (
     <div
@@ -121,22 +129,24 @@ export default function TaskCard({
         isSelected
           ? "border-green-400 border-l-4"
           : "border-slate-800 hover:border-slate-700"
-      }`}
+      } ${isCompleted ? "opacity-60" : ""}`}
     >
-      {/* Status indicator dot */}
-      <div className="flex-shrink-0">
-        {task.status ? (
-          <div className="flex items-center">
-            {task.status.icon ? (
-              <span className="text-lg">{task.status.icon}</span>
-            ) : (
-              <div className="w-3 h-3 rounded-full bg-slate-600" />
-            )}
-          </div>
-        ) : (
-          <div className="w-3 h-3 rounded-full bg-slate-600" />
+      {/* Quick-complete checkbox */}
+      <button
+        onClick={handleCheckbox}
+        className={`flex-shrink-0 w-5 h-5 rounded border-2 transition-colors flex items-center justify-center ${
+          isCompleted
+            ? "bg-green-500 border-green-500 text-white"
+            : "border-slate-600 hover:border-green-400"
+        }`}
+        title={isCompleted ? "Completed" : "Mark complete"}
+      >
+        {isCompleted && (
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
         )}
-      </div>
+      </button>
 
       {/* Task content */}
       <div className="flex-1 min-w-0">

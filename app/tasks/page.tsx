@@ -45,6 +45,7 @@ export default function TasksPage() {
               <TaskList
                 onSelectTask={handleSelectTask}
                 onCreateTask={handleCreateTask}
+                onTaskUpdated={handleTaskUpdated}
                 selectedTaskId={selectedTaskId}
                 key={refreshTrigger}
               />

@@ -23,6 +23,42 @@ interface HabitListProps {
   selectedHabitId?: string;
 }
 
+function QuickAddHabit({ onCreated }: { onCreated: () => void }) {
+  const [title, setTitle] = useState("");
+  const [adding, setAdding] = useState(false);
+
+  const handleAdd = async () => {
+    const t = title.trim();
+    if (!t || adding) return;
+    setAdding(true);
+    try {
+      const configRes = await fetch("/api/config");
+      const configData = await configRes.json();
+      const dailyFreq = configData.habit_frequencies?.find((f: { name: string }) => f.name.toLowerCase() === "daily");
+
+      const res = await fetch("/api/habits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: t, frequency_id: dailyFreq?.id }),
+      });
+      if (res.ok) { setTitle(""); onCreated(); }
+    } catch { /* ignore */ }
+    setAdding(false);
+  };
+
+  return (
+    <input
+      type="text"
+      value={title}
+      onChange={(e) => setTitle(e.target.value)}
+      onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
+      placeholder="Quick add habit... (press Enter, defaults to daily)"
+      disabled={adding}
+      className="w-full bg-slate-900 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-green-500/50 disabled:opacity-50 transition-colors"
+    />
+  );
+}
+
 export default function HabitList({ onSelectHabit, onCreateHabit, selectedHabitId }: HabitListProps) {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [loading, setLoading] = useState(true);
@@ -96,6 +132,9 @@ export default function HabitList({ onSelectHabit, onCreateHabit, selectedHabitI
           New Habit
         </button>
       </div>
+
+      {/* Quick-add habit */}
+      <QuickAddHabit onCreated={fetchHabits} />
 
       {/* Today's progress bar */}
       {activeCount > 0 && (

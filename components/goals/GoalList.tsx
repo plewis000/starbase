@@ -24,6 +24,38 @@ interface GoalListProps {
 
 const STATUS_TABS = ["All", "Active", "Completed", "Paused"] as const;
 
+function QuickAddGoal({ onCreated }: { onCreated: () => void }) {
+  const [title, setTitle] = useState("");
+  const [adding, setAdding] = useState(false);
+
+  const handleAdd = async () => {
+    const t = title.trim();
+    if (!t || adding) return;
+    setAdding(true);
+    try {
+      const res = await fetch("/api/goals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: t, progress_type: "manual" }),
+      });
+      if (res.ok) { setTitle(""); onCreated(); }
+    } catch { /* ignore */ }
+    setAdding(false);
+  };
+
+  return (
+    <input
+      type="text"
+      value={title}
+      onChange={(e) => setTitle(e.target.value)}
+      onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
+      placeholder="Quick add goal... (press Enter)"
+      disabled={adding}
+      className="w-full bg-slate-900 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-green-500/50 disabled:opacity-50 transition-colors"
+    />
+  );
+}
+
 export default function GoalList({ onSelectGoal, onCreateGoal, selectedGoalId }: GoalListProps) {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(true);
@@ -79,6 +111,9 @@ export default function GoalList({ onSelectGoal, onCreateGoal, selectedGoalId }:
           New Goal
         </button>
       </div>
+
+      {/* Quick-add goal */}
+      <QuickAddGoal onCreated={fetchGoals} />
 
       {/* Status tabs */}
       <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-lg border border-slate-800">
