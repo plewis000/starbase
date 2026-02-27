@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/components/ui/Toast";
 
 interface CommandResult {
   type: "navigate" | "create" | "action";
@@ -18,6 +19,7 @@ export default function CommandPalette() {
   const [creating, setCreating] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  const toast = useToast();
 
   // Open with Cmd+K / Ctrl+K
   useEffect(() => {
@@ -57,7 +59,7 @@ export default function CommandPalette() {
       });
       setIsOpen(false);
       router.push("/tasks");
-    } catch { /* ignore */ }
+    } catch { toast.error("Failed to create"); }
     setCreating(false);
   }, [router]);
 
@@ -75,7 +77,7 @@ export default function CommandPalette() {
       });
       setIsOpen(false);
       router.push("/habits");
-    } catch { /* ignore */ }
+    } catch { toast.error("Failed to create"); }
     setCreating(false);
   }, [router]);
 
@@ -107,7 +109,7 @@ export default function CommandPalette() {
       }
       setIsOpen(false);
       router.push("/shopping");
-    } catch { /* ignore */ }
+    } catch { toast.error("Failed to create"); }
     setCreating(false);
   }, [router]);
 

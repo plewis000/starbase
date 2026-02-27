@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useToast } from "@/components/ui/Toast";
 
 interface UserProfile {
   id: string;
@@ -16,6 +17,7 @@ interface IntegrationStatus {
 }
 
 export default function SettingsPage() {
+  const toast = useToast();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [integrations, setIntegrations] = useState<IntegrationStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -30,7 +32,7 @@ export default function SettingsPage() {
           setUser(data.user);
           setIntegrations(data.integrations);
         }
-      } catch { /* ignore */ }
+      } catch { toast.error("Failed to load profile"); }
       setLoading(false);
     };
     load();

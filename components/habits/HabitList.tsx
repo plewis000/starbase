@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import HabitCard from "./HabitCard";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import EmptyState from "@/components/ui/EmptyState";
+import { useToast } from "@/components/ui/Toast";
 
 interface Habit {
   id: string;
@@ -26,6 +27,7 @@ interface HabitListProps {
 function QuickAddHabit({ onCreated }: { onCreated: () => void }) {
   const [title, setTitle] = useState("");
   const [adding, setAdding] = useState(false);
+  const toast = useToast();
 
   const handleAdd = async () => {
     const t = title.trim();
@@ -41,8 +43,9 @@ function QuickAddHabit({ onCreated }: { onCreated: () => void }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: t, frequency_id: dailyFreq?.id }),
       });
-      if (res.ok) { setTitle(""); onCreated(); }
-    } catch { /* ignore */ }
+      if (res.ok) { setTitle(""); onCreated(); toast.success("Habit created"); }
+      else { toast.error("Failed to create habit"); }
+    } catch { toast.error("Failed to create habit"); }
     setAdding(false);
   };
 
@@ -75,8 +78,8 @@ export default function HabitList({ onSelectHabit, onCreateHabit, selectedHabitI
       if (!res.ok) throw new Error("Failed to fetch");
       const data = await res.json();
       setHabits(data.habits || []);
-    } catch (err) {
-      console.error("Error fetching habits:", err);
+    } catch {
+      // Silently fail on fetch — empty state will show
     } finally {
       setLoading(false);
     }

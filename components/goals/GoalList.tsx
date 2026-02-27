@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import GoalCard from "./GoalCard";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import EmptyState from "@/components/ui/EmptyState";
+import { useToast } from "@/components/ui/Toast";
 
 interface Goal {
   id: string;
@@ -27,6 +28,7 @@ const STATUS_TABS = ["All", "Active", "Completed", "Paused"] as const;
 function QuickAddGoal({ onCreated }: { onCreated: () => void }) {
   const [title, setTitle] = useState("");
   const [adding, setAdding] = useState(false);
+  const toast = useToast();
 
   const handleAdd = async () => {
     const t = title.trim();
@@ -38,8 +40,9 @@ function QuickAddGoal({ onCreated }: { onCreated: () => void }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: t, progress_type: "manual" }),
       });
-      if (res.ok) { setTitle(""); onCreated(); }
-    } catch { /* ignore */ }
+      if (res.ok) { setTitle(""); onCreated(); toast.success("Goal created"); }
+      else { toast.error("Failed to create goal"); }
+    } catch { toast.error("Failed to create goal"); }
     setAdding(false);
   };
 
@@ -74,8 +77,8 @@ export default function GoalList({ onSelectGoal, onCreateGoal, selectedGoalId }:
       if (!res.ok) throw new Error("Failed to fetch goals");
       const data = await res.json();
       setGoals(data.goals || []);
-    } catch (err) {
-      console.error("Error fetching goals:", err);
+    } catch {
+      // Silently fail on fetch — empty state will show
     } finally {
       setLoading(false);
     }

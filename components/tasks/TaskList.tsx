@@ -5,6 +5,7 @@ import FilterBar, { TaskFilters } from "./FilterBar";
 import TaskCard from "./TaskCard";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import EmptyState from "@/components/ui/EmptyState";
+import { useToast } from "@/components/ui/Toast";
 
 interface Tag {
   id: string;
@@ -66,6 +67,7 @@ export default function TaskList({
   onTaskUpdated,
   selectedTaskId,
 }: TaskListProps) {
+  const toast = useToast();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
@@ -144,8 +146,8 @@ export default function TaskList({
         setTasks(reset ? data.tasks : [...tasks, ...data.tasks]);
         setTotal(data.total);
         if (reset) setOffset(0);
-      } catch (error) {
-        console.error("Error fetching tasks:", error);
+      } catch {
+        toast.error("Failed to load tasks");
       } finally {
         setLoading(false);
       }
@@ -195,7 +197,7 @@ export default function TaskList({
       });
       onTaskUpdated?.();
     } catch {
-      // Revert on error
+      toast.error("Failed to update task");
       setTasks((prev) =>
         prev.map((t) =>
           t.id === taskId ? { ...t, completed_at: task.completed_at } : t
@@ -224,8 +226,13 @@ export default function TaskList({
         setQuickAddTitle("");
         fetchTasks(filters, true);
         onTaskUpdated?.();
+        toast.success("Task created");
+      } else {
+        toast.error("Failed to create task");
       }
-    } catch { /* ignore */ }
+    } catch {
+      toast.error("Failed to create task");
+    }
     setQuickAdding(false);
   };
 

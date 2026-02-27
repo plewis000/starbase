@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/components/ui/Toast";
 
 interface Notification {
   id: string;
@@ -19,6 +20,7 @@ type FilterType = "all" | "unread";
 
 export default function NotificationInbox() {
   const router = useRouter();
+  const toast = useToast();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [filter, setFilter] = useState<FilterType>("all");
   const [loading, setLoading] = useState(true);
@@ -71,8 +73,8 @@ export default function NotificationInbox() {
           prev.map((n) => (n.id === id ? { ...n, read_at: new Date().toISOString() } : n))
         );
       }
-    } catch (err) {
-      console.error("Failed to mark notification as read:", err);
+    } catch {
+      toast.error("Failed to mark notification as read");
     }
   };
 
@@ -86,8 +88,8 @@ export default function NotificationInbox() {
       if (res.ok) {
         setNotifications((prev) => prev.map((n) => ({ ...n, read_at: new Date().toISOString() })));
       }
-    } catch (err) {
-      console.error("Failed to mark all as read:", err);
+    } catch {
+      toast.error("Failed to mark all as read");
     }
   };
 
@@ -100,8 +102,8 @@ export default function NotificationInbox() {
       if (res.ok) {
         setNotifications((prev) => prev.filter((n) => n.id !== id));
       }
-    } catch (err) {
-      console.error("Failed to dismiss notification:", err);
+    } catch {
+      toast.error("Failed to dismiss notification");
     }
   };
 

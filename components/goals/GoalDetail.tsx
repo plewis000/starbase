@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from "react";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import CommentThread from "@/components/ui/CommentThread";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import { useToast } from "@/components/ui/Toast";
 
 interface Milestone {
   id: string;
@@ -70,8 +72,11 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetailProps) {
+  const toast = useToast();
   const [goal, setGoal] = useState<GoalFull | null>(null);
   const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
+  const [confirmAbandoned, setConfirmAbandoned] = useState(false);
   const [showHabitPicker, setShowHabitPicker] = useState(false);
   const [availableHabits, setAvailableHabits] = useState<AvailableHabit[]>([]);
   const [pickerLoading, setPickerLoading] = useState(false);
@@ -95,7 +100,8 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
   }, [goalId]);
 
   const handleStatusChange = async (newStatus: string) => {
-    if (!goal) return;
+    if (!goal || updating) return;
+    setUpdating(true);
     try {
       const res = await fetch(`/api/goals/${goalId}`, {
         method: "PATCH",
@@ -106,9 +112,14 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
         const data = await res.json();
         setGoal(data.goal);
         onGoalUpdated?.();
+        toast.success(`Goal ${newStatus}`);
+      } else {
+        toast.error("Failed to update goal status");
       }
-    } catch (err) {
-      console.error("Error updating goal:", err);
+    } catch {
+      toast.error("Failed to update goal status");
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -125,8 +136,8 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
         setGoal(data.goal);
         onGoalUpdated?.();
       }
-    } catch (err) {
-      console.error("Error updating progress:", err);
+    } catch {
+      toast.error("Failed to update progress");
     }
   };
 
@@ -142,8 +153,8 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
         const available = (data.habits || []).filter((h: AvailableHabit) => !linkedIds.has(h.id));
         setAvailableHabits(available);
       }
-    } catch (err) {
-      console.error("Error fetching habits:", err);
+    } catch {
+      toast.error("Failed to load habits");
     } finally {
       setPickerLoading(false);
     }
@@ -166,8 +177,8 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
         setSelectedHabitsToAdd([]);
         onGoalUpdated?.();
       }
-    } catch (err) {
-      console.error("Error adding habits:", err);
+    } catch {
+      toast.error("Failed to link habits");
     }
   };
 
@@ -464,19 +475,22 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
           <div className="flex items-center gap-2 pt-4 border-t border-slate-800">
             <button
               onClick={() => handleStatusChange("completed")}
-              className="px-4 py-2 bg-green-400 hover:bg-green-500 text-slate-950 font-medium rounded-lg transition-colors text-sm"
+              disabled={updating}
+              className="px-4 py-2 bg-green-400 hover:bg-green-500 text-slate-950 font-medium rounded-lg transition-colors text-sm disabled:opacity-50"
             >
-              Mark Complete
+              {updating ? "Updating..." : "Mark Complete"}
             </button>
             <button
               onClick={() => handleStatusChange("paused")}
-              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium rounded-lg transition-colors text-sm"
+              disabled={updating}
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium rounded-lg transition-colors text-sm disabled:opacity-50"
             >
               Pause
             </button>
             <button
-              onClick={() => handleStatusChange("abandoned")}
-              className="px-4 py-2 text-slate-500 hover:text-red-400 font-medium rounded-lg transition-colors text-sm"
+              onClick={() => setConfirmAbandoned(true)}
+              disabled={updating}
+              className="px-4 py-2 text-slate-500 hover:text-red-400 font-medium rounded-lg transition-colors text-sm disabled:opacity-50"
             >
               Abandon
             </button>
@@ -519,6 +533,16 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={confirmAbandoned}
+        title="Abandon Goal"
+        message="Are you sure you want to abandon this goal? This can be undone later by resuming it."
+        confirmLabel="Abandon"
+        destructive
+        onConfirm={() => { setConfirmAbandoned(false); handleStatusChange("abandoned"); }}
+        onCancel={() => setConfirmAbandoned(false)}
+      />
     </div>
   );
 }
