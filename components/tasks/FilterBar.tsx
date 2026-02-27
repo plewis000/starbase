@@ -103,7 +103,7 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
             placeholder="Search tasks..."
             value={filters.search || ""}
             onChange={(e) => handleSearchChange(e.target.value)}
-            className="w-full px-4 py-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-green-400 focus:ring-1 focus:ring-green-400/30 transition-colors"
+            className="w-full px-4 py-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/30 transition-colors"
           />
           <svg
             className="absolute right-3 top-2.5 w-4 h-4 text-slate-500"
@@ -145,7 +145,7 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
           <select
             value={filters.status || "All"}
             onChange={(e) => updateFilter("status", e.target.value)}
-            className="w-full px-2 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-100 text-sm focus:outline-none focus:border-green-400 focus:ring-1 focus:ring-green-400/30 transition-colors cursor-pointer"
+            className="w-full px-2 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-100 text-sm focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/30 transition-colors cursor-pointer"
           >
             {STATUS_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -163,7 +163,7 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
           <select
             value={filters.priority || "All"}
             onChange={(e) => updateFilter("priority", e.target.value)}
-            className="w-full px-2 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-100 text-sm focus:outline-none focus:border-green-400 focus:ring-1 focus:ring-green-400/30 transition-colors cursor-pointer"
+            className="w-full px-2 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-100 text-sm focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/30 transition-colors cursor-pointer"
           >
             {PRIORITY_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -181,7 +181,7 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
           <select
             value={filters.due || "All"}
             onChange={(e) => updateFilter("due", e.target.value)}
-            className="w-full px-2 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-100 text-sm focus:outline-none focus:border-green-400 focus:ring-1 focus:ring-green-400/30 transition-colors cursor-pointer"
+            className="w-full px-2 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-100 text-sm focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/30 transition-colors cursor-pointer"
           >
             {DUE_DATE_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -199,7 +199,7 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
           <select
             value={filters.sort || "due_date"}
             onChange={(e) => updateFilter("sort", e.target.value)}
-            className="w-full px-2 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-100 text-sm focus:outline-none focus:border-green-400 focus:ring-1 focus:ring-green-400/30 transition-colors cursor-pointer"
+            className="w-full px-2 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-100 text-sm focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/30 transition-colors cursor-pointer"
           >
             {SORT_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>

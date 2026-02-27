@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyKey } from "discord-interactions";
-import { sendMessage, CHANNELS, ZEV_COLOR, getGuildChannels } from "@/lib/discord";
+import { sendMessage, sendEmbed, CHANNELS, ZEV_COLOR, SYSTEM_COLOR, getGuildChannels } from "@/lib/discord";
 import { createClient } from "@/lib/supabase/server";
 import { platform, config, household, finance } from "@/lib/supabase/schemas";
 import {
@@ -16,26 +16,19 @@ import { executeTool } from "@/lib/agent/executor";
 
 const DISCORD_PUBLIC_KEY = process.env.DISCORD_PUBLIC_KEY!;
 
-const SYSTEM_PROMPT = `You are Zev, a household AI for Parker and Lenale Lewis. You respond via Discord.
+import { ZEV_SYSTEM_PROMPT } from "@/lib/personalities/zev";
+import { formatAchievement, formatXpGain, toDiscordEmbed } from "@/lib/personalities/system-ai";
+import { awardXp, checkAchievements, ensureProfile } from "@/lib/gamification";
 
-Your personality is inspired by the AI guide from Dungeon Crawler Carl — competent, dry wit, occasionally sarcastic, but genuinely helpful and loyal. You're not mean, just... efficient with a personality. Think: an AI that actually likes its job but won't pretend everything is amazing. You care about Parker and Lenale — you just show it through competence, not cheerfulness.
+const DISCORD_SYSTEM_PROMPT = `${ZEV_SYSTEM_PROMPT}
 
-Voice rules:
+Additional Discord-specific rules:
 - Short, punchy responses. No fluff. Discord is not the place for essays.
 - Use bold and bullet points for scannable info.
-- Dry humor is welcome. Forced enthusiasm is not.
-- You can be blunt: "You have 3 overdue tasks. That's not great." is fine.
-- When things go well, a simple acknowledgment: "Done." or "Handled." works.
-- When things fail, be honest and brief: "That didn't work. [reason]."
-- You occasionally drop a wry observation but never at the expense of being useful.
-- You never say "Great question!" or "Happy to help!" — you'd rather die.
 - Keep responses under 1500 characters when possible.
 - Format currency as $X.XX.
-
-Functional rules:
 - Always use tools to fetch data — never guess or fabricate.
-- If a tool fails, say what happened without drama.
-- If the user asks something outside your capabilities, say so plainly.`;
+- If a tool fails, say what happened without drama.`;
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
@@ -112,6 +105,8 @@ async function processCommand(
         return await handleDashboard(supabase, userId, webhookUrl);
       case "usage":
         return await handleUsage(supabase, webhookUrl);
+      case "crawl":
+        return await handleCrawl(supabase, userId, webhookUrl);
       case "ask":
         return await handleAsk(supabase, userId, options, interaction, webhookUrl);
       default:
@@ -252,15 +247,37 @@ async function handleHabit(supabase: Supabase, userId: string, options: Record<s
     .update({ current_streak: newStreak, longest_streak: newLongest, last_completed_at: new Date().toISOString() })
     .eq("id", match.id);
 
+  // Award XP for habit check-in
+  await ensureProfile(supabase, userId);
+  const xpResult = await awardXp(supabase, userId, 15, "habit_checkin", `Checked in: ${match.title}`, "habit", match.id);
+
+  // Check streak milestone achievements
+  const achievementUnlocks = await checkAchievements(supabase, userId, "habit_streak", { current_streak: newStreak });
+
+  // Check streak bonus XP
+  if (newStreak === 7) await awardXp(supabase, userId, 50, "habit_streak_7", `7-day streak: ${match.title}`, "habit", match.id);
+  if (newStreak === 30) await awardXp(supabase, userId, 200, "habit_streak_30", `30-day streak: ${match.title}`, "habit", match.id);
+  if (newStreak === 90) await awardXp(supabase, userId, 500, "habit_streak_90", `90-day streak: ${match.title}`, "habit", match.id);
+
   const streakEmoji = newStreak >= 7 ? "🔥" : newStreak >= 3 ? "⚡" : "✓";
 
   await sendWebhook(webhookUrl, {
     embeds: [{
-      description: `${streakEmoji} **${match.title}** — checked in. Streak: **${newStreak}** day${newStreak !== 1 ? "s" : ""}.`,
+      description: `${streakEmoji} **${match.title}** — checked in. Streak: **${newStreak}** day${newStreak !== 1 ? "s" : ""}.\n+${xpResult.xpAwarded} XP`,
       color: ZEV_COLOR,
       footer: { text: "Free command — no API cost" },
     }],
   });
+
+  // Send achievement notifications via The System's voice
+  for (const unlock of achievementUnlocks) {
+    const notification = formatAchievement(unlock.achievementName, unlock.description, unlock.xpReward, unlock.lootBoxTier);
+    const channels = await getGuildChannels();
+    const generalCh = channels.find(c => c.name === CHANNELS.GENERAL);
+    if (generalCh) {
+      await sendEmbed(generalCh.id, toDiscordEmbed(notification));
+    }
+  }
 }
 
 async function handleBudget(supabase: Supabase, userId: string, options: Record<string, unknown>, webhookUrl: string) {
@@ -567,7 +584,7 @@ async function runAgent(
   let response = await anthropic.messages.create({
     model,
     max_tokens: MAX_RESPONSE_TOKENS,
-    system: SYSTEM_PROMPT,
+    system: DISCORD_SYSTEM_PROMPT,
     tools: AGENT_TOOLS,
     messages: [{ role: "user", content: message }],
   });
@@ -612,7 +629,7 @@ async function runAgent(
     response = await anthropic.messages.create({
       model,
       max_tokens: MAX_RESPONSE_TOKENS,
-      system: SYSTEM_PROMPT,
+      system: DISCORD_SYSTEM_PROMPT,
       tools: AGENT_TOOLS,
       messages: [
         { role: "user", content: message },
@@ -652,6 +669,81 @@ async function runAgent(
     costCents,
     summary: toolNames.length > 0 ? `Tools: ${toolNames.join(", ")} | Cost: $${(costCents / 100).toFixed(4)}` : "",
   };
+}
+
+// ── Crawl command (gamification profile) ──────────────────────────────
+
+async function handleCrawl(supabase: Supabase, userId: string, webhookUrl: string) {
+  await ensureProfile(supabase, userId);
+
+  const { data: profile } = await supabase
+    .schema("platform")
+    .from("crawler_profiles")
+    .select("*")
+    .eq("user_id", userId)
+    .single();
+
+  if (!profile) {
+    await sendWebhook(webhookUrl, { content: "Couldn't load your crawler profile." });
+    return;
+  }
+
+  const { data: floor } = await supabase
+    .schema("config")
+    .from("floors")
+    .select("floor_number, name, icon")
+    .eq("id", profile.current_floor_id)
+    .single();
+
+  // Get active streaks count
+  const { count: streakCount } = await supabase
+    .schema("platform")
+    .from("habits")
+    .select("*", { count: "exact", head: true })
+    .eq("owner_id", userId)
+    .eq("status", "active")
+    .gt("current_streak", 0);
+
+  // Get overdue tasks count
+  const { count: overdueCount } = await supabase
+    .schema("platform")
+    .from("tasks")
+    .select("*", { count: "exact", head: true })
+    .is("completed_at", null)
+    .lt("due_date", new Date().toISOString().split("T")[0]);
+
+  // Get achievement count
+  const { count: achievementCount } = await supabase
+    .schema("platform")
+    .from("achievement_unlocks")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", userId);
+
+  // Get unopened boxes
+  const { count: boxCount } = await supabase
+    .schema("platform")
+    .from("loot_boxes")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("opened", false);
+
+  const floorInfo = floor ? `${floor.icon} Floor ${floor.floor_number}: ${floor.name}` : "🚪 Floor 1: The Stairwell";
+
+  await sendWebhook(webhookUrl, {
+    embeds: [{
+      title: `🗡️ ${profile.crawler_name} — Level ${profile.current_level}`,
+      description: `${floorInfo}\n\n**${profile.total_xp.toLocaleString()} XP** total · ${profile.xp_to_next_level.toLocaleString()} XP to next level`,
+      color: SYSTEM_COLOR,
+      fields: [
+        { name: "🔥 Login Streak", value: `${profile.login_streak}d`, inline: true },
+        { name: "🏆 Achievements", value: `${achievementCount || 0}`, inline: true },
+        { name: "📦 Loot Boxes", value: `${boxCount || 0} unopened`, inline: true },
+        { name: "⬆️ Buffs", value: `${streakCount || 0} active streaks`, inline: true },
+        { name: "⬇️ Debuffs", value: `${overdueCount || 0} overdue tasks`, inline: true },
+      ],
+      footer: { text: "The Desperado Club — So fun it hurts." },
+    }],
+  });
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────

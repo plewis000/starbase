@@ -81,11 +81,11 @@ export default function OutcomesPanel() {
       {/* Summary strip */}
       <div className="flex items-center gap-4 flex-wrap">
         <div className="flex items-center gap-2 bg-slate-900 rounded-lg border border-slate-800 px-4 py-2.5">
-          <span className="text-green-400 text-lg font-bold">{habits_summary.checked_today}</span>
+          <span className="text-red-400 text-lg font-bold">{habits_summary.checked_today}</span>
           <span className="text-slate-400 text-sm">/{habits_summary.active_count} habits today</span>
         </div>
         <div className="flex items-center gap-2 bg-slate-900 rounded-lg border border-slate-800 px-4 py-2.5">
-          <span className="text-green-400 text-lg font-bold">{goals_summary.active_count}</span>
+          <span className="text-red-400 text-lg font-bold">{goals_summary.active_count}</span>
           <span className="text-slate-400 text-sm">active goals</span>
         </div>
         {tasks_summary.overdue > 0 && (
@@ -122,7 +122,7 @@ export default function OutcomesPanel() {
                 </div>
                 <div className="w-full bg-slate-800 rounded-full h-2 mb-3">
                   <div
-                    className="bg-green-400 h-2 rounded-full transition-all"
+                    className="bg-red-400 h-2 rounded-full transition-all"
                     style={{ width: `${Math.min(100, goal.progress_value)}%` }}
                   />
                 </div>
@@ -140,7 +140,7 @@ export default function OutcomesPanel() {
                       <div key={h.id} className="flex items-center gap-2.5 py-1">
                         <div className={`w-3.5 h-3.5 rounded-full flex-shrink-0 ${
                           h.checked_today
-                            ? "bg-green-400"
+                            ? "bg-red-400"
                             : "border-2 border-slate-600"
                         }`} />
                         <span className={`text-sm flex-1 ${h.checked_today ? "text-slate-300" : "text-slate-400"}`}>
@@ -156,7 +156,7 @@ export default function OutcomesPanel() {
                     {/* Habit health bar */}
                     <div className="w-full bg-slate-800 rounded-full h-1 mt-2">
                       <div
-                        className="bg-green-400/60 h-1 rounded-full transition-all"
+                        className="bg-red-400/60 h-1 rounded-full transition-all"
                         style={{ width: `${goalHabits.length > 0 ? (doneCount / goalHabits.length) * 100 : 0}%` }}
                       />
                     </div>
@@ -184,7 +184,7 @@ export default function OutcomesPanel() {
             {standaloneHabits.map((h) => (
               <div key={h.id} className="flex items-center gap-2.5 py-1">
                 <div className={`w-3.5 h-3.5 rounded-full flex-shrink-0 ${
-                  h.checked_today ? "bg-green-400" : "border-2 border-slate-600"
+                  h.checked_today ? "bg-red-400" : "border-2 border-slate-600"
                 }`} />
                 <span className={`text-sm flex-1 ${h.checked_today ? "text-slate-300" : "text-slate-400"}`}>
                   {h.title}

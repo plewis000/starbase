@@ -263,7 +263,7 @@ function TransactionCard({
         <button
           onClick={() => setShowCategories(!showCategories)}
           disabled={disabled}
-          className="text-xs px-3 py-1.5 bg-green-500/10 text-green-400 rounded-md hover:bg-green-500/20 transition-colors disabled:opacity-50"
+          className="text-xs px-3 py-1.5 bg-red-500/10 text-red-400 rounded-md hover:bg-red-500/20 transition-colors disabled:opacity-50"
         >
           Categorize
         </button>

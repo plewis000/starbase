@@ -67,7 +67,7 @@ export default function SettingsPage() {
             onClick={() => setActiveTab(tab.id)}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
               activeTab === tab.id
-                ? "bg-slate-800 text-green-400"
+                ? "bg-slate-800 text-red-400"
                 : "text-slate-400 hover:text-slate-100"
             }`}
           >
@@ -125,7 +125,7 @@ export default function SettingsPage() {
             </div>
             <span className={`px-3 py-1 rounded-full text-xs font-medium ${
               integrations?.discord?.connected
-                ? "bg-green-500/20 text-green-400"
+                ? "bg-red-500/20 text-red-400"
                 : "bg-slate-700 text-slate-400"
             }`}>
               {integrations?.discord?.connected ? "Connected" : "Not connected"}
@@ -143,7 +143,7 @@ export default function SettingsPage() {
             </div>
             <span className={`px-3 py-1 rounded-full text-xs font-medium ${
               integrations?.plaid?.connected
-                ? "bg-green-500/20 text-green-400"
+                ? "bg-red-500/20 text-red-400"
                 : "bg-slate-700 text-slate-400"
             }`}>
               {integrations?.plaid?.connected
@@ -163,7 +163,7 @@ export default function SettingsPage() {
             </div>
             <span className={`px-3 py-1 rounded-full text-xs font-medium ${
               integrations?.anthropic?.connected
-                ? "bg-green-500/20 text-green-400"
+                ? "bg-red-500/20 text-red-400"
                 : "bg-slate-700 text-slate-400"
             }`}>
               {integrations?.anthropic?.connected ? "Active" : "Not configured"}

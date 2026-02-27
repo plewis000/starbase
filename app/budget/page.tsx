@@ -62,7 +62,7 @@ export default function BudgetPage() {
               onClick={() => setActiveTab(tab.id)}
               className={`flex-1 px-4 py-2.5 rounded-md text-sm font-medium transition-all relative ${
                 activeTab === tab.id
-                  ? "bg-slate-800 text-green-400"
+                  ? "bg-slate-800 text-red-400"
                   : "text-slate-400 hover:text-slate-200"
               }`}
             >

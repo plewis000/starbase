@@ -11,10 +11,27 @@ interface Task {
   priority: string;
 }
 
+interface CrawlerData {
+  profile: {
+    crawler_name: string;
+    total_xp: number;
+    current_floor: number;
+    login_streak: number;
+  };
+  level: {
+    level: number;
+    xpToNext: number;
+    xpInLevel: number;
+    progress: number;
+  };
+  recentXp: { action_type: string; xp_amount: number; description: string }[];
+}
+
 export default function DashboardPage() {
   const [displayName, setDisplayName] = useState("there");
   const [tasks, setTasks] = useState<Task[]>([]);
   const [todayDate, setTodayDate] = useState("");
+  const [crawler, setCrawler] = useState<CrawlerData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,6 +54,13 @@ export default function DashboardPage() {
           const tasksData = await tasksRes.json();
           const parsedTasks = Array.isArray(tasksData) ? tasksData : tasksData.tasks || [];
           setTasks(parsedTasks);
+        }
+
+        // Fetch crawler profile
+        const crawlRes = await fetch("/api/gamification");
+        if (crawlRes.ok) {
+          const crawlData = await crawlRes.json();
+          setCrawler(crawlData);
         }
 
         // Set today's date
@@ -78,6 +102,48 @@ export default function DashboardPage() {
           </h1>
           <p className="text-sm text-slate-400 mt-1">{todayDate}</p>
         </div>
+
+        {/* Crawler Status Card */}
+        {crawler && (
+          <Link href="/crawl" className="block">
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 hover:border-red-900/50 transition-all">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">🗡️</span>
+                  <div>
+                    <div className="text-slate-100 font-bold">
+                      {crawler.profile.crawler_name || displayName}
+                    </div>
+                    <div className="text-xs text-slate-400">
+                      Floor {crawler.profile.current_floor} — Level {crawler.level.level}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-lg font-bold text-red-400">
+                    {crawler.profile.total_xp.toLocaleString()} XP
+                  </div>
+                  {crawler.profile.login_streak > 1 && (
+                    <div className="text-xs text-amber-400">
+                      🔥 {crawler.profile.login_streak}-day streak
+                    </div>
+                  )}
+                </div>
+              </div>
+              {/* XP Progress Bar */}
+              <div className="w-full bg-slate-800 rounded-full h-2">
+                <div
+                  className="bg-red-500 h-2 rounded-full transition-all duration-500"
+                  style={{ width: `${Math.min(crawler.level.progress, 100)}%` }}
+                />
+              </div>
+              <div className="flex justify-between text-xs text-slate-500 mt-1">
+                <span>Level {crawler.level.level}</span>
+                <span>{crawler.level.xpToNext.toLocaleString()} XP to next</span>
+              </div>
+            </div>
+          </Link>
+        )}
 
         {/* Primary: Outcomes Panel */}
         <section>
@@ -132,22 +198,11 @@ export default function DashboardPage() {
         </section>
 
         {/* Quick Action Buttons */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <QuickActionButton
-            href="/goals"
-            icon="🎯"
-            label="Goals"
-          />
-          <QuickActionButton
-            href="/habits"
-            icon="🔄"
-            label="Habits"
-          />
-          <QuickActionButton
-            href="/tasks"
-            icon="📋"
-            label="Tasks"
-          />
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <QuickActionButton href="/crawl" icon="🗡️" label="The Crawl" />
+          <QuickActionButton href="/goals" icon="🎯" label="Goals" />
+          <QuickActionButton href="/habits" icon="🔄" label="Habits" />
+          <QuickActionButton href="/tasks" icon="📋" label="Tasks" />
         </div>
 
         {error && (

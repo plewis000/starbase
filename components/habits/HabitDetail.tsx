@@ -227,14 +227,14 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
               const isToday = date === new Date().toISOString().split("T")[0];
               return (
                 <div key={date} className="flex flex-col items-center gap-1">
-                  <span className={`text-xs ${isToday ? "text-green-400 font-bold" : "text-slate-500"}`}>
+                  <span className={`text-xs ${isToday ? "text-red-400 font-bold" : "text-slate-500"}`}>
                     {dayName}
                   </span>
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                    done ? "bg-green-400/20 border-2 border-green-400" : "bg-slate-800 border-2 border-slate-700"
+                    done ? "bg-red-400/20 border-2 border-red-400" : "bg-slate-800 border-2 border-slate-700"
                   }`}>
                     {done && (
-                      <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                       </svg>
                     )}
@@ -256,7 +256,7 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
                   key={mood}
                   onClick={() => setCheckInMood(checkInMood === mood ? "" : mood)}
                   className={`w-10 h-10 rounded-lg text-xl flex items-center justify-center transition-all ${
-                    checkInMood === mood ? "bg-slate-700 ring-2 ring-green-400" : "bg-slate-800 hover:bg-slate-700"
+                    checkInMood === mood ? "bg-slate-700 ring-2 ring-red-400" : "bg-slate-800 hover:bg-slate-700"
                   }`}
                   title={mood}
                 >
@@ -270,11 +270,11 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
               value={checkInNote}
               onChange={(e) => setCheckInNote(e.target.value)}
               placeholder="Quick note (optional)..."
-              className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-green-400/50 text-sm"
+              className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400/50 text-sm"
             />
             <button
               onClick={handleCheckIn}
-              className="w-full px-4 py-2.5 bg-green-400 hover:bg-green-500 text-slate-950 font-semibold rounded-lg transition-colors"
+              className="w-full px-4 py-2.5 bg-red-400 hover:bg-red-500 text-slate-950 font-semibold rounded-lg transition-colors"
             >
               Complete Today
             </button>
@@ -282,8 +282,8 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
         )}
 
         {habit.checked_today && (
-          <div className="bg-green-400/10 border border-green-400/30 rounded-lg p-4 text-center">
-            <span className="text-green-400 font-medium">Done for today! Keep it up.</span>
+          <div className="bg-red-400/10 border border-red-400/30 rounded-lg p-4 text-center">
+            <span className="text-red-400 font-medium">Done for today! Keep it up.</span>
           </div>
         )}
 
@@ -320,7 +320,7 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
                           onClick={() => toggleGoalToAdd(g.id)}
                           className={`w-full p-2 rounded-lg border text-left transition-colors text-sm ${
                             selectedGoalsToAdd.includes(g.id)
-                              ? "border-green-400 bg-green-400/10"
+                              ? "border-red-400 bg-red-400/10"
                               : "border-slate-700 bg-slate-800 hover:border-slate-600"
                           }`}
                         >
@@ -329,12 +329,12 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
                               type="checkbox"
                               checked={selectedGoalsToAdd.includes(g.id)}
                               onChange={() => {}}
-                              className="rounded accent-green-400"
+                              className="rounded accent-red-400"
                             />
-                            <span className={selectedGoalsToAdd.includes(g.id) ? "text-green-400 font-medium" : "text-slate-100 flex-1"}>
+                            <span className={selectedGoalsToAdd.includes(g.id) ? "text-red-400 font-medium" : "text-slate-100 flex-1"}>
                               {g.title}
                             </span>
-                            <span className="text-xs text-green-400 ml-auto">{Math.round(g.progress_value)}%</span>
+                            <span className="text-xs text-red-400 ml-auto">{Math.round(g.progress_value)}%</span>
                           </div>
                         </button>
                       ))}
@@ -349,7 +349,7 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
                       <button
                         onClick={handleAddGoals}
                         disabled={selectedGoalsToAdd.length === 0}
-                        className="flex-1 px-3 py-2 bg-green-400 hover:bg-green-500 text-slate-950 font-medium rounded-lg transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex-1 px-3 py-2 bg-red-400 hover:bg-red-500 text-slate-950 font-medium rounded-lg transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         Add ({selectedGoalsToAdd.length})
                       </button>
@@ -376,7 +376,7 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
                       <span className="text-sm font-medium text-slate-100">{g.title}</span>
                       <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                         g.status === "completed" ? "bg-blue-400/10 text-blue-400" :
-                        g.status === "active" ? "bg-green-400/10 text-green-400" :
+                        g.status === "active" ? "bg-red-400/10 text-red-400" :
                         g.status === "paused" ? "bg-amber-400/10 text-amber-400" :
                         "bg-slate-400/10 text-slate-400"
                       }`}>
@@ -385,7 +385,7 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
                     </div>
                     <div className="w-full bg-slate-700 rounded-full h-2">
                       <div
-                        className="bg-green-400 h-2 rounded-full transition-all"
+                        className="bg-red-400 h-2 rounded-full transition-all"
                         style={{ width: `${Math.round(g.progress_value)}%` }}
                       />
                     </div>
@@ -405,7 +405,7 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
             {(!habit.linked_goals || habit.linked_goals.length === 0) && !showGoalPicker && (
               <button
                 onClick={openGoalPicker}
-                className="w-full px-4 py-2.5 bg-green-400 hover:bg-green-500 text-slate-950 font-medium rounded-lg transition-colors text-sm"
+                className="w-full px-4 py-2.5 bg-red-400 hover:bg-red-500 text-slate-950 font-medium rounded-lg transition-colors text-sm"
               >
                 Link to Goal
               </button>
@@ -434,7 +434,7 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
           <div className="pt-4 border-t border-slate-800">
             <button
               onClick={() => handleStatusChange("active")}
-              className="px-4 py-2 bg-green-400 hover:bg-green-500 text-slate-950 font-medium rounded-lg transition-colors text-sm"
+              className="px-4 py-2 bg-red-400 hover:bg-red-500 text-slate-950 font-medium rounded-lg transition-colors text-sm"
             >
               Resume
             </button>

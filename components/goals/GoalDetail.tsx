@@ -65,7 +65,7 @@ interface GoalDetailProps {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  active: "text-green-400 bg-green-400/10",
+  active: "text-red-400 bg-red-400/10",
   completed: "text-blue-400 bg-blue-400/10",
   paused: "text-amber-400 bg-amber-400/10",
   abandoned: "text-slate-400 bg-slate-400/10",
@@ -266,7 +266,7 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
           </div>
           <div className="w-full bg-slate-700 rounded-full h-2.5">
             <div
-              className="bg-green-400 h-2.5 rounded-full transition-all"
+              className="bg-red-400 h-2.5 rounded-full transition-all"
               style={{ width: `${progressPercent}%` }}
             />
           </div>
@@ -278,7 +278,7 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
                 max="100"
                 value={progressPercent}
                 onChange={(e) => handleUpdateProgress(parseInt(e.target.value))}
-                className="flex-1 accent-green-400"
+                className="flex-1 accent-red-400"
               />
             </div>
           )}
@@ -301,10 +301,10 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
               {milestones.sort((a, b) => a.sort_order - b.sort_order).map((m) => (
                 <div key={m.id} className="flex items-center gap-3 p-3 bg-slate-900 rounded-lg border border-slate-800">
                   <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                    m.completed_at ? "border-green-400 bg-green-400/20" : "border-slate-600"
+                    m.completed_at ? "border-red-400 bg-red-400/20" : "border-slate-600"
                   }`}>
                     {m.completed_at && (
-                      <svg className="w-3 h-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-3 h-3 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                       </svg>
                     )}
@@ -333,7 +333,7 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
                 Linked Habits {linkedHabits.length > 0 && `(${linkedHabits.length})`}
               </h3>
               {goal.progress_type === "habit_driven" && (
-                <span className="text-xs text-green-400 font-medium">
+                <span className="text-xs text-red-400 font-medium">
                   {getHabitHealthCount()}/{linkedHabits.length} done today
                 </span>
               )}
@@ -341,7 +341,7 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
             {goal.progress_type === "habit_driven" && linkedHabits.length === 0 && !showHabitPicker && (
               <button
                 onClick={openHabitPicker}
-                className="w-full px-4 py-2.5 bg-green-400 hover:bg-green-500 text-slate-950 font-medium rounded-lg transition-colors text-sm mb-3"
+                className="w-full px-4 py-2.5 bg-red-400 hover:bg-red-500 text-slate-950 font-medium rounded-lg transition-colors text-sm mb-3"
               >
                 Link Habits
               </button>
@@ -360,7 +360,7 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
                           onClick={() => toggleHabitToAdd(h.id)}
                           className={`w-full p-2 rounded-lg border text-left transition-colors text-sm ${
                             selectedHabitsToAdd.includes(h.id)
-                              ? "border-green-400 bg-green-400/10"
+                              ? "border-red-400 bg-red-400/10"
                               : "border-slate-700 bg-slate-800 hover:border-slate-600"
                           }`}
                         >
@@ -369,9 +369,9 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
                               type="checkbox"
                               checked={selectedHabitsToAdd.includes(h.id)}
                               onChange={() => {}}
-                              className="rounded accent-green-400"
+                              className="rounded accent-red-400"
                             />
-                            <span className={selectedHabitsToAdd.includes(h.id) ? "text-green-400 font-medium" : "text-slate-100"}>
+                            <span className={selectedHabitsToAdd.includes(h.id) ? "text-red-400 font-medium" : "text-slate-100"}>
                               {h.title}
                             </span>
                             <span className="text-xs text-amber-400 ml-auto">🔥 {h.current_streak}</span>
@@ -389,7 +389,7 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
                       <button
                         onClick={handleAddHabits}
                         disabled={selectedHabitsToAdd.length === 0}
-                        className="flex-1 px-3 py-2 bg-green-400 hover:bg-green-500 text-slate-950 font-medium rounded-lg transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex-1 px-3 py-2 bg-red-400 hover:bg-red-500 text-slate-950 font-medium rounded-lg transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         Add ({selectedHabitsToAdd.length})
                       </button>
@@ -423,7 +423,7 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
                           <div
                             key={i}
                             className={`w-5 h-5 rounded-sm text-xs flex items-center justify-center transition-colors ${
-                              completed ? "bg-green-400" : "bg-slate-800 border border-slate-700"
+                              completed ? "bg-red-400" : "bg-slate-800 border border-slate-700"
                             }`}
                           >
                             {completed && <span className="text-slate-950 font-bold">✓</span>}
@@ -459,7 +459,7 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
               {linkedTasks.map((t) => (
                 <div key={t.id} className="flex items-center gap-3 p-3 bg-slate-900 rounded-lg border border-slate-800">
                   <div className={`w-4 h-4 rounded-full flex-shrink-0 ${
-                    t.completed_at ? "bg-green-400" : "bg-slate-600"
+                    t.completed_at ? "bg-red-400" : "bg-slate-600"
                   }`} />
                   <span className={`text-sm ${t.completed_at ? "text-slate-400 line-through" : "text-slate-100"}`}>
                     {t.title}
@@ -476,7 +476,7 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
             <button
               onClick={() => handleStatusChange("completed")}
               disabled={updating}
-              className="px-4 py-2 bg-green-400 hover:bg-green-500 text-slate-950 font-medium rounded-lg transition-colors text-sm disabled:opacity-50"
+              className="px-4 py-2 bg-red-400 hover:bg-red-500 text-slate-950 font-medium rounded-lg transition-colors text-sm disabled:opacity-50"
             >
               {updating ? "Updating..." : "Mark Complete"}
             </button>
@@ -500,7 +500,7 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
           <div className="flex items-center gap-2 pt-4 border-t border-slate-800">
             <button
               onClick={() => handleStatusChange("active")}
-              className="px-4 py-2 bg-green-400 hover:bg-green-500 text-slate-950 font-medium rounded-lg transition-colors text-sm"
+              className="px-4 py-2 bg-red-400 hover:bg-red-500 text-slate-950 font-medium rounded-lg transition-colors text-sm"
             >
               Resume
             </button>

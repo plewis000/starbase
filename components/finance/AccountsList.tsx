@@ -96,7 +96,7 @@ export default function AccountsList({ onLink }: Props) {
               <div>
                 <span className="text-sm font-medium text-slate-100">{item.institution_name}</span>
                 <span className={`ml-2 text-xs px-2 py-0.5 rounded ${
-                  item.status === "active" ? "bg-green-500/20 text-green-400" :
+                  item.status === "active" ? "bg-red-500/20 text-red-400" :
                   item.status === "error" ? "bg-red-500/20 text-red-400" :
                   "bg-slate-700 text-slate-400"
                 }`}>

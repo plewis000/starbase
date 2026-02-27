@@ -157,7 +157,7 @@ export default function NotificationInbox() {
             <div className="flex items-baseline gap-3">
               <h1 className="text-3xl font-bold text-slate-100">Notifications</h1>
               {unreadCount > 0 && (
-                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-green-400 text-slate-950 text-xs font-bold">
+                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-red-400 text-slate-950 text-xs font-bold">
                   {unreadCount}
                 </span>
               )}
@@ -178,7 +178,7 @@ export default function NotificationInbox() {
               onClick={() => setFilter("all")}
               className={`px-4 py-3 font-medium transition-colors border-b-2 ${
                 filter === "all"
-                  ? "text-green-400 border-green-400"
+                  ? "text-red-400 border-red-400"
                   : "text-slate-400 border-transparent hover:text-slate-100"
               }`}
             >
@@ -188,7 +188,7 @@ export default function NotificationInbox() {
               onClick={() => setFilter("unread")}
               className={`px-4 py-3 font-medium transition-colors border-b-2 ${
                 filter === "unread"
-                  ? "text-green-400 border-green-400"
+                  ? "text-red-400 border-red-400"
                   : "text-slate-400 border-transparent hover:text-slate-100"
               }`}
             >
@@ -227,13 +227,13 @@ export default function NotificationInbox() {
                   className={`group p-4 rounded-lg border transition-all cursor-pointer ${
                     notification.read_at
                       ? "bg-slate-900 border-slate-800 hover:border-slate-700"
-                      : "bg-slate-900/60 border-green-400/30 hover:border-green-400/50"
+                      : "bg-slate-900/60 border-red-400/30 hover:border-red-400/50"
                   }`}
                 >
                   <div className="flex items-start gap-4 relative">
                     {/* Green left border for unread */}
                     {!notification.read_at && (
-                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-green-400 rounded-l-lg" />
+                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-red-400 rounded-l-lg" />
                     )}
 
                     {/* Content */}

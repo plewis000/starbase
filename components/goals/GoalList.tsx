@@ -54,7 +54,7 @@ function QuickAddGoal({ onCreated }: { onCreated: () => void }) {
       onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
       placeholder="Quick add goal... (press Enter)"
       disabled={adding}
-      className="w-full bg-slate-900 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-green-500/50 disabled:opacity-50 transition-colors"
+      className="w-full bg-slate-900 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-500/50 disabled:opacity-50 transition-colors"
     />
   );
 }
@@ -106,7 +106,7 @@ export default function GoalList({ onSelectGoal, onCreateGoal, selectedGoalId }:
         </div>
         <button
           onClick={onCreateGoal}
-          className="px-4 py-2 bg-green-400 hover:bg-green-500 text-slate-950 font-semibold rounded-lg transition-colors flex items-center gap-2"
+          className="px-4 py-2 bg-red-400 hover:bg-red-500 text-slate-950 font-semibold rounded-lg transition-colors flex items-center gap-2"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -126,7 +126,7 @@ export default function GoalList({ onSelectGoal, onCreateGoal, selectedGoalId }:
             onClick={() => setActiveTab(tab)}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
               activeTab === tab
-                ? "bg-slate-800 text-green-400"
+                ? "bg-slate-800 text-red-400"
                 : "text-slate-400 hover:text-slate-100"
             }`}
           >
@@ -145,7 +145,7 @@ export default function GoalList({ onSelectGoal, onCreateGoal, selectedGoalId }:
           placeholder="Search goals..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-green-400/50 transition-colors"
+          className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400/50 transition-colors"
         />
       </div>
 

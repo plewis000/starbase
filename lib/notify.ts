@@ -19,6 +19,9 @@ export type NotifyEvent =
   | "task_handed_off"
   | "checklist_complete"
   | "recurrence_created"
+  | "achievement_unlocked"
+  | "level_up"
+  | "loot_box_earned"
   | "system";
 
 interface NotifyPayload {
@@ -98,6 +101,9 @@ const EVENT_COLORS: Record<NotifyEvent, number> = {
   task_handed_off: 0xf97316,  // orange
   checklist_complete: 0x06b6d4,// cyan
   recurrence_created: 0xeab308,// yellow
+  achievement_unlocked: 0xDC2626, // crimson — The System
+  level_up: 0xDC2626,            // crimson — The System
+  loot_box_earned: 0xD4A857,     // gold
   system: 0x64748b,           // gray
 };
 
@@ -109,6 +115,9 @@ const EVENT_EMOJI: Record<NotifyEvent, string> = {
   task_handed_off: "🔄",
   checklist_complete: "☑️",
   recurrence_created: "🔁",
+  achievement_unlocked: "🏆",
+  level_up: "⬆️",
+  loot_box_earned: "📦",
   system: "🔔",
 };
 
@@ -129,7 +138,7 @@ async function sendDiscordWebhook(
             description: body || undefined,
             color: EVENT_COLORS[event],
             timestamp: new Date().toISOString(),
-            footer: { text: "Starbase" },
+            footer: { text: "Desperado Club" },
           },
         ],
       }),

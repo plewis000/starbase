@@ -127,7 +127,7 @@ export default function TaskCard({
       onClick={() => onSelect(task.id)}
       className={`flex items-center gap-4 p-4 bg-slate-900 border rounded-lg cursor-pointer transition-all hover:bg-slate-800/50 ${
         isSelected
-          ? "border-green-400 border-l-4"
+          ? "border-red-400 border-l-4"
           : "border-slate-800 hover:border-slate-700"
       } ${isCompleted ? "opacity-60" : ""}`}
     >
@@ -136,8 +136,8 @@ export default function TaskCard({
         onClick={handleCheckbox}
         className={`flex-shrink-0 w-5 h-5 rounded border-2 transition-colors flex items-center justify-center ${
           isCompleted
-            ? "bg-green-500 border-green-500 text-white"
-            : "border-slate-600 hover:border-green-400"
+            ? "bg-red-500 border-red-500 text-white"
+            : "border-slate-600 hover:border-red-400"
         }`}
         title={isCompleted ? "Completed" : "Mark complete"}
       >

@@ -3,13 +3,13 @@ import { ToastProvider } from "@/components/ui/Toast";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Starbase",
-  description: "Personal command center",
+  title: "Desperado Club",
+  description: "So fun it hurts.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Starbase",
+    title: "Desperado Club",
   },
 };
 

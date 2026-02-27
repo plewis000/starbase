@@ -18,14 +18,14 @@ interface GoalCardProps {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  active: "text-green-400 bg-green-400/10 border-green-400/30",
+  active: "text-red-400 bg-red-400/10 border-red-400/30",
   completed: "text-blue-400 bg-blue-400/10 border-blue-400/30",
   paused: "text-amber-400 bg-amber-400/10 border-amber-400/30",
   abandoned: "text-slate-400 bg-slate-400/10 border-slate-400/30",
 };
 
 const PROGRESS_COLORS: Record<string, string> = {
-  active: "bg-green-400",
+  active: "bg-red-400",
   completed: "bg-blue-400",
   paused: "bg-amber-400",
   abandoned: "bg-slate-500",
@@ -53,7 +53,7 @@ export default function GoalCard({ goal, onSelect, isSelected = false }: GoalCar
     <div
       onClick={() => onSelect(goal.id)}
       className={`p-4 bg-slate-900 border rounded-lg cursor-pointer transition-all hover:bg-slate-800/50 ${
-        isSelected ? "border-green-400 border-l-4" : "border-slate-800 hover:border-slate-700"
+        isSelected ? "border-red-400 border-l-4" : "border-slate-800 hover:border-slate-700"
       }`}
     >
       <div className="flex items-start justify-between gap-3 mb-3">
@@ -94,7 +94,7 @@ export default function GoalCard({ goal, onSelect, isSelected = false }: GoalCar
         </div>
         <div className="w-full bg-slate-800 rounded-full h-1.5">
           <div
-            className={`h-1.5 rounded-full transition-all ${PROGRESS_COLORS[goal.status] || "bg-green-400"}`}
+            className={`h-1.5 rounded-full transition-all ${PROGRESS_COLORS[goal.status] || "bg-red-400"}`}
             style={{ width: `${progressPercent}%` }}
           />
         </div>

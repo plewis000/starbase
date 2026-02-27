@@ -57,7 +57,7 @@ function QuickAddHabit({ onCreated }: { onCreated: () => void }) {
       onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
       placeholder="Quick add habit... (press Enter, defaults to daily)"
       disabled={adding}
-      className="w-full bg-slate-900 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-green-500/50 disabled:opacity-50 transition-colors"
+      className="w-full bg-slate-900 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-500/50 disabled:opacity-50 transition-colors"
     />
   );
 }
@@ -127,7 +127,7 @@ export default function HabitList({ onSelectHabit, onCreateHabit, selectedHabitI
         </div>
         <button
           onClick={onCreateHabit}
-          className="px-4 py-2 bg-green-400 hover:bg-green-500 text-slate-950 font-semibold rounded-lg transition-colors flex items-center gap-2"
+          className="px-4 py-2 bg-red-400 hover:bg-red-500 text-slate-950 font-semibold rounded-lg transition-colors flex items-center gap-2"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -144,11 +144,11 @@ export default function HabitList({ onSelectHabit, onCreateHabit, selectedHabitI
         <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-slate-100">Today&apos;s Progress</span>
-            <span className="text-sm text-green-400 font-bold">{completionRate}%</span>
+            <span className="text-sm text-red-400 font-bold">{completionRate}%</span>
           </div>
           <div className="w-full bg-slate-800 rounded-full h-2">
             <div
-              className="bg-green-400 h-2 rounded-full transition-all"
+              className="bg-red-400 h-2 rounded-full transition-all"
               style={{ width: `${completionRate}%` }}
             />
           </div>
@@ -162,7 +162,7 @@ export default function HabitList({ onSelectHabit, onCreateHabit, selectedHabitI
             key={f}
             onClick={() => setFilter(f)}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors capitalize ${
-              filter === f ? "bg-slate-800 text-green-400" : "text-slate-400 hover:text-slate-100"
+              filter === f ? "bg-slate-800 text-red-400" : "text-slate-400 hover:text-slate-100"
             }`}
           >
             {f}

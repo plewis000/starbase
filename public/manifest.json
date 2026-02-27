@@ -1,7 +1,7 @@
 {
-  "name": "Starbase",
-  "short_name": "Starbase",
-  "description": "Personal command center",
+  "name": "Desperado Club",
+  "short_name": "Desperado",
+  "description": "So fun it hurts.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f172a",

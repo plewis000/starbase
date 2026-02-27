@@ -34,14 +34,14 @@ const ICONS: Record<ToastType, string> = {
 };
 
 const COLORS: Record<ToastType, string> = {
-  success: "bg-green-500/20 border-green-500/40 text-green-300",
+  success: "bg-red-500/20 border-red-500/40 text-green-300",
   error: "bg-red-500/20 border-red-500/40 text-red-300",
   warning: "bg-amber-500/20 border-amber-500/40 text-amber-300",
   info: "bg-blue-500/20 border-blue-500/40 text-blue-300",
 };
 
 const ICON_COLORS: Record<ToastType, string> = {
-  success: "bg-green-500/30 text-green-400",
+  success: "bg-red-500/30 text-red-400",
   error: "bg-red-500/30 text-red-400",
   warning: "bg-amber-500/30 text-amber-400",
   info: "bg-blue-500/30 text-blue-400",

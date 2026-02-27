@@ -5,6 +5,7 @@ import { logActivity } from "@/lib/activity-log";
 import { recalculateAndUpdateStreak } from "@/lib/streak-engine";
 import { recalculateAndUpdateGoalProgress } from "@/lib/goal-progress";
 import { safeParseBody, validateOptionalString, validateOptionalNumber, validateEnum, isValidDate } from "@/lib/validation";
+import { awardXp, checkAchievements } from "@/lib/gamification";
 
 // ---- POST: Check in to a habit ----
 
@@ -151,6 +152,37 @@ export async function POST(
       await recalculateAndUpdateGoalProgress(supabase, link.goal_id).catch(console.error);
     }
   }
+
+  // Award XP for habit check-in (non-blocking)
+  (async () => {
+    try {
+      let xpAmount = 15; // Base XP for check-in
+
+      // Streak milestone bonuses
+      const streak = streakResult.current_streak;
+      if (streak >= 90) xpAmount += 50;
+      else if (streak >= 30) xpAmount += 25;
+      else if (streak >= 7) xpAmount += 10;
+
+      await awardXp(
+        supabase,
+        user.id,
+        xpAmount,
+        "habit_check_in",
+        `Habit check-in${streak > 1 ? ` (${streak}-day streak)` : ""}`,
+        habitId
+      );
+
+      // Check for habit-related achievements
+      await checkAchievements(supabase, user.id, "habit_check_in", {
+        habitId,
+        streak,
+        mood: mood || null,
+      });
+    } catch (err) {
+      console.error("Gamification error:", err);
+    }
+  })();
 
   return NextResponse.json({
     check_in: checkIn,

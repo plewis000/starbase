@@ -66,8 +66,8 @@ export default function SpendingSummary() {
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <StatCard label="Spent" value={fmt(data.total_spending)} color="text-red-400" />
-        <StatCard label="Income" value={fmt(data.total_income)} color="text-green-400" />
-        <StatCard label="Net" value={fmt(data.net)} color={data.net >= 0 ? "text-green-400" : "text-red-400"} />
+        <StatCard label="Income" value={fmt(data.total_income)} color="text-red-400" />
+        <StatCard label="Net" value={fmt(data.net)} color={data.net >= 0 ? "text-red-400" : "text-red-400"} />
         <StatCard label="Daily Avg" value={fmt(data.daily_average)} color="text-slate-300" />
       </div>
 

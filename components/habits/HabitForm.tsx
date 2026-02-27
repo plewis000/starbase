@@ -143,7 +143,7 @@ export default function HabitForm({ onSave, onCancel }: HabitFormProps) {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="e.g., Read for 30 minutes"
-          className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-green-400/50"
+          className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400/50"
           autoFocus
         />
       </div>
@@ -155,7 +155,7 @@ export default function HabitForm({ onSave, onCancel }: HabitFormProps) {
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Why is this habit important?"
           rows={2}
-          className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-green-400/50 resize-none"
+          className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400/50 resize-none"
         />
       </div>
 
@@ -165,7 +165,7 @@ export default function HabitForm({ onSave, onCancel }: HabitFormProps) {
           <select
             value={frequencyId}
             onChange={(e) => setFrequencyId(e.target.value)}
-            className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:border-green-400/50"
+            className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:border-red-400/50"
           >
             <option value="">Select...</option>
             {frequencies.map((f) => (
@@ -181,7 +181,7 @@ export default function HabitForm({ onSave, onCancel }: HabitFormProps) {
             max="30"
             value={targetCount}
             onChange={(e) => setTargetCount(e.target.value)}
-            className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:border-green-400/50"
+            className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:border-red-400/50"
           />
         </div>
       </div>
@@ -196,7 +196,7 @@ export default function HabitForm({ onSave, onCancel }: HabitFormProps) {
               onClick={() => toggleDay(d.value)}
               className={`w-10 h-10 rounded-full text-sm font-medium transition-colors ${
                 specificDays.includes(d.value)
-                  ? "bg-green-400 text-slate-950"
+                  ? "bg-red-400 text-slate-950"
                   : "bg-slate-800 text-slate-400 hover:bg-slate-700"
               }`}
             >
@@ -219,7 +219,7 @@ export default function HabitForm({ onSave, onCancel }: HabitFormProps) {
                 onClick={() => toggleGoal(g.id)}
                 className={`w-full p-3 rounded-lg border text-left transition-colors ${
                   selectedGoalIds.includes(g.id)
-                    ? "border-green-400 bg-green-400/10"
+                    ? "border-red-400 bg-red-400/10"
                     : "border-slate-700 bg-slate-800 hover:border-slate-600"
                 }`}
               >
@@ -228,10 +228,10 @@ export default function HabitForm({ onSave, onCancel }: HabitFormProps) {
                     type="checkbox"
                     checked={selectedGoalIds.includes(g.id)}
                     onChange={() => {}}
-                    className="rounded accent-green-400"
+                    className="rounded accent-red-400"
                   />
                   <div className="flex-1">
-                    <span className={`text-sm font-medium ${selectedGoalIds.includes(g.id) ? "text-green-400" : "text-slate-100"}`}>
+                    <span className={`text-sm font-medium ${selectedGoalIds.includes(g.id) ? "text-red-400" : "text-slate-100"}`}>
                       {g.title}
                     </span>
                     <span className="block text-xs text-slate-400 mt-0.5">{g.progress_type.replace("_", " ")} • {Math.round(g.progress_value)}%</span>
@@ -252,7 +252,7 @@ export default function HabitForm({ onSave, onCancel }: HabitFormProps) {
         <button
           type="submit"
           disabled={saving || !title.trim() || !frequencyId}
-          className="px-6 py-2 bg-green-400 hover:bg-green-500 text-slate-950 font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-6 py-2 bg-red-400 hover:bg-red-500 text-slate-950 font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {saving ? "Creating..." : "Create Habit"}
         </button>

@@ -124,12 +124,12 @@ export default function SplitModal({ transaction, categories, onClose, onSplit }
                 placeholder="Amount"
                 value={row.amount}
                 onChange={(e) => updateRow(i, "amount", e.target.value)}
-                className="w-24 px-2 py-2 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:border-green-500"
+                className="w-24 px-2 py-2 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:border-red-500"
               />
               <select
                 value={row.category_id}
                 onChange={(e) => updateRow(i, "category_id", e.target.value)}
-                className="flex-1 px-2 py-2 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:border-green-500"
+                className="flex-1 px-2 py-2 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:border-red-500"
               >
                 <option value="">Select category</option>
                 {categories.map((cat) => (
@@ -154,13 +154,13 @@ export default function SplitModal({ transaction, categories, onClose, onSplit }
 
         <button
           onClick={addRow}
-          className="text-xs text-green-400 hover:text-green-300 transition-colors"
+          className="text-xs text-red-400 hover:text-green-300 transition-colors"
         >
           + Add split
         </button>
 
         {/* Remaining indicator */}
-        <div className={`text-sm font-medium ${Math.abs(remaining) <= 0.01 ? "text-green-400" : "text-amber-400"}`}>
+        <div className={`text-sm font-medium ${Math.abs(remaining) <= 0.01 ? "text-red-400" : "text-amber-400"}`}>
           {Math.abs(remaining) <= 0.01
             ? "Splits balance perfectly"
             : `${formatCurrency(remaining)} remaining`}
@@ -180,7 +180,7 @@ export default function SplitModal({ transaction, categories, onClose, onSplit }
           <button
             onClick={handleSubmit}
             disabled={submitting || Math.abs(remaining) > 0.01}
-            className="flex-1 px-4 py-2.5 text-sm bg-green-600 text-white rounded-md hover:bg-green-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 px-4 py-2.5 text-sm bg-green-600 text-white rounded-md hover:bg-red-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {submitting ? "Splitting..." : "Split"}
           </button>

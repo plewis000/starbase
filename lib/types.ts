@@ -449,3 +449,150 @@ export interface HabitTag {
     icon?: string;
   };
 }
+
+// ---- GAMIFICATION (Desperado Club) ----
+
+export type AchievementTier = "common" | "uncommon" | "rare" | "epic" | "legendary";
+export type AchievementCategory = "productivity" | "finance" | "health" | "streak" | "social" | "meta" | "party" | "seasonal";
+export type LootBoxTierSlug = "bronze" | "silver" | "gold" | "platinum";
+
+export interface CrawlerProfile {
+  id: string;
+  user_id: string;
+  crawler_name: string;
+  total_xp: number;
+  current_level: number;
+  current_floor_id?: string;
+  xp_to_next_level: number;
+  login_streak: number;
+  longest_login_streak: number;
+  last_login_date?: string;
+  showcase_achievement_ids: string[];
+  title?: string;
+  created_at: string;
+  updated_at: string;
+  // Enriched
+  floor?: {
+    floor_number: number;
+    name: string;
+    icon: string;
+    color: string;
+  };
+  // Computed
+  level?: number;
+  xp_progress?: number;
+  xp_in_level?: number;
+  xp_to_next?: number;
+  floor_number?: number;
+}
+
+export interface Achievement {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  category: AchievementCategory;
+  tier: AchievementTier;
+  xp_reward: number;
+  icon?: string;
+  loot_box_tier?: LootBoxTierSlug;
+  is_hidden: boolean;
+  is_party: boolean;
+  is_repeatable: boolean;
+  // Unlock status (merged from user data)
+  unlocked: boolean;
+  unlocked_at?: string;
+  unlock_count: number;
+}
+
+export interface XpLedgerEntry {
+  id: string;
+  user_id: string;
+  amount: number;
+  action_type: string;
+  source_entity_type?: string;
+  source_entity_id?: string;
+  description: string;
+  multiplier: number;
+  created_at: string;
+}
+
+export interface LootBox {
+  id: string;
+  user_id: string;
+  tier_id: string;
+  source_achievement_id?: string;
+  source_description: string;
+  opened: boolean;
+  opened_at?: string;
+  reward_id?: string;
+  reward_redeemed: boolean;
+  redeemed_at?: string;
+  created_at: string;
+  // Enriched
+  tier?: {
+    slug: string;
+    name: string;
+    color: string;
+    icon: string;
+  };
+  reward?: {
+    name: string;
+    description?: string;
+    icon?: string;
+  };
+}
+
+export interface LootBoxReward {
+  id: string;
+  user_id: string;
+  tier_id: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  is_household: boolean;
+  active: boolean;
+  times_won: number;
+  created_at: string;
+  tier?: {
+    slug: string;
+    name: string;
+    color: string;
+    icon: string;
+  };
+}
+
+export interface LootBoxTier {
+  id: string;
+  slug: string;
+  name: string;
+  description?: string;
+  color: string;
+  icon: string;
+  sort_order: number;
+}
+
+export interface LeaderboardEntry {
+  rank: number;
+  user_id: string;
+  crawler_name: string;
+  total_xp?: number;
+  xp_earned?: number;
+  level: number;
+  login_streak?: number;
+  title?: string;
+  achievements_unlocked?: number;
+  is_current_user: boolean;
+}
+
+export interface Buff {
+  id: string;
+  name: string;
+  streak: number;
+}
+
+export interface Debuff {
+  id: string;
+  name: string;
+  due_date: string;
+}

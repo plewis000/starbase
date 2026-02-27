@@ -268,7 +268,7 @@ export default function ShoppingPage() {
           <h1 className="text-3xl font-bold text-slate-100">Shopping</h1>
           <button
             onClick={() => setShowNewListModal(true)}
-            className="px-4 py-2 bg-green-400 hover:bg-green-500 text-slate-950 font-medium rounded-lg transition-colors text-sm"
+            className="px-4 py-2 bg-red-400 hover:bg-red-500 text-slate-950 font-medium rounded-lg transition-colors text-sm"
           >
             New List
           </button>
@@ -283,7 +283,7 @@ export default function ShoppingPage() {
                 onClick={() => setActiveListId(list.id)}
                 className={`flex-shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                   activeListId === list.id
-                    ? "bg-green-400/10 text-green-400 border border-green-400/30"
+                    ? "bg-red-400/10 text-red-400 border border-red-400/30"
                     : "bg-slate-900 text-slate-400 border border-slate-800 hover:text-slate-100 hover:border-slate-700"
                 }`}
               >
@@ -320,7 +320,7 @@ export default function ShoppingPage() {
                   if (e.key === "Enter") handleAddItem();
                 }}
                 placeholder="Add item..."
-                className="flex-1 px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-green-400 focus:ring-1 focus:ring-green-400/30 transition-colors"
+                className="flex-1 px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/30 transition-colors"
               />
               <input
                 type="text"
@@ -330,12 +330,12 @@ export default function ShoppingPage() {
                   if (e.key === "Enter") handleAddItem();
                 }}
                 placeholder="Qty"
-                className="w-20 px-3 py-2.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-green-400 focus:ring-1 focus:ring-green-400/30 transition-colors text-center"
+                className="w-20 px-3 py-2.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/30 transition-colors text-center"
               />
               <button
                 onClick={handleAddItem}
                 disabled={!newItemName.trim()}
-                className="px-4 py-2.5 bg-green-400 hover:bg-green-500 disabled:bg-slate-700 disabled:cursor-not-allowed text-slate-950 font-medium rounded-lg transition-colors"
+                className="px-4 py-2.5 bg-red-400 hover:bg-red-500 disabled:bg-slate-700 disabled:cursor-not-allowed text-slate-950 font-medium rounded-lg transition-colors"
               >
                 Add
               </button>
@@ -387,12 +387,12 @@ export default function ShoppingPage() {
                             onClick={() => handleToggleItem(item.id, !item.checked)}
                             className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
                               item.checked
-                                ? "border-green-400 bg-green-400/20"
-                                : "border-slate-600 hover:border-green-400"
+                                ? "border-red-400 bg-red-400/20"
+                                : "border-slate-600 hover:border-red-400"
                             }`}
                           >
                             {item.checked && (
-                              <svg className="w-3 h-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg className="w-3 h-3 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                               </svg>
                             )}
@@ -478,7 +478,7 @@ export default function ShoppingPage() {
               onKeyDown={(e) => { if (e.key === "Enter") handleCreateList(); }}
               placeholder="e.g., Weekly Groceries"
               autoFocus
-              className="w-full bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-green-400 focus:ring-1 focus:ring-green-400/50"
+              className="w-full bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50"
             />
           </div>
           <div>
@@ -488,7 +488,7 @@ export default function ShoppingPage() {
               value={newListStore}
               onChange={(e) => setNewListStore(e.target.value)}
               placeholder="e.g., Costco, Trader Joe's"
-              className="w-full bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-green-400 focus:ring-1 focus:ring-green-400/50"
+              className="w-full bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50"
             />
           </div>
           <div className="flex gap-3 justify-end pt-2">
@@ -501,7 +501,7 @@ export default function ShoppingPage() {
             <button
               onClick={handleCreateList}
               disabled={!newListName.trim()}
-              className="px-4 py-2 bg-green-400 hover:bg-green-500 disabled:bg-slate-700 disabled:cursor-not-allowed text-slate-950 font-medium rounded transition-colors"
+              className="px-4 py-2 bg-red-400 hover:bg-red-500 disabled:bg-slate-700 disabled:cursor-not-allowed text-slate-950 font-medium rounded transition-colors"
             >
               Create
             </button>

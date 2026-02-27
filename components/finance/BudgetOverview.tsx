@@ -48,7 +48,7 @@ export default function BudgetOverview() {
         <h3 className="text-sm font-semibold text-slate-300">Active Budgets</h3>
         <button
           onClick={() => setShowAdd(!showAdd)}
-          className="text-xs px-3 py-1.5 bg-green-500/10 text-green-400 rounded-md hover:bg-green-500/20 transition-colors"
+          className="text-xs px-3 py-1.5 bg-red-500/10 text-red-400 rounded-md hover:bg-red-500/20 transition-colors"
         >
           + Add Budget
         </button>
@@ -92,7 +92,7 @@ export default function BudgetOverview() {
                 <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all ${
-                      isOver ? "bg-red-500" : isWarning ? "bg-amber-500" : "bg-green-500"
+                      isOver ? "bg-red-500" : isWarning ? "bg-amber-500" : "bg-red-500"
                     }`}
                     style={{ width: `${Math.min(b.percent_used, 100)}%` }}
                   />
@@ -101,7 +101,7 @@ export default function BudgetOverview() {
                   <span className={`text-xs ${isOver ? "text-red-400" : "text-slate-500"}`}>
                     {b.percent_used}% used
                   </span>
-                  <span className={`text-xs ${b.remaining < 0 ? "text-red-400" : "text-green-400"}`}>
+                  <span className={`text-xs ${b.remaining < 0 ? "text-red-400" : "text-red-400"}`}>
                     {b.remaining >= 0 ? `${fmt(b.remaining)} left` : `${fmt(Math.abs(b.remaining))} over`}
                   </span>
                 </div>
@@ -171,7 +171,7 @@ function AddBudgetForm({ onAdded, onCancel }: { onAdded: (b: Budget) => void; on
       <select
         value={categoryId}
         onChange={(e) => setCategoryId(e.target.value)}
-        className="w-full px-3 py-2 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:border-green-500"
+        className="w-full px-3 py-2 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:border-red-500"
       >
         <option value="">Select category</option>
         {categories.map((c) => (
@@ -184,7 +184,7 @@ function AddBudgetForm({ onAdded, onCancel }: { onAdded: (b: Budget) => void; on
         placeholder="Monthly budget amount"
         value={amount}
         onChange={(e) => setAmount(e.target.value)}
-        className="w-full px-3 py-2 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:border-green-500"
+        className="w-full px-3 py-2 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:border-red-500"
       />
       {error && <div className="text-xs text-red-400">{error}</div>}
       <div className="flex gap-2">
@@ -194,7 +194,7 @@ function AddBudgetForm({ onAdded, onCancel }: { onAdded: (b: Budget) => void; on
         <button
           onClick={handleSubmit}
           disabled={submitting || !categoryId || !amount}
-          className="flex-1 px-3 py-2 text-sm bg-green-600 text-white rounded-md hover:bg-green-500 disabled:opacity-50"
+          className="flex-1 px-3 py-2 text-sm bg-green-600 text-white rounded-md hover:bg-red-500 disabled:opacity-50"
         >
           {submitting ? "Saving..." : "Save"}
         </button>

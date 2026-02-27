@@ -144,6 +144,10 @@ export async function registerSlashCommands() {
       name: "usage",
       description: "Check API usage and costs",
     },
+    {
+      name: "crawl",
+      description: "View your crawler profile and stats",
+    },
   ];
 
   const res = await fetch(`${DISCORD_API}/applications/${APP_ID}/guilds/${GUILD_ID}/commands`, {
@@ -197,7 +201,8 @@ export const CHANNELS = {
   LOGS: "logs",
 } as const;
 
-// Zev's embed color — a muted gold/amber
-export const ZEV_COLOR = 0xD4A857;
+// Bot embed colors — Desperado Club theme
+export const ZEV_COLOR = 0xD4A857;      // Warm gold — Zev's personal color
+export const SYSTEM_COLOR = 0xDC2626;   // Crimson red — The System's announcements
 
 export { DISCORD_API, GUILD_ID };

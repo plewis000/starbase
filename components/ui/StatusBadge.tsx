@@ -11,7 +11,7 @@ interface StatusBadgeProps {
 const colorMap: Record<string, string> = {
   "To Do": "bg-slate-700 text-slate-200",
   "In Progress": "bg-blue-500/20 text-blue-300",
-  Done: "bg-green-500/20 text-green-300",
+  Done: "bg-red-500/20 text-green-300",
   Blocked: "bg-red-500/20 text-red-300",
   Someday: "bg-purple-500/20 text-purple-300",
 };

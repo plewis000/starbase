@@ -145,7 +145,7 @@ export default function AdminPage() {
               onClick={() => { setActiveTable(t.key); setEditingId(null); setShowAddRow(false); }}
               className={`flex-shrink-0 px-3 py-2 text-sm font-medium transition-colors border-b-2 ${
                 activeTable === t.key
-                  ? "text-green-400 border-green-400"
+                  ? "text-red-400 border-red-400"
                   : "text-slate-400 border-transparent hover:text-slate-100"
               }`}
             >
@@ -171,7 +171,7 @@ export default function AdminPage() {
             <div className="flex justify-end mb-4">
               <button
                 onClick={() => setShowAddRow(!showAddRow)}
-                className="px-4 py-2 bg-green-400 hover:bg-green-500 text-slate-950 font-medium rounded-lg transition-colors text-sm"
+                className="px-4 py-2 bg-red-400 hover:bg-red-500 text-slate-950 font-medium rounded-lg transition-colors text-sm"
               >
                 {showAddRow ? "Cancel" : "Add New"}
               </button>
@@ -179,40 +179,40 @@ export default function AdminPage() {
 
             {/* Add new row form */}
             {showAddRow && (
-              <div className="mb-4 p-4 bg-slate-900 border border-green-400/30 rounded-lg space-y-3">
+              <div className="mb-4 p-4 bg-slate-900 border border-red-400/30 rounded-lg space-y-3">
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                   <input
                     type="text"
                     value={newRow.name || ""}
                     onChange={(e) => setNewRow({ ...newRow, name: e.target.value })}
                     placeholder="Name *"
-                    className="bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-green-400 col-span-2 md:col-span-1"
+                    className="bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 col-span-2 md:col-span-1"
                   />
                   <input
                     type="text"
                     value={newRow.icon || ""}
                     onChange={(e) => setNewRow({ ...newRow, icon: e.target.value })}
                     placeholder="Icon (emoji)"
-                    className="bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-green-400"
+                    className="bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400"
                   />
                   <input
                     type="text"
                     value={newRow.display_color || ""}
                     onChange={(e) => setNewRow({ ...newRow, display_color: e.target.value })}
                     placeholder="Color (#hex)"
-                    className="bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-green-400"
+                    className="bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400"
                   />
                   <input
                     type="number"
                     value={newRow.sort_order ?? 0}
                     onChange={(e) => setNewRow({ ...newRow, sort_order: parseInt(e.target.value) || 0 })}
                     placeholder="Sort order"
-                    className="bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-green-400"
+                    className="bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400"
                   />
                   <button
                     onClick={handleAddRow}
                     disabled={saving || !newRow.name?.trim()}
-                    className="px-4 py-2 bg-green-400 hover:bg-green-500 disabled:bg-slate-700 text-slate-950 font-medium rounded text-sm transition-colors"
+                    className="px-4 py-2 bg-red-400 hover:bg-red-500 disabled:bg-slate-700 text-slate-950 font-medium rounded text-sm transition-colors"
                   >
                     {saving ? "Saving..." : "Create"}
                   </button>
@@ -243,7 +243,7 @@ export default function AdminPage() {
                               type="text"
                               value={editData.icon || ""}
                               onChange={(e) => setEditData({ ...editData, icon: e.target.value })}
-                              className="w-12 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm text-slate-100 text-center focus:outline-none focus:border-green-400"
+                              className="w-12 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm text-slate-100 text-center focus:outline-none focus:border-red-400"
                             />
                           </td>
                           <td className="px-4 py-3">
@@ -251,7 +251,7 @@ export default function AdminPage() {
                               type="text"
                               value={editData.name || ""}
                               onChange={(e) => setEditData({ ...editData, name: e.target.value })}
-                              className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm text-slate-100 focus:outline-none focus:border-green-400"
+                              className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm text-slate-100 focus:outline-none focus:border-red-400"
                             />
                           </td>
                           <td className="px-4 py-3">
@@ -260,7 +260,7 @@ export default function AdminPage() {
                                 type="text"
                                 value={editData.display_color || ""}
                                 onChange={(e) => setEditData({ ...editData, display_color: e.target.value })}
-                                className="w-24 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm text-slate-100 focus:outline-none focus:border-green-400"
+                                className="w-24 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm text-slate-100 focus:outline-none focus:border-red-400"
                               />
                               {editData.display_color && (
                                 <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: editData.display_color }} />
@@ -272,13 +272,13 @@ export default function AdminPage() {
                               type="number"
                               value={editData.sort_order ?? 0}
                               onChange={(e) => setEditData({ ...editData, sort_order: parseInt(e.target.value) || 0 })}
-                              className="w-16 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm text-slate-100 text-center focus:outline-none focus:border-green-400"
+                              className="w-16 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm text-slate-100 text-center focus:outline-none focus:border-red-400"
                             />
                           </td>
                           <td className="px-4 py-3">
                             <button
                               onClick={() => setEditData({ ...editData, active: !editData.active })}
-                              className={`px-2 py-1 rounded text-xs font-medium ${editData.active ? "bg-green-400/10 text-green-400" : "bg-slate-800 text-slate-500"}`}
+                              className={`px-2 py-1 rounded text-xs font-medium ${editData.active ? "bg-red-400/10 text-red-400" : "bg-slate-800 text-slate-500"}`}
                             >
                               {editData.active ? "Active" : "Inactive"}
                             </button>
@@ -288,7 +288,7 @@ export default function AdminPage() {
                               <button
                                 onClick={handleSaveEdit}
                                 disabled={saving}
-                                className="px-3 py-1 bg-green-400 hover:bg-green-500 text-slate-950 text-xs font-medium rounded transition-colors"
+                                className="px-3 py-1 bg-red-400 hover:bg-red-500 text-slate-950 text-xs font-medium rounded transition-colors"
                               >
                                 Save
                               </button>
@@ -327,7 +327,7 @@ export default function AdminPage() {
                               onClick={() => handleToggleActive(row)}
                               className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
                                 row.active
-                                  ? "bg-green-400/10 text-green-400 hover:bg-green-400/20"
+                                  ? "bg-red-400/10 text-red-400 hover:bg-red-400/20"
                                   : "bg-slate-800 text-slate-500 hover:text-slate-300"
                               }`}
                             >

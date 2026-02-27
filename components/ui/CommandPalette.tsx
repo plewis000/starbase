@@ -161,13 +161,17 @@ export default function CommandPalette() {
     // Navigation
     const navItems = [
       { label: "Dashboard", icon: "🏠", path: "/dashboard", keywords: ["home", "overview", "dash"] },
+      { label: "The Crawl", icon: "🗡️", path: "/crawl", keywords: ["crawl", "xp", "level", "profile", "achievement", "gamif"] },
       { label: "Tasks", icon: "📋", path: "/tasks", keywords: ["todo", "task"] },
       { label: "Goals", icon: "🎯", path: "/goals", keywords: ["goal", "objective"] },
       { label: "Habits", icon: "🔄", path: "/habits", keywords: ["habit", "routine", "streak"] },
       { label: "Budget", icon: "💰", path: "/budget", keywords: ["budget", "money", "spend", "finance"] },
       { label: "Shopping", icon: "🛒", path: "/shopping", keywords: ["shop", "grocery", "list", "buy"] },
       { label: "Notifications", icon: "🔔", path: "/notifications", keywords: ["notification", "alert", "bell"] },
-      { label: "Admin", icon: "⚙️", path: "/admin", keywords: ["admin", "config", "setting"] },
+      { label: "Party Quests", icon: "👥", path: "/crawl/party", keywords: ["party", "quest", "team", "coop", "shared"] },
+      { label: "Reward Pool", icon: "🎁", path: "/crawl/rewards", keywords: ["reward", "loot", "prize", "pool"] },
+      { label: "Leaderboard", icon: "🏆", path: "/crawl", keywords: ["leader", "rank", "leaderboard", "compete"] },
+      { label: "Settings", icon: "⚙️", path: "/settings", keywords: ["admin", "config", "setting"] },
     ];
 
     for (const item of navItems) {
@@ -285,7 +289,7 @@ export default function CommandPalette() {
                   )}
                 </div>
                 {result.type === "create" && (
-                  <span className="text-xs bg-green-600/20 text-green-400 px-2 py-0.5 rounded flex-shrink-0">
+                  <span className="text-xs bg-green-600/20 text-red-400 px-2 py-0.5 rounded flex-shrink-0">
                     Create
                   </span>
                 )}

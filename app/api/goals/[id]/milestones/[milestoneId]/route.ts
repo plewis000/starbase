@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { platform } from "@/lib/supabase/schemas";
 import { logActivity } from "@/lib/activity-log";
 import { recalculateAndUpdateGoalProgress } from "@/lib/goal-progress";
+import { awardXp, checkAchievements } from "@/lib/gamification";
 
 // ---- PATCH: Update milestone (complete, rename, reorder) ----
 
@@ -57,6 +58,28 @@ export async function PATCH(
   // Recalculate goal progress if milestone completion changed
   if (body.completed !== undefined) {
     await recalculateAndUpdateGoalProgress(supabase, goalId).catch(console.error);
+  }
+
+  // Award XP for completing a milestone (non-blocking)
+  if (body.completed === true) {
+    (async () => {
+      try {
+        await awardXp(
+          supabase,
+          user.id,
+          40,
+          "goal_milestone",
+          `Milestone: ${milestone.title}`,
+          milestoneId
+        );
+        await checkAchievements(supabase, user.id, "goal_milestone", {
+          goalId,
+          milestoneId,
+        });
+      } catch (err) {
+        console.error("Gamification error:", err);
+      }
+    })();
   }
 
   return NextResponse.json({ milestone });

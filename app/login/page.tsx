@@ -20,16 +20,16 @@ export default function LoginPage() {
         {/* Logo / wordmark */}
         <div className="text-center mb-10">
           <h1 className="text-4xl font-bold tracking-tight text-white">
-            ⭐ Starbase
+            🗡️ Desperado Club
           </h1>
-          <p className="mt-2 text-slate-400 text-sm">Personal command center</p>
+          <p className="mt-2 text-slate-400 text-sm italic">So fun it hurts.</p>
         </div>
 
         {/* Login card */}
-        <div className="bg-slate-900 rounded-2xl p-8 shadow-xl border border-slate-800">
-          <h2 className="text-lg font-semibold text-white mb-1">Sign in</h2>
+        <div className="bg-slate-900 rounded-2xl p-8 shadow-xl border border-red-900/30">
+          <h2 className="text-lg font-semibold text-white mb-1">Enter the Club</h2>
           <p className="text-slate-400 text-sm mb-6">
-            Use your Google account to access Starbase.
+            Sign in with your Google account to begin the crawl.
           </p>
 
           <button

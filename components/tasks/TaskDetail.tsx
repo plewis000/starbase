@@ -234,12 +234,12 @@ export default function TaskDetail({
                   }
                 }}
                 autoFocus
-                className="w-full bg-slate-800 border border-green-400 rounded px-3 py-2 text-xl font-semibold text-slate-100 focus:outline-none"
+                className="w-full bg-slate-800 border border-red-400 rounded px-3 py-2 text-xl font-semibold text-slate-100 focus:outline-none"
               />
             ) : (
               <h1
                 onClick={() => setEditingTitle(true)}
-                className="text-2xl font-bold text-slate-100 cursor-pointer hover:text-green-400 transition-colors truncate"
+                className="text-2xl font-bold text-slate-100 cursor-pointer hover:text-red-400 transition-colors truncate"
               >
                 {task.title}
               </h1>
@@ -351,7 +351,7 @@ export default function TaskDetail({
               }}
               autoFocus
               rows={4}
-              className="w-full bg-slate-700 border border-green-400 rounded px-3 py-2 text-sm text-slate-100 focus:outline-none resize-none"
+              className="w-full bg-slate-700 border border-red-400 rounded px-3 py-2 text-sm text-slate-100 focus:outline-none resize-none"
             />
           ) : (
             <div className="text-sm text-slate-300 whitespace-pre-wrap">
@@ -422,7 +422,7 @@ export default function TaskDetail({
         {/* Edit button */}
         <button
           onClick={() => setShowEditModal(true)}
-          className="w-full px-4 py-2 bg-green-400 hover:bg-green-500 text-slate-950 font-medium rounded transition-colors"
+          className="w-full px-4 py-2 bg-red-400 hover:bg-red-500 text-slate-950 font-medium rounded transition-colors"
         >
           Edit Task
         </button>

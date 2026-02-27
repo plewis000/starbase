@@ -13,9 +13,9 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { href: "/dashboard", label: "Home", icon: "🏠" },
+  { href: "/crawl", label: "Crawl", icon: "🗡️" },
   { href: "/tasks", label: "Tasks", icon: "📋" },
   { href: "/habits", label: "Habits", icon: "🔄" },
-  { href: "/shopping", label: "Shop", icon: "🛒" },
   { href: "/notifications", label: "Alerts", icon: "🔔" },
 ];
 
@@ -33,7 +33,7 @@ export default function BottomNav() {
               href={item.href}
               className={`flex flex-col items-center justify-center py-3 px-4 text-sm font-medium transition-colors relative ${
                 isActive
-                  ? "text-green-400"
+                  ? "text-red-400"
                   : "text-slate-400 hover:text-slate-100"
               }`}
             >

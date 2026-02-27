@@ -6,6 +6,7 @@ import { notifyTaskAssigned, notifyTaskCompleted } from "@/lib/notify";
 import { platform, config } from "@/lib/supabase/schemas";
 import { getConfigLookups, enrichTasks } from "@/lib/task-enrichment";
 import { isValidUUID } from "@/lib/validation";
+import { awardXp, checkAchievements } from "@/lib/gamification";
 
 // =============================================================
 // GET /api/tasks/:id — Get single task with all relations
@@ -265,6 +266,50 @@ export async function PATCH(
     notifyTaskCompleted(supabase, id, updatedTask.title, user.id).catch(
       (err) => console.error("Completion notification error:", err)
     );
+
+    // Award XP for completing the task (non-blocking)
+    (async () => {
+      try {
+        // Map priority to XP — higher priority = more XP
+        const { data: priority } = await config(supabase)
+          .from("task_priorities")
+          .select("name")
+          .eq("id", currentTask.priority_id)
+          .single();
+
+        const priorityXp: Record<string, number> = {
+          Critical: 100,
+          High: 50,
+          Medium: 25,
+          Low: 10,
+        };
+        const xpAmount = priorityXp[priority?.name || "Medium"] || 25;
+
+        // Check for speed completion bonus (done within 1 hour of creation)
+        const createdAt = new Date(currentTask.created_at).getTime();
+        const completedAt = Date.now();
+        const isSpeedComplete = (completedAt - createdAt) < 3600000; // 1 hour
+        const bonusXp = isSpeedComplete ? 15 : 0;
+
+        await awardXp(
+          supabase,
+          user.id,
+          xpAmount + bonusXp,
+          "task_complete",
+          `Completed: ${updatedTask.title}${isSpeedComplete ? " (speed bonus!)" : ""}`,
+          id
+        );
+
+        // Check for task-related achievements
+        await checkAchievements(supabase, user.id, "task_complete", {
+          taskId: id,
+          priority: priority?.name,
+          isSpeedComplete,
+        });
+      } catch (err) {
+        console.error("Gamification error:", err);
+      }
+    })();
   }
 
   // Fetch full updated task

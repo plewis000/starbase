@@ -96,7 +96,7 @@ export default function ChecklistWidget({
           </div>
           <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
             <div
-              className="h-full bg-green-400 transition-all duration-300"
+              className="h-full bg-red-400 transition-all duration-300"
               style={{ width: `${progressPercent}%` }}
             />
           </div>
@@ -113,7 +113,7 @@ export default function ChecklistWidget({
                 checked={item.checked}
                 onChange={() => handleToggleItem(item.id, item.checked)}
                 disabled={loading}
-                className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-green-400 cursor-pointer disabled:opacity-50"
+                className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-red-400 cursor-pointer disabled:opacity-50"
               />
               <span
                 className={`flex-1 text-sm ${
@@ -142,12 +142,12 @@ export default function ChecklistWidget({
           }}
           placeholder="Add item..."
           disabled={addingItem}
-          className="flex-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-green-400 focus:ring-1 focus:ring-green-400/50 disabled:opacity-50"
+          className="flex-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50"
         />
         <button
           onClick={handleAddItem}
           disabled={addingItem || !newItemTitle.trim()}
-          className="px-3 py-2 bg-green-400 hover:bg-green-500 disabled:bg-slate-700 disabled:cursor-not-allowed text-slate-950 text-sm font-medium rounded transition-colors"
+          className="px-3 py-2 bg-red-400 hover:bg-red-500 disabled:bg-slate-700 disabled:cursor-not-allowed text-slate-950 text-sm font-medium rounded transition-colors"
         >
           {addingItem ? <LoadingSpinner size="sm" /> : "Add"}
         </button>

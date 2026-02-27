@@ -155,7 +155,7 @@ export default function TaskForm({
           onChange={handleInputChange}
           placeholder="Enter task title..."
           disabled={submitting}
-          className="w-full bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-green-400 focus:ring-1 focus:ring-green-400/50 disabled:opacity-50"
+          className="w-full bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50"
         />
       </div>
 
@@ -171,7 +171,7 @@ export default function TaskForm({
           placeholder="Add a detailed description..."
           disabled={submitting}
           rows={4}
-          className="w-full bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-green-400 focus:ring-1 focus:ring-green-400/50 disabled:opacity-50 resize-none"
+          className="w-full bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50 resize-none"
         />
       </div>
 
@@ -187,7 +187,7 @@ export default function TaskForm({
             value={formData.statusId}
             onChange={handleInputChange}
             disabled={submitting || configLoading}
-            className="w-full bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100 focus:outline-none focus:border-green-400 focus:ring-1 focus:ring-green-400/50 disabled:opacity-50"
+            className="w-full bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50"
           >
             <option value="">{configLoading ? "Loading..." : "Select status..."}</option>
             {statuses.map((status) => (
@@ -208,7 +208,7 @@ export default function TaskForm({
             value={formData.priorityId}
             onChange={handleInputChange}
             disabled={submitting || configLoading}
-            className="w-full bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100 focus:outline-none focus:border-green-400 focus:ring-1 focus:ring-green-400/50 disabled:opacity-50"
+            className="w-full bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50"
           >
             <option value="">{configLoading ? "Loading..." : "Select priority..."}</option>
             {priorities.map((priority) => (
@@ -231,7 +231,7 @@ export default function TaskForm({
           value={formData.dueDate}
           onChange={handleInputChange}
           disabled={submitting}
-          className="w-full bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100 focus:outline-none focus:border-green-400 focus:ring-1 focus:ring-green-400/50 disabled:opacity-50"
+          className="w-full bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50"
         />
       </div>
 
@@ -247,7 +247,7 @@ export default function TaskForm({
                 type="checkbox"
                 checked={item.checked}
                 disabled={submitting}
-                className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-green-400 cursor-pointer disabled:opacity-50"
+                className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-red-400 cursor-pointer disabled:opacity-50"
               />
               <span className="flex-1 text-sm text-slate-100">{item.title}</span>
               <button
@@ -276,7 +276,7 @@ export default function TaskForm({
             }}
             placeholder="Add checklist item..."
             disabled={submitting}
-            className="flex-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-green-400 focus:ring-1 focus:ring-green-400/50 disabled:opacity-50"
+            className="flex-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50"
           />
           <button
             type="button"
@@ -309,7 +309,7 @@ export default function TaskForm({
         <button
           type="submit"
           disabled={submitting}
-          className="px-4 py-2 bg-green-400 hover:bg-green-500 disabled:bg-slate-700 disabled:cursor-not-allowed text-slate-950 font-medium rounded transition-colors flex items-center gap-2"
+          className="px-4 py-2 bg-red-400 hover:bg-red-500 disabled:bg-slate-700 disabled:cursor-not-allowed text-slate-950 font-medium rounded transition-colors flex items-center gap-2"
         >
           {submitting ? (
             <>

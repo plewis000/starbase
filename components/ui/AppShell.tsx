@@ -29,6 +29,7 @@ interface AppShellProps {
 
 const navItems: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: "🏠" },
+  { href: "/crawl", label: "The Crawl", icon: "🗡️" },
   { href: "/tasks", label: "Tasks", icon: "📋" },
   { href: "/budget", label: "Budget", icon: "💰" },
   { href: "/goals", label: "Goals", icon: "🎯" },
@@ -72,7 +73,7 @@ export default function AppShell({ user, children }: AppShellProps) {
             </button>
 
             <Link href="/dashboard" className="text-xl font-bold text-slate-100">
-              Starbase
+              <span className="text-red-500">🗡️</span> Desperado Club
             </Link>
           </div>
 
@@ -144,7 +145,7 @@ export default function AppShell({ user, children }: AppShellProps) {
                   onClick={() => setSidebarOpen(false)}
                   className={`flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all relative group ${
                     isActive
-                      ? "bg-slate-800 text-green-400 border-l-2 border-green-400"
+                      ? "bg-slate-800 text-red-400 border-l-2 border-red-400"
                       : "text-slate-400 hover:text-slate-100 hover:bg-slate-800/50"
                   }`}
                 >

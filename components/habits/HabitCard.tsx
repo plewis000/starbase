@@ -29,7 +29,7 @@ export default function HabitCard({ habit, onSelect, onCheckIn, isSelected = fal
     <div
       onClick={() => onSelect(habit.id)}
       className={`flex items-center gap-4 p-4 bg-slate-900 border rounded-lg cursor-pointer transition-all hover:bg-slate-800/50 ${
-        isSelected ? "border-green-400 border-l-4" : "border-slate-800 hover:border-slate-700"
+        isSelected ? "border-red-400 border-l-4" : "border-slate-800 hover:border-slate-700"
       }`}
     >
       {/* Check-in button */}
@@ -37,8 +37,8 @@ export default function HabitCard({ habit, onSelect, onCheckIn, isSelected = fal
         onClick={handleCheckIn}
         className={`w-10 h-10 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
           habit.checked_today
-            ? "border-green-400 bg-green-400/20 text-green-400"
-            : "border-slate-600 hover:border-green-400/50 text-slate-600 hover:text-green-400/50"
+            ? "border-red-400 bg-red-400/20 text-red-400"
+            : "border-slate-600 hover:border-red-400/50 text-slate-600 hover:text-red-400/50"
         }`}
       >
         {habit.checked_today ? (

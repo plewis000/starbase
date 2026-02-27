@@ -205,13 +205,13 @@ function SingleComment({
               value={editBody}
               onChange={(e) => setEditBody(e.target.value)}
               rows={2}
-              className="w-full bg-slate-800 border border-green-400/50 rounded px-3 py-2 text-sm text-slate-100 focus:outline-none resize-none"
+              className="w-full bg-slate-800 border border-red-400/50 rounded px-3 py-2 text-sm text-slate-100 focus:outline-none resize-none"
               autoFocus
             />
             <div className="flex gap-2">
               <button
                 onClick={handleEdit}
-                className="px-3 py-1 bg-green-400 hover:bg-green-500 text-slate-950 text-xs font-medium rounded transition-colors"
+                className="px-3 py-1 bg-red-400 hover:bg-red-500 text-slate-950 text-xs font-medium rounded transition-colors"
               >
                 Save
               </button>
@@ -441,13 +441,13 @@ export default function CommentThread({
           placeholder={replyingTo ? "Write a reply..." : "Add a comment... (Ctrl+Enter to submit)"}
           disabled={submitting}
           rows={2}
-          className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-green-400 focus:ring-1 focus:ring-green-400/50 disabled:opacity-50 resize-none"
+          className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50 resize-none"
         />
         <div className="flex gap-2 justify-end">
           <button
             onClick={handleSubmit}
             disabled={submitting || !newComment.trim()}
-            className="px-3 py-1.5 bg-green-400 hover:bg-green-500 disabled:bg-slate-700 disabled:cursor-not-allowed text-slate-950 text-sm font-medium rounded transition-colors flex items-center gap-2"
+            className="px-3 py-1.5 bg-red-400 hover:bg-red-500 disabled:bg-slate-700 disabled:cursor-not-allowed text-slate-950 text-sm font-medium rounded transition-colors flex items-center gap-2"
           >
             {submitting ? <LoadingSpinner size="sm" /> : replyingTo ? "Reply" : "Post"}
           </button>

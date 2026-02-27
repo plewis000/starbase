@@ -134,7 +134,7 @@ export default function LinkPicker({
             placeholder={`Search ${displayLabel.toLowerCase()}...`}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-green-400"
+            className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-red-400"
           />
         </div>
 
@@ -146,7 +146,7 @@ export default function LinkPicker({
                 type="checkbox"
                 checked={selectedIds.size === filteredEntities.length && filteredEntities.length > 0}
                 onChange={handleSelectAll}
-                className="w-4 h-4 rounded accent-green-400 cursor-pointer"
+                className="w-4 h-4 rounded accent-red-400 cursor-pointer"
               />
               <span className="text-sm text-slate-300">Select All</span>
             </label>
@@ -175,7 +175,7 @@ export default function LinkPicker({
                   type="checkbox"
                   checked={selectedIds.has(entity.id)}
                   onChange={() => handleToggle(entity.id)}
-                  className="w-4 h-4 rounded accent-green-400 cursor-pointer"
+                  className="w-4 h-4 rounded accent-red-400 cursor-pointer"
                 />
                 <span className="text-sm text-slate-200">{entity.title || entity.name}</span>
               </label>
@@ -194,7 +194,7 @@ export default function LinkPicker({
           <button
             onClick={handleSubmit}
             disabled={selectedIds.size === 0}
-            className="flex-1 px-4 py-2 rounded-lg bg-green-400 hover:bg-green-500 disabled:bg-slate-700 disabled:cursor-not-allowed text-slate-950 transition-colors text-sm font-medium"
+            className="flex-1 px-4 py-2 rounded-lg bg-red-400 hover:bg-red-500 disabled:bg-slate-700 disabled:cursor-not-allowed text-slate-950 transition-colors text-sm font-medium"
           >
             Link Selected ({selectedIds.size})
           </button>

@@ -142,7 +142,7 @@ export default function CommentThread({
           placeholder="Add a comment... (Ctrl+Enter to submit)"
           disabled={submitting}
           rows={3}
-          className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-green-400 focus:ring-1 focus:ring-green-400/50 disabled:opacity-50 resize-none"
+          className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50 resize-none"
         />
         <div className="flex gap-2 justify-end">
           <button
@@ -155,7 +155,7 @@ export default function CommentThread({
           <button
             onClick={handleSubmitComment}
             disabled={submitting || !newComment.trim()}
-            className="px-3 py-2 bg-green-400 hover:bg-green-500 disabled:bg-slate-700 disabled:cursor-not-allowed text-slate-950 text-sm font-medium rounded transition-colors flex items-center gap-2"
+            className="px-3 py-2 bg-red-400 hover:bg-red-500 disabled:bg-slate-700 disabled:cursor-not-allowed text-slate-950 text-sm font-medium rounded transition-colors flex items-center gap-2"
           >
             {submitting ? <LoadingSpinner size="sm" /> : "Post"}
           </button>
