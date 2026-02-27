@@ -164,17 +164,17 @@ export default function TaskCard({
           {/* Tags */}
           {displayTags.length > 0 && (
             <div className="flex items-center gap-1">
-              {displayTags.map((tag) => (
+              {displayTags.filter((tag) => tag.tag).map((tag) => (
                 <span
                   key={tag.id}
                   className="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-800 text-slate-200 border border-slate-700"
                   style={{
-                    borderColor: tag.tag.display_color || undefined,
-                    color: tag.tag.display_color || undefined,
+                    borderColor: tag.tag?.display_color || undefined,
+                    color: tag.tag?.display_color || undefined,
                   }}
                 >
-                  {tag.tag.icon && <span className="mr-0.5">{tag.tag.icon}</span>}
-                  {tag.tag.name}
+                  {tag.tag?.icon && <span className="mr-0.5">{tag.tag.icon}</span>}
+                  {tag.tag?.name}
                 </span>
               ))}
               {hiddenTagsCount > 0 && (

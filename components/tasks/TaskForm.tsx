@@ -111,7 +111,7 @@ export default function TaskForm({
         status_id: formData.statusId || null,
         priority_id: formData.priorityId || null,
         due_date: formData.dueDate || null,
-        checklist_items: checklistItems.filter((item) => item.title.trim()),
+        checklist_items: checklistItems.filter((item) => item.title.trim()).map((item) => item.title.trim()),
       };
 
       const method = isEditing ? "PATCH" : "POST";

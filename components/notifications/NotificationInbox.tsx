@@ -6,11 +6,12 @@ import { useRouter } from "next/navigation";
 interface Notification {
   id: string;
   user_id: string;
-  source_type: "task_assigned" | "task_commented" | "task_completed";
-  source_id: string;
   title: string;
   body: string | null;
-  read: boolean;
+  read_at: string | null;
+  entity_type: string | null;
+  entity_id: string | null;
+  event_type: string | null;
   created_at: string;
 }
 
@@ -24,10 +25,14 @@ export default function NotificationInbox() {
   const [error, setError] = useState<string | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
-  const sourceEmoji: Record<string, string> = {
+  const eventEmoji: Record<string, string> = {
     task_assigned: "👤",
     task_commented: "💬",
     task_completed: "✅",
+    goal_progress: "🎯",
+    habit_streak: "🔥",
+    habit_check_in: "✓",
+    mention: "📣",
   };
 
   const fetchNotifications = useCallback(async () => {
@@ -63,7 +68,7 @@ export default function NotificationInbox() {
       });
       if (res.ok) {
         setNotifications((prev) =>
-          prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+          prev.map((n) => (n.id === id ? { ...n, read_at: new Date().toISOString() } : n))
         );
       }
     } catch (err) {
@@ -79,7 +84,7 @@ export default function NotificationInbox() {
         body: JSON.stringify({ action: "mark_all_read" }),
       });
       if (res.ok) {
-        setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+        setNotifications((prev) => prev.map((n) => ({ ...n, read_at: new Date().toISOString() })));
       }
     } catch (err) {
       console.error("Failed to mark all as read:", err);
@@ -102,15 +107,25 @@ export default function NotificationInbox() {
 
   const handleNotificationClick = (notification: Notification) => {
     // Mark as read if unread
-    if (!notification.read) {
+    if (!notification.read_at) {
       markAsRead(notification.id, {
         stopPropagation: () => {},
       } as React.MouseEvent);
     }
 
-    // Navigate based on source type
-    if (notification.source_type.startsWith("task")) {
-      router.push(`/tasks?selected=${notification.source_id}`);
+    // Navigate based on entity type
+    if (notification.entity_type && notification.entity_id) {
+      switch (notification.entity_type) {
+        case "task":
+          router.push(`/tasks?selected=${notification.entity_id}`);
+          break;
+        case "goal":
+          router.push(`/goals?selected=${notification.entity_id}`);
+          break;
+        case "habit":
+          router.push(`/habits?selected=${notification.entity_id}`);
+          break;
+      }
     }
   };
 
@@ -128,9 +143,9 @@ export default function NotificationInbox() {
   };
 
   const filteredNotifications =
-    filter === "unread" ? notifications.filter((n) => !n.read) : notifications;
+    filter === "unread" ? notifications.filter((n) => !n.read_at) : notifications;
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const unreadCount = notifications.filter((n) => !n.read_at).length;
 
   return (
     <div className="min-h-screen bg-slate-950">
@@ -209,14 +224,14 @@ export default function NotificationInbox() {
                   onMouseLeave={() => setHoveredId(null)}
                   onClick={() => handleNotificationClick(notification)}
                   className={`group p-4 rounded-lg border transition-all cursor-pointer ${
-                    notification.read
+                    notification.read_at
                       ? "bg-slate-900 border-slate-800 hover:border-slate-700"
                       : "bg-slate-900/60 border-green-400/30 hover:border-green-400/50"
                   }`}
                 >
                   <div className="flex items-start gap-4 relative">
                     {/* Green left border for unread */}
-                    {!notification.read && (
+                    {!notification.read_at && (
                       <div className="absolute left-0 top-0 bottom-0 w-1 bg-green-400 rounded-l-lg" />
                     )}
 
@@ -224,12 +239,12 @@ export default function NotificationInbox() {
                     <div className="flex-1 min-w-0 pl-2">
                       <div className="flex items-start gap-3">
                         <span className="text-xl flex-shrink-0">
-                          {sourceEmoji[notification.source_type] || "🔔"}
+                          {eventEmoji[notification.event_type || ""] || "🔔"}
                         </span>
                         <div className="flex-1 min-w-0">
                           <h3
                             className={`font-medium leading-tight ${
-                              notification.read
+                              notification.read_at
                                 ? "text-slate-400"
                                 : "text-slate-100"
                             }`}

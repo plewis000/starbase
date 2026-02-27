@@ -27,7 +27,7 @@ const STATUS_OPTIONS: { label: string; value: string }[] = [
 ];
 const PRIORITY_OPTIONS: { label: string; value: string }[] = [
   { label: "All", value: "All" },
-  { label: "Critical", value: "Critical" },
+  { label: "Urgent", value: "Urgent" },
   { label: "High", value: "High" },
   { label: "Medium", value: "Medium" },
   { label: "Low", value: "Low" },
