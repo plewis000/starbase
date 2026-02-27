@@ -69,23 +69,32 @@ export default function SplitModal({ transaction, categories, onClose, onSplit }
       return;
     }
 
+    if (splits.some((s) => s.amount <= 0)) {
+      setError("All split amounts must be greater than $0");
+      return;
+    }
+
     if (Math.abs(remaining) > 0.01) {
       setError(`Splits must sum to ${formatCurrency(transaction.amount)} (${formatCurrency(remaining)} remaining)`);
       return;
     }
 
     setSubmitting(true);
-    const res = await fetch(`/api/finance/transactions/${transaction.id}/split`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ splits }),
-    });
+    try {
+      const res = await fetch(`/api/finance/transactions/${transaction.id}/split`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ splits }),
+      });
 
-    if (res.ok) {
-      onSplit();
-    } else {
-      const data = await res.json();
-      setError(data.error || "Failed to split transaction");
+      if (res.ok) {
+        onSplit();
+      } else {
+        const data = await res.json();
+        setError(data.error || "Failed to split transaction");
+      }
+    } catch {
+      setError("Failed to split transaction");
     }
     setSubmitting(false);
   };

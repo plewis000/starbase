@@ -30,8 +30,8 @@ export default function NotificationBell() {
         setNotifications(data.notifications);
         setUnreadCount(data.unread_count);
       }
-    } catch (err) {
-      console.error("Failed to fetch notifications:", err);
+    } catch {
+      // Silent fail for notification bell — it polls frequently
     } finally {
       setLoading(false);
     }

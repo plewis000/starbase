@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useToast } from "@/components/ui/Toast";
 
 interface ConfigItem {
   id: string;
@@ -32,6 +33,7 @@ const DAY_OPTIONS = [
 ];
 
 export default function HabitForm({ onSave, onCancel }: HabitFormProps) {
+  const toast = useToast();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [frequencyId, setFrequencyId] = useState("");
@@ -56,8 +58,8 @@ export default function HabitForm({ onSave, onCancel }: HabitFormProps) {
             setFrequencyId(data.habit_frequencies[0].id);
           }
         }
-      } catch (err) {
-        console.error("Failed to fetch config:", err);
+      } catch {
+        toast.error("Failed to load frequencies");
       }
     };
     fetchConfig();
@@ -71,8 +73,8 @@ export default function HabitForm({ onSave, onCancel }: HabitFormProps) {
           const data = await res.json();
           setGoals(data.goals || []);
         }
-      } catch (err) {
-        console.error("Failed to fetch goals:", err);
+      } catch {
+        toast.error("Failed to load goals");
       }
     };
     fetchGoals();

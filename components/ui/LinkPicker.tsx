@@ -76,8 +76,7 @@ export default function LinkPicker({
         // Filter out excluded IDs
         const filtered = items.filter((item: Entity) => !excludeIds.includes(item.id));
         setEntities(filtered);
-      } catch (err) {
-        console.error("Error fetching entities:", err);
+      } catch {
         setError(`Failed to load ${displayLabel.toLowerCase()}`);
       } finally {
         setLoading(false);

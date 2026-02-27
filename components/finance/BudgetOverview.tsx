@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useToast } from "@/components/ui/Toast";
 
 interface Budget {
   id: string;
@@ -16,13 +17,20 @@ export default function BudgetOverview() {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
+  const toast = useToast();
 
   useEffect(() => {
     const fetchBudgets = async () => {
-      const res = await fetch("/api/finance/budgets");
-      if (res.ok) {
-        const data = await res.json();
-        setBudgets(data.budgets || []);
+      try {
+        const res = await fetch("/api/finance/budgets");
+        if (res.ok) {
+          const data = await res.json();
+          setBudgets(data.budgets || []);
+        } else {
+          toast.error("Failed to load budgets");
+        }
+      } catch {
+        toast.error("Failed to load budgets");
       }
       setLoading(false);
     };
@@ -115,10 +123,14 @@ function AddBudgetForm({ onAdded, onCancel }: { onAdded: (b: Budget) => void; on
 
   useEffect(() => {
     const fetchCats = async () => {
-      const res = await fetch("/api/config");
-      if (res.ok) {
-        const data = await res.json();
-        setCategories(data.expense_categories || []);
+      try {
+        const res = await fetch("/api/config");
+        if (res.ok) {
+          const data = await res.json();
+          setCategories(data.expense_categories || []);
+        }
+      } catch {
+        // Categories will just be empty
       }
     };
     fetchCats();
@@ -126,21 +138,30 @@ function AddBudgetForm({ onAdded, onCancel }: { onAdded: (b: Budget) => void; on
 
   const handleSubmit = async () => {
     if (!categoryId || !amount) return;
+    const parsedAmount = parseFloat(amount);
+    if (parsedAmount <= 0 || isNaN(parsedAmount)) {
+      setError("Budget amount must be greater than $0");
+      return;
+    }
     setSubmitting(true);
     setError(null);
 
-    const res = await fetch("/api/finance/budgets", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ category_id: categoryId, monthly_amount: parseFloat(amount) }),
-    });
+    try {
+      const res = await fetch("/api/finance/budgets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ category_id: categoryId, monthly_amount: parsedAmount }),
+      });
 
-    if (res.ok) {
-      const data = await res.json();
-      onAdded(data.budget);
-    } else {
-      const data = await res.json();
-      setError(data.error || "Failed to create budget");
+      if (res.ok) {
+        const data = await res.json();
+        onAdded(data.budget);
+      } else {
+        const data = await res.json();
+        setError(data.error || "Failed to create budget");
+      }
+    } catch {
+      setError("Failed to create budget");
     }
     setSubmitting(false);
   };

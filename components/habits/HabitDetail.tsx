@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import CommentThread from "@/components/ui/CommentThread";
+import { useToast } from "@/components/ui/Toast";
 
 interface CheckIn {
   id: string;
@@ -56,6 +57,7 @@ const MOOD_EMOJI: Record<string, string> = {
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitDetailProps) {
+  const toast = useToast();
   const [habit, setHabit] = useState<HabitFull | null>(null);
   const [loading, setLoading] = useState(true);
   const [checkInNote, setCheckInNote] = useState("");
@@ -73,8 +75,8 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
         if (!res.ok) throw new Error("Failed to fetch");
         const data = await res.json();
         setHabit(data.habit);
-      } catch (err) {
-        console.error("Error:", err);
+      } catch {
+        toast.error("Failed to load habit");
       } finally {
         setLoading(false);
       }
@@ -129,8 +131,8 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
         const available = (data.goals || []).filter((g: AvailableGoal) => !linkedIds.has(g.id));
         setAvailableGoals(available);
       }
-    } catch (err) {
-      console.error("Error fetching goals:", err);
+    } catch {
+      toast.error("Failed to load goals");
     } finally {
       setPickerLoading(false);
     }
@@ -153,8 +155,8 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
         setSelectedGoalsToAdd([]);
         onHabitUpdated?.();
       }
-    } catch (err) {
-      console.error("Error adding goals:", err);
+    } catch {
+      toast.error("Failed to link goals");
     }
   };
 

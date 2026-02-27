@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useToast } from "@/components/ui/Toast";
 
 interface ConfigItem {
   id: string;
@@ -22,6 +23,7 @@ interface GoalFormProps {
 }
 
 export default function GoalForm({ onSave, onCancel }: GoalFormProps) {
+  const toast = useToast();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [categoryId, setCategoryId] = useState("");
@@ -50,8 +52,8 @@ export default function GoalForm({ onSave, onCancel }: GoalFormProps) {
           setCategories(data.goal_categories || []);
           setTimeframes(data.goal_timeframes || []);
         }
-      } catch (err) {
-        console.error("Failed to fetch config:", err);
+      } catch {
+        toast.error("Failed to load goal options");
       }
     };
     fetchConfig();
@@ -65,8 +67,8 @@ export default function GoalForm({ onSave, onCancel }: GoalFormProps) {
           const data = await res.json();
           setHabits(data.habits || []);
         }
-      } catch (err) {
-        console.error("Failed to fetch habits:", err);
+      } catch {
+        toast.error("Failed to load habits");
       }
     };
     if (progressType === "habit_driven") {

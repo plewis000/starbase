@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import { useToast } from "@/components/ui/Toast";
 import { ChecklistItem } from "@/lib/types";
 
 interface ChecklistWidgetProps {
@@ -17,6 +18,7 @@ export default function ChecklistWidget({
 }: ChecklistWidgetProps) {
   const [loading, setLoading] = useState(false);
   const [itemsState, setItemsState] = useState(items);
+  const toast = useToast();
   const [newItemTitle, setNewItemTitle] = useState("");
   const [addingItem, setAddingItem] = useState(false);
 
@@ -48,8 +50,8 @@ export default function ChecklistWidget({
       );
 
       onUpdate();
-    } catch (error) {
-      console.error("Error updating checklist item:", error);
+    } catch {
+      toast.error("Failed to update checklist item");
     } finally {
       setLoading(false);
     }
@@ -74,8 +76,8 @@ export default function ChecklistWidget({
       setItemsState((prev) => [...prev, data.item]);
       setNewItemTitle("");
       onUpdate();
-    } catch (error) {
-      console.error("Error adding checklist item:", error);
+    } catch {
+      toast.error("Failed to add checklist item");
     } finally {
       setAddingItem(false);
     }

@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import { useToast } from "@/components/ui/Toast";
 import { Comment } from "@/lib/types";
 
 interface CommentThreadProps {
@@ -46,6 +47,7 @@ export default function CommentThread({
   const [newComment, setNewComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const threadsEndRef = useRef<HTMLDivElement>(null);
+  const toast = useToast();
 
   const scrollToBottom = () => {
     threadsEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -74,8 +76,8 @@ export default function CommentThread({
       setComments((prev) => [...prev, data.comment]);
       setNewComment("");
       onCommentAdded();
-    } catch (error) {
-      console.error("Error submitting comment:", error);
+    } catch {
+      toast.error("Failed to post comment");
     } finally {
       setSubmitting(false);
     }

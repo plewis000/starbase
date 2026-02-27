@@ -39,8 +39,8 @@ export default function OutcomesPanel() {
         if (!res.ok) throw new Error("Failed to fetch dashboard");
         const json = await res.json();
         setData(json);
-      } catch (err) {
-        console.error("Error fetching dashboard:", err);
+      } catch {
+        // Dashboard data will show error state
       } finally {
         setLoading(false);
       }

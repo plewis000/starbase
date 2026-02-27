@@ -90,8 +90,8 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
         if (!res.ok) throw new Error("Failed to fetch goal");
         const data = await res.json();
         setGoal(data.goal);
-      } catch (err) {
-        console.error("Error fetching goal:", err);
+      } catch {
+        toast.error("Failed to load goal");
       } finally {
         setLoading(false);
       }

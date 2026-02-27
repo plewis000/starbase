@@ -112,7 +112,6 @@ export default function TaskDetail({
       setError("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
-      console.error("Error fetching task:", err);
     } finally {
       setLoading(false);
     }
@@ -143,8 +142,8 @@ export default function TaskDetail({
       setTask(data.task);
       setEditingTitle(false);
       onTaskUpdated?.();
-    } catch (err) {
-      console.error("Error updating title:", err);
+    } catch {
+      // Title update failed — user will see stale title
     }
   };
 
@@ -171,8 +170,8 @@ export default function TaskDetail({
       setTask(data.task);
       setEditingDescription(false);
       onTaskUpdated?.();
-    } catch (err) {
-      console.error("Error updating description:", err);
+    } catch {
+      // Description update failed — user will see stale description
     }
   };
 

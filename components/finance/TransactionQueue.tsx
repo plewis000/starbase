@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import SplitModal from "./SplitModal";
+import { useToast } from "@/components/ui/Toast";
 
 interface Category {
   id: string;
@@ -38,28 +39,40 @@ export default function TransactionQueue({ onUpdate }: Props) {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"unreviewed" | "all" | "excluded">("unreviewed");
   const [splitTarget, setSplitTarget] = useState<Transaction | null>(null);
+  const [actionInProgress, setActionInProgress] = useState<string | null>(null);
+  const toast = useToast();
 
   const fetchTransactions = useCallback(async () => {
     setLoading(true);
-    const params = new URLSearchParams({ limit: "50" });
-    if (filter === "unreviewed") params.set("reviewed", "false");
-    if (filter === "excluded") params.set("excluded", "true");
+    try {
+      const params = new URLSearchParams({ limit: "50" });
+      if (filter === "unreviewed") params.set("reviewed", "false");
+      if (filter === "excluded") params.set("excluded", "true");
 
-    const res = await fetch(`/api/finance/transactions?${params}`);
-    if (res.ok) {
-      const data = await res.json();
-      setTransactions(data.transactions || []);
+      const res = await fetch(`/api/finance/transactions?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        setTransactions(data.transactions || []);
+      } else {
+        toast.error("Failed to load transactions");
+      }
+    } catch {
+      toast.error("Failed to load transactions");
     }
     setLoading(false);
   }, [filter]);
 
   const fetchCategories = useCallback(async () => {
-    const res = await fetch("/api/config");
-    if (res.ok) {
-      const data = await res.json();
-      if (data.expense_categories) {
-        setCategories(data.expense_categories);
+    try {
+      const res = await fetch("/api/config");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.expense_categories) {
+          setCategories(data.expense_categories);
+        }
       }
+    } catch {
+      toast.error("Failed to load categories");
     }
   }, []);
 
@@ -69,39 +82,51 @@ export default function TransactionQueue({ onUpdate }: Props) {
   }, [fetchTransactions, fetchCategories]);
 
   const categorize = async (txId: string, categoryId: string) => {
-    const res = await fetch(`/api/finance/transactions/${txId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ category_id: categoryId, reviewed: true }),
-    });
-    if (res.ok) {
-      setTransactions((prev) => prev.filter((t) => t.id !== txId));
-      onUpdate();
-    }
+    setActionInProgress(txId);
+    try {
+      const res = await fetch(`/api/finance/transactions/${txId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ category_id: categoryId, reviewed: true }),
+      });
+      if (res.ok) {
+        setTransactions((prev) => prev.filter((t) => t.id !== txId));
+        onUpdate();
+      } else { toast.error("Failed to categorize"); }
+    } catch { toast.error("Failed to categorize"); }
+    setActionInProgress(null);
   };
 
   const markReviewed = async (txId: string) => {
-    const res = await fetch(`/api/finance/transactions/${txId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ reviewed: true }),
-    });
-    if (res.ok) {
-      setTransactions((prev) => prev.filter((t) => t.id !== txId));
-      onUpdate();
-    }
+    setActionInProgress(txId);
+    try {
+      const res = await fetch(`/api/finance/transactions/${txId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reviewed: true }),
+      });
+      if (res.ok) {
+        setTransactions((prev) => prev.filter((t) => t.id !== txId));
+        onUpdate();
+      } else { toast.error("Failed to mark reviewed"); }
+    } catch { toast.error("Failed to mark reviewed"); }
+    setActionInProgress(null);
   };
 
   const exclude = async (txId: string) => {
-    const res = await fetch(`/api/finance/transactions/${txId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ excluded: true, reviewed: true }),
-    });
-    if (res.ok) {
-      setTransactions((prev) => prev.filter((t) => t.id !== txId));
-      onUpdate();
-    }
+    setActionInProgress(txId);
+    try {
+      const res = await fetch(`/api/finance/transactions/${txId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ excluded: true, reviewed: true }),
+      });
+      if (res.ok) {
+        setTransactions((prev) => prev.filter((t) => t.id !== txId));
+        onUpdate();
+      } else { toast.error("Failed to exclude"); }
+    } catch { toast.error("Failed to exclude"); }
+    setActionInProgress(null);
   };
 
   const formatAmount = (amount: number) => {
@@ -150,6 +175,7 @@ export default function TransactionQueue({ onUpdate }: Props) {
               onReview={markReviewed}
               onExclude={exclude}
               onSplit={() => setSplitTarget(tx)}
+              disabled={actionInProgress === tx.id}
             />
           ))}
         </div>
@@ -178,6 +204,7 @@ function TransactionCard({
   onReview,
   onExclude,
   onSplit,
+  disabled,
 }: {
   transaction: Transaction;
   categories: Category[];
@@ -185,6 +212,7 @@ function TransactionCard({
   onReview: (id: string) => void;
   onExclude: (id: string) => void;
   onSplit: () => void;
+  disabled: boolean;
 }) {
   const [showCategories, setShowCategories] = useState(false);
 
@@ -234,25 +262,29 @@ function TransactionCard({
       <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-800">
         <button
           onClick={() => setShowCategories(!showCategories)}
-          className="text-xs px-3 py-1.5 bg-green-500/10 text-green-400 rounded-md hover:bg-green-500/20 transition-colors"
+          disabled={disabled}
+          className="text-xs px-3 py-1.5 bg-green-500/10 text-green-400 rounded-md hover:bg-green-500/20 transition-colors disabled:opacity-50"
         >
           Categorize
         </button>
         <button
           onClick={onSplit}
-          className="text-xs px-3 py-1.5 bg-blue-500/10 text-blue-400 rounded-md hover:bg-blue-500/20 transition-colors"
+          disabled={disabled}
+          className="text-xs px-3 py-1.5 bg-blue-500/10 text-blue-400 rounded-md hover:bg-blue-500/20 transition-colors disabled:opacity-50"
         >
           Split
         </button>
         <button
           onClick={() => onReview(tx.id)}
-          className="text-xs px-3 py-1.5 bg-slate-700 text-slate-300 rounded-md hover:bg-slate-600 transition-colors"
+          disabled={disabled}
+          className="text-xs px-3 py-1.5 bg-slate-700 text-slate-300 rounded-md hover:bg-slate-600 transition-colors disabled:opacity-50"
         >
-          Accept
+          {disabled ? "Saving..." : "Accept"}
         </button>
         <button
           onClick={() => onExclude(tx.id)}
-          className="text-xs px-3 py-1.5 text-slate-500 hover:text-red-400 transition-colors ml-auto"
+          disabled={disabled}
+          className="text-xs px-3 py-1.5 text-slate-500 hover:text-red-400 transition-colors ml-auto disabled:opacity-50"
         >
           Exclude
         </button>

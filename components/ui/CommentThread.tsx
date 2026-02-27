@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import { useToast } from "@/components/ui/Toast";
 import { CommentV2, CommentEntityType } from "@/lib/types";
 
 interface CommentThreadProps {
@@ -78,8 +79,8 @@ function ReactionBar({
         body: JSON.stringify({ emoji }),
       });
       onReactionToggle();
-    } catch (err) {
-      console.error("Failed to toggle reaction:", err);
+    } catch {
+      // Reaction toggle failed silently — non-critical UI action
     }
     setShowPicker(false);
   };
@@ -161,8 +162,8 @@ function SingleComment({
         onRefresh();
         setEditing(false);
       }
-    } catch (err) {
-      console.error("Failed to edit comment:", err);
+    } catch {
+      // Edit failed silently
     }
   };
 
@@ -172,8 +173,8 @@ function SingleComment({
         method: "DELETE",
       });
       if (res.ok) onRefresh();
-    } catch (err) {
-      console.error("Failed to delete comment:", err);
+    } catch {
+      // Delete failed silently
     }
   };
 
@@ -312,6 +313,7 @@ export default function CommentThread({
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const toast = useToast();
 
   // Fetch current user ID for ownership checks
   useEffect(() => {
@@ -331,8 +333,8 @@ export default function CommentThread({
       // Count: top-level + all replies
       const total = fetched.reduce((sum: number, c: CommentV2) => sum + 1 + (c.replies?.length || 0), 0);
       onCommentCountChange?.(total);
-    } catch (err) {
-      console.error("Failed to fetch comments:", err);
+    } catch {
+      // Comments will show empty state
     } finally {
       setLoading(false);
     }
@@ -362,8 +364,8 @@ export default function CommentThread({
       setNewComment("");
       setReplyingTo(null);
       await fetchComments();
-    } catch (err) {
-      console.error("Error posting comment:", err);
+    } catch {
+      toast.error("Failed to post comment");
     } finally {
       setSubmitting(false);
     }

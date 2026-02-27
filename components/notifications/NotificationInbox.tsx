@@ -50,7 +50,6 @@ export default function NotificationInbox() {
       setNotifications(data.notifications || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
-      console.error("Failed to fetch notifications:", err);
     } finally {
       setLoading(false);
     }

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import { useToast } from "@/components/ui/Toast";
 import { Task, ChecklistItem } from "@/lib/types";
 
 interface TaskFormProps {
@@ -24,6 +25,7 @@ export default function TaskForm({
   onCancel,
 }: TaskFormProps) {
   const isEditing = !!task;
+  const toast = useToast();
 
   // Fetch config options from API (real UUIDs, not hardcoded slugs)
   const [statuses, setStatuses] = useState<ConfigOption[]>([]);
@@ -39,8 +41,8 @@ export default function TaskForm({
           setStatuses(data.statuses || []);
           setPriorities(data.priorities || []);
         }
-      } catch (err) {
-        console.error("Failed to fetch config:", err);
+      } catch {
+        toast.error("Failed to load task options");
       } finally {
         setConfigLoading(false);
       }
@@ -131,8 +133,9 @@ export default function TaskForm({
       const data = await response.json();
       onSave(data.task);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-      console.error("Error saving task:", err);
+      const msg = err instanceof Error ? err.message : "An error occurred";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
