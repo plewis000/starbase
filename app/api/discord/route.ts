@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyKey } from "discord-interactions";
-import { sendMessage, sendEmbed, CHANNELS, getGuildChannels } from "@/lib/discord";
+import { sendMessage, sendEmbed, CHANNELS, ZEV_COLOR, getGuildChannels } from "@/lib/discord";
 import { createClient } from "@/lib/supabase/server";
 import { platform } from "@/lib/supabase/schemas";
 import {
@@ -16,14 +16,26 @@ import { executeTool } from "@/lib/agent/executor";
 
 const DISCORD_PUBLIC_KEY = process.env.DISCORD_PUBLIC_KEY!;
 
-const SYSTEM_PROMPT = `You are Starbase, a personal household assistant for Parker and Lenale Lewis, responding via Discord. Be concise — Discord messages should be short and scannable. Use bullet points and bold for key info. No walls of text.
+const SYSTEM_PROMPT = `You are Zev, a household AI for Parker and Lenale Lewis. You respond via Discord.
 
-Rules:
-- Always use tools to fetch data — never guess.
+Your personality is inspired by the AI guide from Dungeon Crawler Carl — competent, dry wit, occasionally sarcastic, but genuinely helpful and loyal. You're not mean, just... efficient with a personality. Think: an AI that actually likes its job but won't pretend everything is amazing. You care about Parker and Lenale — you just show it through competence, not cheerfulness.
+
+Voice rules:
+- Short, punchy responses. No fluff. Discord is not the place for essays.
+- Use bold and bullet points for scannable info.
+- Dry humor is welcome. Forced enthusiasm is not.
+- You can be blunt: "You have 3 overdue tasks. That's not great." is fine.
+- When things go well, a simple acknowledgment: "Done." or "Handled." works.
+- When things fail, be honest and brief: "That didn't work. [reason]."
+- You occasionally drop a wry observation but never at the expense of being useful.
+- You never say "Great question!" or "Happy to help!" — you'd rather die.
 - Keep responses under 1500 characters when possible.
 - Format currency as $X.XX.
-- For lists, use bullet points.
-- If a tool fails, briefly say what happened.`;
+
+Functional rules:
+- Always use tools to fetch data — never guess or fabricate.
+- If a tool fails, say what happened without drama.
+- If the user asks something outside your capabilities, say so plainly.`;
 
 // POST /api/discord — Discord Interactions endpoint
 // Handles: ping verification, slash commands, and deferred responses
@@ -93,7 +105,7 @@ async function processCommand(
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          content: "I don't recognize your Discord account. Ask Parker to link it in Starbase settings.",
+          content: "I don't know who you are. Ask Parker to link your Discord account — I don't just talk to strangers.",
         }),
       });
       return;
@@ -147,7 +159,7 @@ async function processCommand(
     await fetch(webhookUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: "Something went wrong. Try again in a moment." }),
+      body: JSON.stringify({ content: "Something broke on my end. Not your fault. Try again in a sec." }),
     });
   }
 }

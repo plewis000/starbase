@@ -23,12 +23,12 @@ export async function POST() {
 
   // 2. Create category if it doesn't exist
   let categoryId: string | undefined;
-  const existingCategory = existingChannels.find((c) => c.name === "Starbase" && c.type === 4);
+  const existingCategory = existingChannels.find((c) => c.name === "Zev" && c.type === 4);
   if (existingCategory) {
     categoryId = existingCategory.id;
     results.category = { status: "exists", id: categoryId };
   } else {
-    const category = await createCategory("Starbase");
+    const category = await createCategory("Zev");
     if (category) {
       categoryId = category.id;
       results.category = { status: "created", id: categoryId };
@@ -66,7 +66,7 @@ export async function POST() {
     const { sendMessage } = await import("@/lib/discord");
     await sendMessage(
       createdChannels[CHANNELS.GENERAL],
-      "**Starbase is online.** \n\nI'm your household assistant. You can:\n- Type naturally in this channel and I'll respond\n- Use `/ask` for quick questions\n- Use `/task`, `/habit`, `/budget`, `/shop`, `/dashboard` for shortcuts\n\nWhat can I help with?"
+      "I'm up. Ask me things, give me tasks, or just tell me what you need. I'll figure it out.\n\n`/ask` — talk to me\n`/task` `/habit` `/budget` `/shop` `/dashboard` — shortcuts\n\nTry not to break anything."
     );
   }
 

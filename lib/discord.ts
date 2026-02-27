@@ -124,7 +124,7 @@ export async function registerSlashCommands() {
     },
     {
       name: "ask",
-      description: "Ask Starbase anything",
+      description: "Ask Zev anything",
       options: [
         { name: "message", description: "Your question or request", type: 3, required: true },
       ],
@@ -189,12 +189,15 @@ function splitMessage(content: string, maxLength: number): string[] {
 
 // Channel name constants
 export const CHANNELS = {
-  GENERAL: "starbase-general",
-  BUDGET: "starbase-budget",
-  TASKS: "starbase-tasks",
-  GOALS: "starbase-goals",
-  SHOPPING: "starbase-shopping",
-  LOGS: "starbase-logs",
+  GENERAL: "general",
+  BUDGET: "budget",
+  TASKS: "tasks",
+  GOALS: "goals",
+  SHOPPING: "shopping",
+  LOGS: "logs",
 } as const;
+
+// Zev's embed color — a muted gold/amber
+export const ZEV_COLOR = 0xD4A857;
 
 export { DISCORD_API, GUILD_ID };

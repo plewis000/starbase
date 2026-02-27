@@ -10,20 +10,20 @@ Phases 4-9 are designed into the schema but NOT built until Phase 1-3 are in dai
 
 ---
 
-## Phase 1: Data Foundation ← ACTIVE NOW
+## Phase 1: Data Foundation ← COMPLETE (pending Plaid credentials)
 
 **Goal:** All new tables exist, finance APIs work, Plaid connected with real bank data, feedback system operational.
 
 | Component | Description | Status |
 |-----------|-------------|--------|
-| Migration 005 | All new tables: finance expansion, feedback, agent infra, contacts, home, recipes/meals | Building |
-| Finance API routes | Transactions CRUD, budgets, splits, summary, merchant rules | Pending |
-| Plaid integration | Link token, webhook, transaction sync, account linking | Pending |
-| Plaid live | Apply for Development access, link real bank accounts | Pending |
-| Feedback API routes | CRUD for improvement requests | Pending |
-| Transaction triage UI | Budget page with classification queue, split modal, spending view | Pending |
-| Config seed data | Expense categories with Plaid mappings | Pending |
-| Apply migration to Supabase | Run 005 against production DB | Pending |
+| Migration 005 | All new tables: finance expansion, feedback, agent infra, contacts, home, recipes/meals | Done |
+| Finance API routes | Transactions CRUD, budgets, splits, summary, merchant rules | Done |
+| Plaid integration | Link token, webhook, transaction sync, account linking | Done |
+| Plaid live | Apply for Development access, link real bank accounts | Blocked (needs Plaid account) |
+| Feedback API routes | CRUD for improvement requests | Done |
+| Transaction triage UI | Budget page with classification queue, split modal, spending view | Done |
+| Config seed data | Expense categories with Plaid mappings | Done |
+| Apply migration to Supabase | Run 005 against production DB | Done |
 
 ## Phase 2: Agent Brain
 
