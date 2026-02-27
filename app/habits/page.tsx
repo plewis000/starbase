@@ -18,7 +18,7 @@ export default function HabitsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div>
       <div className="hidden lg:flex h-screen">
         <div className="flex-1 overflow-hidden border-r border-slate-800">
           <div className="h-full overflow-y-auto p-6">

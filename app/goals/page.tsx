@@ -18,7 +18,7 @@ export default function GoalsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div>
       {/* Desktop */}
       <div className="hidden lg:flex h-screen">
         <div className="flex-1 overflow-hidden border-r border-slate-800">

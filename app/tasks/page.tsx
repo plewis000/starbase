@@ -35,7 +35,7 @@ export default function TasksPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div>
       {/* Desktop layout: List on left, detail on right */}
       <div className="hidden lg:flex h-screen">
         {/* Task list */}

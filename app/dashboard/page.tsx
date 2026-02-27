@@ -60,7 +60,7 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 p-6">
+      <div className="p-6">
         <div className="max-w-4xl mx-auto">
           <div className="text-slate-400">Loading dashboard...</div>
         </div>
@@ -69,7 +69,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 p-6">
+    <div className="p-6">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Greeting */}
         <div>
