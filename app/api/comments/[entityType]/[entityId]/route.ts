@@ -81,7 +81,7 @@ export async function GET(
 
   // Enrich all comments with author data
   const allComments = [...(rawComments || []), ...replies] as Record<string, unknown>[];
-  const enriched = await enrichCommentsWithAuthors(supabase, allComments);
+  const enriched = await enrichCommentsWithAuthors(supabase, allComments) as Record<string, unknown>[];
 
   // Fetch reaction counts for all comments
   const commentIds = allComments.map((c) => c.id as string);

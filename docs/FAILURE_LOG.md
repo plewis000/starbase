@@ -172,6 +172,19 @@ Each failure is tagged with:
 
 ---
 
+### F-013: Preferences File Not Found — Wrong Path Assumed from Context Summary
+- **Date**: 2026-02-26
+- **Session**: 4
+- **Category**: `context-management`, `file-resolution`
+- **Severity**: Minor
+- **Symptom**: Attempted to read `projects/starbase/context/my_preferences.md` — file doesn't exist. Wasted a tool call and had to search for the real location.
+- **Root Cause**: The context summary from the previous session stated the file was at the project level. In reality, `my_preferences.md` lives at the OS level (`sisyphus-os/context/my_preferences.md`), not inside any project. The session summary was inaccurate about the file path.
+- **Fix**: Found the correct file at `/sisyphus-os/context/my_preferences.md` and updated it successfully.
+- **Pattern**: **OS-level files (preferences, patterns, standards) live in `sisyphus-os/` root directories — never inside `projects/`. Context summaries can contain inaccurate paths. When a file isn't found, check the OS-level equivalent before searching blindly.**
+- **QA Rule**: Boot sequence should verify that all OS-level config files (`my_preferences.md`, `PATTERN_LIBRARY.md`, `CURRENT_STATE.md`) exist at their expected paths and cache the resolved paths for the session.
+
+---
+
 ## Trend Summary
 
 | Pattern | Count | Categories |
@@ -180,6 +193,7 @@ Each failure is tagged with:
 | Display labels used where machine values needed | 2 | F-003, F-004 |
 | Cross-schema assumptions in ORM/query builder | 2 | F-001, F-002 |
 | Configuration placeholders not validated | 2 | F-006, F-012 |
+| Context summary path inaccuracy | 1 | F-013 |
 | Unvalidated user input to database | 1 | F-007 |
 | String manipulation during refactoring | 1 | F-005 |
 
