@@ -87,7 +87,7 @@ export default function CrawlPage() {
       setRecentXp(data.recent_xp);
       setStats(data.stats);
     } catch {
-      toast.error("Failed to load crawler profile");
+      // Silently fail — gamification tables may not exist yet
     } finally {
       setLoading(false);
     }
@@ -103,7 +103,7 @@ export default function CrawlPage() {
       const data = await res.json();
       setAchievements(data.achievements);
     } catch {
-      toast.error("Failed to load achievements");
+      // Silently fail — tables may not exist yet
     }
   }, [toast]);
 
@@ -115,7 +115,7 @@ export default function CrawlPage() {
       const data = await res.json();
       setLootBoxes(data.loot_boxes);
     } catch {
-      toast.error("Failed to load loot boxes");
+      // Silently fail
     }
   }, [toast]);
 
@@ -127,7 +127,7 @@ export default function CrawlPage() {
       const data = await res.json();
       setLeaderboard(data.leaderboard);
     } catch {
-      toast.error("Failed to load leaderboard");
+      // Silently fail
     }
   }, [toast, leaderPeriod]);
 

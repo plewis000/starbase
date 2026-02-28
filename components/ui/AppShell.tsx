@@ -8,7 +8,6 @@ import SignOutButton from "@/components/SignOutButton";
 import BottomNav from "./BottomNav";
 import ChatBubble from "@/components/zev/ChatBubble";
 import CommandPalette from "@/components/ui/CommandPalette";
-import FeedbackButton from "@/components/FeedbackButton";
 
 interface NavItem {
   href: string;
@@ -183,10 +182,7 @@ export default function AppShell({ user, children }: AppShellProps) {
       {/* Bottom nav - Mobile */}
       <BottomNav />
 
-      {/* Feedback Button */}
-      <FeedbackButton />
-
-      {/* Zev Chat Bubble */}
+      {/* Zev Chat Bubble (includes feedback) */}
       <ChatBubble />
 
       {/* Command Palette (Cmd+K) */}
