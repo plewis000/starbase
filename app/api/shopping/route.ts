@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { household } from "@/lib/supabase/schemas";
+import { getHouseholdContext, getHouseholdMemberIds } from "@/lib/household";
 
 // GET /api/shopping — List all shopping lists
 export async function GET() {
@@ -8,9 +9,15 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  // Scope to household members
+  const ctx = await getHouseholdContext(supabase, user.id);
+  if (!ctx) return NextResponse.json({ error: "No household found" }, { status: 404 });
+  const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
+
   const { data: lists, error } = await household(supabase)
     .from("shopping_lists")
     .select("*")
+    .in("created_by", memberIds)
     .order("is_default", { ascending: false })
     .order("created_at", { ascending: false });
 

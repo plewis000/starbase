@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
 import { platform } from "@/lib/supabase/schemas";
+import { getHouseholdContext, getHouseholdMemberIds, verifyTaskHouseholdAccess } from "@/lib/household";
 
 // =============================================================
 // GET /api/tasks/:id/checklist — List checklist items
@@ -18,6 +19,14 @@ export async function GET(
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Verify task belongs to user's household
+  const ctx = await getHouseholdContext(supabase, user.id);
+  if (!ctx) return NextResponse.json({ error: "No household found" }, { status: 404 });
+  const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
+  if (!(await verifyTaskHouseholdAccess(supabase, id, memberIds))) {
+    return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
   const { data: items, error } = await platform(supabase)
@@ -50,22 +59,19 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Verify task belongs to user's household
+  const ctxPost = await getHouseholdContext(supabase, user.id);
+  if (!ctxPost) return NextResponse.json({ error: "No household found" }, { status: 404 });
+  const memberIdsPost = await getHouseholdMemberIds(supabase, ctxPost.household_id);
+  if (!(await verifyTaskHouseholdAccess(supabase, id, memberIdsPost))) {
+    return NextResponse.json({ error: "Task not found" }, { status: 404 });
+  }
+
   const body = await request.json();
   const { title, sort_order } = body;
 
   if (!title || typeof title !== "string" || title.trim().length === 0) {
     return NextResponse.json({ error: "Title is required" }, { status: 400 });
-  }
-
-  // Verify task exists
-  const { data: task } = await platform(supabase)
-    .from("tasks")
-    .select("id")
-    .eq("id", id)
-    .single();
-
-  if (!task) {
-    return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
   const { data: item, error } = await platform(supabase)

@@ -237,15 +237,15 @@ export default function CommandPalette() {
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/60 z-[60] backdrop-blur-sm"
+        className="fixed inset-0 bg-black/70 z-[60] backdrop-blur-sm"
         onClick={() => setIsOpen(false)}
       />
 
       {/* Palette */}
-      <div className="fixed top-[20%] left-1/2 -translate-x-1/2 w-[90%] max-w-[560px] bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl z-[70] overflow-hidden">
+      <div className="fixed top-[20%] left-1/2 -translate-x-1/2 w-[90%] max-w-[560px] bg-dungeon-850 border border-dungeon-700 rounded-2xl shadow-dungeon-lg z-[70] overflow-hidden">
         {/* Search input */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-800">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-500 flex-shrink-0">
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-dungeon-700">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-dungeon-500 flex-shrink-0">
             <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
           <input
@@ -255,10 +255,10 @@ export default function CommandPalette() {
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Type a command or search..."
-            className="flex-1 bg-transparent text-slate-100 placeholder-slate-500 text-sm focus:outline-none"
+            className="flex-1 bg-transparent text-slate-100 placeholder-dungeon-500 text-sm focus:outline-none font-mono"
             disabled={creating}
           />
-          <kbd className="hidden sm:inline-block px-2 py-0.5 text-xs bg-slate-800 text-slate-400 rounded border border-slate-700">
+          <kbd className="hidden sm:inline-block px-2 py-0.5 text-xs bg-dungeon-800 text-dungeon-500 rounded border border-dungeon-700 font-mono">
             ESC
           </kbd>
         </div>
@@ -266,9 +266,9 @@ export default function CommandPalette() {
         {/* Results */}
         <div className="max-h-[320px] overflow-y-auto py-2">
           {creating ? (
-            <div className="px-4 py-6 text-center text-slate-400 text-sm">Creating...</div>
+            <div className="px-4 py-6 text-center text-dungeon-500 text-sm font-mono">Creating...</div>
           ) : results.length === 0 ? (
-            <div className="px-4 py-6 text-center text-slate-500 text-sm">
+            <div className="px-4 py-6 text-center text-dungeon-500 text-sm font-mono">
               No results. Try &quot;task: Buy milk&quot; or &quot;shop: eggs, bread&quot;
             </div>
           ) : (
@@ -278,18 +278,18 @@ export default function CommandPalette() {
                 onClick={result.action}
                 onMouseEnter={() => setSelectedIndex(index)}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${
-                  index === selectedIndex ? "bg-slate-800" : "hover:bg-slate-800/50"
+                  index === selectedIndex ? "bg-dungeon-800" : "hover:bg-dungeon-800/50"
                 }`}
               >
                 <span className="text-lg flex-shrink-0">{result.icon}</span>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm text-slate-100 truncate">{result.label}</div>
                   {result.description && (
-                    <div className="text-xs text-slate-500 truncate">{result.description}</div>
+                    <div className="text-xs text-dungeon-500 truncate">{result.description}</div>
                   )}
                 </div>
                 {result.type === "create" && (
-                  <span className="text-xs bg-green-600/20 text-red-400 px-2 py-0.5 rounded flex-shrink-0">
+                  <span className="dcc-badge-crimson flex-shrink-0">
                     Create
                   </span>
                 )}
@@ -299,10 +299,10 @@ export default function CommandPalette() {
         </div>
 
         {/* Footer hints */}
-        <div className="border-t border-slate-800 px-4 py-2 flex items-center gap-4 text-xs text-slate-500">
-          <span><kbd className="px-1.5 py-0.5 bg-slate-800 rounded text-slate-400 border border-slate-700">↑↓</kbd> navigate</span>
-          <span><kbd className="px-1.5 py-0.5 bg-slate-800 rounded text-slate-400 border border-slate-700">↵</kbd> select</span>
-          <span><kbd className="px-1.5 py-0.5 bg-slate-800 rounded text-slate-400 border border-slate-700">esc</kbd> close</span>
+        <div className="border-t border-dungeon-700 px-4 py-2 flex items-center gap-4 text-xs text-dungeon-500 font-mono">
+          <span><kbd className="px-1.5 py-0.5 bg-dungeon-800 rounded text-dungeon-500 border border-dungeon-700">↑↓</kbd> navigate</span>
+          <span><kbd className="px-1.5 py-0.5 bg-dungeon-800 rounded text-dungeon-500 border border-dungeon-700">↵</kbd> select</span>
+          <span><kbd className="px-1.5 py-0.5 bg-dungeon-800 rounded text-dungeon-500 border border-dungeon-700">esc</kbd> close</span>
         </div>
       </div>
     </>

@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import AppShell from "@/components/ui/AppShell";
 
 export const metadata = {
-  title: "Settings - Starbase",
+  title: "Settings - Desperado Club",
   description: "Account and integration settings",
 };
 

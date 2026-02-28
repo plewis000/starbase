@@ -630,7 +630,7 @@ function NavCurrentStyle() {
   return (
     <div className="w-56 bg-slate-900 border border-slate-800 rounded-xl py-3">
       <div className="px-4 pb-3 border-b border-slate-800">
-        <span className="text-xs font-bold text-green-400 tracking-wider">STARBASE</span>
+        <span className="text-xs font-bold text-green-400 tracking-wider">DESPERADO CLUB</span>
       </div>
       <div className="pt-2 space-y-0.5 px-2">
         {NAV_ITEMS.map((item, i) => (
@@ -653,7 +653,7 @@ function NavLinearStyle() {
   return (
     <div className={`bg-slate-900 border border-slate-800 rounded-xl py-3 transition-all ${collapsed ? "w-14" : "w-56"}`}>
       <div className="px-3 pb-3 border-b border-slate-800 flex items-center justify-between">
-        {!collapsed && <span className="text-xs font-bold text-slate-100 tracking-wide">Starbase</span>}
+        {!collapsed && <span className="text-xs font-bold text-slate-100 tracking-wide">Desperado Club</span>}
         <button onClick={() => setCollapsed(!collapsed)} className="text-slate-500 hover:text-slate-200 text-xs p-1">
           {collapsed ? "→" : "←"}
         </button>

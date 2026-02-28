@@ -51,7 +51,7 @@ export default function Modal({
 
   return (
     <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fadeIn"
+      className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           onClose();
@@ -60,14 +60,14 @@ export default function Modal({
     >
       <div
         ref={modalRef}
-        className={`bg-slate-900 rounded-xl border border-slate-800 w-full ${sizeClasses[size]} animate-scaleIn`}
+        className={`bg-dungeon-850 rounded-xl border border-dungeon-700 shadow-dungeon-lg w-full ${sizeClasses[size]} animate-scaleIn`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800">
-          <h2 className="text-lg font-semibold text-slate-100">{title}</h2>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-dungeon-700">
+          <h2 className="text-lg font-semibold text-slate-100 dcc-heading tracking-wide">{title}</h2>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-100 transition-colors p-1"
+            className="text-dungeon-500 hover:text-slate-100 transition-colors p-1"
             aria-label="Close modal"
           >
             <svg

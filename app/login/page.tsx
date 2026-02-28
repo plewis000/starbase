@@ -15,26 +15,34 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950">
-      <div className="w-full max-w-sm px-6">
+    <div className="min-h-screen flex items-center justify-center bg-dungeon-950 relative overflow-hidden">
+      {/* Subtle radial glow behind the card */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-crimson-glow opacity-50 pointer-events-none" />
+
+      <div className="w-full max-w-sm px-6 relative z-10">
         {/* Logo / wordmark */}
         <div className="text-center mb-10">
-          <h1 className="text-4xl font-bold tracking-tight text-white">
-            🗡️ Desperado Club
+          <div className="text-5xl mb-4">🗡️</div>
+          <h1 className="dcc-heading text-3xl tracking-wider text-slate-100">
+            Desperado Club
           </h1>
-          <p className="mt-2 text-slate-400 text-sm italic">So fun it hurts.</p>
+          <p className="mt-3 text-dungeon-500 text-sm italic font-mono">
+            So fun it hurts.
+          </p>
         </div>
 
         {/* Login card */}
-        <div className="bg-slate-900 rounded-2xl p-8 shadow-xl border border-red-900/30">
-          <h2 className="text-lg font-semibold text-white mb-1">Enter the Club</h2>
-          <p className="text-slate-400 text-sm mb-6">
+        <div className="dcc-card p-8 border-crimson-900/40">
+          <h2 className="text-lg font-semibold text-slate-100 mb-1 dcc-heading tracking-wide">
+            Enter Desperado Club
+          </h2>
+          <p className="text-dungeon-500 text-sm mb-6">
             Sign in with your Google account to begin the crawl.
           </p>
 
           <button
             onClick={handleGoogleLogin}
-            className="w-full flex items-center justify-center gap-3 bg-white text-slate-900 font-medium rounded-xl px-4 py-3 hover:bg-slate-100 transition-colors"
+            className="w-full flex items-center justify-center gap-3 bg-white text-dungeon-950 font-medium rounded-xl px-4 py-3 hover:bg-slate-100 transition-all hover:shadow-lg active:scale-[0.98]"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path
@@ -58,8 +66,8 @@ export default function LoginPage() {
           </button>
         </div>
 
-        <p className="text-center text-slate-600 text-xs mt-6">
-          Access is restricted to authorized users only.
+        <p className="text-center text-dungeon-600 text-xs mt-6 font-mono">
+          Access restricted. Authorized crawlers only.
         </p>
       </div>
     </div>

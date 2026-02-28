@@ -11,6 +11,7 @@ export async function GET() {
   const { data: rules, error } = await finance(supabase)
     .from("merchant_rules")
     .select("*")
+    .eq("created_by", user.id)
     .order("match_count", { ascending: false })
     .limit(500);
 

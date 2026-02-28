@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
 import { platform } from "@/lib/supabase/schemas";
+import { getHouseholdContext, getHouseholdMemberIds, verifyTaskHouseholdAccess } from "@/lib/household";
 
 // =============================================================
 // GET /api/tasks/:id/dependencies — List dependencies (both directions)
@@ -18,6 +19,14 @@ export async function GET(
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Verify task belongs to user's household
+  const ctx = await getHouseholdContext(supabase, user.id);
+  if (!ctx) return NextResponse.json({ error: "No household found" }, { status: 404 });
+  const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
+  if (!(await verifyTaskHouseholdAccess(supabase, id, memberIds))) {
+    return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
   // Tasks this task depends on (this task is blocked BY them)
@@ -53,6 +62,14 @@ export async function POST(
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Verify task belongs to user's household
+  const ctxPost = await getHouseholdContext(supabase, user.id);
+  if (!ctxPost) return NextResponse.json({ error: "No household found" }, { status: 404 });
+  const memberIdsPost = await getHouseholdMemberIds(supabase, ctxPost.household_id);
+  if (!(await verifyTaskHouseholdAccess(supabase, id, memberIdsPost))) {
+    return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
   const body = await request.json();

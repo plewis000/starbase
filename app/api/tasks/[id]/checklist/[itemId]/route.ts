@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
 import { platform } from "@/lib/supabase/schemas";
+import { getHouseholdContext, getHouseholdMemberIds, verifyTaskHouseholdAccess } from "@/lib/household";
 
 // =============================================================
 // PATCH /api/tasks/:taskId/checklist/:itemId — Toggle/update
@@ -20,18 +21,35 @@ export async function PATCH(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Verify task belongs to user's household
+  const ctx = await getHouseholdContext(supabase, user.id);
+  if (!ctx) return NextResponse.json({ error: "No household found" }, { status: 404 });
+  const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
+  if (!(await verifyTaskHouseholdAccess(supabase, taskId, memberIds))) {
+    return NextResponse.json({ error: "Task not found" }, { status: 404 });
+  }
+
   const body = await request.json();
   const updateFields: Record<string, unknown> = {};
 
   if ("checked" in body) {
+    if (typeof body.checked !== "boolean") {
+      return NextResponse.json({ error: "checked must be a boolean" }, { status: 400 });
+    }
     updateFields.checked = body.checked;
     updateFields.checked_at = body.checked ? new Date().toISOString() : null;
     updateFields.checked_by = body.checked ? user.id : null;
   }
   if ("title" in body) {
-    updateFields.title = body.title;
+    if (typeof body.title !== "string" || body.title.trim().length === 0 || body.title.length > 500) {
+      return NextResponse.json({ error: "title must be a non-empty string (max 500 chars)" }, { status: 400 });
+    }
+    updateFields.title = body.title.trim();
   }
   if ("sort_order" in body) {
+    if (typeof body.sort_order !== "number" || body.sort_order < 0 || body.sort_order > 1000) {
+      return NextResponse.json({ error: "sort_order must be a number between 0 and 1000" }, { status: 400 });
+    }
     updateFields.sort_order = body.sort_order;
   }
 
@@ -99,6 +117,14 @@ export async function DELETE(
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Verify task belongs to user's household
+  const ctxDel = await getHouseholdContext(supabase, user.id);
+  if (!ctxDel) return NextResponse.json({ error: "No household found" }, { status: 404 });
+  const memberIdsDel = await getHouseholdMemberIds(supabase, ctxDel.household_id);
+  if (!(await verifyTaskHouseholdAccess(supabase, taskId, memberIdsDel))) {
+    return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
   const { error } = await platform(supabase)

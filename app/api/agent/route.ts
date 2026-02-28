@@ -8,10 +8,10 @@ import {
   MODEL_COSTS,
   MAX_RESPONSE_TOKENS,
   MAX_TOOL_ROUNDS,
-  MAX_CONVERSATION_MESSAGES,
 } from "@/lib/agent/client";
 import { AGENT_TOOLS } from "@/lib/agent/tools";
 import { executeTool } from "@/lib/agent/executor";
+import { prepareConversationContext, buildSystemPromptWithSummary } from "@/lib/agent/summarizer";
 
 const SYSTEM_PROMPT = `You are Zev, a household AI for Parker and Lenale Lewis. You manage tasks, habits, goals, budget, shopping, and daily operations.
 
@@ -28,7 +28,14 @@ Voice rules:
 Functional rules:
 - Always use tools to fetch data — never guess or fabricate.
 - For ambiguous requests, ask one clarifying question rather than guessing.
-- If a tool fails, say what happened plainly. No drama.`;
+- If a tool fails, say what happened plainly. No drama.
+
+Onboarding:
+- At the start of a NEW conversation (no prior messages), call get_onboarding_state.
+- If "not_started": welcome the user, ask their name, offer quick start vs full interview, then call start_onboarding.
+- If "interview": continue asking the current question conversationally, submit answers with submit_onboarding_response.
+- If "active" with a deferred_question: weave ONE question into the conversation naturally.
+- The Desperado Club is themed as a dungeon crawl. Use the theming naturally — "the crawl", "floors", "XP" — but don't overdo it.`;
 
 // POST /api/agent — Send a message to the agent
 export async function POST(request: NextRequest) {
@@ -61,6 +68,17 @@ export async function POST(request: NextRequest) {
 
     if (convError) return NextResponse.json({ error: "Failed to create conversation" }, { status: 500 });
     conversationId = conv.id;
+  } else {
+    // Verify existing conversation belongs to this user
+    const { data: existingConv } = await platform(supabase)
+      .from("agent_conversations")
+      .select("user_id")
+      .eq("id", conversationId)
+      .single();
+
+    if (!existingConv || existingConv.user_id !== user.id) {
+      return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
+    }
   }
 
   // Store user message
@@ -72,27 +90,68 @@ export async function POST(request: NextRequest) {
       content: userMessage,
     });
 
-  // Load conversation history (capped)
+  // Load full conversation history (no hard cap — summarizer handles compression)
   const { data: history } = await platform(supabase)
     .from("agent_messages")
     .select("role, content, tool_calls")
     .eq("conversation_id", conversationId)
     .order("created_at", { ascending: true })
-    .limit(MAX_CONVERSATION_MESSAGES);
+    .limit(200); // Safety limit for very long conversations
 
   // Build messages array for Claude
-  const messages: { role: "user" | "assistant"; content: string }[] = [];
+  const allMessages: { role: "user" | "assistant"; content: string }[] = [];
   for (const msg of (history || [])) {
     if (msg.role === "user" || msg.role === "assistant") {
-      messages.push({
+      allMessages.push({
         role: msg.role as "user" | "assistant",
         content: msg.content,
       });
     }
   }
 
+  // Get existing conversation summary (if any)
+  const { data: convRecord } = await platform(supabase)
+    .from("agent_conversations")
+    .select("summary")
+    .eq("id", conversationId)
+    .single();
+
+  const existingSummary = convRecord?.summary || null;
+
+  // Summarize older messages instead of truncating
+  const { summary: newSummary, messages: recentMessages, wasSummarized } =
+    await prepareConversationContext(allMessages, existingSummary);
+
+  // If we generated a new summary, persist it
+  if (wasSummarized && newSummary) {
+    await platform(supabase)
+      .from("agent_conversations")
+      .update({ summary: newSummary })
+      .eq("id", conversationId);
+  }
+
+  // Load relevant observations for user context
+  const { data: recentObservations } = await platform(supabase)
+    .from("ai_observations")
+    .select("observation_type, content, confidence")
+    .eq("user_id", user.id)
+    .eq("is_active", true)
+    .order("confidence", { ascending: false })
+    .limit(10);
+
+  const observationContext = recentObservations && recentObservations.length > 0
+    ? recentObservations.map((o) => `[${o.observation_type}] ${o.content}`).join("\n")
+    : null;
+
+  // Build system prompt with summary and observations injected
+  const systemPrompt = buildSystemPromptWithSummary(
+    SYSTEM_PROMPT,
+    newSummary || existingSummary,
+    observationContext,
+  );
+
   // Ensure messages alternate correctly — Claude requires user/assistant alternation
-  const cleanMessages = ensureAlternation(messages);
+  const cleanMessages = ensureAlternation(recentMessages);
 
   // Route to appropriate model
   const tier = routeModel(userMessage);
@@ -102,7 +161,7 @@ export async function POST(request: NextRequest) {
     let response = await anthropic.messages.create({
       model,
       max_tokens: MAX_RESPONSE_TOKENS,
-      system: SYSTEM_PROMPT,
+      system: systemPrompt,
       tools: AGENT_TOOLS,
       messages: cleanMessages,
     });
@@ -149,7 +208,7 @@ export async function POST(request: NextRequest) {
       response = await anthropic.messages.create({
         model,
         max_tokens: MAX_RESPONSE_TOKENS,
-        system: SYSTEM_PROMPT,
+        system: systemPrompt,
         tools: AGENT_TOOLS,
         messages: [
           ...cleanMessages,
@@ -221,6 +280,17 @@ export async function GET(request: NextRequest) {
   const conversationId = params.get("conversation_id");
 
   if (conversationId) {
+    // Verify the conversation belongs to this user
+    const { data: conv } = await platform(supabase)
+      .from("agent_conversations")
+      .select("user_id")
+      .eq("id", conversationId)
+      .single();
+
+    if (!conv || conv.user_id !== user.id) {
+      return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
+    }
+
     // Get specific conversation
     const { data: messages } = await platform(supabase)
       .from("agent_messages")

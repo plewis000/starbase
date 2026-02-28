@@ -37,7 +37,7 @@ export async function GET() {
       avatar_url: user.user_metadata?.avatar_url || null,
     },
     integrations: {
-      discord: { connected: hasDiscord, guild_id: process.env.DISCORD_GUILD_ID || null },
+      discord: { connected: hasDiscord },
       plaid: { connected: plaidAccounts > 0, accounts: plaidAccounts },
       anthropic: { connected: hasAnthropic },
     },

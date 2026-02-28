@@ -1,68 +1,197 @@
+// ============================================================
+// FILE: app/api/feedback/route.ts
+// PURPOSE: Feedback submission + listing — frictionless input from any user
+//          Zev classifies after submission. No priority required at submit time.
+// PART OF: Desperado Club
+// ============================================================
+
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { platform } from "@/lib/supabase/schemas";
+import { getHouseholdContext } from "@/lib/household";
+import { triggerNotification } from "@/lib/notify";
+import {
+  validateRequiredString,
+  validateOptionalString,
+  validateEnum,
+  validatePagination,
+} from "@/lib/validation";
+import type { FeedbackType, FeedbackStatus, FeedbackSource } from "@/lib/types";
 
-// GET /api/feedback — List all feedback (both users can see everything)
+const VALID_TYPES: readonly FeedbackType[] = ["bug", "wish", "feedback", "question"] as const;
+const VALID_STATUSES: readonly FeedbackStatus[] = ["new", "acknowledged", "planned", "in_progress", "done", "wont_fix"] as const;
+const VALID_SOURCES: readonly FeedbackSource[] = ["chat", "discord", "web_form", "system"] as const;
+
+// GET /api/feedback — list feedback with filters
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const ctx = await getHouseholdContext(supabase, user.id);
   const params = request.nextUrl.searchParams;
-  const status = params.get("status");
-  const type = params.get("type");
-
-  const limit = Math.min(parseInt(params.get("limit") || "100"), 200);
-  const offset = parseInt(params.get("offset") || "0");
 
   let query = platform(supabase)
     .from("feedback")
-    .select("*", { count: "exact" })
-    .order("created_at", { ascending: false })
-    .range(offset, offset + limit - 1);
+    .select("*", { count: "exact" });
 
-  if (status) query = query.eq("status", status);
-  if (type) query = query.eq("type", type);
+  // Scope to household or own submissions
+  if (ctx) {
+    query = query.or(`household_id.eq.${ctx.household_id},submitted_by.eq.${user.id}`);
+  } else {
+    query = query.eq("submitted_by", user.id);
+  }
+
+  // Filter by type
+  const type = params.get("type");
+  if (type && VALID_TYPES.includes(type as FeedbackType)) {
+    query = query.eq("type", type);
+  }
+
+  // Filter by status
+  const status = params.get("status");
+  if (status && VALID_STATUSES.includes(status as FeedbackStatus)) {
+    query = query.eq("status", status);
+  } else if (!params.get("all")) {
+    // Default: hide done/wont_fix unless ?all=true
+    query = query.not("status", "in", '("done","wont_fix")');
+  }
+
+  // Filter by submitter
+  const submittedBy = params.get("submitted_by");
+  if (submittedBy) {
+    query = query.eq("submitted_by", submittedBy);
+  }
+
+  // Sorting
+  const sort = params.get("sort") === "priority" ? "priority" : "created_at";
+  query = query.order(sort, { ascending: sort === "priority", nullsFirst: false });
+
+  const { limit, offset } = validatePagination(params.get("limit"), params.get("offset"));
+  query = query.range(offset, offset + limit - 1);
 
   const { data: feedback, error, count } = await query;
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 
-  return NextResponse.json({ feedback: feedback || [], total: count });
+  // Fetch vote counts for returned feedback
+  let enrichedFeedback = feedback || [];
+  if (enrichedFeedback.length > 0) {
+    const feedbackIds = enrichedFeedback.map((f) => f.id);
+
+    const { data: votes } = await platform(supabase)
+      .from("feedback_votes")
+      .select("feedback_id, user_id")
+      .in("feedback_id", feedbackIds);
+
+    const voteMap = new Map<string, { count: number; votedByMe: boolean }>();
+    for (const v of (votes || [])) {
+      const entry = voteMap.get(v.feedback_id) || { count: 0, votedByMe: false };
+      entry.count++;
+      if (v.user_id === user.id) entry.votedByMe = true;
+      voteMap.set(v.feedback_id, entry);
+    }
+
+    enrichedFeedback = enrichedFeedback.map((f) => ({
+      ...f,
+      vote_count: voteMap.get(f.id)?.count || 0,
+      voted_by_me: voteMap.get(f.id)?.votedByMe || false,
+    }));
+  }
+
+  return NextResponse.json({ feedback: enrichedFeedback, total: count || 0 });
 }
 
-// POST /api/feedback — Submit feedback
+// POST /api/feedback — submit feedback (frictionless)
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  let body;
-  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
-
-  const { type, body: feedbackBody, channel, priority, tags } = body;
-
-  if (!feedbackBody || typeof feedbackBody !== "string" || !feedbackBody.trim()) {
-    return NextResponse.json({ error: "body is required" }, { status: 400 });
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const validTypes = ["bug", "feature_request", "improvement", "complaint"];
-  const validChannels = ["discord", "web", "claude_code"];
+  const ctx = await getHouseholdContext(supabase, user.id);
+  const body = await request.json();
 
-  const { data: feedback, error } = await platform(supabase)
+  // Only body is truly required — everything else has defaults or is optional
+  const bodyCheck = validateRequiredString(body.body, "body", 5000);
+  if (!bodyCheck.valid) return NextResponse.json({ error: bodyCheck.error }, { status: 400 });
+
+  const typeCheck = validateEnum(body.type || "feedback", "type", VALID_TYPES);
+  if (!typeCheck.valid) return NextResponse.json({ error: typeCheck.error }, { status: 400 });
+
+  const sourceCheck = validateEnum(body.source || "web_form", "source", VALID_SOURCES);
+  if (!sourceCheck.valid) return NextResponse.json({ error: sourceCheck.error }, { status: 400 });
+
+  const pageUrlCheck = validateOptionalString(body.page_url, "page_url", 500);
+  if (!pageUrlCheck.valid) return NextResponse.json({ error: pageUrlCheck.error }, { status: 400 });
+
+  const { data: feedbackItem, error } = await platform(supabase)
     .from("feedback")
     .insert({
+      household_id: ctx?.household_id || null,
       submitted_by: user.id,
-      type: validTypes.includes(type) ? type : "improvement",
-      body: feedbackBody.trim(),
-      channel: validChannels.includes(channel) ? channel : "web",
-      priority: ["low", "medium", "high"].includes(priority) ? priority : "medium",
-      tags: Array.isArray(tags) ? tags : [],
+      type: typeCheck.value,
+      body: bodyCheck.value,
+      page_url: pageUrlCheck.value || body.page_url || null,
+      screenshot_url: body.screenshot_url || null,
+      source: sourceCheck.value,
+      conversation_id: body.conversation_id || null,
+      tags: body.tags || null,
     })
     .select("*")
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 
-  return NextResponse.json({ feedback }, { status: 201 });
+  // Auto-upvote by submitter
+  await platform(supabase)
+    .from("feedback_votes")
+    .insert({ feedback_id: feedbackItem.id, user_id: user.id })
+    .select()
+    .maybeSingle();
+
+  // Notify household members about new feedback (except submitter)
+  if (ctx) {
+    const { data: members } = await platform(supabase)
+      .from("household_members")
+      .select("user_id")
+      .eq("household_id", ctx.household_id)
+      .neq("user_id", user.id);
+
+    const typeEmoji: Record<string, string> = {
+      bug: "🐛", wish: "⭐", feedback: "💬", question: "❓",
+    };
+
+    for (const member of (members || [])) {
+      await triggerNotification(supabase, {
+        recipientUserId: member.user_id,
+        title: `${typeEmoji[typeCheck.value]} New ${typeCheck.value}: ${bodyCheck.value.slice(0, 80)}`,
+        body: bodyCheck.value.length > 80 ? bodyCheck.value.slice(0, 200) + "..." : bodyCheck.value,
+        event: "system",
+        metadata: {
+          feedback_id: feedbackItem.id,
+          feedback_type: typeCheck.value,
+          page_url: pageUrlCheck.value,
+        },
+      });
+    }
+  }
+
+  return NextResponse.json({
+    feedback: feedbackItem,
+    message: typeCheck.value === "bug"
+      ? "Bug logged. We'll look into it."
+      : typeCheck.value === "wish"
+      ? "Wish captured. Added to the backlog."
+      : "Thanks for the feedback!",
+  }, { status: 201 });
 }

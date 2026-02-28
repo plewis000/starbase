@@ -7,6 +7,7 @@ import { platform, config } from "@/lib/supabase/schemas";
 import { getConfigLookups, enrichTasks } from "@/lib/task-enrichment";
 import { isValidUUID } from "@/lib/validation";
 import { awardXp, checkAchievements } from "@/lib/gamification";
+import { getHouseholdContext, getHouseholdMemberIds, verifyTaskHouseholdAccess } from "@/lib/household";
 
 // =============================================================
 // GET /api/tasks/:id — Get single task with all relations
@@ -23,6 +24,17 @@ export async function GET(
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Verify task belongs to user's household
+  const ctx = await getHouseholdContext(supabase, user.id);
+  if (!ctx) {
+    return NextResponse.json({ error: "No household found" }, { status: 404 });
+  }
+  const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
+  const hasAccess = await verifyTaskHouseholdAccess(supabase, id, memberIds);
+  if (!hasAccess) {
+    return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
   const { data: rawTask, error } = await platform(supabase)
@@ -116,6 +128,13 @@ export async function PATCH(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Verify task belongs to user's household
+  const ctx = await getHouseholdContext(supabase, user.id);
+  if (!ctx) {
+    return NextResponse.json({ error: "No household found" }, { status: 404 });
+  }
+  const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
+
   // Get current task state (for diff logging)
   const { data: currentTask, error: fetchError } = await platform(supabase)
     .from("tasks")
@@ -124,6 +143,11 @@ export async function PATCH(
     .single();
 
   if (fetchError || !currentTask) {
+    return NextResponse.json({ error: "Task not found" }, { status: 404 });
+  }
+
+  // Verify task belongs to household
+  if (!memberIds.includes(currentTask.created_by)) {
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
@@ -351,6 +375,17 @@ export async function DELETE(
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Verify task belongs to user's household
+  const ctxDel = await getHouseholdContext(supabase, user.id);
+  if (!ctxDel) {
+    return NextResponse.json({ error: "No household found" }, { status: 404 });
+  }
+  const memberIdsDel = await getHouseholdMemberIds(supabase, ctxDel.household_id);
+  const hasAccessDel = await verifyTaskHouseholdAccess(supabase, id, memberIdsDel);
+  if (!hasAccessDel) {
+    return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
   const hard = request.nextUrl.searchParams.get("hard") === "true";

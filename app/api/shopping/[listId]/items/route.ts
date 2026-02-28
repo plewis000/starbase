@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { household } from "@/lib/supabase/schemas";
+import { getHouseholdContext, getHouseholdMemberIds } from "@/lib/household";
 
 // POST /api/shopping/[listId]/items — Add item(s) to list
 export async function POST(
@@ -12,6 +13,19 @@ export async function POST(
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { listId } = await params;
+
+  // Verify list belongs to user's household
+  const ctx = await getHouseholdContext(supabase, user.id);
+  if (!ctx) return NextResponse.json({ error: "No household found" }, { status: 404 });
+  const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
+  const { data: listCheck } = await household(supabase)
+    .from("shopping_lists")
+    .select("id")
+    .eq("id", listId)
+    .in("created_by", memberIds)
+    .single();
+  if (!listCheck) return NextResponse.json({ error: "List not found" }, { status: 404 });
+
   let body;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { household, config } from "@/lib/supabase/schemas";
+import { getHouseholdContext, getHouseholdMemberIds } from "@/lib/household";
 
 // GET /api/shopping/[listId] — Get a single list with all items
 export async function GET(
@@ -13,10 +14,16 @@ export async function GET(
 
   const { listId } = await params;
 
+  // Verify list belongs to user's household
+  const ctx = await getHouseholdContext(supabase, user.id);
+  if (!ctx) return NextResponse.json({ error: "No household found" }, { status: 404 });
+  const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
+
   const { data: list, error } = await household(supabase)
     .from("shopping_lists")
     .select("*")
     .eq("id", listId)
+    .in("created_by", memberIds)
     .single();
 
   if (error || !list) return NextResponse.json({ error: "List not found" }, { status: 404 });
@@ -61,6 +68,12 @@ export async function PATCH(
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { listId } = await params;
+
+  // Verify list belongs to user's household
+  const ctxPatch = await getHouseholdContext(supabase, user.id);
+  if (!ctxPatch) return NextResponse.json({ error: "No household found" }, { status: 404 });
+  const memberIdsPatch = await getHouseholdMemberIds(supabase, ctxPatch.household_id);
+
   let body;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
 
@@ -73,6 +86,7 @@ export async function PATCH(
     .from("shopping_lists")
     .update(updates)
     .eq("id", listId)
+    .in("created_by", memberIdsPatch)
     .select("*")
     .single();
 
@@ -92,10 +106,16 @@ export async function DELETE(
 
   const { listId } = await params;
 
+  // Verify list belongs to user's household
+  const ctxDel = await getHouseholdContext(supabase, user.id);
+  if (!ctxDel) return NextResponse.json({ error: "No household found" }, { status: 404 });
+  const memberIdsDel = await getHouseholdMemberIds(supabase, ctxDel.household_id);
+
   const { error } = await household(supabase)
     .from("shopping_lists")
     .delete()
-    .eq("id", listId);
+    .eq("id", listId)
+    .in("created_by", memberIdsDel);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

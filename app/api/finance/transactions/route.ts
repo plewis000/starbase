@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { finance, config } from "@/lib/supabase/schemas";
+import { sanitizeSearchInput, validatePagination } from "@/lib/validation";
 
 // GET /api/finance/transactions — List transactions with filters
 export async function GET(request: NextRequest) {
@@ -37,7 +38,12 @@ export async function GET(request: NextRequest) {
   if (excluded === "false") query = query.eq("excluded", false);
   if (from) query = query.gte("transaction_date", from);
   if (to) query = query.lte("transaction_date", to);
-  if (search) query = query.or(`merchant_name.ilike.%${search}%,description.ilike.%${search}%`);
+  if (search) {
+    const sanitized = sanitizeSearchInput(search);
+    if (sanitized.length > 0) {
+      query = query.or(`merchant_name.ilike.%${sanitized}%,description.ilike.%${sanitized}%`);
+    }
+  }
   if (account_id) query = query.eq("plaid_account_id", account_id);
 
   const { data: transactions, error, count } = await query;

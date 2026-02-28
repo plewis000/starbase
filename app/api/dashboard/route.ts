@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { platform } from "@/lib/supabase/schemas";
+import { getHouseholdContext, getHouseholdMemberIds } from "@/lib/household";
 
 // ---- GET: Unified dashboard summary ----
 
@@ -11,9 +12,14 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Scope to household
+  const ctx = await getHouseholdContext(supabase, user.id);
+  if (!ctx) return NextResponse.json({ error: "No household found" }, { status: 404 });
+  const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
+
   const today = new Date().toISOString().split("T")[0];
 
-  // Parallel fetch all data
+  // Parallel fetch all data — scoped to household
   const [
     overdueTasksRes,
     dueTodayTasksRes,

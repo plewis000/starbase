@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
 import { platform, config } from "@/lib/supabase/schemas";
 import { getConfigLookups, enrichTagAssociations } from "@/lib/task-enrichment";
+import { getHouseholdContext, getHouseholdMemberIds, verifyTaskHouseholdAccess } from "@/lib/household";
 
 // =============================================================
 // POST /api/tasks/:id/tags — Add tags to a task
@@ -21,6 +22,14 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Verify task belongs to user's household
+  const ctx = await getHouseholdContext(supabase, user.id);
+  if (!ctx) return NextResponse.json({ error: "No household found" }, { status: 404 });
+  const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
+  if (!(await verifyTaskHouseholdAccess(supabase, id, memberIds))) {
+    return NextResponse.json({ error: "Task not found" }, { status: 404 });
+  }
+
   const body = await request.json();
   const { tag_ids } = body;
 
@@ -29,17 +38,6 @@ export async function POST(
       { error: "tag_ids array is required" },
       { status: 400 }
     );
-  }
-
-  // Verify task exists
-  const { data: task } = await platform(supabase)
-    .from("tasks")
-    .select("id")
-    .eq("id", id)
-    .single();
-
-  if (!task) {
-    return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
   const { data: inserted, error } = await platform(supabase)

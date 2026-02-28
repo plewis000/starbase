@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import AppShell from "@/components/ui/AppShell";
 
 export const metadata = {
-  title: "Notifications - Starbase",
+  title: "Notifications - Desperado Club",
   description: "View and manage your notifications",
 };
 

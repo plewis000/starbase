@@ -4,6 +4,7 @@ import { logActivity } from "@/lib/activity-log";
 import { platform, config } from "@/lib/supabase/schemas";
 import { getConfigLookups, enrichTasks } from "@/lib/task-enrichment";
 import { sanitizeSearchInput, validatePagination, validateRequiredString, isValidUUID } from "@/lib/validation";
+import { getHouseholdContext, getHouseholdMemberIds } from "@/lib/household";
 
 // =============================================================
 // GET /api/tasks — List tasks with filtering, sorting, pagination
@@ -17,6 +18,13 @@ export async function GET(request: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  // Scope tasks to user's household
+  const ctx = await getHouseholdContext(supabase, user.id);
+  if (!ctx) {
+    return NextResponse.json({ error: "No household found" }, { status: 404 });
+  }
+  const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
 
   const params = request.nextUrl.searchParams;
 
@@ -32,6 +40,9 @@ export async function GET(request: NextRequest) {
     `,
       { count: "exact" }
     );
+
+  // Household scoping: only show tasks created by household members
+  query = query.in("created_by", memberIds);
 
   // Status filter
   const status = params.get("status");
@@ -187,6 +198,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Verify household membership
+  const ctx = await getHouseholdContext(supabase, user.id);
+  if (!ctx) {
+    return NextResponse.json({ error: "No household found" }, { status: 404 });
+  }
+
   const body = await request.json();
   const {
     title,
@@ -205,6 +222,14 @@ export async function POST(request: NextRequest) {
     tag_ids,
     checklist_items,
   } = body;
+
+  // If assigning to someone, verify they're in the same household
+  if (assigned_to && assigned_to !== user.id) {
+    const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
+    if (!memberIds.includes(assigned_to)) {
+      return NextResponse.json({ error: "Cannot assign to user outside your household" }, { status: 403 });
+    }
+  }
 
   // Validate title
   const titleCheck = validateRequiredString(title, "title", 300);

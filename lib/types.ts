@@ -596,3 +596,462 @@ export interface Debuff {
   name: string;
   due_date: string;
 }
+
+// ---- HOUSEHOLD ----
+
+export type HouseholdRole = "admin" | "member";
+
+export interface Household {
+  id: string;
+  name: string;
+  timezone: string;
+  locale: string;
+  created_at: string;
+  updated_at: string;
+  // Enriched
+  members?: HouseholdMember[];
+}
+
+export interface HouseholdMember {
+  id: string;
+  household_id: string;
+  user_id: string;
+  role: HouseholdRole;
+  display_name?: string;
+  joined_at: string;
+  // Enriched
+  user?: UserSummary | null;
+}
+
+// ---- RESPONSIBILITIES & DELEGATION ----
+
+export type OwnershipType = "fixed" | "rotating" | "shared" | "flexible";
+export type DelegationStatus = "pending" | "accepted" | "declined" | "active" | "completed" | "cancelled";
+export type DelegationType = "temporary" | "permanent" | "one_time";
+export type ResponsibilityChangeAction = "assigned" | "rotated" | "delegated" | "reclaimed" | "swapped" | "created";
+
+export interface Responsibility {
+  id: string;
+  household_id: string;
+  name: string;
+  description?: string;
+  category: string;
+  current_owner_id: string;
+  ownership_type: OwnershipType;
+  effort_weight: number;
+  default_recurrence?: string;
+  icon?: string;
+  rotate_every_days?: number;
+  last_rotated_at?: string;
+  next_rotation_at?: string;
+  created_at: string;
+  updated_at: string;
+  // Enriched
+  current_owner?: UserSummary | null;
+  history?: ResponsibilityHistory[];
+  linked_entities?: ResponsibilityLink[];
+  active_delegation?: Delegation | null;
+}
+
+export interface ResponsibilityHistory {
+  id: string;
+  responsibility_id: string;
+  user_id: string;
+  action: ResponsibilityChangeAction;
+  previous_owner_id?: string;
+  new_owner_id?: string;
+  reason?: string;
+  source: string;
+  created_at: string;
+  // Enriched
+  user?: UserSummary | null;
+  previous_owner?: UserSummary | null;
+  new_owner?: UserSummary | null;
+}
+
+export interface Delegation {
+  id: string;
+  responsibility_id: string;
+  from_user_id: string;
+  to_user_id: string;
+  delegation_type: DelegationType;
+  status: DelegationStatus;
+  reason?: string;
+  starts_at?: string;
+  ends_at?: string;
+  accepted_at?: string;
+  completed_at?: string;
+  source: string;
+  created_at: string;
+  // Enriched
+  responsibility?: { id: string; name: string; icon?: string };
+  from_user?: UserSummary | null;
+  to_user?: UserSummary | null;
+}
+
+export interface ResponsibilityLink {
+  id: string;
+  responsibility_id: string;
+  entity_type: "task" | "habit" | "goal" | "shopping_list";
+  entity_id: string;
+  created_at: string;
+}
+
+export interface LoadSnapshot {
+  id: string;
+  household_id: string;
+  user_id: string;
+  period_start: string;
+  period_end: string;
+  total_effort_score: number;
+  responsibility_count: number;
+  household_share_pct: number;
+  breakdown: Record<string, unknown>;
+  computed_by: string;
+  created_at: string;
+  // Enriched
+  user?: UserSummary | null;
+}
+
+// ---- RESPONSIBILITY TEMPLATES ----
+
+export interface ResponsibilityTemplate {
+  id: string;
+  name: string;
+  description?: string;
+  category: string;
+  default_effort_weight: number;
+  default_recurrence?: string;
+  icon?: string;
+  sort_order: number;
+}
+
+// ---- AI MEMORY ----
+
+export type AiSourceLayer = "declared" | "observed" | "inferred";
+
+export interface AiObservation {
+  id: string;
+  user_id: string;
+  household_id?: string;
+  observation_type: string;
+  content: string;
+  confidence: number;
+  source_layer: AiSourceLayer;
+  source_data?: Record<string, unknown>;
+  tags?: string[];
+  supersedes_id?: string;
+  expires_at?: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface AiDecision {
+  id: string;
+  user_id?: string;
+  household_id?: string;
+  decision_type: string;
+  description: string;
+  reasoning: string;
+  action_taken?: string;
+  outcome?: string;
+  outcome_score?: number;
+  model_used: string;
+  tokens_used?: number;
+  created_at: string;
+}
+
+export interface UserModelAttribute {
+  id: string;
+  user_id: string;
+  attribute_key: string;
+  attribute_value: Record<string, unknown>;
+  source_layer: AiSourceLayer;
+  confidence: number;
+  version: number;
+  previous_version_id?: string;
+  updated_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// ---- CONFIG OVERRIDES ----
+
+export type ConfigOverrideScope = "user" | "household";
+
+export interface ConfigOverride {
+  id: string;
+  scope: ConfigOverrideScope;
+  scope_id: string;
+  config_key: string;
+  config_value: Record<string, unknown>;
+  reason?: string;
+  original_instruction?: string;
+  set_by: string;
+  expires_at?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ConfigChangeLog {
+  id: string;
+  override_id?: string;
+  action: string;
+  config_key: string;
+  old_value?: Record<string, unknown>;
+  new_value?: Record<string, unknown>;
+  natural_language_description: string;
+  performed_by: string;
+  created_at: string;
+}
+
+// ---- BEHAVIORAL AGGREGATES ----
+
+export interface BehavioralAggregate {
+  id: string;
+  user_id: string;
+  date: string;
+  tasks_created: number;
+  tasks_completed: number;
+  avg_completion_hours?: number;
+  habits_checked: number;
+  habits_missed: number;
+  goals_progressed: number;
+  xp_earned: number;
+  level_at: number;
+  achievements_unlocked: number;
+  transactions_logged?: number;
+  total_spent?: number;
+  peak_activity_hour?: number;
+  active_minutes?: number;
+  session_count: number;
+  engagement_score?: number;
+  mood_avg?: number;
+  created_at: string;
+}
+
+// ---- ONBOARDING ----
+
+export type OnboardingPhase = "not_started" | "interview" | "observation" | "refinement" | "active";
+
+export interface OnboardingState {
+  id: string;
+  user_id: string;
+  household_id: string;
+  current_phase: OnboardingPhase;
+  interview_completed_at?: string;
+  observation_started_at?: string;
+  observation_ends_at?: string;
+  refinement_completed_at?: string;
+  current_question_index: number;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OnboardingResponse {
+  id: string;
+  onboarding_id: string;
+  question_key: string;
+  raw_response: string;
+  extracted_data?: Record<string, unknown>;
+  confidence?: number;
+  reviewed_by_user: boolean;
+  created_at: string;
+}
+
+export interface OnboardingQuestion {
+  id: string;
+  question_key: string;
+  question_text: string;
+  category: string;
+  phase: string;
+  sort_order: number;
+  extraction_schema: Record<string, unknown>;
+  active: boolean;
+}
+
+// ---- AI SUGGESTIONS ----
+
+export type SuggestionStatus = "pending" | "accepted" | "dismissed" | "snoozed" | "expired" | "auto_applied";
+export type SuggestionCategory =
+  | "habit_adjustment" | "goal_suggestion" | "schedule_optimization"
+  | "delegation_suggestion" | "gamification_tweak" | "responsibility_rebalance"
+  | "boundary_suggestion" | "reward_suggestion" | "notification_optimization"
+  | "financial_insight" | "general";
+
+export interface AiSuggestion {
+  id: string;
+  user_id?: string;
+  household_id?: string;
+  category: SuggestionCategory;
+  title: string;
+  description: string;
+  reasoning?: string;
+  suggested_action?: Record<string, unknown>;
+  priority: number;
+  confidence: number;
+  status: SuggestionStatus;
+  snoozed_until?: string;
+  responded_at?: string;
+  user_feedback?: string;
+  source_observation_ids?: string[];
+  created_at: string;
+  expires_at?: string;
+}
+
+// ---- USER BOUNDARIES ----
+
+export type BoundaryCategory =
+  | "topic" | "comparison" | "notification" | "auto_adjust"
+  | "timing" | "tone" | "data" | "general";
+
+export interface UserBoundary {
+  id: string;
+  user_id: string;
+  category: BoundaryCategory;
+  boundary_key: string;
+  boundary_value: Record<string, unknown>;
+  reason?: string;
+  source: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// ---- LIFE EVENTS & SEASONS ----
+
+export type LifeEventImpact = "positive" | "negative" | "neutral" | "mixed";
+
+export interface LifeEvent {
+  id: string;
+  user_id?: string;
+  household_id?: string;
+  title: string;
+  description?: string;
+  event_type: string;
+  impact: LifeEventImpact;
+  started_at: string;
+  ended_at?: string;
+  is_ongoing: boolean;
+  affected_categories?: string[];
+  xp_multiplier?: number;
+  ai_notes?: string;
+  created_at: string;
+}
+
+export interface Season {
+  id: string;
+  slug: string;
+  name: string;
+  description?: string;
+  theme?: string;
+  starts_at: string;
+  ends_at: string;
+  xp_multiplier_category?: string;
+  xp_multiplier: number;
+  is_active?: boolean;
+}
+
+// ---- ENGAGEMENT TRACKING ----
+
+export interface EngagementEvent {
+  id: string;
+  user_id: string;
+  event_type: string;
+  feature?: string;
+  entity_type?: string;
+  entity_id?: string;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+}
+
+// ---- NOTIFICATION INTELLIGENCE ----
+
+export interface NotificationIntelligence {
+  id: string;
+  user_id: string;
+  current_daily_cap: number;
+  sent_today: number;
+  avg_open_rate_7d?: number;
+  preferred_batch_time?: string;
+  fatigue_score?: number;
+  last_adjusted_at?: string;
+  channel_effectiveness?: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+// ---- PROGRESS HISTORY ----
+
+export interface GoalProgressHistory {
+  id: string;
+  goal_id: string;
+  progress_value: number;
+  current_value?: number;
+  note?: string;
+  source: string;
+  recorded_at: string;
+}
+
+// ---- FEEDBACK SYSTEM ----
+
+export type FeedbackType = "bug" | "wish" | "feedback" | "question";
+export type FeedbackStatus = "new" | "acknowledged" | "planned" | "in_progress" | "done" | "wont_fix";
+export type FeedbackSeverity = "critical" | "major" | "minor" | "cosmetic";
+export type FeedbackSource = "chat" | "discord" | "web_form" | "system";
+
+export interface Feedback {
+  id: string;
+  household_id?: string;
+  submitted_by: string;
+  type: FeedbackType;
+  body: string;
+  page_url?: string;
+  screenshot_url?: string;
+  // AI-populated
+  ai_classified_type?: string;
+  ai_classified_severity?: FeedbackSeverity;
+  ai_extracted_feature?: string;
+  related_feedback_ids?: string[];
+  // Triage
+  status: FeedbackStatus;
+  priority?: number;
+  response?: string;
+  response_by?: string;
+  resolution_notified: boolean;
+  // Metadata
+  tags?: string[];
+  conversation_id?: string;
+  source: FeedbackSource;
+  task_id?: string;
+  created_at: string;
+  updated_at: string;
+  // Enriched
+  submitter?: UserSummary | null;
+  vote_count?: number;
+  voted_by_me?: boolean;
+}
+
+export interface FeedbackVote {
+  id: string;
+  feedback_id: string;
+  user_id: string;
+  created_at: string;
+}
+
+// ---- HOUSEHOLD INVITES ----
+
+export interface HouseholdInvite {
+  id: string;
+  household_id: string;
+  invite_code: string;
+  created_by: string;
+  role: HouseholdRole;
+  max_uses: number;
+  times_used: number;
+  expires_at?: string;
+  is_active: boolean;
+  created_at: string;
+}

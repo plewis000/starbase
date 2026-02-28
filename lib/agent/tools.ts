@@ -293,4 +293,126 @@ export const AGENT_TOOLS: Tool[] = [
       required: [],
     },
   },
+
+  // ── AI MEMORY (self-awareness) ──
+  {
+    name: "recall_observations",
+    description: "Search your memory — retrieve things you've learned about the user (preferences, patterns, facts). Use this to personalize responses and avoid asking questions you already know the answer to.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        type: { type: "string", description: "Filter by observation type (e.g., 'preference', 'routine', 'personality', 'relationship', 'goal', 'boundary')" },
+        layer: { type: "string", description: "Filter by source: 'declared' (user said), 'observed' (you noticed), 'inferred' (you concluded)" },
+        search: { type: "string", description: "Search in observation content" },
+        limit: { type: "number", description: "Max results (default 10)" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "store_observation",
+    description: "Remember something new about the user. Use this when you learn a preference, pattern, or important fact during conversation. Don't over-observe — only store things that will be useful later.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        observation_type: { type: "string", description: "Type: 'preference', 'routine', 'personality', 'relationship', 'goal', 'boundary', 'context', 'feedback_pattern'" },
+        content: { type: "string", description: "What you observed (required)" },
+        confidence: { type: "number", description: "How confident (0-1, default 0.7)" },
+        layer: { type: "string", description: "Source: 'declared' (user told you), 'observed' (from behavior), 'inferred' (your conclusion). Default: 'observed'" },
+        tags: { type: "array", items: { type: "string" }, description: "Optional tags for categorization" },
+      },
+      required: ["observation_type", "content"],
+    },
+  },
+  {
+    name: "get_user_model",
+    description: "Get the structured user model — key attributes, preferences, and personality traits you've built up over time. Use for high-level understanding of who this person is.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        attribute_key: { type: "string", description: "Filter by specific attribute key (e.g., 'communication_style', 'work_schedule')" },
+      },
+      required: [],
+    },
+  },
+
+  // ── AI SUGGESTIONS ──
+  {
+    name: "get_suggestions",
+    description: "Retrieve pending AI suggestions for the user. Check what's already been suggested before creating new ones.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        status: { type: "string", description: "Filter: 'pending', 'accepted', 'dismissed', 'snoozed' (default: 'pending')" },
+        category: { type: "string", description: "Filter by category" },
+        limit: { type: "number", description: "Max results (default 5)" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "create_suggestion",
+    description: "Proactively suggest something to the user — a new habit, goal adjustment, schedule change, etc. Only suggest when you have evidence from observations or behavioral data.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        category: { type: "string", description: "Category: 'habit_adjustment', 'goal_suggestion', 'schedule_optimization', 'delegation_suggestion', 'financial_insight', 'general'" },
+        title: { type: "string", description: "Short suggestion title (required)" },
+        description: { type: "string", description: "Detailed description of what you're suggesting and why (required)" },
+        reasoning: { type: "string", description: "Your reasoning based on observations/data" },
+        priority: { type: "number", description: "Priority 1-10 (default 5)" },
+        confidence: { type: "number", description: "How confident in this suggestion (0-1, default 0.6)" },
+        source_observation_ids: { type: "array", items: { type: "string" }, description: "IDs of observations that led to this suggestion" },
+      },
+      required: ["category", "title", "description"],
+    },
+  },
+
+  // ── BEHAVIORAL AGGREGATES ──
+  {
+    name: "get_behavioral_summary",
+    description: "Get a behavioral summary for the user — activity patterns, productivity metrics, engagement trends. Use to understand user patterns before making suggestions.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        days: { type: "number", description: "Look back period in days (default 7, max 90)" },
+      },
+      required: [],
+    },
+  },
+
+  // ── ONBOARDING ──
+  {
+    name: "get_onboarding_state",
+    description: "Check a user's onboarding status — whether they've started, what phase they're in, what question is next, and if there are deferred questions to ask. ALWAYS check this for new or returning users before starting a conversation.",
+    input_schema: {
+      type: "object" as const,
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: "start_onboarding",
+    description: "Start the onboarding process for a new user. Use 'quick' track to get them active immediately (ask questions gradually later), or 'full' for the complete 10-question interview up front.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        track: { type: "string", description: "Track: 'quick' (recommended — start fast, learn gradually) or 'full' (10-question interview)" },
+        display_name: { type: "string", description: "User's preferred display name" },
+      },
+      required: ["track"],
+    },
+  },
+  {
+    name: "submit_onboarding_response",
+    description: "Submit a user's answer to an onboarding interview question. The question_key must match the current question from get_onboarding_state. Pass the user's natural-language response — don't restructure it.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        question_key: { type: "string", description: "The question_key of the question being answered (required)" },
+        response: { type: "string", description: "The user's response in their own words (required)" },
+      },
+      required: ["question_key", "response"],
+    },
+  },
 ];

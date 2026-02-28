@@ -7,6 +7,7 @@ import {
   registerSlashCommands,
   CHANNELS,
 } from "@/lib/discord";
+import { getHouseholdContext } from "@/lib/household";
 
 // POST /api/discord/setup — One-time setup: create channels and register slash commands
 // Call this once after adding the bot to your server
@@ -14,6 +15,12 @@ export async function POST() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // Only admins can run Discord setup
+  const ctx = await getHouseholdContext(supabase, user.id);
+  if (!ctx || ctx.role !== "admin") {
+    return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+  }
 
   const results: Record<string, unknown> = {};
 

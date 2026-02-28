@@ -113,21 +113,21 @@ export default function ChatBubble() {
     <>
       {/* Chat Panel */}
       {isOpen && (
-        <div className="fixed bottom-20 right-4 w-[380px] max-h-[520px] bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl z-50 flex flex-col overflow-hidden md:bottom-6 md:right-6 md:w-[420px] md:max-h-[600px]">
+        <div className="fixed bottom-20 right-4 w-[380px] max-h-[520px] bg-dungeon-850 border border-dungeon-700 rounded-2xl shadow-dungeon-lg z-50 flex flex-col overflow-hidden md:bottom-6 md:right-6 md:w-[420px] md:max-h-[600px]">
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800 bg-slate-900/95">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-dungeon-700 bg-dungeon-900/95">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-amber-600/20 flex items-center justify-center text-sm font-bold text-amber-400">
+              <div className="w-8 h-8 rounded-full bg-gold-900/30 flex items-center justify-center text-sm font-bold text-gold-400 border border-gold-800 dcc-glow-gold">
                 Z
               </div>
               <div>
                 <span className="text-sm font-semibold text-slate-100">Zev</span>
-                <span className="text-xs text-slate-500 ml-2">Household AI</span>
+                <span className="text-xs text-dungeon-500 ml-2 font-mono">Household AI</span>
               </div>
             </div>
             <button
               onClick={() => setIsOpen(false)}
-              className="text-slate-400 hover:text-slate-100 p-1 transition-colors"
+              className="text-dungeon-500 hover:text-slate-100 p-1 transition-colors"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
@@ -140,13 +140,13 @@ export default function ChatBubble() {
             {messages.length === 0 && (
               <div className="text-center py-8">
                 <div className="text-3xl mb-2">Z</div>
-                <p className="text-slate-400 text-sm">Ask me anything. I&apos;ll try not to be too sarcastic.</p>
+                <p className="text-dungeon-500 text-sm">Ask me anything. I&apos;ll try not to be too sarcastic.</p>
                 <div className="mt-4 flex flex-wrap gap-2 justify-center">
                   {["What's on my plate today?", "Create a task", "How's my budget?"].map((q) => (
                     <button
                       key={q}
                       onClick={() => { setInput(q); }}
-                      className="px-3 py-1.5 text-xs bg-slate-800 border border-slate-700 rounded-full text-slate-300 hover:bg-slate-700 hover:text-slate-100 transition-colors"
+                      className="px-3 py-1.5 text-xs bg-dungeon-800 border border-dungeon-700 rounded-full text-slate-300 hover:bg-dungeon-700 hover:text-slate-100 transition-colors font-mono"
                     >
                       {q}
                     </button>
@@ -163,13 +163,13 @@ export default function ChatBubble() {
                 <div
                   className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
                     msg.role === "user"
-                      ? "bg-green-600/20 text-green-100 rounded-br-md"
-                      : "bg-slate-800 text-slate-200 rounded-bl-md"
+                      ? "bg-crimson-900/30 text-slate-100 rounded-br-md border border-crimson-800/50"
+                      : "bg-dungeon-800 text-slate-200 rounded-bl-md border border-dungeon-700"
                   }`}
                 >
                   <div className="whitespace-pre-wrap break-words">{msg.content}</div>
                   {msg.cost_cents !== undefined && msg.cost_cents > 0 && (
-                    <div className="text-xs text-slate-500 mt-1 text-right">
+                    <div className="text-xs text-dungeon-500 mt-1 text-right font-mono">
                       ${(msg.cost_cents / 100).toFixed(4)}
                     </div>
                   )}
@@ -179,11 +179,11 @@ export default function ChatBubble() {
 
             {loading && (
               <div className="flex justify-start">
-                <div className="bg-slate-800 rounded-2xl rounded-bl-md px-4 py-3">
+                <div className="bg-dungeon-800 border border-dungeon-700 rounded-2xl rounded-bl-md px-4 py-3">
                   <div className="flex gap-1.5">
-                    <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                    <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                    <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                    <div className="w-2 h-2 bg-dungeon-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                    <div className="w-2 h-2 bg-dungeon-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                    <div className="w-2 h-2 bg-dungeon-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
                   </div>
                 </div>
               </div>
@@ -193,7 +193,7 @@ export default function ChatBubble() {
           </div>
 
           {/* Input */}
-          <div className="border-t border-slate-800 p-3">
+          <div className="border-t border-dungeon-700 p-3">
             <div className="flex gap-2">
               <input
                 ref={inputRef}
@@ -203,12 +203,12 @@ export default function ChatBubble() {
                 onKeyDown={handleKeyDown}
                 placeholder="Ask Zev..."
                 disabled={loading}
-                className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500/50 disabled:opacity-50 transition-colors"
+                className="dcc-input flex-1 rounded-xl disabled:opacity-50"
               />
               <button
                 onClick={sendMessage}
                 disabled={!input.trim() || loading}
-                className="px-3 py-2.5 bg-amber-600 hover:bg-amber-500 disabled:bg-slate-700 disabled:text-slate-500 text-white rounded-xl transition-colors font-medium text-sm"
+                className="px-3 py-2.5 bg-gold-500 hover:bg-gold-400 disabled:bg-dungeon-700 disabled:text-dungeon-500 text-dungeon-950 rounded-xl transition-colors font-medium text-sm"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
@@ -224,8 +224,8 @@ export default function ChatBubble() {
         onClick={() => setIsOpen(!isOpen)}
         className={`fixed bottom-20 right-4 md:bottom-6 md:right-6 w-14 h-14 rounded-full shadow-lg z-50 flex items-center justify-center transition-all duration-200 ${
           isOpen
-            ? "bg-slate-700 hover:bg-slate-600 scale-90"
-            : "bg-amber-600 hover:bg-amber-500 hover:scale-105"
+            ? "bg-dungeon-700 hover:bg-dungeon-600 scale-90"
+            : "bg-gold-500 hover:bg-gold-400 hover:scale-105 dcc-glow-gold"
         }`}
       >
         {isOpen ? (
@@ -233,7 +233,7 @@ export default function ChatBubble() {
             <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
           </svg>
         ) : (
-          <span className="text-white font-bold text-xl">Z</span>
+          <span className="text-dungeon-950 font-bold text-xl">Z</span>
         )}
       </button>
     </>

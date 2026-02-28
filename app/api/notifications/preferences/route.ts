@@ -68,6 +68,22 @@ export async function PATCH(request: NextRequest) {
     );
   }
 
+  // Validate channelConfig if provided — must be a plain object, no nested depth > 2
+  if (channelConfig !== undefined && channelConfig !== null) {
+    if (typeof channelConfig !== "object" || Array.isArray(channelConfig)) {
+      return NextResponse.json({ error: "config must be a JSON object" }, { status: 400 });
+    }
+    const configStr = JSON.stringify(channelConfig);
+    if (configStr.length > 5000) {
+      return NextResponse.json({ error: "config too large (max 5KB)" }, { status: 400 });
+    }
+  }
+
+  // Validate enabled is boolean
+  if ("enabled" in body && typeof enabled !== "boolean") {
+    return NextResponse.json({ error: "enabled must be a boolean" }, { status: 400 });
+  }
+
   // Check if a preference row already exists
   const { data: existing } = await platform(supabase)
     .from("user_notification_prefs")

@@ -9,16 +9,16 @@ const WEBHOOK_VERIFY_TOKEN = process.env.PLAID_WEBHOOK_VERIFY_TOKEN;
 // POST /api/plaid/webhook — Receive Plaid webhooks for transaction updates
 // NOTE: This route is excluded from auth middleware (see middleware.ts matcher)
 export async function POST(request: NextRequest) {
-  // Verify webhook authenticity
-  // If PLAID_WEBHOOK_VERIFY_TOKEN is set, require it as a query param or header
-  // This is a basic guard — full Plaid JWT verification can be added later
-  if (WEBHOOK_VERIFY_TOKEN) {
-    const providedToken =
-      request.nextUrl.searchParams.get("verify") ||
-      request.headers.get("x-webhook-token");
-    if (providedToken !== WEBHOOK_VERIFY_TOKEN) {
-      return NextResponse.json({ error: "Invalid webhook token" }, { status: 403 });
-    }
+  // Verify webhook authenticity — always require verification token
+  if (!WEBHOOK_VERIFY_TOKEN) {
+    console.error("PLAID_WEBHOOK_VERIFY_TOKEN not configured — rejecting webhook");
+    return NextResponse.json({ error: "Webhook verification not configured" }, { status: 500 });
+  }
+
+  const providedToken =
+    request.headers.get("x-webhook-token");
+  if (providedToken !== WEBHOOK_VERIFY_TOKEN) {
+    return NextResponse.json({ error: "Invalid webhook token" }, { status: 403 });
   }
 
   let body;
