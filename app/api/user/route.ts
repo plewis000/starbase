@@ -16,6 +16,15 @@ export async function GET() {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
+  // Fire-and-forget: ensure gamification profile exists + track login
+  import("@/lib/gamification")
+    .then(async ({ ensureProfile, updateLoginStreak, awardXp }) => {
+      await ensureProfile(supabase, user.id);
+      await updateLoginStreak(supabase, user.id);
+      await awardXp(supabase, user.id, 5, "daily_login", "Daily login bonus");
+    })
+    .catch(() => {});
+
   // Check integration statuses
   const hasDiscord = !!process.env.DISCORD_BOT_TOKEN && !!process.env.DISCORD_GUILD_ID;
   const hasAnthropic = !!process.env.ANTHROPIC_API_KEY;
