@@ -77,7 +77,8 @@ export async function POST(
   }
 
   const { id: goalId } = await params;
-  const body = await request.json();
+  let body;
+  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
   const { task_id } = body;
 
   if (!task_id || typeof task_id !== "string") {

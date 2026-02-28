@@ -33,7 +33,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const body = await request.json();
+  let body;
+
+  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
 
   const codeCheck = validateRequiredString(body.invite_code, "invite_code", 20);
   if (!codeCheck.valid) {

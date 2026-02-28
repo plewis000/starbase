@@ -26,7 +26,9 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
   }
 
-  const body = await request.json();
+  let body;
+
+  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
   const updateFields: Record<string, unknown> = {};
 
   if ("title" in body) updateFields.title = body.title;

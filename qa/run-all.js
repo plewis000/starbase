@@ -42,6 +42,11 @@ const CHECKS = [
     description: "Pre-deployment environment & build checks",
     script: "qa/deploy-preflight.js",
   },
+  {
+    name: "migration-linter",
+    description: "SQL migration permission anti-patterns (OS-P006/P007)",
+    script: "qa/migration-linter.js",
+  },
 ];
 
 console.log("╔════════════════════════════════════════════════════╗");

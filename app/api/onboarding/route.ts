@@ -146,7 +146,8 @@ export async function POST(request: NextRequest) {
     }, { status: 409 });
   }
 
-  const body = await request.json().catch(() => ({}));
+  let body;
+  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
   const track = body.track === "quick" ? "quick" : "full";
 
   if (track === "quick") {

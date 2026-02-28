@@ -47,7 +47,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Onboarding not started" }, { status: 404 });
   }
 
-  const body = await request.json().catch(() => ({}));
+  let body;
+  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
 
   // Determine target phase
   let targetPhase: string;

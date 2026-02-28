@@ -79,7 +79,8 @@ export async function POST(request: NextRequest) {
   }
 
   const ctx = await getHouseholdContext(supabase, user.id);
-  const body = await request.json();
+  let body;
+  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
 
   const keyCheck = validateRequiredString(body.config_key, "config_key", 200);
   if (!keyCheck.valid) return NextResponse.json({ error: keyCheck.error }, { status: 400 });

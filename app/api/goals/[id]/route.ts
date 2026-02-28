@@ -127,7 +127,9 @@ export async function PATCH(
     return NextResponse.json({ error: "Goal not found" }, { status: 404 });
   }
 
-  const body = await request.json();
+  let body;
+
+  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
 
   // Allowed update fields
   const allowedFields = [

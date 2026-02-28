@@ -19,7 +19,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await request.json();
+  let body;
+
+  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
 
   const typeCheck = validateRequiredString(body.event_type, "event_type", 100);
   if (!typeCheck.valid) return NextResponse.json({ error: typeCheck.error }, { status: 400 });

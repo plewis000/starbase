@@ -50,7 +50,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await request.json().catch(() => ({}));
+  let body;
+  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
   const targetDate = body.date || new Date().toISOString().slice(0, 10);
 
   // Validate date format

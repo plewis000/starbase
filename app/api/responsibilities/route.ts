@@ -105,7 +105,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "No household found" }, { status: 404 });
   }
 
-  const body = await request.json();
+  let body;
+
+  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
 
   // Validate required fields
   const nameCheck = validateRequiredString(body.name, "name", 200);

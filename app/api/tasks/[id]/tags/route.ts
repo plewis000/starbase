@@ -30,7 +30,9 @@ export async function POST(
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
-  const body = await request.json();
+  let body;
+
+  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
   const { tag_ids } = body;
 
   if (!tag_ids || !Array.isArray(tag_ids) || tag_ids.length === 0) {

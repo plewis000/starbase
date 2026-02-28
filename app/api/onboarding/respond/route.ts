@@ -43,7 +43,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Not in interview phase" }, { status: 400 });
   }
 
-  const body = await request.json();
+  let body;
+
+  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
 
   // Validate response
   const responseCheck = validateRequiredString(body.response, "response", 5000);

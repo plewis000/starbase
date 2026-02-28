@@ -74,7 +74,8 @@ export async function POST(request: NextRequest) {
   }
 
   const ctx = await getHouseholdContext(supabase, user.id);
-  const body = await request.json();
+  let body;
+  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
 
   const titleCheck = validateRequiredString(body.title, "title", 200);
   if (!titleCheck.valid) return NextResponse.json({ error: titleCheck.error }, { status: 400 });

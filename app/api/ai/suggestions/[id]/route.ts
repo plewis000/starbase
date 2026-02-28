@@ -42,7 +42,9 @@ export async function PATCH(
     return NextResponse.json({ error: "Not authorized" }, { status: 403 });
   }
 
-  const body = await request.json();
+  let body;
+
+  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
 
   const actionCheck = validateEnum(body.action, "action", RESPONSE_ACTIONS);
   if (!actionCheck.valid) return NextResponse.json({ error: actionCheck.error }, { status: 400 });

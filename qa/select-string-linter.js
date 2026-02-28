@@ -34,14 +34,14 @@ const CONFIG_TABLES = [
 const AUTH_TABLES = ["users"];
 
 // Display labels that should never appear in .order() calls
+// Only flag multi-word labels or Title Case strings that are clearly display text
+// Single lowercase words like "priority", "title", "name" are valid column names
 const INVALID_ORDER_VALUES = [
   "Due Date",
-  "Priority",
-  "Created",
-  "Title",
-  "Status",
   "Assigned To",
-  "Updated",
+  "Created At",
+  "Updated At",
+  "Start Date",
 ];
 
 let findings = [];

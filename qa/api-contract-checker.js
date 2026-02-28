@@ -21,39 +21,19 @@ const path = require("path");
 const ROOT = path.resolve(__dirname, "..");
 const EXTENSIONS = [".ts", ".tsx"];
 
-// Known valid column names across all tables used in .order() calls
-const VALID_ORDER_COLUMNS = new Set([
-  // tasks
-  "id", "title", "description", "status_id", "priority_id", "type_id",
-  "effort_id", "due_date", "start_date", "completed_at", "created_at",
-  "updated_at", "created_by", "assigned_to", "parent_task_id",
-  "location_context_id", "is_recurring", "recurrence_pattern_id",
-  "recurrence_source_id", "external_ref", "sort_order",
-  // goals
-  "target_date", "progress_value", "progress_type", "category_id",
-  "timeframe_id",
-  // habits
-  "current_streak", "best_streak", "total_completions", "frequency",
-  "target_count", "last_checked_at",
-  // comments
-  "edited_at", "pinned_at", "parent_comment_id",
-  // activity_log
-  "performed_at", "action", "entity_type", "entity_id", "user_id",
-  // notifications
-  "sent_at", "read_at", "dismissed_at",
-  // notification subscriptions
-  "event_type", "channel_id", "enabled",
-  // checklist items
-  "checked", "checked_at",
-  // config tables
-  "name", "slug", "color",
-]);
-
-// Known valid sort columns for tasks specifically (frontend sends these)
-const VALID_SORT_COLUMNS = [
-  "due_date", "priority_id", "created_at", "updated_at", "title",
-  "completed_at", "start_date", "sort_order",
-];
+// Instead of whitelisting every valid column (unmaintainable with 70+ tables),
+// detect display labels by pattern: multi-word, Title Case, contains spaces.
+// Valid column names are always snake_case or single lowercase words.
+function looksLikeDisplayLabel(value) {
+  // Contains spaces = definitely a display label
+  if (value.includes(" ")) return true;
+  // Title Case multi-word with no underscore (e.g., "DueDate")
+  if (/^[A-Z][a-z]+[A-Z]/.test(value)) return true;
+  // Starts with uppercase and has no underscores (e.g., "Priority" vs "priority")
+  // Only flag if it's a known display label pattern
+  if (/^[A-Z][a-z]+$/.test(value) && ["Due", "Created", "Updated", "Status", "Assigned"].includes(value)) return true;
+  return false;
+}
 
 let findings = [];
 let filesScanned = 0;
@@ -87,17 +67,17 @@ function scanApiRoutes() {
     lines.forEach((line, idx) => {
       const lineNum = idx + 1;
 
-      // CHECK 1: .order() with invalid column names
+      // CHECK 1: .order() with display-label column names
       const orderMatch = line.match(/\.order\(\s*["'`]([^"'`]+)["'`]/);
       if (orderMatch) {
         const colName = orderMatch[1];
-        if (!VALID_ORDER_COLUMNS.has(colName) && !colName.includes(".")) {
+        if (looksLikeDisplayLabel(colName)) {
           findings.push({
             file: relPath,
             line: lineNum,
-            rule: "invalid-order-column",
+            rule: "display-label-in-order",
             severity: "error",
-            message: `Invalid column "${colName}" in .order() call. Valid sort columns: ${VALID_SORT_COLUMNS.join(", ")}`,
+            message: `Display label "${colName}" used in .order() call. Use the actual snake_case column name.`,
             code: line.trim(),
             ref: "F-003",
           });

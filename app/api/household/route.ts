@@ -78,7 +78,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const body = await request.json();
+  let body;
+
+  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
 
   const nameCheck = validateRequiredString(body.name, "name", 100);
   if (!nameCheck.valid) {
@@ -143,7 +145,9 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "Admin access required" }, { status: 403 });
   }
 
-  const body = await request.json();
+  let body;
+
+  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
   const updateFields: Record<string, unknown> = {};
 
   if ("name" in body) {
