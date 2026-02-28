@@ -143,24 +143,26 @@ export async function POST(request: NextRequest) {
     // No household — that's fine
   }
 
+  const insertPayload = {
+    household_id: householdId,
+    submitted_by: user.id,
+    type: typeCheck.value,
+    body: bodyCheck.value,
+    page_url: pageUrlCheck.value || body.page_url || null,
+    screenshot_url: body.screenshot_url || null,
+    source: sourceCheck.value,
+    conversation_id: body.conversation_id || null,
+    tags: body.tags || null,
+  };
+
   const { data: feedbackItem, error } = await platform(supabase)
     .from("feedback")
-    .insert({
-      household_id: householdId,
-      submitted_by: user.id,
-      type: typeCheck.value,
-      body: bodyCheck.value,
-      page_url: pageUrlCheck.value || body.page_url || null,
-      screenshot_url: body.screenshot_url || null,
-      source: sourceCheck.value,
-      conversation_id: body.conversation_id || null,
-      tags: body.tags || null,
-    })
-    .select("*")
+    .insert(insertPayload)
+    .select("id, type, body, status, created_at")
     .single();
 
   if (error) {
-    console.error("[feedback] insert failed:", error.message, error.details, error.hint);
+    console.error("[feedback] insert failed:", JSON.stringify({ message: error.message, details: error.details, hint: error.hint, code: error.code, payload: insertPayload }));
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
@@ -169,9 +171,7 @@ export async function POST(request: NextRequest) {
     try {
       await platform(supabase)
         .from("feedback_votes")
-        .insert({ feedback_id: feedbackItem.id, user_id: user.id })
-        .select()
-        .maybeSingle();
+        .insert({ feedback_id: feedbackItem.id, user_id: user.id });
     } catch { /* ignore */ }
 
     if (householdId) {

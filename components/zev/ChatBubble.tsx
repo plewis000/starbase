@@ -51,6 +51,7 @@ export default function ChatBubble() {
   const [feedbackBody, setFeedbackBody] = useState("");
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+  const [feedbackError, setFeedbackError] = useState<string | null>(null);
 
   // Scroll helpers
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatMessages]);
@@ -164,6 +165,7 @@ export default function ChatBubble() {
   const submitFeedback = async () => {
     if (!feedbackBody.trim() || feedbackSubmitting) return;
     setFeedbackSubmitting(true);
+    setFeedbackError(null);
     try {
       const res = await fetch("/api/feedback", {
         method: "POST",
@@ -175,15 +177,18 @@ export default function ChatBubble() {
           source: "web_form",
         }),
       });
-      if (!res.ok) throw new Error("Failed");
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `Failed (${res.status})`);
+      }
       setFeedbackSubmitted(true);
       setFeedbackBody("");
       setTimeout(() => {
         setFeedbackSubmitted(false);
         setFeedbackType("feedback");
-      }, 2000);
-    } catch {
-      // silently fail
+      }, 3000);
+    } catch (err) {
+      setFeedbackError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setFeedbackSubmitting(false);
     }
@@ -459,6 +464,11 @@ export default function ChatBubble() {
                   className="dcc-input flex-1 rounded-xl resize-none min-h-[100px] text-sm"
                   autoFocus
                 />
+                {feedbackError && (
+                  <div className="text-xs text-crimson-400 bg-crimson-900/20 border border-crimson-800/30 rounded-lg px-3 py-2">
+                    {feedbackError}
+                  </div>
+                )}
                 <div className="flex items-center justify-between">
                   <span className="text-dungeon-600 text-xs font-mono">{pathname}</span>
                   <button
