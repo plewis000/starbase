@@ -116,8 +116,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const ctx = await getHouseholdContext(supabase, user.id);
-  const body = await request.json();
+  let body;
+  try { body = await request.json(); } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
 
   // Only body is truly required — everything else has defaults or is optional
   const bodyCheck = validateRequiredString(body.body, "body", 5000);
@@ -132,10 +134,19 @@ export async function POST(request: NextRequest) {
   const pageUrlCheck = validateOptionalString(body.page_url, "page_url", 500);
   if (!pageUrlCheck.valid) return NextResponse.json({ error: pageUrlCheck.error }, { status: 400 });
 
+  // Get household context (non-blocking — feedback works without a household)
+  let householdId: string | null = null;
+  try {
+    const ctx = await getHouseholdContext(supabase, user.id);
+    householdId = ctx?.household_id || null;
+  } catch {
+    // No household — that's fine
+  }
+
   const { data: feedbackItem, error } = await platform(supabase)
     .from("feedback")
     .insert({
-      household_id: ctx?.household_id || null,
+      household_id: householdId,
       submitted_by: user.id,
       type: typeCheck.value,
       body: bodyCheck.value,
@@ -149,42 +160,48 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error) {
+    console.error("[feedback] insert failed:", error.message, error.details, error.hint);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Auto-upvote by submitter
-  await platform(supabase)
-    .from("feedback_votes")
-    .insert({ feedback_id: feedbackItem.id, user_id: user.id })
-    .select()
-    .maybeSingle();
+  // Auto-upvote + notifications — fire-and-forget, don't block the response
+  (async () => {
+    try {
+      await platform(supabase)
+        .from("feedback_votes")
+        .insert({ feedback_id: feedbackItem.id, user_id: user.id })
+        .select()
+        .maybeSingle();
+    } catch { /* ignore */ }
 
-  // Notify household members about new feedback (except submitter)
-  if (ctx) {
-    const { data: members } = await platform(supabase)
-      .from("household_members")
-      .select("user_id")
-      .eq("household_id", ctx.household_id)
-      .neq("user_id", user.id);
+    if (householdId) {
+      try {
+        const { data: members } = await platform(supabase)
+          .from("household_members")
+          .select("user_id")
+          .eq("household_id", householdId)
+          .neq("user_id", user.id);
 
-    const typeEmoji: Record<string, string> = {
-      bug: "🐛", wish: "⭐", feedback: "💬", question: "❓",
-    };
+        const typeEmoji: Record<string, string> = {
+          bug: "🐛", wish: "⭐", feedback: "💬", question: "❓",
+        };
 
-    for (const member of (members || [])) {
-      await triggerNotification(supabase, {
-        recipientUserId: member.user_id,
-        title: `${typeEmoji[typeCheck.value]} New ${typeCheck.value}: ${bodyCheck.value.slice(0, 80)}`,
-        body: bodyCheck.value.length > 80 ? bodyCheck.value.slice(0, 200) + "..." : bodyCheck.value,
-        event: "system",
-        metadata: {
-          feedback_id: feedbackItem.id,
-          feedback_type: typeCheck.value,
-          page_url: pageUrlCheck.value,
-        },
-      });
+        for (const member of (members || [])) {
+          await triggerNotification(supabase, {
+            recipientUserId: member.user_id,
+            title: `${typeEmoji[typeCheck.value]} New ${typeCheck.value}: ${bodyCheck.value.slice(0, 80)}`,
+            body: bodyCheck.value.length > 80 ? bodyCheck.value.slice(0, 200) + "..." : bodyCheck.value,
+            event: "system",
+            metadata: {
+              feedback_id: feedbackItem.id,
+              feedback_type: typeCheck.value,
+              page_url: pageUrlCheck.value,
+            },
+          });
+        }
+      } catch { /* ignore notification failures */ }
     }
-  }
+  })();
 
   return NextResponse.json({
     feedback: feedbackItem,
