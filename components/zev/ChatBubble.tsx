@@ -12,6 +12,7 @@ interface Message {
   content: string;
   timestamp: Date;
   cost_cents?: number;
+  free?: boolean;
 }
 
 const FEEDBACK_CONFIG: Record<FeedbackType, { label: string; icon: string; placeholder: string }> = {
@@ -72,21 +73,23 @@ export default function ChatBubble() {
     setInput("");
     setLoading(true);
 
+    const isCommand = text.startsWith("/");
+
     try {
-      const res = await fetch("/api/agent", {
+      const res = await fetch(isCommand ? "/api/commands" : "/api/agent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: text,
-          conversation_id: conversationId,
-          channel: "web",
-        }),
+        body: JSON.stringify(
+          isCommand
+            ? { command: text }
+            : { message: text, conversation_id: conversationId, channel: "web" }
+        ),
       });
 
       if (!res.ok) throw new Error("Request failed");
       const data = await res.json();
 
-      if (data.conversation_id && !conversationId) {
+      if (!isCommand && data.conversation_id && !conversationId) {
         setConversationId(data.conversation_id);
       }
 
@@ -95,7 +98,8 @@ export default function ChatBubble() {
         role: "assistant",
         content: data.response || data.text || "...",
         timestamp: new Date(),
-        cost_cents: data.cost_cents,
+        cost_cents: isCommand ? undefined : data.cost_cents,
+        free: isCommand || data.free,
       }]);
     } catch {
       setMessages((prev) => [...prev, {
@@ -242,7 +246,7 @@ export default function ChatBubble() {
                     <div className="text-3xl mb-2">Z</div>
                     <p className="text-dungeon-500 text-sm">Ask me anything. I&apos;ll try not to be too sarcastic.</p>
                     <div className="mt-4 flex flex-wrap gap-2 justify-center">
-                      {["What's on my plate today?", "Create a task", "How's my budget?"].map((q) => (
+                      {["/help", "/tasks today", "/stats", "What's on my plate?"].map((q) => (
                         <button
                           key={q}
                           onClick={() => { setInput(q); }}
@@ -267,8 +271,21 @@ export default function ChatBubble() {
                           : "bg-dungeon-800 text-slate-200 rounded-bl-md border border-dungeon-700"
                       }`}
                     >
-                      <div className="whitespace-pre-wrap break-words">{msg.content}</div>
-                      {msg.cost_cents !== undefined && msg.cost_cents > 0 && (
+                      <div
+                        className="whitespace-pre-wrap break-words"
+                        dangerouslySetInnerHTML={msg.role === "assistant" ? {
+                          __html: msg.content
+                            .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+                            .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+                            .replace(/`([^`]+)`/g, '<code class="bg-dungeon-900 px-1 rounded text-gold-400 text-xs">$1</code>')
+                        } : undefined}
+                      >
+                        {msg.role === "user" ? msg.content : undefined}
+                      </div>
+                      {msg.free && (
+                        <div className="text-xs text-emerald-500 mt-1 text-right font-mono">FREE</div>
+                      )}
+                      {!msg.free && msg.cost_cents !== undefined && msg.cost_cents > 0 && (
                         <div className="text-xs text-dungeon-500 mt-1 text-right font-mono">
                           ${(msg.cost_cents / 100).toFixed(4)}
                         </div>
