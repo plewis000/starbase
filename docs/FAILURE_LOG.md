@@ -317,12 +317,26 @@ Each failure is tagged with:
 
 ---
 
+### F-023: Missing Table-Level GRANT on All Migration 005-009 Tables
+- **Date**: 2026-02-28
+- **Session**: 6
+- **Category**: `database`, `permissions`, `migration`
+- **Severity**: Critical
+- **Symptom**: After fixing F-021 and F-022, feedback still failed with `permission denied for table household_members`. Investigation revealed that ~50 tables created in migrations 005-009 had zero grants for the `authenticated` role — only `postgres` could access them.
+- **Root Cause**: RLS policies were created (controlling *which rows*), but table-level GRANT statements were never included (controlling *whether the role can access the table at all*). RLS and table permissions are two separate layers — you need both. The earlier migrations (001-004) included grants, but 005-009 omitted them entirely.
+- **Fix**: Ran `GRANT ALL ON ALL TABLES IN SCHEMA [platform|config|household|finance] TO authenticated` and `GRANT SELECT ... TO anon`. Also set `ALTER DEFAULT PRIVILEGES` so future tables automatically get grants.
+- **Pattern**: **Every CREATE TABLE in a Supabase migration must be followed by GRANT statements. RLS policies alone are not sufficient — the role must have table-level access first.** Use `ALTER DEFAULT PRIVILEGES` as a safety net so new tables automatically inherit grants.
+- **QA Rule**: Every migration that creates a table should include `GRANT ALL ON [table] TO authenticated`. Migrations without grant statements should be flagged. Add to deploy-preflight: query `information_schema.table_privileges` and flag any table in custom schemas missing `authenticated` grants.
+- **Promoted to OS-level**: Yes — this is a fundamental Supabase pattern. Every project using custom schemas will hit this.
+
+---
+
 ## Trend Summary
 
 | Pattern | Count | Categories |
 |---------|-------|------------|
 | Sandbox/environment deployment assumptions | 4 | F-008, F-009, F-010, F-011 |
-| RLS self-referencing / permission issues | 2 | F-021, F-022 |
+| RLS / table permission issues | 3 | F-021, F-022, F-023 |
 | TypeScript type loss in enrichment patterns | 2 | F-014, F-016 |
 | Silent error handling (no user feedback) | 1 | F-020 |
 | Auth callback bloat / timeout | 1 | F-019 |
