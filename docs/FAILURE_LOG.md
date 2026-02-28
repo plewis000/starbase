@@ -264,12 +264,68 @@ Each failure is tagged with:
 
 ---
 
+### F-019: Auth Callback 504 Timeout on Vercel
+- **Date**: 2026-02-27
+- **Session**: 5
+- **Category**: `deployment`, `auth`, `performance`
+- **Severity**: Critical
+- **Symptom**: User couldn't log in. Clicking "Continue with Google" appeared to do nothing. Supabase auth logs showed successful token exchanges (200 status), but Vercel runtime logs showed `/auth/callback` returning 504 repeatedly.
+- **Root Cause**: The auth callback route was sequentially `await`ing `ensureProfile()` → `updateLoginStreak()` → `awardXp()`. Each makes multiple Supabase queries. On Vercel Hobby plan cold starts, this chain exceeded the 10-second timeout.
+- **Fix**: Stripped auth callback to just exchange code + redirect (2 operations). Moved gamification init to `/api/user` as fire-and-forget (`import().then().catch()`). Dashboard calls `/api/user` on load, so gamification happens post-login without blocking the callback.
+- **Pattern**: **Auth callbacks must be fast — exchange token, redirect, done. Never put non-essential work (profile creation, streak tracking, XP awards) in the auth callback path. Defer to a subsequent API call or background job.**
+- **QA Rule**: Auth callback routes should contain only: (1) token exchange, (2) redirect. Any `await` call beyond those two should be flagged.
+
+---
+
+### F-020: Feedback API 500 — Silent Failure with No UI Feedback
+- **Date**: 2026-02-28
+- **Session**: 6
+- **Category**: `api-contract`, `error-handling`, `ux`
+- **Severity**: Critical
+- **Symptom**: User submitted feedback 3 times. Text stayed in the textarea, no confirmation, no error. The submit appeared to do nothing. Vercel logs showed 500 errors on `/api/feedback`.
+- **Root Cause (initial)**: The feedback route's `request.json()` call had no try/catch, and side effects (auto-upvote, notifications) were not wrapped — any failure in post-insert operations would crash the entire response. The UI's catch block was `// silently fail` — no error state shown to user.
+- **Fix (partial)**: Added JSON parsing safety, try/catch around household context, moved side effects to fire-and-forget, added error banner in UI. This exposed the real root cause (F-021).
+- **Pattern**: **Never silently swallow errors in UI.** A `catch { }` with no user feedback is worse than showing the error — the user doesn't know whether to retry, wait, or give up. Always show error state.
+- **QA Rule**: Any `catch` block in a UI submit handler that doesn't set an error state or show feedback should be flagged.
+
+---
+
+### F-021: Infinite Recursion in `household_members` RLS Policy
+- **Date**: 2026-02-28
+- **Session**: 6
+- **Category**: `database`, `rls`, `security`
+- **Severity**: Critical
+- **Symptom**: Feedback insert returned 500 with error: `infinite recursion detected in policy for relation "household_members"`. Every table with household-scoped RLS was affected (feedback, responsibilities, delegations, etc.).
+- **Root Cause**: The `household_members` SELECT policy was self-referential: `USING (household_id IN (SELECT household_id FROM household_members WHERE user_id = auth.uid()))`. Postgres evaluates RLS policies on every table access — so querying `household_members` triggers its own SELECT policy, which queries `household_members` again, infinitely.
+- **Fix**: Created `SECURITY DEFINER` functions (`get_user_household_ids()`, `is_household_admin()`) owned by `postgres` that bypass RLS. Replaced the recursive policies with calls to these functions. Granted EXECUTE to the `authenticated` role.
+- **Pattern**: **RLS policies must never query the table they protect.** Self-referential RLS causes infinite recursion. Use `SECURITY DEFINER` functions to break the cycle — they execute as the function owner (bypassing RLS) and return the result to the policy.
+- **QA Rule**: Any RLS policy where the `USING` or `WITH CHECK` clause contains `SELECT ... FROM [same_table]` should be flagged as a recursion risk. This applies to any table with membership/role-based access patterns.
+- **Promoted to OS-level**: Yes — this will affect any project using Supabase with household/team/org membership patterns. The self-referential RLS trap is well-documented but easy to miss.
+
+---
+
+### F-022: SECURITY DEFINER Functions Missing GRANT EXECUTE
+- **Date**: 2026-02-28
+- **Session**: 6
+- **Category**: `database`, `permissions`, `rls`
+- **Severity**: Critical
+- **Symptom**: After fixing F-021, feedback still failed with `permission denied for table household_members`. The SECURITY DEFINER functions existed but couldn't be called by the `authenticated` role.
+- **Root Cause**: PostgreSQL functions created by `postgres` are only executable by `postgres` by default. The `authenticated` role (used by Supabase PostgREST) needs an explicit `GRANT EXECUTE ON FUNCTION ... TO authenticated` to call them. This was missed in the initial fix.
+- **Fix**: Added `GRANT EXECUTE` for both functions and `GRANT USAGE ON SCHEMA platform TO authenticated`.
+- **Pattern**: **When creating SECURITY DEFINER functions for RLS, always include GRANT EXECUTE to the roles that will trigger the policies.** The function must be callable by every role that accesses the protected table.
+- **QA Rule**: Every `CREATE FUNCTION ... SECURITY DEFINER` should be followed by a `GRANT EXECUTE ON FUNCTION ... TO authenticated` in the same migration. Missing grants should be flagged.
+
+---
+
 ## Trend Summary
 
 | Pattern | Count | Categories |
 |---------|-------|------------|
 | Sandbox/environment deployment assumptions | 4 | F-008, F-009, F-010, F-011 |
+| RLS self-referencing / permission issues | 2 | F-021, F-022 |
 | TypeScript type loss in enrichment patterns | 2 | F-014, F-016 |
+| Silent error handling (no user feedback) | 1 | F-020 |
+| Auth callback bloat / timeout | 1 | F-019 |
 | Supabase FK join type miscast | 1 | F-018 |
 | Supabase API misuse (non-Promise chaining) | 1 | F-017 |
 | Display labels used where machine values needed | 2 | F-003, F-004 |
