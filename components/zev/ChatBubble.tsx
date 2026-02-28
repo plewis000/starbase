@@ -8,11 +8,10 @@ type FeedbackType = "bug" | "wish" | "feedback";
 
 interface Message {
   id: string;
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "system";
   content: string;
   timestamp: Date;
   cost_cents?: number;
-  free?: boolean;
 }
 
 const FEEDBACK_CONFIG: Record<FeedbackType, { label: string; icon: string; placeholder: string }> = {
@@ -94,12 +93,11 @@ export default function ChatBubble() {
       }
 
       setMessages((prev) => [...prev, {
-        id: `assistant-${Date.now()}`,
-        role: "assistant",
+        id: `${isCommand ? "system" : "assistant"}-${Date.now()}`,
+        role: isCommand ? "system" : "assistant",
         content: data.response || data.text || "...",
         timestamp: new Date(),
         cost_cents: isCommand ? undefined : data.cost_cents,
-        free: isCommand || data.free,
       }]);
     } catch {
       setMessages((prev) => [...prev, {
@@ -264,33 +262,51 @@ export default function ChatBubble() {
                     key={msg.id}
                     className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                   >
-                    <div
-                      className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
-                        msg.role === "user"
-                          ? "bg-crimson-900/30 text-slate-100 rounded-br-md border border-crimson-800/50"
-                          : "bg-dungeon-800 text-slate-200 rounded-bl-md border border-dungeon-700"
-                      }`}
-                    >
-                      <div
-                        className="whitespace-pre-wrap break-words"
-                        dangerouslySetInnerHTML={msg.role === "assistant" ? {
-                          __html: msg.content
-                            .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-                            .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-                            .replace(/`([^`]+)`/g, '<code class="bg-dungeon-900 px-1 rounded text-gold-400 text-xs">$1</code>')
-                        } : undefined}
-                      >
-                        {msg.role === "user" ? msg.content : undefined}
-                      </div>
-                      {msg.free && (
-                        <div className="text-xs text-emerald-500 mt-1 text-right font-mono">FREE</div>
-                      )}
-                      {!msg.free && msg.cost_cents !== undefined && msg.cost_cents > 0 && (
-                        <div className="text-xs text-dungeon-500 mt-1 text-right font-mono">
-                          ${(msg.cost_cents / 100).toFixed(4)}
+                    {msg.role === "system" ? (
+                      /* System / command response — terminal style, full width */
+                      <div className="w-full rounded-xl bg-dungeon-900 border border-emerald-900/40 px-4 py-3 text-sm leading-relaxed font-mono">
+                        <div className="flex items-center gap-1.5 mb-1.5 text-emerald-500 text-xs">
+                          <span>{">"}_</span>
+                          <span>system</span>
                         </div>
-                      )}
-                    </div>
+                        <div
+                          className="whitespace-pre-wrap break-words text-slate-300"
+                          dangerouslySetInnerHTML={{
+                            __html: msg.content
+                              .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+                              .replace(/\*\*(.+?)\*\*/g, '<span class="text-slate-100 font-semibold">$1</span>')
+                              .replace(/`([^`]+)`/g, '<code class="bg-dungeon-800 px-1 rounded text-emerald-400 text-xs">$1</code>')
+                          }}
+                        />
+                        <div className="text-xs text-emerald-600 mt-1.5 text-right">FREE</div>
+                      </div>
+                    ) : (
+                      /* User or Zev AI bubble */
+                      <div
+                        className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                          msg.role === "user"
+                            ? "bg-crimson-900/30 text-slate-100 rounded-br-md border border-crimson-800/50"
+                            : "bg-dungeon-800 text-slate-200 rounded-bl-md border border-dungeon-700"
+                        }`}
+                      >
+                        <div
+                          className="whitespace-pre-wrap break-words"
+                          dangerouslySetInnerHTML={msg.role === "assistant" ? {
+                            __html: msg.content
+                              .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+                              .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+                              .replace(/`([^`]+)`/g, '<code class="bg-dungeon-900 px-1 rounded text-gold-400 text-xs">$1</code>')
+                          } : undefined}
+                        >
+                          {msg.role === "user" ? msg.content : undefined}
+                        </div>
+                        {msg.cost_cents !== undefined && msg.cost_cents > 0 && (
+                          <div className="text-xs text-dungeon-500 mt-1 text-right font-mono">
+                            ${(msg.cost_cents / 100).toFixed(4)}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
 
