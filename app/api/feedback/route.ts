@@ -5,11 +5,12 @@
 // PART OF: Desperado Club
 // ============================================================
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { platform } from "@/lib/supabase/schemas";
 import { getHouseholdContext } from "@/lib/household";
 import { triggerNotification } from "@/lib/notify";
+import { sendMessageWithButtons, ZEV_COLOR } from "@/lib/discord";
 import {
   validateRequiredString,
   validateOptionalString,
@@ -166,14 +167,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Auto-upvote + notifications — fire-and-forget, don't block the response
-  (async () => {
+  // Background work — auto-upvote, notifications, pipeline posting
+  after(async () => {
+    // Auto-upvote
     try {
       await platform(supabase)
         .from("feedback_votes")
         .insert({ feedback_id: feedbackItem.id, user_id: user.id });
     } catch { /* ignore */ }
 
+    // Household notifications
     if (householdId) {
       try {
         const { data: members } = await platform(supabase)
@@ -201,7 +204,40 @@ export async function POST(request: NextRequest) {
         }
       } catch { /* ignore notification failures */ }
     }
-  })();
+
+    // Post to #pipeline with Approve/Won't Fix buttons
+    const pipelineChannelId = process.env.PIPELINE_CHANNEL_ID;
+    if (pipelineChannelId) {
+      try {
+        const typeEmoji: Record<string, string> = {
+          bug: "🐛", wish: "⭐", feedback: "💬", question: "❓",
+        };
+        const messageId = await sendMessageWithButtons(pipelineChannelId, {
+          embeds: [{
+            title: `${typeEmoji[typeCheck.value] || "💬"} New ${typeCheck.value}`,
+            description: bodyCheck.value.slice(0, 2000),
+            color: ZEV_COLOR,
+            footer: { text: `ID: ${feedbackItem.id.slice(0, 8)} | Source: ${sourceCheck.value}` },
+          }],
+          components: [{
+            type: 1,
+            components: [
+              { type: 2, style: 3, label: "Approve", custom_id: `pipeline_approve_${feedbackItem.id}`, emoji: { name: "✅" } },
+              { type: 2, style: 4, label: "Won't Fix", custom_id: `pipeline_wontfix_${feedbackItem.id}`, emoji: { name: "🚫" } },
+            ],
+          }],
+        });
+        if (messageId) {
+          await platform(supabase)
+            .from("feedback")
+            .update({ discord_message_id: messageId })
+            .eq("id", feedbackItem.id);
+        }
+      } catch (e) {
+        console.error("[feedback] Pipeline posting failed:", e);
+      }
+    }
+  });
 
   return NextResponse.json({
     feedback: feedbackItem,
