@@ -434,6 +434,34 @@ Each failure is tagged with:
 
 ---
 
+### F-031: GitHub Action Auth Token Expires Daily — Pipeline Would Break Every 24 Hours
+- **Date**: 2026-03-01
+- **Session**: 12 (continued)
+- **Category**: `pipeline`, `auth`, `architecture`
+- **Severity**: Critical
+- **Symptom**: The GitHub Action pipeline was designed and shipped using `claude_code_oauth_token` sourced from the user's Claude Max plan. No investigation was done into the token's lifespan. Community reports and GitHub issue [#727](https://github.com/anthropics/claude-code-action/issues/727) confirm OAuth tokens from `/login` or `~/.claude/` expire in ~8-12 hours. The pipeline would silently fail daily with auth errors unless the user manually refreshed the token.
+- **Root Cause**: Built the auth integration without researching token lifecycle. The `.credentials.json` file contains an `expiresAt` field that clearly shows a ~1 day expiration, but this was never checked during design or implementation. The system assumed "auth token = permanent" without verification. There are TWO token types: (1) login session tokens (~8-12 hours), and (2) `claude setup-token` output (~1 year). The docs mention both but don't make the distinction prominent. We shipped without confirming which type was configured.
+- **Fix**: User needs to run `claude setup-token` (produces a ~1 year token) and update the `CLAUDE_CODE_OAUTH_TOKEN` GitHub secret with the long-lived token. The login session token in `~/.claude/.credentials.json` is NOT suitable for CI/CD.
+- **Pattern**: **Always verify the lifespan of auth tokens used in CI/CD pipelines.** Short-lived tokens designed for interactive sessions will silently break automated workflows. Before shipping any auth integration: (1) check the token's `expiresAt` or documented lifetime, (2) confirm it's the right token TYPE for the use case (interactive vs headless/CI), (3) document the refresh procedure.
+- **QA Rule**: When integrating any external auth token into a CI/CD pipeline, the implementation checklist must include: "What is the token's expiration? Is this token type designed for automated/headless use? What happens when it expires?" If the answer is <30 days, a refresh mechanism or long-lived alternative must be identified before shipping.
+- **Promoted to OS-level**: Yes — this applies to any CI/CD integration with token-based auth. The pattern is universal: interactive tokens ≠ CI tokens.
+
+---
+
+### F-032: CRON_SECRET Not Set in Vercel — Cron Jobs Silently 401ing Since Deploy
+- **Date**: 2026-03-01
+- **Session**: 12 (continued)
+- **Category**: `deployment`, `env-vars`, `pipeline`
+- **Severity**: Critical
+- **Symptom**: Daily digest (8 AM CT) and streak check (1 AM CT) cron routes were deployed with `CRON_SECRET` auth checks, but the env var was never set in Vercel. Every cron invocation returned 401 silently. No alerts, no errors in any dashboard — the feature simply never worked.
+- **Root Cause**: The deployment checklist was incomplete. Code was written with `CRON_SECRET` auth, middleware exclusion was added for `api/cron`, but nobody set the actual env var in Vercel. The `.env.local.example` file also didn't document `CRON_SECRET` or `SUPABASE_SERVICE_ROLE_KEY`. There is no automated check that verifies "every `process.env.X` referenced in code has a corresponding value in the deployment target."
+- **Fix**: Generated `CRON_SECRET` via `openssl rand -hex 32`, set it in Vercel production via `vercel env add`. Updated `.env.local.example` to document it.
+- **Pattern**: **Every new `process.env.X` reference in code must trigger a deployment checklist item: "Set X in [Vercel/GitHub/local]."** Code that compiles and deploys without the env var is a silent failure — it won't crash, it'll just 401/undefined its way through. The deploy-preflight QA script should cross-reference `process.env` references against documented env vars.
+- **QA Rule**: Add to `qa/deploy-preflight.js`: scan all `process.env.` references in `app/` and `lib/`, compare against a canonical env var manifest. Any env var in code but not in the manifest = warning. Any env var in the manifest but not confirmed set in deployment = blocker.
+- **Related**: F-031 (same class — shipped infra without verifying runtime dependencies)
+
+---
+
 ## Trend Summary
 
 | Pattern | Count | Categories |
@@ -449,6 +477,8 @@ Each failure is tagged with:
 | Display labels used where machine values needed | 2 | F-003, F-004 |
 | Cross-schema assumptions in ORM/query builder | 2 | F-001, F-002 |
 | Configuration placeholders not validated | 2 | F-006, F-012 |
+| CI/CD auth token lifecycle not verified | 1 | F-031 |
+| Env var referenced in code but not set in deployment | 1 | F-032 |
 | Process/pipeline discipline failures | 1 | F-015 |
 | Context summary path inaccuracy | 1 | F-013 |
 | Unvalidated user input to database | 1 | F-007 |
