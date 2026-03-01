@@ -6,7 +6,7 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { platform } from "@/lib/supabase/schemas";
 import { sendMessageWithButtons, sendMessage, CHANNELS, ZEV_COLOR } from "@/lib/discord";
 import { isValidUUID } from "@/lib/validation";
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid pipeline_status" }, { status: 400 });
   }
 
-  const supabase = await createClient();
+  const supabase = createServiceClient();
 
   // Build update payload
   const updateFields: Record<string, unknown> = {

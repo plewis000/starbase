@@ -6,7 +6,7 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { platform } from "@/lib/supabase/schemas";
 
 const PIPELINE_SECRET = process.env.PIPELINE_SECRET;
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const supabase = await createClient();
+  const supabase = createServiceClient();
 
   const { data: jobs, error } = await platform(supabase)
     .from("feedback")

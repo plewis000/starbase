@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyKey } from "discord-interactions";
 import { sendMessage, sendEmbed, sendMessageWithButtons, editMessage, CHANNELS, ZEV_COLOR, SYSTEM_COLOR, getGuildChannels } from "@/lib/discord";
 import { getHouseholdContext } from "@/lib/household";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { platform, config, household, finance } from "@/lib/supabase/schemas";
 import {
   anthropic,
@@ -68,7 +68,7 @@ ONBOARDING BEHAVIOR (CRITICAL — check this every conversation):
 
 The Desperado Club uses dungeon crawler theming. You're the friendly guide in a world run by a sarcastic omniscient System. Lean into it naturally — "the crawl," "floors," "XP" — but don't overdo it. The theming should feel like the way things just are, not a performance.`;
 
-type Supabase = Awaited<ReturnType<typeof createClient>>;
+type Supabase = ReturnType<typeof createServiceClient>;
 
 // POST /api/discord — Discord Interactions endpoint
 export async function POST(request: NextRequest) {
@@ -130,7 +130,7 @@ async function processCommand(
   const webhookUrl = `https://discord.com/api/v10/webhooks/${APP_ID}/${interaction.token}`;
 
   try {
-    const supabase = await createClient();
+    const supabase = createServiceClient();
     const userId = await resolveUser(supabase, discordUserId);
 
     if (!userId) {
@@ -913,7 +913,7 @@ async function handleButtonInteraction(
   const APP_ID = process.env.DISCORD_APP_ID!;
   const webhookUrl = `https://discord.com/api/v10/webhooks/${APP_ID}/${interaction.token}`;
 
-  const supabase = await createClient();
+  const supabase = createServiceClient();
   const userId = await resolveUser(supabase, discordUserId);
 
   if (!userId) {

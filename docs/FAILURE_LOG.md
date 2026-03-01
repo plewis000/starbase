@@ -331,12 +331,34 @@ Each failure is tagged with:
 
 ---
 
+### F-024: Discord Webhook Handler Blocked by RLS — No User Session
+- **Date**: 2026-03-01
+- **Session**: 10
+- **Category**: `database`, `rls`, `architecture`
+- **Severity**: Critical
+- **Symptom**: All Discord commands returned "I don't know who you are" or "permission denied for table feedback". User linking was inserted correctly but couldn't be read. Feedback couldn't be inserted.
+- **Root Cause**: The Discord webhook handler uses `createClient()` which creates a Supabase client with the **anon key** and no user session (Discord webhooks don't carry Supabase auth cookies). Every RLS policy in the system requires the `authenticated` role with `auth.uid()`. The Discord route operates as `anon`, which has zero access to any table. This is a **systemic architectural mismatch** — we added a server-to-server integration path (Discord webhook → verified by ed25519 → trusted) but the data layer assumes every request has a browser session.
+- **Attempted Fix (wrong)**: Adding narrow anon SELECT policies one table at a time (user_preferences, then feedback, then...). This is whack-a-mole — the Discord handler touches 15+ tables across all domains (tasks, habits, goals, shopping, budgets, feedback, agents, gamification, onboarding). Adding anon policies to each would be:
+  1. An ongoing maintenance burden (every new table needs an anon policy)
+  2. A security risk (anon policies widen the attack surface)
+  3. Incomplete (the agent executor uses household context, goals, habits — all RLS-gated)
+- **Correct Fix**: Use a **service role client** for the Discord route. The request is already authenticated via Discord's ed25519 signature verification — it's trusted server-side code operating on behalf of a resolved user. The service role bypasses RLS entirely, which is appropriate because the Discord handler already performs its own user resolution and permission checks (admin role verification for pipeline actions).
+- **Pattern**: **Server-to-server integrations (webhooks, workers, cron) that are authenticated by non-Supabase mechanisms (API keys, signatures, shared secrets) must use the Supabase service role client, not the anon/session client.** RLS is designed for browser-to-database flows where `auth.uid()` is meaningful. In server-to-server flows, the "user" is the verified integration — authentication happens at the API layer, not the database layer.
+- **QA Rule**: Any API route that:
+  1. Does NOT read Supabase auth cookies (no `supabase.auth.getUser()` as a gatekeeper), AND
+  2. Uses its own authentication mechanism (signature verification, API key, shared secret)
+  Should use `createServiceClient()`, not `createClient()`. Flag routes that verify via external auth but use the session client.
+- **Setup Requirement**: `SUPABASE_SERVICE_ROLE_KEY` must be set in Vercel env vars. Get it from Supabase Dashboard → Project Settings → API → `service_role` key (the secret one, not the anon key).
+- **Promoted to OS-level**: Yes — any project integrating external webhooks with Supabase will hit this. The session-based RLS model is invisible until you add your first non-browser integration.
+
+---
+
 ## Trend Summary
 
 | Pattern | Count | Categories |
 |---------|-------|------------|
 | Sandbox/environment deployment assumptions | 4 | F-008, F-009, F-010, F-011 |
-| RLS / table permission issues | 3 | F-021, F-022, F-023 |
+| RLS / table permission issues | 4 | F-021, F-022, F-023, F-024 |
 | TypeScript type loss in enrichment patterns | 2 | F-014, F-016 |
 | Silent error handling (no user feedback) | 1 | F-020 |
 | Auth callback bloat / timeout | 1 | F-019 |
