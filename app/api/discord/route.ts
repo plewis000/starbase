@@ -1043,7 +1043,7 @@ async function handleButtonInteraction(
         });
       }
 
-      await sendWebhookFollowup(webhookUrl, { content: `Shipped! Merged PR #${feedback.pr_number} to main. Vercel deploying now.` });
+      await sendWebhookFollowup(webhookUrl, { content: `Shipped! Merged [PR #${feedback.pr_number}](https://github.com/plewis000/starbase/pull/${feedback.pr_number}) to main.\n\n[View Production](https://starbase-green.vercel.app) — deploying now (~1 min).` });
 
     } else if (customId.startsWith("pipeline_reject_")) {
       const feedbackId = customId.replace("pipeline_reject_", "");

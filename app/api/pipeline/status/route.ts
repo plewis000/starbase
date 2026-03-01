@@ -77,20 +77,24 @@ export async function POST(request: NextRequest) {
         if (pipeline_status === "working") {
           await sendMessage(channelId, `⚙️ **Working on:** ${bodyPreview}...`);
         } else if (pipeline_status === "preview_ready") {
+          const previewLink = feedback.preview_url ? `[Open Preview](${feedback.preview_url})` : "Pending...";
+          const prLink = feedback.pr_number ? `[PR #${feedback.pr_number}](https://github.com/plewis000/starbase/pull/${feedback.pr_number})` : "—";
+          const prodLink = "[Production](https://starbase-green.vercel.app)";
           await sendMessageWithButtons(channelId, {
             embeds: [{
-              title: "✅ Preview Ready",
-              description: bodyPreview,
+              title: "Preview Ready — Test Before Shipping",
+              description: `**${bodyPreview}**\n\nTest on the preview environment first. Ship It sends to production.`,
               color: ZEV_COLOR,
               fields: [
-                { name: "Preview", value: feedback.preview_url || "Pending...", inline: true },
-                { name: "PR", value: feedback.pr_number ? `#${feedback.pr_number}` : "—", inline: true },
-                { name: "Branch", value: feedback.branch_name || "—", inline: true },
+                { name: "Preview", value: previewLink, inline: true },
+                { name: "Pull Request", value: prLink, inline: true },
+                { name: "Production", value: prodLink, inline: true },
               ],
             }],
             components: [{
               type: 1,
               components: [
+                { type: 2, style: 5, label: "Test Preview", url: feedback.preview_url || "https://starbase-green.vercel.app" },
                 { type: 2, style: 3, label: "Ship It", custom_id: `pipeline_ship_${feedback_id}`, emoji: { name: "🚀" } },
                 { type: 2, style: 4, label: "Reject", custom_id: `pipeline_reject_${feedback_id}`, emoji: { name: "❌" } },
               ],
