@@ -84,25 +84,28 @@ jobs:
       - name: Push and create PR
         id: pr
         if: steps.changes.outputs.has_changes == 'true'
+        env:
+          DESCRIPTION: ${{ github.event.client_payload.description }}
+          FB_ID: ${{ github.event.client_payload.feedback_id }}
+          FB_TYPE: ${{ github.event.client_payload.type }}
         run: |
           git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
           git push -u origin "${{ steps.branch.outputs.branch }}"
 
-          DESCRIPTION="${{ github.event.client_payload.description }}"
-          PR_URL=$(gh pr create \
-            --title "pipeline: ${DESCRIPTION:0:65}" \
-            --body "$(cat <<'PREOF'
+          TITLE="pipeline: ${DESCRIPTION:0:65}"
+          BODY=$(cat <<EOF
           ## Pipeline Job
 
-          **Feedback ID:** ${{ github.event.client_payload.feedback_id }}
-          **Type:** ${{ github.event.client_payload.type }}
+          **Feedback ID:** ${FB_ID}
+          **Type:** ${FB_TYPE}
 
-          ${{ github.event.client_payload.description }}
+          ${DESCRIPTION}
 
           ---
           Automated by Desperado Club Pipeline via Claude Code Action
-          PREOF
-          )")
+          EOF
+          )
+          PR_URL=$(gh pr create --title "$TITLE" --body "$BODY")
 
           PR_NUMBER=$(echo "$PR_URL" | grep -oE '[0-9]+$')
           echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
