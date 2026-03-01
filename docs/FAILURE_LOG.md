@@ -384,6 +384,17 @@ Each failure is tagged with:
 - **QA Rule**: Any route that returns a response and then does async work must use `after()`. Search for patterns like `somePromise.catch(console.error); return NextResponse` — these are time bombs. The promise may or may not complete depending on how fast the runtime garbage-collects.
 - **Applied to**: Both `processCommand` (slash commands) and `handleButtonInteraction` (button clicks) now use `after()`. Slash commands worked previously by luck — they often completed fast enough before termination.
 
+### F-027: Worker Git Push Failed — Stale Branch From Manual Cleanup
+- **Date**: 2026-03-01
+- **Session**: 11
+- **Category**: `pipeline`, `git`, `coordination`
+- **Severity**: Moderate
+- **Symptom**: Worker failed with `error: src refspec feedback/c6770108-... does not match any` when trying to push. The branch existed remotely from a previous failed run, was manually deleted during cleanup, but the worker assumed it could just `checkout -b` and push.
+- **Root Cause**: Manual branch cleanup (both local and remote) during debugging created a state where the worker's `git checkout -b` succeeded (no local branch) but `git push -u origin` failed because the branch name had been used before and git's ref tracking was confused. The worker didn't clean up stale branches before creating new ones.
+- **Fix**: Added pre-create cleanup to `processJob()` — force-delete any existing local branch (`git branch -D`) and remote branch (`git push origin --delete`) before `git checkout -b`. This makes the worker idempotent regardless of prior state.
+- **Pattern**: **Workers that create git branches must be idempotent** — always clean up before creating, never assume the branch doesn't exist. Manual intervention between runs can leave orphaned state that breaks assumptions.
+- **QA Rule**: Any automated git workflow should: (1) delete local branch if exists, (2) delete remote branch if exists, (3) then create fresh. Never rely on "this branch shouldn't exist."
+
 ---
 
 ## Trend Summary

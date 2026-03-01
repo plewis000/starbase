@@ -153,7 +153,11 @@ async function processJob(job: PipelineJob) {
     git("checkout", "main");
     git("pull", "origin", "main");
 
-    // Create feature branch
+    // Clean up any existing local/remote branch with this name
+    try { git("branch", "-D", branchName); } catch { /* doesn't exist locally */ }
+    try { git("push", "origin", "--delete", branchName); } catch { /* doesn't exist remotely */ }
+
+    // Create fresh feature branch
     git("checkout", "-b", branchName);
 
     // Build prompt for Claude Code
@@ -196,9 +200,12 @@ async function processJob(job: PipelineJob) {
 
     console.log("   Claude Code output:", result.slice(0, 200));
 
-    // Check if any files changed
+    // Check if Claude made any changes — it may have committed directly or left unstaged changes
     const diffStat = git("diff", "--stat");
-    if (!diffStat) {
+    const diffStaged = git("diff", "--cached", "--stat");
+    const newCommits = git("log", "main..HEAD", "--oneline");
+
+    if (!diffStat && !diffStaged && !newCommits) {
       console.log("   No changes made by Claude Code.");
       await reportStatus(job.id, "failed", {
         worker_log: "Claude Code made no changes. May need manual intervention.",
@@ -207,24 +214,27 @@ async function processJob(job: PipelineJob) {
       return;
     }
 
-    // Stage all changes
-    git("add", "-A");
+    // If there are unstaged or staged changes, commit them
+    if (diffStat || diffStaged) {
+      git("add", "-A");
 
-    // Check for forbidden files
-    const forbidden = checkForbiddenFiles();
-    if (forbidden.length > 0) {
-      console.error("   BLOCKED: Forbidden files staged:", forbidden);
-      await reportStatus(job.id, "failed", {
-        worker_log: `Forbidden files detected: ${forbidden.join(", ")}. Aborting.`,
-      });
-      git("reset", "HEAD");
-      cleanupBranch(branchName);
-      return;
+      // Check for forbidden files
+      const forbidden = checkForbiddenFiles();
+      if (forbidden.length > 0) {
+        console.error("   BLOCKED: Forbidden files staged:", forbidden);
+        await reportStatus(job.id, "failed", {
+          worker_log: `Forbidden files detected: ${forbidden.join(", ")}. Aborting.`,
+        });
+        git("reset", "HEAD");
+        cleanupBranch(branchName);
+        return;
+      }
+
+      const commitMessage = `${job.type}: ${job.body.slice(0, 72)}\n\nFeedback ID: ${job.id}\nCo-Authored-By: Claude Code <noreply@anthropic.com>`;
+      git("commit", "-m", commitMessage);
+    } else {
+      console.log("   Claude Code already committed changes directly.");
     }
-
-    // Commit
-    const commitMessage = `${job.type}: ${job.body.slice(0, 72)}\n\nFeedback ID: ${job.id}\nCo-Authored-By: Claude Code <noreply@anthropic.com>`;
-    git("commit", "-m", commitMessage);
 
     // Push branch
     console.log("   Pushing branch...");
