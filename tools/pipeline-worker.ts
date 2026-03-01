@@ -102,6 +102,19 @@ async function apiCall(path: string, method = "GET", body?: Record<string, unkno
   return res.json();
 }
 
+async function postDiscord(message: string) {
+  try {
+    await fetch(`${PIPELINE_API_URL}/api/discord/admin`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${PIPELINE_SECRET}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ action: "post_message", content: message }),
+    });
+  } catch { /* non-critical */ }
+}
+
 async function reportStatus(feedbackId: string, status: string, extra?: Record<string, unknown>) {
   return apiCall("/status", "POST", {
     feedback_id: feedbackId,
@@ -142,7 +155,8 @@ async function processJob(job: PipelineJob) {
     question: "Investigate this question and make any needed changes",
   };
 
-  console.log(`\n🔧 Processing: ${job.body.slice(0, 80)}...`);
+  const bodyPreview = job.body.slice(0, 80);
+  console.log(`\n🔧 Processing: ${bodyPreview}...`);
   console.log(`   Branch: ${branchName}`);
 
   // Report working
@@ -150,6 +164,7 @@ async function processJob(job: PipelineJob) {
 
   try {
     // Ensure clean state on main
+    await postDiscord(`🔄 **Preparing:** ${bodyPreview}...\nSetting up branch, estimated 3-8 min total.`);
     git("checkout", "main");
     git("pull", "origin", "main");
 
@@ -185,6 +200,8 @@ async function processJob(job: PipelineJob) {
 
     // Run Claude Code CLI with full tool access, prompt via stdin
     console.log("   Running Claude Code...");
+    await postDiscord(`🧠 **Claude is coding...** This usually takes 2-5 min.\n> ${bodyPreview}`);
+    const startTime = Date.now();
     const result = execFileSync(CLAUDE_CMD, [
       "--print",
       "--permission-mode", "bypassPermissions",
@@ -198,7 +215,9 @@ async function processJob(job: PipelineJob) {
       shell: true,
     });
 
+    const elapsed = Math.round((Date.now() - startTime) / 1000);
     console.log("   Claude Code output:", result.slice(0, 200));
+    await postDiscord(`✅ **Claude finished coding** (${elapsed}s). Checking changes...`);
 
     // Check if Claude made any changes — it may have committed directly or left unstaged changes
     const diffStat = git("diff", "--stat");
@@ -238,6 +257,7 @@ async function processJob(job: PipelineJob) {
 
     // Push branch
     console.log("   Pushing branch...");
+    await postDiscord(`📤 **Pushing branch** and creating PR...`);
     git("push", "-u", "origin", branchName);
 
     // Create PR
