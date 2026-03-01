@@ -19,6 +19,23 @@ interface ConfigOption {
   sort_order?: number;
 }
 
+interface HouseholdMember {
+  id: string;
+  user_id: string;
+  display_name?: string;
+  role: string;
+}
+
+const RECURRENCE_PRESETS = [
+  { label: "None", value: "" },
+  { label: "Daily", value: "FREQ=DAILY;INTERVAL=1" },
+  { label: "Weekdays", value: "FREQ=WEEKLY;INTERVAL=1;BYDAY=MO,TU,WE,TH,FR" },
+  { label: "Weekly", value: "FREQ=WEEKLY;INTERVAL=1" },
+  { label: "Biweekly", value: "FREQ=WEEKLY;INTERVAL=2" },
+  { label: "Monthly", value: "FREQ=MONTHLY;INTERVAL=1" },
+  { label: "Custom", value: "custom" },
+];
+
 export default function TaskForm({
   task,
   onSave,
@@ -31,6 +48,10 @@ export default function TaskForm({
   const [statuses, setStatuses] = useState<ConfigOption[]>([]);
   const [priorities, setPriorities] = useState<ConfigOption[]>([]);
   const [configLoading, setConfigLoading] = useState(true);
+
+  // Household members for owner selection
+  const [members, setMembers] = useState<HouseholdMember[]>([]);
+  const [membersLoading, setMembersLoading] = useState(true);
 
   useEffect(() => {
     async function fetchConfig() {
@@ -47,7 +68,21 @@ export default function TaskForm({
         setConfigLoading(false);
       }
     }
+    async function fetchMembers() {
+      try {
+        const res = await fetch("/api/household/members");
+        if (res.ok) {
+          const data = await res.json();
+          setMembers(data.members || []);
+        }
+      } catch {
+        // Members fetch failed — owner selection won't be available
+      } finally {
+        setMembersLoading(false);
+      }
+    }
     fetchConfig();
+    fetchMembers();
   }, []);
 
   const [formData, setFormData] = useState({
@@ -56,7 +91,26 @@ export default function TaskForm({
     statusId: task?.status?.id || task?.status_id || "",
     priorityId: task?.priority?.id || task?.priority_id || "",
     dueDate: task?.due_date || "",
+    assignedTo: task?.assignee?.id || "",
+    recurrenceRule: task?.recurrence_rule || "",
   });
+
+  // Additional owners
+  const [selectedOwners, setSelectedOwners] = useState<string[]>(
+    task?.additional_owners?.map((o) => o.id) || []
+  );
+
+  // Recurrence
+  const [recurrencePreset, setRecurrencePreset] = useState(() => {
+    if (!task?.recurrence_rule) return "";
+    const match = RECURRENCE_PRESETS.find((p) => p.value === task.recurrence_rule);
+    return match ? match.value : "custom";
+  });
+  const [customRRule, setCustomRRule] = useState(
+    task?.recurrence_rule && !RECURRENCE_PRESETS.find((p) => p.value === task.recurrence_rule)
+      ? task.recurrence_rule
+      : ""
+  );
 
   const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>(
     task?.checklist_items || []
@@ -75,6 +129,21 @@ export default function TaskForm({
       ...prev,
       [name]: value,
     }));
+  };
+
+  const handleOwnerToggle = (userId: string) => {
+    setSelectedOwners((prev) =>
+      prev.includes(userId)
+        ? prev.filter((id) => id !== userId)
+        : [...prev, userId]
+    );
+  };
+
+  const handleRecurrenceChange = (preset: string) => {
+    setRecurrencePreset(preset);
+    if (preset !== "custom") {
+      setFormData((prev) => ({ ...prev, recurrenceRule: preset }));
+    }
   };
 
   const handleAddChecklistItem = () => {
@@ -106,13 +175,21 @@ export default function TaskForm({
       return;
     }
 
+    // Resolve recurrence rule
+    const effectiveRecurrence = recurrencePreset === "custom"
+      ? customRRule.trim() || null
+      : formData.recurrenceRule || null;
+
     try {
-      const payload = {
+      const payload: Record<string, unknown> = {
         title: formData.title.trim(),
         description: formData.description.trim() || null,
         status_id: formData.statusId || null,
         priority_id: formData.priorityId || null,
         due_date: formData.dueDate || null,
+        assigned_to: formData.assignedTo || null,
+        additional_owners: selectedOwners.length > 0 ? selectedOwners : [],
+        recurrence_rule: effectiveRecurrence,
         checklist_items: checklistItems.filter((item) => item.title.trim()).map((item) => item.title.trim()),
       };
 
@@ -233,6 +310,96 @@ export default function TaskForm({
           disabled={submitting}
           className="w-full bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50"
         />
+      </div>
+
+      {/* Assignee */}
+      <div>
+        <label className="block text-sm font-medium text-slate-100 mb-2">
+          Assigned To
+        </label>
+        <select
+          name="assignedTo"
+          value={formData.assignedTo}
+          onChange={handleInputChange}
+          disabled={submitting || membersLoading}
+          className="w-full bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50"
+        >
+          <option value="">{membersLoading ? "Loading..." : "Unassigned"}</option>
+          {members.map((m) => (
+            <option key={m.user_id} value={m.user_id}>
+              {m.display_name || m.user_id}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Additional Owners */}
+      {members.length > 1 && (
+        <div>
+          <label className="block text-sm font-medium text-slate-100 mb-2">
+            Additional Owners
+          </label>
+          <p className="text-xs text-slate-400 mb-2">
+            XP will be split equally among all owners on completion.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {members
+              .filter((m) => m.user_id !== formData.assignedTo)
+              .map((m) => {
+                const isSelected = selectedOwners.includes(m.user_id);
+                return (
+                  <button
+                    key={m.user_id}
+                    type="button"
+                    onClick={() => handleOwnerToggle(m.user_id)}
+                    disabled={submitting}
+                    className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors border ${
+                      isSelected
+                        ? "bg-red-400/20 border-red-400 text-red-300"
+                        : "bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-600"
+                    } disabled:opacity-50`}
+                  >
+                    {isSelected ? "- " : "+ "}
+                    {m.display_name || m.user_id}
+                  </button>
+                );
+              })}
+          </div>
+        </div>
+      )}
+
+      {/* Recurrence */}
+      <div>
+        <label className="block text-sm font-medium text-slate-100 mb-2">
+          Repeat
+        </label>
+        <select
+          value={recurrencePreset}
+          onChange={(e) => handleRecurrenceChange(e.target.value)}
+          disabled={submitting}
+          className="w-full bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50"
+        >
+          {RECURRENCE_PRESETS.map((preset) => (
+            <option key={preset.value} value={preset.value}>
+              {preset.label}
+            </option>
+          ))}
+        </select>
+        {recurrencePreset === "custom" && (
+          <input
+            type="text"
+            value={customRRule}
+            onChange={(e) => setCustomRRule(e.target.value)}
+            placeholder="e.g. FREQ=WEEKLY;INTERVAL=3;BYDAY=MO,FR"
+            disabled={submitting}
+            className="w-full mt-2 bg-slate-800 border border-slate-700 rounded px-4 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50"
+          />
+        )}
+        {(recurrencePreset || customRRule) && recurrencePreset !== "" && (
+          <p className="text-xs text-slate-400 mt-1">
+            Completing this task will auto-create the next occurrence.
+          </p>
+        )}
       </div>
 
       {/* Checklist Items */}

@@ -24,12 +24,20 @@ interface ChecklistItem {
   sort_order: number;
 }
 
+interface UserSummary {
+  id: string;
+  full_name: string;
+  email?: string;
+  avatar_url?: string | null;
+}
+
 interface Task {
   id: string;
   title: string;
   description?: string;
   due_date?: string;
   completed_at?: string | null;
+  recurrence_rule?: string;
   status?: {
     id: string;
     name: string;
@@ -44,14 +52,11 @@ interface Task {
     icon?: string;
     sort_order: number;
   };
-  assignee?: {
-    id: string;
-    full_name: string;
-    email: string;
-    avatar_url?: string | null;
-  };
+  assignee?: UserSummary;
+  additional_owners?: UserSummary[];
   tags?: Tag[];
   checklist_items?: ChecklistItem[];
+  subtask_progress?: { done: number; total: number };
 }
 
 interface TaskListProps {

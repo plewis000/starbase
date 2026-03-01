@@ -15,6 +15,7 @@ import {
   ActivityEntry,
   Dependency,
   Subtask,
+  UserSummary,
 } from "@/lib/types";
 
 interface TaskDetailProps {
@@ -85,6 +86,31 @@ const getInitials = (fullName?: string): string => {
     .slice(0, 2);
 };
 
+/** Format an RRULE into a human-readable label */
+const formatRecurrenceRule = (rule: string): string => {
+  const presets: Record<string, string> = {
+    "FREQ=DAILY;INTERVAL=1": "Daily",
+    "FREQ=WEEKLY;INTERVAL=1;BYDAY=MO,TU,WE,TH,FR": "Weekdays",
+    "FREQ=WEEKLY;INTERVAL=1": "Weekly",
+    "FREQ=WEEKLY;INTERVAL=2": "Biweekly",
+    "FREQ=MONTHLY;INTERVAL=1": "Monthly",
+  };
+  if (presets[rule]) return presets[rule];
+
+  // Parse basic info
+  const parts = rule.replace(/^RRULE:/i, "").split(";");
+  const params: Record<string, string> = {};
+  for (const part of parts) {
+    const [key, value] = part.split("=");
+    if (key && value) params[key.toUpperCase()] = value;
+  }
+
+  const freq = params.FREQ?.toLowerCase() || "unknown";
+  const interval = params.INTERVAL ? parseInt(params.INTERVAL) : 1;
+  if (interval === 1) return `Every ${freq.replace("ly", "")}`;
+  return `Every ${interval} ${freq.replace("ly", "")}s`;
+};
+
 export default function TaskDetail({
   taskId,
   onClose,
@@ -97,6 +123,10 @@ export default function TaskDetail({
   const [editingDescription, setEditingDescription] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showActivityLog, setShowActivityLog] = useState(false);
+
+  // Subtask add
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
+  const [addingSubtask, setAddingSubtask] = useState(false);
 
   const fetchTask = async () => {
     try {
@@ -181,6 +211,57 @@ export default function TaskDetail({
     onTaskUpdated?.();
   };
 
+  const handleAddSubtask = async () => {
+    if (!newSubtaskTitle.trim() || !task) return;
+
+    setAddingSubtask(true);
+    try {
+      const response = await fetch(`/api/tasks/${task.id}/subtasks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: newSubtaskTitle.trim() }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to add subtask");
+      }
+
+      setNewSubtaskTitle("");
+      await fetchTask();
+      onTaskUpdated?.();
+    } catch {
+      // Subtask creation failed
+    } finally {
+      setAddingSubtask(false);
+    }
+  };
+
+  const handleToggleSubtask = async (subtask: Subtask) => {
+    const isDone = subtask.status?.name === "Done";
+    try {
+      // Toggle between Done and To Do
+      const configRes = await fetch("/api/config");
+      const configData = await configRes.json();
+      const statuses = configData.statuses || [];
+      const targetStatus = isDone
+        ? statuses.find((s: { name: string }) => s.name === "To Do")
+        : statuses.find((s: { name: string }) => s.name === "Done");
+
+      if (!targetStatus) return;
+
+      await fetch(`/api/tasks/${subtask.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status_id: targetStatus.id }),
+      });
+
+      await fetchTask();
+      onTaskUpdated?.();
+    } catch {
+      // Toggle failed
+    }
+  };
+
   if (loading) {
     return (
       <div className="w-full h-full flex items-center justify-center">
@@ -212,6 +293,16 @@ export default function TaskDetail({
         </div>
       </div>
     );
+  }
+
+  const subtaskProgress = task.subtask_progress;
+  const hasSubtasks = task.subtasks && task.subtasks.length > 0;
+  const allOwners: UserSummary[] = [];
+  if (task.assignee) allOwners.push({ id: task.assignee.id, full_name: task.assignee.full_name });
+  if (task.additional_owners) {
+    for (const o of task.additional_owners) {
+      if (!allOwners.find((a) => a.id === o.id)) allOwners.push(o);
+    }
   }
 
   return (
@@ -253,10 +344,18 @@ export default function TaskDetail({
           </button>
         </div>
 
-        {/* Status and Priority badges */}
-        <div className="flex items-center gap-3">
+        {/* Status, Priority, and Recurrence badges */}
+        <div className="flex items-center gap-3 flex-wrap">
           <StatusBadge status={task.status} />
           <PriorityBadge priority={task.priority} />
+          {task.recurrence_rule && (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-500/10 text-blue-300 border border-blue-500/30">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              {formatRecurrenceRule(task.recurrence_rule)}
+            </span>
+          )}
         </div>
 
         {/* Meta information card */}
@@ -274,15 +373,32 @@ export default function TaskDetail({
             </div>
           )}
 
-          {/* Assignee */}
-          {task.assignee && (
+          {/* Owners */}
+          {allOwners.length > 0 && (
             <div className="flex items-center gap-3">
-              <span className="text-slate-500 text-sm">👤</span>
-              <div>
-                <p className="text-xs text-slate-400">Assigned to</p>
-                <p className="text-sm font-medium text-slate-100">
-                  {task.assignee.full_name}
+              <span className="text-slate-500 text-sm">👥</span>
+              <div className="flex-1">
+                <p className="text-xs text-slate-400">
+                  {allOwners.length === 1 ? "Assigned to" : `Owners (${allOwners.length})`}
                 </p>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {allOwners.map((owner) => (
+                    <span
+                      key={owner.id}
+                      className="inline-flex items-center gap-1.5 text-sm text-slate-100"
+                    >
+                      <span className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-semibold text-slate-200 flex-shrink-0">
+                        {getInitials(owner.full_name)}
+                      </span>
+                      {owner.full_name}
+                    </span>
+                  ))}
+                </div>
+                {allOwners.length > 1 && (
+                  <p className="text-xs text-slate-500 mt-1">
+                    XP split {allOwners.length}-way on completion
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -295,6 +411,24 @@ export default function TaskDetail({
                 <p className="text-xs text-slate-400">Created by</p>
                 <p className="text-sm font-medium text-slate-100">
                   {task.creator.full_name}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Recurrence context */}
+          {task.recurrence_context && (
+            <div className="flex items-center gap-3">
+              <span className="text-slate-500 text-sm">🔄</span>
+              <div>
+                <p className="text-xs text-slate-400">Recurrence</p>
+                <p className="text-sm text-slate-100">
+                  Occurrence #{task.recurrence_context.occurrence_count || 1}
+                  {task.recurrence_context.next_due_date && (
+                    <span className="text-slate-400">
+                      {" "}· Next: {formatRelativeDate(task.recurrence_context.next_due_date)}
+                    </span>
+                  )}
                 </p>
               </div>
             </div>
@@ -360,6 +494,103 @@ export default function TaskDetail({
               )}
             </div>
           )}
+        </div>
+
+        {/* Subtasks */}
+        <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-slate-100">
+              Subtasks
+              {subtaskProgress && (
+                <span className="ml-2 text-xs font-normal text-slate-400">
+                  {subtaskProgress.done}/{subtaskProgress.total} done
+                </span>
+              )}
+            </h3>
+          </div>
+
+          {/* Subtask progress bar */}
+          {subtaskProgress && subtaskProgress.total > 0 && (
+            <div className="mb-3">
+              <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-red-400 transition-all duration-300"
+                  style={{
+                    width: `${(subtaskProgress.done / subtaskProgress.total) * 100}%`,
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Subtask list */}
+          {hasSubtasks && (
+            <div className="space-y-2 mb-3">
+              {task.subtasks.map((subtask) => {
+                const isDone = subtask.status?.name === "Done";
+                return (
+                  <div key={subtask.id} className="flex items-center gap-3">
+                    <button
+                      onClick={() => handleToggleSubtask(subtask)}
+                      className={`flex-shrink-0 w-4 h-4 rounded border-2 transition-colors flex items-center justify-center ${
+                        isDone
+                          ? "bg-red-500 border-red-500 text-white"
+                          : "border-slate-600 hover:border-red-400"
+                      }`}
+                    >
+                      {isDone && (
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      )}
+                    </button>
+                    <span
+                      className={`flex-1 text-sm ${
+                        isDone ? "text-slate-500 line-through" : "text-slate-100"
+                      }`}
+                    >
+                      {subtask.title}
+                    </span>
+                    {subtask.assignee && (
+                      <span className="w-5 h-5 rounded-full bg-slate-700 flex items-center justify-center text-[9px] font-semibold text-slate-300 flex-shrink-0" title={subtask.assignee.full_name}>
+                        {getInitials(subtask.assignee.full_name)}
+                      </span>
+                    )}
+                    {subtask.due_date && (
+                      <span className={`text-xs ${getDateColor(subtask.due_date)}`}>
+                        {formatRelativeDate(subtask.due_date)}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Add subtask input */}
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newSubtaskTitle}
+              onChange={(e) => setNewSubtaskTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleAddSubtask();
+                }
+              }}
+              placeholder="Add subtask..."
+              disabled={addingSubtask}
+              className="flex-1 bg-slate-700 border border-slate-600 rounded px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50"
+            />
+            <button
+              onClick={handleAddSubtask}
+              disabled={addingSubtask || !newSubtaskTitle.trim()}
+              className="px-3 py-2 bg-red-400 hover:bg-red-500 disabled:bg-slate-700 disabled:cursor-not-allowed text-slate-950 text-sm font-medium rounded transition-colors"
+            >
+              {addingSubtask ? <LoadingSpinner size="sm" /> : "Add"}
+            </button>
+          </div>
         </div>
 
         {/* Checklist */}
