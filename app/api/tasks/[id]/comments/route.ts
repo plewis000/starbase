@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
 import { notifyTaskCommented } from "@/lib/notify";
-import { parseMentions } from "@/lib/mention-parser";
+import { parseMentions, persistMentions } from "@/lib/mention-parser";
 import { platform } from "@/lib/supabase/schemas";
 import { getConfigLookups } from "@/lib/task-enrichment";
 import { isValidUUID } from "@/lib/validation";
@@ -44,9 +44,11 @@ export async function GET(
   const flat = request.nextUrl.searchParams.get("flat") === "true";
 
   let query = platform(supabase)
-    .from("task_comments")
+    .from("comments")
     .select("*")
-    .eq("task_id", id)
+    .eq("entity_type", "task")
+    .eq("entity_id", id)
+    .eq("is_deleted", false)
     .order("created_at", { ascending: true });
 
   if (!flat) {
@@ -66,9 +68,10 @@ export async function GET(
     // Fetch replies for all top-level comments
     const parentIds = rawComments.map((c: any) => c.id);
     const { data: rawReplies } = await platform(supabase)
-      .from("task_comments")
+      .from("comments")
       .select("*")
       .in("parent_id", parentIds)
+      .eq("is_deleted", false)
       .order("created_at", { ascending: true });
 
     const enrichedAll = enrichComments(
@@ -147,10 +150,12 @@ export async function POST(
       return NextResponse.json({ error: "parent_id must be a valid UUID" }, { status: 400 });
     }
     const { data: parentComment } = await platform(supabase)
-      .from("task_comments")
+      .from("comments")
       .select("id")
       .eq("id", parent_id)
-      .eq("task_id", id)
+      .eq("entity_type", "task")
+      .eq("entity_id", id)
+      .eq("is_deleted", false)
       .single();
 
     if (!parentComment) {
@@ -172,9 +177,10 @@ export async function POST(
   const trimmedBody = commentBody.trim();
 
   const { data: rawComment, error } = await platform(supabase)
-    .from("task_comments")
+    .from("comments")
     .insert({
-      task_id: id,
+      entity_type: "task",
+      entity_id: id,
       user_id: user.id,
       body: trimmedBody,
       parent_id: parent_id || null,
@@ -200,11 +206,18 @@ export async function POST(
     .update({ last_touched_at: new Date().toISOString() })
     .eq("id", id);
 
-  // Parse @mentions (non-blocking)
+  // Parse @mentions and persist them
   let mentions: any[] = [];
+  let mentionedUserIds: string[] = [];
   try {
     const mentionResult = await parseMentions(supabase, trimmedBody);
     mentions = mentionResult.mentions || [];
+    mentionedUserIds = mentionResult.resolvedUserIds || [];
+
+    // Persist mentions to database
+    if (mentionedUserIds.length > 0) {
+      await persistMentions(supabase, rawComment.id, "task", id, mentionedUserIds);
+    }
   } catch (err) {
     console.error("Mention parsing error:", err);
   }
@@ -217,6 +230,19 @@ export async function POST(
   notifyTaskCommented(supabase, id, task.title, user.id, trimmedBody).catch(
     (err) => console.error("Comment notification error:", err)
   );
+
+  // Notify mentioned users (non-blocking)
+  if (mentionedUserIds.length > 0) {
+    mentionedUserIds.forEach(userId => {
+      // Don't notify the commenter about their own mentions
+      if (userId !== user.id) {
+        // You would implement notifyUserMentioned function
+        // notifyUserMentioned(supabase, userId, id, task.title, user.id, trimmedBody).catch(
+        //   (err) => console.error("Mention notification error:", err)
+        // );
+      }
+    });
+  }
 
   return NextResponse.json({
     comment: { ...comment, mentions },
