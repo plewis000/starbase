@@ -3,6 +3,7 @@
 import React from "react";
 import StatusBadge from "@/components/ui/StatusBadge";
 import PriorityBadge from "@/components/ui/PriorityBadge";
+import { UserSummary } from "@/lib/types";
 
 interface Tag {
   id: string;
@@ -28,6 +29,7 @@ interface TaskCardProps {
     description?: string;
     due_date?: string;
     completed_at?: string | null;
+    recurrence_rule?: string;
     status?: {
       id: string;
       name: string;
@@ -48,8 +50,10 @@ interface TaskCardProps {
       email: string;
       avatar_url?: string | null;
     };
+    additional_owners?: UserSummary[];
     tags?: Tag[];
     checklist_items?: ChecklistItem[];
+    subtask_progress?: { done: number; total: number };
   };
   onSelect: (id: string) => void;
   onQuickComplete?: (id: string) => void;
@@ -116,6 +120,11 @@ export default function TaskCard({
   const displayTags = (task.tags || []).slice(0, 2);
   const hiddenTagsCount = Math.max(0, (task.tags || []).length - 2);
   const isCompleted = !!task.completed_at;
+  const additionalOwners = task.additional_owners || [];
+  const allOwners = [
+    ...(task.assignee ? [task.assignee] : []),
+    ...additionalOwners,
+  ];
 
   const handleCheckbox = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -152,6 +161,9 @@ export default function TaskCard({
       <div className="flex-1 min-w-0">
         {/* Title */}
         <h3 className="text-slate-100 font-medium truncate mb-1">
+          {task.recurrence_rule && (
+            <span className="text-blue-400 mr-1.5" title="Recurring task">🔄</span>
+          )}
           {task.title}
         </h3>
 
@@ -195,6 +207,13 @@ export default function TaskCard({
             </div>
           )}
 
+          {/* Subtask progress */}
+          {task.subtask_progress && task.subtask_progress.total > 0 && (
+            <span className="px-2 py-0.5 rounded text-xs font-medium text-slate-400 bg-slate-800/50">
+              {task.subtask_progress.done}/{task.subtask_progress.total} subtasks
+            </span>
+          )}
+
           {/* Checklist progress */}
           {hasChecklist && (
             <span className="px-2 py-0.5 rounded text-xs font-medium text-slate-400 bg-slate-800/50">
@@ -204,24 +223,33 @@ export default function TaskCard({
         </div>
       </div>
 
-      {/* Right side: Assignee + Chevron */}
+      {/* Right side: Owner avatars + Chevron */}
       <div className="flex items-center gap-3 flex-shrink-0">
-        {/* Assignee avatar */}
-        {task.assignee && (
-          <div className="flex-shrink-0">
-            {task.assignee.avatar_url ? (
-              <img
-                src={task.assignee.avatar_url}
-                alt={task.assignee.full_name}
-                className="w-8 h-8 rounded-full bg-slate-800 object-cover"
-                title={task.assignee.full_name}
-              />
-            ) : (
-              <div
-                className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-semibold text-slate-200"
-                title={task.assignee.full_name}
-              >
-                {getInitials(task.assignee.full_name)}
+        {/* Owner avatars (stacked) */}
+        {allOwners.length > 0 && (
+          <div className="flex -space-x-2">
+            {allOwners.slice(0, 3).map((owner) => (
+              <div key={owner.id} className="flex-shrink-0">
+                {owner.avatar_url ? (
+                  <img
+                    src={owner.avatar_url}
+                    alt={owner.full_name}
+                    className="w-7 h-7 rounded-full bg-slate-800 object-cover border-2 border-slate-900"
+                    title={owner.full_name}
+                  />
+                ) : (
+                  <div
+                    className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-semibold text-slate-200 border-2 border-slate-900"
+                    title={owner.full_name}
+                  >
+                    {getInitials(owner.full_name)}
+                  </div>
+                )}
+              </div>
+            ))}
+            {allOwners.length > 3 && (
+              <div className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-semibold text-slate-300 border-2 border-slate-900">
+                +{allOwners.length - 3}
               </div>
             )}
           </div>
