@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { verifyKey } from "discord-interactions";
 import { sendMessage, sendEmbed, sendMessageWithButtons, editMessage, CHANNELS, ZEV_COLOR, SYSTEM_COLOR, getGuildChannels } from "@/lib/discord";
 import { getHouseholdContext } from "@/lib/household";
@@ -92,9 +92,9 @@ export async function POST(request: NextRequest) {
     const options = parseOptions(interaction.data.options || []);
     const discordUserId = interaction.member?.user?.id || interaction.user?.id;
 
-    const deferResponse = NextResponse.json({ type: 5 });
-    processCommand(commandName, options, discordUserId, interaction).catch(console.error);
-    return deferResponse;
+    const promise = processCommand(commandName, options, discordUserId, interaction);
+    after(() => promise.catch(console.error));
+    return NextResponse.json({ type: 5 });
   }
 
   // Type 3: Message component interaction (buttons)
@@ -103,10 +103,9 @@ export async function POST(request: NextRequest) {
     const discordUserId = interaction.member?.user?.id || interaction.user?.id;
 
     // Defer with type 5 (deferred channel message) — sends a new follow-up message
-    // Type 6 (deferred update) is unreliable for follow-up POSTs
-    const deferResponse = NextResponse.json({ type: 5 });
-    handleButtonInteraction(customId, discordUserId, interaction).catch(console.error);
-    return deferResponse;
+    const promise = handleButtonInteraction(customId, discordUserId, interaction);
+    after(() => promise.catch(console.error));
+    return NextResponse.json({ type: 5 });
   }
 
   return NextResponse.json({ type: 1 });
