@@ -12,6 +12,7 @@ export async function GET() {
   results.SUPABASE_URL_SET = !!process.env.NEXT_PUBLIC_SUPABASE_URL;
   results.PIPELINE_SECRET_SET = !!process.env.PIPELINE_SECRET;
   results.PIPELINE_SECRET_LENGTH = process.env.PIPELINE_SECRET?.length || 0;
+  results.PIPELINE_SECRET_FIRST8 = process.env.PIPELINE_SECRET?.slice(0, 8) || "unset";
 
   try {
     const supabase = createServiceClient();
