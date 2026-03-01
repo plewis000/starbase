@@ -24,21 +24,27 @@ export async function sendMessage(channelId: string, content: string) {
   // Discord message limit is 2000 chars — split if needed
   const chunks = splitMessage(content, 2000);
   for (const chunk of chunks) {
-    await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+    const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
       method: "POST",
       headers: headers(),
       body: JSON.stringify({ content: chunk }),
     });
+    if (!res.ok) {
+      console.error("[discord] sendMessage failed:", res.status, await res.text().catch(() => ""));
+    }
   }
 }
 
 // Send an embed to a Discord channel
 export async function sendEmbed(channelId: string, embed: Record<string, unknown>) {
-  await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+  const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
     method: "POST",
     headers: headers(),
     body: JSON.stringify({ embeds: [embed] }),
   });
+  if (!res.ok) {
+    console.error("[discord] sendEmbed failed:", res.status, await res.text().catch(() => ""));
+  }
 }
 
 // Send a message with buttons (Discord message components)
@@ -244,11 +250,14 @@ export const SYSTEM_COLOR = 0xDC2626;   // Crimson red — The System's announce
 
 // Update a message (e.g., to disable buttons after interaction)
 export async function editMessage(channelId: string, messageId: string, payload: Record<string, unknown>) {
-  await fetch(`${DISCORD_API}/channels/${channelId}/messages/${messageId}`, {
+  const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages/${messageId}`, {
     method: "PATCH",
     headers: headers(),
     body: JSON.stringify(payload),
   });
+  if (!res.ok) {
+    console.error("[discord] editMessage failed:", res.status, await res.text().catch(() => ""));
+  }
 }
 
 export { DISCORD_API, GUILD_ID };

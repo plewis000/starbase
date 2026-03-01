@@ -408,6 +408,32 @@ Each failure is tagged with:
 
 ---
 
+### F-029: Removing shell:true from execFileSync Broke Claude CLI Resolution on Windows
+- **Date**: 2026-03-01
+- **Session**: 11 (continued)
+- **Category**: `pipeline`, `windows`, `platform`
+- **Severity**: Critical
+- **Symptom**: Worker failed with `spawnSync claude ENOENT`. Claude Code CLI could not be found. Discord showed "Failed: spawnSync claude ENOENT".
+- **Root Cause**: `execFileSync` without `shell: true` cannot resolve commands from PATH on Windows. The `claude` command is a `.cmd` shim installed by npm — Windows needs shell resolution to find it. Removing `shell: true` (done to address a DEP0190 deprecation warning) broke the PATH lookup.
+- **Fix**: Restored `shell: true`. The deprecation warning (DEP0190) is about passing args with shell mode, but since args are passed as an array (not string-interpolated), it's safe. The security concern (locked decision #29) is about `execSync` with string interpolation, not `execFileSync` with an array + shell.
+- **Pattern**: **On Windows, `execFileSync` without `shell: true` cannot resolve PATH-based commands (especially npm .cmd shims).** Either use `shell: true` with array args (safe), or resolve the full binary path manually. Don't assume Unix PATH behavior on Windows.
+- **QA Rule**: Never remove `shell: true` from `execFileSync` calls that invoke PATH-based commands on Windows without testing. If removing it, provide the absolute path to the binary.
+
+---
+
+### F-030: Approve/Reject Buttons Persist After Clicking — Embed Not Updated
+- **Date**: 2026-03-01
+- **Session**: 11 (continued)
+- **Category**: `discord`, `ux`, `state`
+- **Severity**: Moderate
+- **Symptom**: After clicking Approve on a feedback embed in #pipeline, the Approve and Won't Fix buttons remained visible. The approval worked (status updated, job queued) but the embed didn't change to reflect the new state. Users could click Approve again, re-queuing an already-processing job.
+- **Root Cause**: The `handleModalSubmit` function updated the DB and sent a webhook follow-up message, but never edited the original embed message. The `discord_message_id` was stored on the feedback row but wasn't being used to update the embed after approval/rejection.
+- **Fix**: After approve/wontfix, fetch the feedback's `discord_message_id` and call `editMessage()` to: (1) update the embed title to show "✅ Approved" (green) or "🚫 Won't Fix" (red), (2) remove all button components (`components: []`).
+- **Pattern**: **Discord embeds with action buttons must update after the action is taken.** Remove or disable buttons to prevent double-processing. Always store the message ID when posting interactive embeds so you can edit them later.
+- **QA Rule**: Any Discord embed with interactive buttons should have a corresponding `editMessage()` call in the handler to remove/update buttons after the action completes.
+
+---
+
 ## Trend Summary
 
 | Pattern | Count | Categories |

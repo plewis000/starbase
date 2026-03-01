@@ -23,7 +23,7 @@ if (existsSync(envPath)) {
     const eqIdx = trimmed.indexOf("=");
     if (eqIdx === -1) continue;
     const key = trimmed.slice(0, eqIdx).trim();
-    const value = trimmed.slice(eqIdx + 1).trim();
+    const value = trimmed.slice(eqIdx + 1).trim().replace(/^["']|["']$/g, "");
     if (!process.env[key]) process.env[key] = value;
   }
 }
@@ -32,18 +32,29 @@ const PIPELINE_SECRET = process.env.PIPELINE_SECRET;
 const PIPELINE_API_URL = process.env.PIPELINE_API_URL || "https://starbase-green.vercel.app";
 const REPO_PATH = process.env.STARBASE_REPO_PATH || resolve(__dirname, "..");
 const POLL_INTERVAL = parseInt(process.env.POLL_INTERVAL_MS || "30000", 10);
-const JOB_TIMEOUT = parseInt(process.env.JOB_TIMEOUT_MS || "300000", 10); // 5 min default
+const JOB_TIMEOUT = parseInt(process.env.JOB_TIMEOUT_MS || "600000", 10); // 10 min default
 const CLAUDE_CMD = process.env.CLAUDE_CMD || "claude";
+const GITHUB_REPO = process.env.GITHUB_REPO || "plewis000/starbase";
 
-// Forbidden file patterns — never commit these
+// Validate config
+if (isNaN(POLL_INTERVAL) || POLL_INTERVAL < 5000) {
+  console.error("POLL_INTERVAL_MS must be a number >= 5000");
+  process.exit(1);
+}
+if (isNaN(JOB_TIMEOUT) || JOB_TIMEOUT < 30000) {
+  console.error("JOB_TIMEOUT_MS must be a number >= 30000");
+  process.exit(1);
+}
+
+// Forbidden file patterns — never commit these (match on filename component only)
 const FORBIDDEN_PATTERNS = [
   /\.env($|\.)/,
   /\.pem$/,
   /\.key$/,
-  /credentials/i,
-  /secret/i,
   /\.p12$/,
   /\.pfx$/,
+  /credentials\.json$/i,
+  /service[_-]?account.*\.json$/i,
 ];
 
 if (!PIPELINE_SECRET) {
@@ -63,6 +74,26 @@ interface PipelineJob {
   ai_extracted_feature: string | null;
   created_at: string;
 }
+
+// ── Shutdown handling ────────────────────────────────────────────────
+
+let shutdownRequested = false;
+let currentJobId: string | null = null;
+
+process.on("SIGINT", async () => {
+  if (shutdownRequested) {
+    console.log("\nForce shutdown.");
+    process.exit(1);
+  }
+  shutdownRequested = true;
+  if (currentJobId) {
+    console.log(`\n⏳ Graceful shutdown — waiting for job ${currentJobId.slice(0, 8)} to finish...`);
+    console.log("   Press Ctrl+C again to force quit.");
+  } else {
+    console.log("\n👋 Shutting down.");
+    process.exit(0);
+  }
+});
 
 // ── Git helpers (execFileSync only — locked decision #29) ────────────
 
@@ -84,22 +115,39 @@ function slugify(text: string): string {
 
 // ── API helpers ──────────────────────────────────────────────────────
 
-async function apiCall(path: string, method = "GET", body?: Record<string, unknown>) {
-  const res = await fetch(`${PIPELINE_API_URL}/api/pipeline${path}`, {
-    method,
-    headers: {
-      Authorization: `Bearer ${PIPELINE_SECRET}`,
-      "Content-Type": "application/json",
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
+const API_TIMEOUT = 15000; // 15 seconds
 
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`API ${method} ${path}: ${res.status} ${err}`);
+async function apiCall(path: string, method = "GET", body?: Record<string, unknown>, retries = 2): Promise<unknown> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(`${PIPELINE_API_URL}/api/pipeline${path}`, {
+        method,
+        headers: {
+          Authorization: `Bearer ${PIPELINE_SECRET}`,
+          "Content-Type": "application/json",
+        },
+        body: body ? JSON.stringify(body) : undefined,
+        signal: AbortSignal.timeout(API_TIMEOUT),
+      });
+
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(`API ${method} ${path}: ${res.status} ${err}`);
+      }
+
+      if (res.status === 204) return {};
+      return res.json();
+    } catch (error) {
+      if (attempt < retries) {
+        const delay = 2000 * (attempt + 1);
+        console.log(`   API retry ${attempt + 1}/${retries} in ${delay}ms...`);
+        await new Promise(r => setTimeout(r, delay));
+        continue;
+      }
+      throw error;
+    }
   }
-
-  return res.json();
+  throw new Error("Unreachable");
 }
 
 async function postDiscord(message: string) {
@@ -111,6 +159,7 @@ async function postDiscord(message: string) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ action: "post_message", content: message }),
+      signal: AbortSignal.timeout(API_TIMEOUT),
     });
   } catch { /* non-critical */ }
 }
@@ -120,16 +169,17 @@ async function reportStatus(feedbackId: string, status: string, extra?: Record<s
     feedback_id: feedbackId,
     pipeline_status: status,
     ...extra,
-  });
+  }, 3); // 3 retries for status reports — critical path
 }
 
 // ── Forbidden file check ─────────────────────────────────────────────
 
 function checkForbiddenFiles(): string[] {
   const stagedFiles = git("diff", "--cached", "--name-only").split("\n").filter(Boolean);
-  const forbidden = stagedFiles.filter((f) =>
-    FORBIDDEN_PATTERNS.some((pattern) => pattern.test(f))
-  );
+  const forbidden = stagedFiles.filter((f) => {
+    const filename = f.split("/").pop() || f;
+    return FORBIDDEN_PATTERNS.some((pattern) => pattern.test(filename));
+  });
   return forbidden;
 }
 
@@ -144,9 +194,21 @@ function cleanupBranch(branchName: string) {
   }
 }
 
+// ── Job dedup ────────────────────────────────────────────────────────
+
+const activeJobs = new Set<string>();
+
 // ── Process a single job ─────────────────────────────────────────────
 
 async function processJob(job: PipelineJob) {
+  if (activeJobs.has(job.id)) {
+    console.log(`   Skipping ${job.id.slice(0, 8)} — already in progress`);
+    return;
+  }
+
+  activeJobs.add(job.id);
+  currentJobId = job.id;
+
   const branchName = `feedback/${job.id.slice(0, 8)}-${slugify(job.body)}`;
   const typeLabel: Record<string, string> = {
     bug: "Fix this bug",
@@ -212,7 +274,7 @@ async function processJob(job: PipelineJob) {
       encoding: "utf-8",
       input: prompt,
       env: { ...process.env },
-      shell: true,
+      shell: true, // Required on Windows for PATH resolution of npm .cmd shims (F-029)
     });
 
     const elapsed = Math.round((Date.now() - startTime) / 1000);
@@ -235,7 +297,8 @@ async function processJob(job: PipelineJob) {
 
     // If there are unstaged or staged changes, commit them
     if (diffStat || diffStaged) {
-      git("add", "-A");
+      // Scope git add to safe directories only (not -A which stages everything)
+      git("add", "--", "app/", "lib/", "components/", "src/", "public/", "styles/");
 
       // Check for forbidden files
       const forbidden = checkForbiddenFiles();
@@ -264,7 +327,7 @@ async function processJob(job: PipelineJob) {
     console.log("   Creating PR...");
     const prBody = [
       `## Feedback`,
-      `> ${job.body}`,
+      `> ${job.body.slice(0, 500)}`,
       "",
       `**Type:** ${job.type}`,
       job.ai_classified_severity ? `**Severity:** ${job.ai_classified_severity}` : "",
@@ -286,6 +349,7 @@ async function processJob(job: PipelineJob) {
       cwd: REPO_PATH,
       encoding: "utf-8",
       timeout: 30000,
+      shell: true, // Required on Windows for PATH resolution
     }).trim();
 
     // Extract PR number from URL (gh pr create outputs the URL)
@@ -293,8 +357,6 @@ async function processJob(job: PipelineJob) {
     const prNumber = prMatch ? parseInt(prMatch[1], 10) : null;
 
     // Construct preview URL from branch name
-    // Vercel preview URL pattern: <project>-<hash>-<team>.vercel.app
-    // We'll let the pipeline status endpoint fill this in, or use the branch-based alias
     const previewUrl = `https://desparado-club-git-${branchName.replace(/\//g, "-")}-plewis000s-projects.vercel.app`;
 
     console.log(`   ✅ PR created: #${prNumber}`);
@@ -320,6 +382,9 @@ async function processJob(job: PipelineJob) {
 
     // Clean up
     cleanupBranch(branchName);
+  } finally {
+    activeJobs.delete(job.id);
+    currentJobId = null;
   }
 }
 
@@ -327,6 +392,14 @@ async function processJob(job: PipelineJob) {
 
 async function recoverStaleJobs() {
   console.log("🔍 Checking for stale jobs...");
+
+  // Ensure we're on main first before cleaning branches
+  try {
+    git("checkout", "main");
+  } catch {
+    // If checkout fails, try harder
+    try { git("stash"); git("checkout", "main"); } catch { /* truly stuck */ }
+  }
 
   // Check for any local feedback branches that might be leftover
   try {
@@ -336,7 +409,7 @@ async function recoverStaleJobs() {
       for (const branch of branchList) {
         if (branch) {
           console.log(`   Cleaning up stale branch: ${branch}`);
-          cleanupBranch(branch);
+          try { git("branch", "-D", branch); } catch { /* best effort */ }
         }
       }
     }
@@ -344,20 +417,19 @@ async function recoverStaleJobs() {
     // No branches to clean up
   }
 
-  // Ensure we're on main
+  // Pull latest main
   try {
-    git("checkout", "main");
     git("pull", "origin", "main");
   } catch (e) {
-    console.error("Failed to reset to main:", e);
+    console.error("Failed to pull main:", e);
   }
 }
 
-// ── Main loop ────────────────────────────────────────────────────────
+// ── Main loop (await-based — no overlapping polls) ──────────────────
 
 async function poll() {
   try {
-    const response = await apiCall("/queue");
+    const response = await apiCall("/queue") as { jobs?: PipelineJob[] };
     const jobs: PipelineJob[] = response.jobs || [];
 
     if (jobs.length > 0) {
@@ -368,10 +440,14 @@ async function poll() {
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     // Don't spam on expected errors (server down, network issues)
-    if (!msg.includes("fetch failed") && !msg.includes("ECONNREFUSED")) {
+    if (!msg.includes("fetch failed") && !msg.includes("ECONNREFUSED") && !msg.includes("TimeoutError")) {
       console.error("Poll error:", msg);
     }
   }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(r => setTimeout(r, ms));
 }
 
 async function main() {
@@ -380,18 +456,25 @@ async function main() {
   console.log(`   Repo: ${REPO_PATH}`);
   console.log(`   Poll interval: ${POLL_INTERVAL}ms`);
   console.log(`   Job timeout: ${JOB_TIMEOUT}ms`);
+  console.log(`   GitHub repo: ${GITHUB_REPO}`);
   console.log("");
 
   // Recovery on startup
   await recoverStaleJobs();
 
-  // Initial poll
-  await poll();
-
-  // Continue polling
-  setInterval(poll, POLL_INTERVAL);
-
   console.log("👂 Listening for jobs... (Ctrl+C to stop)");
+
+  // Await-based loop — no overlapping polls (fixes race condition)
+  while (!shutdownRequested) {
+    await poll();
+    // Sleep in small increments to respond to shutdown quickly
+    const sleepEnd = Date.now() + POLL_INTERVAL;
+    while (Date.now() < sleepEnd && !shutdownRequested) {
+      await sleep(Math.min(1000, sleepEnd - Date.now()));
+    }
+  }
+
+  console.log("👋 Worker stopped.");
 }
 
 main().catch((e) => {

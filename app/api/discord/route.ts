@@ -924,12 +924,12 @@ async function handleFeedback(supabase: Supabase, userId: string, options: Recor
 }
 
 async function handlePipeline(supabase: Supabase, webhookUrl: string) {
-  // Get all active pipeline jobs
+  // Get all active pipeline jobs (exclude terminal statuses)
   const { data: jobs } = await platform(supabase)
     .from("feedback")
     .select("id, type, body, status, pipeline_status, priority, preview_url, pr_number, created_at")
     .not("pipeline_status", "is", null)
-    .not("pipeline_status", "in", '("approved")')
+    .in("pipeline_status", ["queued", "working", "preview_ready", "failed"])
     .order("created_at", { ascending: false })
     .limit(10);
 
@@ -984,18 +984,29 @@ async function handleButtonInteraction(
       return;
     }
 
+    const GITHUB_REPO = process.env.GITHUB_REPO || "plewis000/starbase";
+
     // Parse button custom_id — approve/wontfix now handled by modals (type 9 → handleModalSubmit)
     if (customId.startsWith("pipeline_ship_")) {
       const feedbackId = customId.replace("pipeline_ship_", "");
 
-      const { data: feedback } = await platform(supabase)
+      // Idempotent check: only ship if currently preview_ready
+      const { data: feedback, error: fbErr } = await platform(supabase)
         .from("feedback")
         .select("id, body, pipeline_status, pr_number, branch_name")
         .eq("id", feedbackId)
         .single();
 
-      if (!feedback || feedback.pipeline_status !== "preview_ready") {
-        await sendWebhookFollowup(webhookUrl, { content: "This feedback isn't ready for deployment." });
+      if (fbErr || !feedback) {
+        await sendWebhookFollowup(webhookUrl, { content: "Feedback not found." });
+        return;
+      }
+
+      if (feedback.pipeline_status !== "preview_ready") {
+        const msg = feedback.pipeline_status === "shipped"
+          ? "Already shipped!"
+          : `Can't ship — current status is '${feedback.pipeline_status}'.`;
+        await sendWebhookFollowup(webhookUrl, { content: msg });
         return;
       }
 
@@ -1005,8 +1016,20 @@ async function handleButtonInteraction(
         return;
       }
 
+      // Optimistic lock: set to shipped before merging to prevent double-click
+      const { count } = await platform(supabase)
+        .from("feedback")
+        .update({ pipeline_status: "shipped", status: "done", updated_at: new Date().toISOString() })
+        .eq("id", feedbackId)
+        .eq("pipeline_status", "preview_ready");
+
+      if (!count || count === 0) {
+        await sendWebhookFollowup(webhookUrl, { content: "Already being processed by another action." });
+        return;
+      }
+
       // Merge PR
-      const mergeRes = await fetch(`https://api.github.com/repos/plewis000/starbase/pulls/${feedback.pr_number}/merge`, {
+      const mergeRes = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/pulls/${feedback.pr_number}/merge`, {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${GITHUB_TOKEN}`,
@@ -1021,20 +1044,22 @@ async function handleButtonInteraction(
 
       if (!mergeRes.ok) {
         const mergeErr = await mergeRes.text();
+        // Revert status on merge failure
+        await platform(supabase)
+          .from("feedback")
+          .update({ pipeline_status: "preview_ready", status: "in_progress", updated_at: new Date().toISOString() })
+          .eq("id", feedbackId);
         await sendWebhookFollowup(webhookUrl, { content: `Failed to merge PR: ${mergeErr.slice(0, 200)}` });
         return;
       }
 
-      // Clean up branch (best-effort)
-      fetch(`https://api.github.com/repos/plewis000/starbase/git/refs/heads/${feedback.branch_name}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${GITHUB_TOKEN}`, Accept: "application/vnd.github+json" },
-      }).catch(() => {});
-
-      await platform(supabase)
-        .from("feedback")
-        .update({ pipeline_status: "approved", status: "done", updated_at: new Date().toISOString() })
-        .eq("id", feedbackId);
+      // Clean up branch (best-effort, only if branch_name exists)
+      if (feedback.branch_name) {
+        fetch(`https://api.github.com/repos/${GITHUB_REPO}/git/refs/heads/${feedback.branch_name}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${GITHUB_TOKEN}`, Accept: "application/vnd.github+json" },
+        }).catch(() => {});
+      }
 
       if (interaction.message?.id) {
         await editMessage(interaction.channel_id, interaction.message.id, {
@@ -1047,36 +1072,64 @@ async function handleButtonInteraction(
         });
       }
 
-      await sendWebhookFollowup(webhookUrl, { content: `Shipped! Merged [PR #${feedback.pr_number}](https://github.com/plewis000/starbase/pull/${feedback.pr_number}) to main.\n\n[View Production](https://starbase-green.vercel.app) — deploying now (~1 min).` });
+      await sendWebhookFollowup(webhookUrl, { content: `Shipped! Merged [PR #${feedback.pr_number}](https://github.com/${GITHUB_REPO}/pull/${feedback.pr_number}) to main.\n\n[View Production](https://starbase-green.vercel.app) — deploying now (~1 min).` });
 
     } else if (customId.startsWith("pipeline_reject_")) {
       const feedbackId = customId.replace("pipeline_reject_", "");
 
-      const { data: feedback } = await platform(supabase)
+      const { data: feedback, error: fbErr } = await platform(supabase)
         .from("feedback")
-        .select("id, pr_number, branch_name")
+        .select("id, pipeline_status, pr_number, branch_name")
         .eq("id", feedbackId)
         .single();
 
-      const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-      if (feedback && GITHUB_TOKEN && feedback.pr_number) {
-        fetch(`https://api.github.com/repos/plewis000/starbase/pulls/${feedback.pr_number}`, {
-          method: "PATCH",
-          headers: { Authorization: `Bearer ${GITHUB_TOKEN}`, Accept: "application/vnd.github+json", "Content-Type": "application/json" },
-          body: JSON.stringify({ state: "closed" }),
-        }).catch(() => {});
-        if (feedback.branch_name) {
-          fetch(`https://api.github.com/repos/plewis000/starbase/git/refs/heads/${feedback.branch_name}`, {
-            method: "DELETE",
-            headers: { Authorization: `Bearer ${GITHUB_TOKEN}`, Accept: "application/vnd.github+json" },
-          }).catch(() => {});
-        }
+      if (fbErr || !feedback) {
+        await sendWebhookFollowup(webhookUrl, { content: "Feedback not found." });
+        return;
       }
 
-      await platform(supabase)
+      // Only allow reject from preview_ready, working, or queued
+      const rejectableStatuses = ["preview_ready", "working", "queued"];
+      if (!rejectableStatuses.includes(feedback.pipeline_status)) {
+        const msg = feedback.pipeline_status === "rejected"
+          ? "Already rejected."
+          : feedback.pipeline_status === "shipped"
+          ? "Already shipped — can't reject after merge."
+          : `Can't reject — current status is '${feedback.pipeline_status}'.`;
+        await sendWebhookFollowup(webhookUrl, { content: msg });
+        return;
+      }
+
+      // Optimistic lock
+      const { count } = await platform(supabase)
         .from("feedback")
-        .update({ pipeline_status: "rejected", branch_name: null, preview_url: null, pr_number: null, updated_at: new Date().toISOString() })
-        .eq("id", feedbackId);
+        .update({ pipeline_status: "rejected", status: "planned", branch_name: null, preview_url: null, pr_number: null, updated_at: new Date().toISOString() })
+        .eq("id", feedbackId)
+        .in("pipeline_status", rejectableStatuses);
+
+      if (!count || count === 0) {
+        await sendWebhookFollowup(webhookUrl, { content: "Already being processed by another action." });
+        return;
+      }
+
+      const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+      if (feedback.pr_number && GITHUB_TOKEN) {
+        try {
+          await fetch(`https://api.github.com/repos/${GITHUB_REPO}/pulls/${feedback.pr_number}`, {
+            method: "PATCH",
+            headers: { Authorization: `Bearer ${GITHUB_TOKEN}`, Accept: "application/vnd.github+json", "Content-Type": "application/json" },
+            body: JSON.stringify({ state: "closed" }),
+          });
+          if (feedback.branch_name) {
+            await fetch(`https://api.github.com/repos/${GITHUB_REPO}/git/refs/heads/${feedback.branch_name}`, {
+              method: "DELETE",
+              headers: { Authorization: `Bearer ${GITHUB_TOKEN}`, Accept: "application/vnd.github+json" },
+            });
+          }
+        } catch {
+          // PR close/branch delete failed — not critical
+        }
+      }
 
       if (interaction.message?.id) {
         await editMessage(interaction.channel_id, interaction.message.id, {
@@ -1136,35 +1189,39 @@ async function handleModalSubmit(
       const feedbackId = customId.replace("modal_approve_", "");
       const notes = fields.notes?.trim();
 
-      // Append notes to feedback body if provided
-      if (notes) {
-        const { data: existing } = await platform(supabase)
-          .from("feedback")
-          .select("body")
-          .eq("id", feedbackId)
-          .single();
+      // Status guard: only approve if status is appropriate (new, open, or previously rejected/failed)
+      const { data: existing } = await platform(supabase)
+        .from("feedback")
+        .select("body, status, pipeline_status, discord_message_id, type")
+        .eq("id", feedbackId)
+        .single();
 
-        if (existing) {
-          await platform(supabase)
-            .from("feedback")
-            .update({
-              body: `${existing.body}\n\n---\nAdmin notes: ${notes}`,
-              status: "planned",
-              pipeline_status: "queued",
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", feedbackId);
-        }
-      } else {
-        await platform(supabase)
-          .from("feedback")
-          .update({
-            status: "planned",
-            pipeline_status: "queued",
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", feedbackId);
+      if (!existing) {
+        await sendWebhookFollowup(webhookUrl, { content: "Feedback not found." });
+        return;
       }
+
+      // Don't re-queue items that are already in the pipeline (working, preview_ready, shipped)
+      const blockingStatuses = ["working", "preview_ready", "shipped"];
+      if (existing.pipeline_status && blockingStatuses.includes(existing.pipeline_status)) {
+        await sendWebhookFollowup(webhookUrl, { content: `Can't approve — already ${existing.pipeline_status}.` });
+        return;
+      }
+
+      // Build update
+      const updatePayload: Record<string, unknown> = {
+        status: "planned",
+        pipeline_status: "queued",
+        updated_at: new Date().toISOString(),
+      };
+      if (notes) {
+        updatePayload.body = `${existing.body}\n\n---\nAdmin notes: ${notes}`;
+      }
+
+      await platform(supabase)
+        .from("feedback")
+        .update(updatePayload)
+        .eq("id", feedbackId);
 
       const confirmMsg = notes
         ? `Approved with notes — queued for pipeline worker.\n> ${notes.slice(0, 200)}`
@@ -1172,17 +1229,12 @@ async function handleModalSubmit(
       await sendWebhookFollowup(webhookUrl, { content: confirmMsg });
 
       // Remove buttons from original embed
-      const { data: fb } = await platform(supabase)
-        .from("feedback")
-        .select("discord_message_id, body, type")
-        .eq("id", feedbackId)
-        .single();
-      if (fb?.discord_message_id) {
+      if (existing.discord_message_id && process.env.PIPELINE_CHANNEL_ID) {
         const typeEmoji: Record<string, string> = { bug: "🐛", wish: "⭐", feedback: "💬", question: "❓" };
-        await editMessage(process.env.PIPELINE_CHANNEL_ID!, fb.discord_message_id, {
+        await editMessage(process.env.PIPELINE_CHANNEL_ID, existing.discord_message_id, {
           embeds: [{
-            title: `${typeEmoji[fb.type] || "💬"} ${fb.type} — ✅ Approved`,
-            description: fb.body.slice(0, 2000),
+            title: `${typeEmoji[existing.type] || "💬"} ${existing.type} — ✅ Approved`,
+            description: (notes ? `${existing.body}\n\n---\nAdmin notes: ${notes}` : existing.body).slice(0, 2000),
             color: 0x2ecc71, // green
             footer: { text: `ID: ${feedbackId.slice(0, 8)} | Queued for worker` },
           }],
@@ -1194,8 +1246,31 @@ async function handleModalSubmit(
       const feedbackId = customId.replace("modal_wontfix_", "");
       const reason = fields.reason?.trim();
 
+      // Status guard
+      const { data: existing } = await platform(supabase)
+        .from("feedback")
+        .select("status, pipeline_status, discord_message_id, body, type")
+        .eq("id", feedbackId)
+        .single();
+
+      if (!existing) {
+        await sendWebhookFollowup(webhookUrl, { content: "Feedback not found." });
+        return;
+      }
+
+      if (existing.pipeline_status === "shipped") {
+        await sendWebhookFollowup(webhookUrl, { content: "Already shipped — can't mark as won't fix." });
+        return;
+      }
+
+      if (existing.status === "wont_fix") {
+        await sendWebhookFollowup(webhookUrl, { content: "Already marked as won't fix." });
+        return;
+      }
+
       const updateFields: Record<string, unknown> = {
         status: "wont_fix",
+        pipeline_status: "rejected", // Set pipeline_status too
         updated_at: new Date().toISOString(),
       };
       if (reason) {
@@ -1213,17 +1288,12 @@ async function handleModalSubmit(
       await sendWebhookFollowup(webhookUrl, { content: confirmMsg });
 
       // Remove buttons from original embed
-      const { data: fb } = await platform(supabase)
-        .from("feedback")
-        .select("discord_message_id, body, type")
-        .eq("id", feedbackId)
-        .single();
-      if (fb?.discord_message_id) {
+      if (existing.discord_message_id && process.env.PIPELINE_CHANNEL_ID) {
         const typeEmoji: Record<string, string> = { bug: "🐛", wish: "⭐", feedback: "💬", question: "❓" };
-        await editMessage(process.env.PIPELINE_CHANNEL_ID!, fb.discord_message_id, {
+        await editMessage(process.env.PIPELINE_CHANNEL_ID, existing.discord_message_id, {
           embeds: [{
-            title: `${typeEmoji[fb.type] || "💬"} ${fb.type} — 🚫 Won't Fix`,
-            description: fb.body.slice(0, 2000),
+            title: `${typeEmoji[existing.type] || "💬"} ${existing.type} — 🚫 Won't Fix`,
+            description: existing.body.slice(0, 2000),
             color: 0xe74c3c, // red
             footer: { text: `ID: ${feedbackId.slice(0, 8)} | ${reason ? `Reason: ${reason.slice(0, 100)}` : "Closed"}` },
           }],
@@ -1267,7 +1337,7 @@ async function sendWebhook(url: string, body: Record<string, unknown>) {
   }
 }
 
-// For button interactions (type 6 defer): send follow-up message
+// For deferred interactions (type 5): send follow-up message
 const sendWebhookFollowup = sendWebhook;
 
 async function logToChannel(summary: string) {
