@@ -350,6 +350,7 @@ Each failure is tagged with:
   Should use `createServiceClient()`, not `createClient()`. Flag routes that verify via external auth but use the session client.
 - **Setup Requirement**: `SUPABASE_SERVICE_ROLE_KEY` must be set in Vercel env vars. Get it from Supabase Dashboard → Project Settings → API → `service_role` key (the secret one, not the anon key).
 - **Promoted to OS-level**: Yes — any project integrating external webhooks with Supabase will hit this. The session-based RLS model is invisible until you add your first non-browser integration.
+- **Addendum (same session)**: Even after switching to service role client, queries failed with `permission denied for schema platform`. The `service_role` needs explicit `GRANT USAGE ON SCHEMA` for custom schemas, same as `authenticated`. Fix: `GRANT USAGE ON SCHEMA platform TO service_role; GRANT ALL ON ALL TABLES IN SCHEMA platform TO service_role;` across all custom schemas. This is the SAME class of bug as F-023 — schema-level grants are easy to forget for any role.
 
 ---
 

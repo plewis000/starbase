@@ -130,9 +130,7 @@ async function processCommand(
   const webhookUrl = `https://discord.com/api/v10/webhooks/${APP_ID}/${interaction.token}`;
 
   try {
-    console.log("[discord] SERVICE_ROLE_KEY set:", !!process.env.SUPABASE_SERVICE_ROLE_KEY);
     const supabase = createServiceClient();
-    console.log("[discord] service client created, resolving user:", discordUserId);
     const userId = await resolveUser(supabase, discordUserId);
 
     if (!userId) {
@@ -1083,17 +1081,12 @@ async function handleButtonInteraction(
 // ── Helpers ───────────────────────────────────────────────────────────
 
 async function resolveUser(supabase: Supabase, discordUserId: string): Promise<string | null> {
-  const searchValue = JSON.stringify(discordUserId);
-  console.log("[resolveUser] discordUserId:", discordUserId, "searchValue:", searchValue);
-
-  const { data, error } = await platform(supabase)
+  const { data } = await platform(supabase)
     .from("user_preferences")
     .select("user_id")
     .eq("preference_key", "discord_user_id")
-    .eq("preference_value", searchValue)
+    .eq("preference_value", JSON.stringify(discordUserId))
     .single();
-
-  console.log("[resolveUser] result:", JSON.stringify({ data, error }));
 
   if (data) return data.user_id;
 
