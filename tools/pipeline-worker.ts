@@ -212,7 +212,6 @@ async function processJob(job: PipelineJob) {
       encoding: "utf-8",
       input: prompt,
       env: { ...process.env },
-      shell: true,
     });
 
     const elapsed = Math.round((Date.now() - startTime) / 1000);

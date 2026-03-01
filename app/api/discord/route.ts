@@ -1171,6 +1171,25 @@ async function handleModalSubmit(
         : "Approved — queued for pipeline worker.";
       await sendWebhookFollowup(webhookUrl, { content: confirmMsg });
 
+      // Remove buttons from original embed
+      const { data: fb } = await platform(supabase)
+        .from("feedback")
+        .select("discord_message_id, body, type")
+        .eq("id", feedbackId)
+        .single();
+      if (fb?.discord_message_id) {
+        const typeEmoji: Record<string, string> = { bug: "🐛", wish: "⭐", feedback: "💬", question: "❓" };
+        await editMessage(process.env.PIPELINE_CHANNEL_ID!, fb.discord_message_id, {
+          embeds: [{
+            title: `${typeEmoji[fb.type] || "💬"} ${fb.type} — ✅ Approved`,
+            description: fb.body.slice(0, 2000),
+            color: 0x2ecc71, // green
+            footer: { text: `ID: ${feedbackId.slice(0, 8)} | Queued for worker` },
+          }],
+          components: [],
+        });
+      }
+
     } else if (customId.startsWith("modal_wontfix_")) {
       const feedbackId = customId.replace("modal_wontfix_", "");
       const reason = fields.reason?.trim();
@@ -1192,6 +1211,25 @@ async function handleModalSubmit(
         ? `Marked as won't fix.\n> ${reason.slice(0, 200)}`
         : "Marked as won't fix.";
       await sendWebhookFollowup(webhookUrl, { content: confirmMsg });
+
+      // Remove buttons from original embed
+      const { data: fb } = await platform(supabase)
+        .from("feedback")
+        .select("discord_message_id, body, type")
+        .eq("id", feedbackId)
+        .single();
+      if (fb?.discord_message_id) {
+        const typeEmoji: Record<string, string> = { bug: "🐛", wish: "⭐", feedback: "💬", question: "❓" };
+        await editMessage(process.env.PIPELINE_CHANNEL_ID!, fb.discord_message_id, {
+          embeds: [{
+            title: `${typeEmoji[fb.type] || "💬"} ${fb.type} — 🚫 Won't Fix`,
+            description: fb.body.slice(0, 2000),
+            color: 0xe74c3c, // red
+            footer: { text: `ID: ${feedbackId.slice(0, 8)} | ${reason ? `Reason: ${reason.slice(0, 100)}` : "Closed"}` },
+          }],
+          components: [],
+        });
+      }
     }
   } catch (e) {
     console.error("[handleModalSubmit] Error:", e);
