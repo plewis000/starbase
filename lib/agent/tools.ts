@@ -251,7 +251,7 @@ export const AGENT_TOOLS: Tool[] = [
       type: "object" as const,
       properties: {
         body: { type: "string", description: "Feedback text (required)" },
-        type: { type: "string", description: "Type: 'bug', 'feature_request', 'improvement', 'complaint'" },
+        type: { type: "string", description: "Type: 'bug', 'wish', 'feedback', 'question'" },
         priority: { type: "string", description: "Priority: 'low', 'medium', 'high'" },
       },
       required: ["body"],

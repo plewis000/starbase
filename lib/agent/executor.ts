@@ -2,6 +2,7 @@ import { SupabaseClient } from "@supabase/supabase-js";
 import { finance, config, platform } from "@/lib/supabase/schemas";
 import { getHouseholdContext, getHouseholdMemberIds } from "@/lib/household";
 import { sanitizeSearchInput } from "@/lib/validation";
+import { sendMessageWithButtons, ZEV_COLOR } from "@/lib/discord";
 
 type Supabase = SupabaseClient;
 
@@ -728,16 +729,19 @@ async function submitFeedback(supabase: Supabase, userId: string, input: Record<
   const body = input.body as string;
   if (!body) return { success: false, error: "body is required" };
 
-  const validTypes = ["bug", "feature_request", "improvement", "complaint"];
-  const type = validTypes.includes(input.type as string) ? input.type as string : "improvement";
+  const validTypes = ["bug", "wish", "feedback", "question"];
+  const type = validTypes.includes(input.type as string) ? input.type as string : "feedback";
+
+  const ctx = await getHouseholdContext(supabase, userId);
 
   const { data, error } = await platform(supabase)
     .from("feedback")
     .insert({
+      household_id: ctx?.household_id || null,
       submitted_by: userId,
       type,
       body: body.trim(),
-      channel: "discord", // Agent interactions come through Discord or web
+      source: "discord",
       priority: (input.priority as string) || "medium",
       tags: [],
     })
@@ -745,7 +749,36 @@ async function submitFeedback(supabase: Supabase, userId: string, input: Record<
     .single();
 
   if (error) return { success: false, error: error.message };
-  return { success: true, data: { feedback_id: data.id, message: "Feedback submitted" } };
+
+  // Post to #pipeline channel with approve/reject buttons
+  const pipelineChannelId = process.env.PIPELINE_CHANNEL_ID;
+  if (pipelineChannelId) {
+    const typeEmoji: Record<string, string> = { bug: "\u{1F41B}", wish: "\u2B50", feedback: "\u{1F4AC}", question: "\u2753" };
+    const messageId = await sendMessageWithButtons(pipelineChannelId, {
+      embeds: [{
+        title: `${typeEmoji[type] || "\u{1F4AC}"} New ${type}`,
+        description: body.trim().slice(0, 2000),
+        color: ZEV_COLOR,
+        footer: { text: `ID: ${data.id.slice(0, 8)}` },
+      }],
+      components: [{
+        type: 1,
+        components: [
+          { type: 2, style: 3, label: "Approve", custom_id: `pipeline_approve_${data.id}`, emoji: { name: "\u2705" } },
+          { type: 2, style: 4, label: "Won't Fix", custom_id: `pipeline_wontfix_${data.id}`, emoji: { name: "\u{1F6AB}" } },
+        ],
+      }],
+    });
+
+    if (messageId) {
+      await platform(supabase)
+        .from("feedback")
+        .update({ discord_message_id: messageId })
+        .eq("id", data.id);
+    }
+  }
+
+  return { success: true, data: { feedback_id: data.id, message: "Feedback submitted and posted to #pipeline for review." } };
 }
 
 // ── DASHBOARD ──
