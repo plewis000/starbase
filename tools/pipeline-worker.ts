@@ -158,31 +158,40 @@ async function processJob(job: PipelineJob) {
 
     // Build prompt for Claude Code
     const prompt = [
-      `${typeLabel[job.type] || "Address this"}:`,
+      `You are working on a Next.js app (Desperado Club / Starbase).`,
+      `This is a ${job.type} from a user. Your job: implement the changes needed.`,
+      "",
+      `## ${typeLabel[job.type] || "Task"}`,
       "",
       job.body,
       "",
-      `Severity: ${job.ai_classified_severity || "unknown"}`,
+      job.ai_classified_severity ? `Severity: ${job.ai_classified_severity}` : "",
       job.ai_extracted_feature ? `Feature area: ${job.ai_extracted_feature}` : "",
       "",
-      "Requirements:",
-      "- Make the minimal changes needed to address this",
-      "- Run the build to verify (npm run build)",
-      "- Do NOT modify .env files or commit secrets",
-      "- Do NOT change the database schema (migrations)",
-      "- If you cannot fix this, explain why clearly",
+      "## Instructions",
+      "1. Read the relevant files to understand the current codebase",
+      "2. Make the minimal changes needed to address this feedback",
+      "3. Run `npm run build` to verify your changes compile",
+      "4. Do NOT modify .env files, credentials, or secrets",
+      "5. Do NOT create or modify database migrations (supabase/migrations/)",
+      "6. Do NOT modify tools/pipeline-worker.ts",
+      "7. If the request is too vague to implement, make your best judgment on what to change",
+      "8. Focus on the app/ and lib/ directories",
     ].filter(Boolean).join("\n");
 
-    // Run Claude Code CLI (execFileSync — locked decision #29)
+    // Run Claude Code CLI with full tool access, prompt via stdin
     console.log("   Running Claude Code...");
     const result = execFileSync(CLAUDE_CMD, [
       "--print",
-      prompt,
+      "--permission-mode", "bypassPermissions",
+      "--max-budget-usd", "5",
     ], {
       cwd: REPO_PATH,
       timeout: JOB_TIMEOUT,
       encoding: "utf-8",
+      input: prompt,
       env: { ...process.env },
+      shell: true,
     });
 
     console.log("   Claude Code output:", result.slice(0, 200));
