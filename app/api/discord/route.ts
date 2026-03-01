@@ -100,12 +100,67 @@ export async function POST(request: NextRequest) {
   // Type 3: Message component interaction (buttons)
   if (interaction.type === 3) {
     const customId = interaction.data?.custom_id as string;
-    const discordUserId = interaction.member?.user?.id || interaction.user?.id;
 
-    // Defer with type 5 (deferred channel message) — sends a new follow-up message
+    // Approve/Won't Fix buttons open a modal for notes
+    if (customId.startsWith("pipeline_approve_")) {
+      const feedbackId = customId.replace("pipeline_approve_", "");
+      return NextResponse.json({
+        type: 9, // MODAL
+        data: {
+          custom_id: `modal_approve_${feedbackId}`,
+          title: "Approve for Pipeline",
+          components: [{
+            type: 1,
+            components: [{
+              type: 4, // TEXT_INPUT
+              custom_id: "notes",
+              label: "Notes / scope / context (optional)",
+              style: 2, // PARAGRAPH
+              required: false,
+              placeholder: "e.g. 'Only do subtasks for now, skip comments' or 'Focus on the DB schema first'",
+            }],
+          }],
+        },
+      });
+    }
+
+    if (customId.startsWith("pipeline_wontfix_")) {
+      const feedbackId = customId.replace("pipeline_wontfix_", "");
+      return NextResponse.json({
+        type: 9,
+        data: {
+          custom_id: `modal_wontfix_${feedbackId}`,
+          title: "Won't Fix",
+          components: [{
+            type: 1,
+            components: [{
+              type: 4,
+              custom_id: "reason",
+              label: "Reason (optional)",
+              style: 2,
+              required: false,
+              placeholder: "e.g. 'Duplicate of...' or 'Not worth the effort right now'",
+            }],
+          }],
+        },
+      });
+    }
+
+    // All other buttons (ship, reject, etc.) — defer and process
+    const discordUserId = interaction.member?.user?.id || interaction.user?.id;
     const promise = handleButtonInteraction(customId, discordUserId, interaction);
     after(() => promise.catch(console.error));
     return NextResponse.json({ type: 5 });
+  }
+
+  // Type 5: Modal submit
+  if (interaction.type === 5) {
+    const customId = interaction.data?.custom_id as string;
+    const discordUserId = interaction.member?.user?.id || interaction.user?.id;
+
+    const promise = handleModalSubmit(customId, discordUserId, interaction);
+    after(() => promise.catch(console.error));
+    return NextResponse.json({ type: 5 }); // Deferred message response
   }
 
   return NextResponse.json({ type: 1 });
@@ -929,59 +984,8 @@ async function handleButtonInteraction(
       return;
     }
 
-    // Parse button custom_id: pipeline_approve_<feedback_id>, pipeline_ship_<feedback_id>, etc.
-    if (customId.startsWith("pipeline_approve_")) {
-      const feedbackId = customId.replace("pipeline_approve_", "");
-      const { error: updateErr } = await platform(supabase)
-        .from("feedback")
-        .update({ status: "planned", pipeline_status: "queued", updated_at: new Date().toISOString() })
-        .eq("id", feedbackId);
-
-      if (updateErr) {
-        await sendWebhookFollowup(webhookUrl, { content: `Failed to approve: ${updateErr.message}` });
-        return;
-      }
-
-      // Disable the buttons on the original message
-      if (interaction.message?.id) {
-        await editMessage(interaction.channel_id, interaction.message.id, {
-          components: [{
-            type: 1,
-            components: [
-              { type: 2, style: 3, label: "Approved", custom_id: "noop", disabled: true },
-            ],
-          }],
-        });
-      }
-
-      await sendWebhookFollowup(webhookUrl, { content: "Approved — queued for pipeline worker." });
-
-    } else if (customId.startsWith("pipeline_wontfix_")) {
-      const feedbackId = customId.replace("pipeline_wontfix_", "");
-      const { error: updateErr } = await platform(supabase)
-        .from("feedback")
-        .update({ status: "wont_fix", updated_at: new Date().toISOString() })
-        .eq("id", feedbackId);
-
-      if (updateErr) {
-        await sendWebhookFollowup(webhookUrl, { content: `Failed to update: ${updateErr.message}` });
-        return;
-      }
-
-      if (interaction.message?.id) {
-        await editMessage(interaction.channel_id, interaction.message.id, {
-          components: [{
-            type: 1,
-            components: [
-              { type: 2, style: 4, label: "Won't Fix", custom_id: "noop", disabled: true },
-            ],
-          }],
-        });
-      }
-
-      await sendWebhookFollowup(webhookUrl, { content: "Marked as won't fix." });
-
-    } else if (customId.startsWith("pipeline_ship_")) {
+    // Parse button custom_id — approve/wontfix now handled by modals (type 9 → handleModalSubmit)
+    if (customId.startsWith("pipeline_ship_")) {
       const feedbackId = customId.replace("pipeline_ship_", "");
 
       const { data: feedback } = await platform(supabase)
@@ -1089,6 +1093,108 @@ async function handleButtonInteraction(
     }
   } catch (e) {
     console.error("[handleButtonInteraction] Error:", e);
+    try {
+      await sendWebhookFollowup(webhookUrl, { content: `Something went wrong: ${e instanceof Error ? e.message : "Unknown error"}` });
+    } catch { /* webhook might have expired */ }
+  }
+}
+
+// ── Modal submit handler ─────────────────────────────────────────────
+
+async function handleModalSubmit(
+  customId: string,
+  discordUserId: string,
+  interaction: { token: string; application_id: string; channel_id: string; message?: { id: string }; data?: { components?: { components?: { custom_id: string; value: string }[] }[] } },
+) {
+  const APP_ID = process.env.DISCORD_APP_ID!;
+  const webhookUrl = `https://discord.com/api/v10/webhooks/${APP_ID}/${interaction.token}`;
+
+  try {
+    const supabase = createServiceClient();
+    const userId = await resolveUser(supabase, discordUserId);
+
+    if (!userId) {
+      await sendWebhookFollowup(webhookUrl, { content: "I don't know who you are." });
+      return;
+    }
+
+    const ctx = await getHouseholdContext(supabase, userId);
+    if (!ctx || ctx.role !== "admin") {
+      await sendWebhookFollowup(webhookUrl, { content: "Only admins can approve pipeline actions." });
+      return;
+    }
+
+    // Extract text input values from modal
+    const fields: Record<string, string> = {};
+    for (const row of interaction.data?.components || []) {
+      for (const comp of row.components || []) {
+        fields[comp.custom_id] = comp.value || "";
+      }
+    }
+
+    if (customId.startsWith("modal_approve_")) {
+      const feedbackId = customId.replace("modal_approve_", "");
+      const notes = fields.notes?.trim();
+
+      // Append notes to feedback body if provided
+      if (notes) {
+        const { data: existing } = await platform(supabase)
+          .from("feedback")
+          .select("body")
+          .eq("id", feedbackId)
+          .single();
+
+        if (existing) {
+          await platform(supabase)
+            .from("feedback")
+            .update({
+              body: `${existing.body}\n\n---\nAdmin notes: ${notes}`,
+              status: "planned",
+              pipeline_status: "queued",
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", feedbackId);
+        }
+      } else {
+        await platform(supabase)
+          .from("feedback")
+          .update({
+            status: "planned",
+            pipeline_status: "queued",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", feedbackId);
+      }
+
+      const confirmMsg = notes
+        ? `Approved with notes — queued for pipeline worker.\n> ${notes.slice(0, 200)}`
+        : "Approved — queued for pipeline worker.";
+      await sendWebhookFollowup(webhookUrl, { content: confirmMsg });
+
+    } else if (customId.startsWith("modal_wontfix_")) {
+      const feedbackId = customId.replace("modal_wontfix_", "");
+      const reason = fields.reason?.trim();
+
+      const updateFields: Record<string, unknown> = {
+        status: "wont_fix",
+        updated_at: new Date().toISOString(),
+      };
+      if (reason) {
+        updateFields.worker_log = `Won't fix reason: ${reason}`;
+      }
+
+      await platform(supabase)
+        .from("feedback")
+        .update(updateFields)
+        .eq("id", feedbackId);
+
+      const confirmMsg = reason
+        ? `Marked as won't fix.\n> ${reason.slice(0, 200)}`
+        : "Marked as won't fix.";
+      await sendWebhookFollowup(webhookUrl, { content: confirmMsg });
+    }
+  } catch (e) {
+    console.error("[handleModalSubmit] Error:", e);
     try {
       await sendWebhookFollowup(webhookUrl, { content: `Something went wrong: ${e instanceof Error ? e.message : "Unknown error"}` });
     } catch { /* webhook might have expired */ }
