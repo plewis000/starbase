@@ -2,10 +2,17 @@
 
 import React, { useState, useCallback, useEffect } from "react";
 
+interface MemberOption {
+  user_id: string;
+  display_name?: string;
+  user?: { full_name?: string } | null;
+}
+
 export interface TaskFilters {
   status?: string;
   priority?: string;
   due?: string;
+  owner?: string;
   search?: string;
   sort?: string;
   direction?: "asc" | "desc";
@@ -52,10 +59,22 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
     status: "All",
     priority: "All",
     due: "All",
+    owner: "All",
     search: "",
     sort: "due_date",
     direction: "asc",
   });
+
+  const [householdMembers, setHouseholdMembers] = useState<MemberOption[]>([]);
+
+  useEffect(() => {
+    fetch("/api/household/members")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.members) setHouseholdMembers(data.members);
+      })
+      .catch(() => {});
+  }, []);
 
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
@@ -190,6 +209,28 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
             ))}
           </select>
         </div>
+
+        {/* Owner filter */}
+        {householdMembers.length > 1 && (
+          <div>
+            <label className="block text-xs font-semibold text-slate-400 mb-1.5">
+              Owner
+            </label>
+            <select
+              value={filters.owner || "All"}
+              onChange={(e) => updateFilter("owner", e.target.value)}
+              className="w-full px-2 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-100 text-sm focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/30 transition-colors cursor-pointer"
+            >
+              <option value="All">All</option>
+              <option value="me">My Tasks</option>
+              {householdMembers.map((m) => (
+                <option key={m.user_id} value={m.user_id}>
+                  {m.display_name || m.user?.full_name || "Member"}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Sort dropdown */}
         <div>
