@@ -352,16 +352,49 @@ Each failure is tagged with:
 - **Promoted to OS-level**: Yes — any project integrating external webhooks with Supabase will hit this. The session-based RLS model is invisible until you add your first non-browser integration.
 - **Addendum (same session)**: Even after switching to service role client, queries failed with `permission denied for schema platform`. The `service_role` needs explicit `GRANT USAGE ON SCHEMA` for custom schemas, same as `authenticated`. Fix: `GRANT USAGE ON SCHEMA platform TO service_role; GRANT ALL ON ALL TABLES IN SCHEMA platform TO service_role;` across all custom schemas. This is the SAME class of bug as F-023 — schema-level grants are easy to forget for any role.
 
+### F-025: Pipeline API Blocked by Supabase Auth Middleware
+- **Date**: 2026-03-01
+- **Session**: 11
+- **Category**: `middleware`, `auth`, `architecture`
+- **Severity**: Critical
+- **Symptom**: `GET /api/pipeline/queue` with correct `Authorization: Bearer <PIPELINE_SECRET>` header always returned 401 Unauthorized. Multiple redeploys, regenerated secrets — nothing worked. The route handler's own auth check never executed.
+- **Root Cause**: The Next.js middleware matcher regex excludes specific API routes from Supabase session middleware (`api/discord`, `api/plaid/webhook`). The `api/pipeline/*` routes were NOT excluded. The Supabase `updateSession()` middleware intercepted every pipeline request, found no valid Supabase session cookie, and returned 401 — before the route handler's `PIPELINE_SECRET` bearer token check ever ran.
+- **Fix**: Added `api/pipeline` to the middleware matcher exclusion list: `"/((?!...|api/pipeline|...).*)"`.
+- **Pattern**: **Every API route that uses its own authentication mechanism (bearer tokens, API keys, signatures) must be excluded from session-based auth middleware.** The middleware runs BEFORE route handlers — if it rejects the request, the route's own auth logic never executes. This is the third instance of this class (F-024 debug endpoint, F-024 Discord route, now pipeline routes).
+- **QA Rule**: When adding a new `api/` route that authenticates via anything other than Supabase session cookies, immediately add it to the middleware exclusion list in `middleware.ts`. Checklist:
+  1. Route uses `PIPELINE_SECRET`, `DISCORD_PUBLIC_KEY`, or any non-cookie auth? → Add to matcher exclusion.
+  2. Route uses `createServiceClient()` instead of `createClient()`? → Almost certainly needs exclusion.
+- **Debugging lesson**: When an API returns 401 and the env var is confirmed correct, check whether middleware is intercepting before the route handler. The 401 came from middleware, not from the route's own auth check — they look identical from the client side.
+- **Related**: F-024 (same pattern — middleware blocking non-session routes)
+
+### F-026: Discord Button Interactions Silently Failing — Serverless Termination
+- **Date**: 2026-03-01
+- **Session**: 11
+- **Category**: `serverless`, `discord`, `async`
+- **Severity**: Critical
+- **Symptom**: Clicking Approve/Won't Fix buttons on Discord embeds produced no visible response. The embed showed "Zev is thinking..." but never resolved. No errors in Vercel logs. Feedback status unchanged in DB.
+- **Root Cause**: Two compounding issues:
+  1. **Serverless termination**: The button handler used fire-and-forget (`handleButtonInteraction(...).catch(console.error)`) after returning the defer response. Vercel terminates serverless functions after the response is sent — the async handler was killed before completing its DB calls and Discord webhook follow-ups.
+  2. **No error handling**: The handler had no try/catch wrapper. If any step threw (resolveUser, getHouseholdContext, DB update), it silently died via `.catch(console.error)` with nothing sent to the user.
+- **Fix**:
+  1. Used Next.js `after()` (from `next/server`) to keep the serverless function alive until background work completes. `after()` guarantees the callback runs to completion even after the HTTP response is sent.
+  2. Wrapped entire handler in try/catch that sends error details via webhook follow-up.
+  3. Switched from type 6 (DEFERRED_UPDATE_MESSAGE) to type 5 (deferred channel message) for more reliable follow-up message delivery.
+- **Pattern**: **In serverless environments (Vercel, Lambda), fire-and-forget async work after `return Response` will be killed.** Use the platform's background execution API (`after()` in Next.js 15+, `waitUntil()` in Cloudflare Workers, `context.waitUntil()` in Vercel Edge). Never rely on orphaned promises completing after the response.
+- **QA Rule**: Any route that returns a response and then does async work must use `after()`. Search for patterns like `somePromise.catch(console.error); return NextResponse` — these are time bombs. The promise may or may not complete depending on how fast the runtime garbage-collects.
+- **Applied to**: Both `processCommand` (slash commands) and `handleButtonInteraction` (button clicks) now use `after()`. Slash commands worked previously by luck — they often completed fast enough before termination.
+
 ---
 
 ## Trend Summary
 
 | Pattern | Count | Categories |
 |---------|-------|------------|
-| Sandbox/environment deployment assumptions | 4 | F-008, F-009, F-010, F-011 |
+| Middleware/auth layer blocking non-session routes | 3 | F-024, F-025, (F-024 addendum) |
 | RLS / table permission issues | 4 | F-021, F-022, F-023, F-024 |
+| Sandbox/environment deployment assumptions | 4 | F-008, F-009, F-010, F-011 |
+| Serverless async termination / silent failures | 2 | F-020, F-026 |
 | TypeScript type loss in enrichment patterns | 2 | F-014, F-016 |
-| Silent error handling (no user feedback) | 1 | F-020 |
 | Auth callback bloat / timeout | 1 | F-019 |
 | Supabase FK join type miscast | 1 | F-018 |
 | Supabase API misuse (non-Promise chaining) | 1 | F-017 |
