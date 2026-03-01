@@ -6,6 +6,7 @@ import TaskCard from "./TaskCard";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import EmptyState from "@/components/ui/EmptyState";
 import { useToast } from "@/components/ui/Toast";
+import { UserSummary } from "@/lib/types";
 
 interface Tag {
   id: string;
@@ -30,6 +31,7 @@ interface Task {
   description?: string;
   due_date?: string;
   completed_at?: string | null;
+  recurrence_rule?: string;
   status?: {
     id: string;
     name: string;
@@ -50,8 +52,10 @@ interface Task {
     email: string;
     avatar_url?: string | null;
   };
+  additional_owners?: UserSummary[];
   tags?: Tag[];
   checklist_items?: ChecklistItem[];
+  subtask_progress?: { done: number; total: number };
 }
 
 interface TaskListProps {
@@ -75,6 +79,7 @@ export default function TaskList({
     status: "All",
     priority: "All",
     due: "All",
+    owner: "All",
     search: "",
     sort: "due_date",
     direction: "asc",
@@ -104,6 +109,10 @@ export default function TaskList({
 
       if (currentFilters.due && currentFilters.due !== "All") {
         params.append("due", currentFilters.due);
+      }
+
+      if (currentFilters.owner && currentFilters.owner !== "All") {
+        params.append("owner", currentFilters.owner);
       }
 
       if (currentFilters.search) {
@@ -188,13 +197,27 @@ export default function TaskList({
     );
 
     try {
+      // Use status change instead of completed_at directly, so the PATCH
+      // handler triggers recurrence creation and XP awards for recurring tasks
+      const configRes = await fetch("/api/config");
+      const configData = await configRes.json();
+      const statuses = configData.statuses || [];
+      const targetStatus = isCompleted
+        ? statuses.find((s: { name: string }) => s.name === "To Do")
+        : statuses.find((s: { name: string }) => s.name === "Done");
+
+      if (!targetStatus) {
+        toast.error("Failed to find target status");
+        return;
+      }
+
       await fetch(`/api/tasks/${taskId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          completed_at: isCompleted ? null : new Date().toISOString(),
-        }),
+        body: JSON.stringify({ status_id: targetStatus.id }),
       });
+      // Refresh list to pick up recurrence-created tasks
+      fetchTasks(filters, true);
       onTaskUpdated?.();
     } catch {
       toast.error("Failed to update task");

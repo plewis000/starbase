@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { useToast } from "@/components/ui/Toast";
-import { Task, ChecklistItem } from "@/lib/types";
+import { Task, ChecklistItem, UserSummary } from "@/lib/types";
 
 interface TaskFormProps {
   task?: Task;
@@ -19,6 +19,34 @@ interface ConfigOption {
   sort_order?: number;
 }
 
+interface HouseholdMember {
+  user_id: string;
+  display_name?: string;
+  user?: UserSummary | null;
+}
+
+const RECURRENCE_PRESETS = [
+  { label: "None", value: "" },
+  { label: "Daily", value: "FREQ=DAILY;INTERVAL=1" },
+  { label: "Every weekday", value: "FREQ=DAILY;BYDAY=MO,TU,WE,TH,FR" },
+  { label: "Weekly", value: "FREQ=WEEKLY;INTERVAL=1" },
+  { label: "Biweekly", value: "FREQ=WEEKLY;INTERVAL=2" },
+  { label: "Monthly", value: "FREQ=MONTHLY;INTERVAL=1" },
+  { label: "Quarterly", value: "FREQ=MONTHLY;INTERVAL=3" },
+];
+
+function describeRRule(rule: string): string {
+  if (!rule) return "None";
+  const preset = RECURRENCE_PRESETS.find((p) => p.value === rule);
+  if (preset) return preset.label;
+  // Fallback: parse basic RRULE
+  const parts = Object.fromEntries(rule.split(";").map((p) => p.split("=")));
+  const freq = parts.FREQ?.toLowerCase() || "custom";
+  const interval = parts.INTERVAL ? parseInt(parts.INTERVAL) : 1;
+  if (interval === 1) return `Every ${freq.replace("ly", "")}`;
+  return `Every ${interval} ${freq.replace("ly", "")}s`;
+}
+
 export default function TaskForm({
   task,
   onSave,
@@ -31,6 +59,10 @@ export default function TaskForm({
   const [statuses, setStatuses] = useState<ConfigOption[]>([]);
   const [priorities, setPriorities] = useState<ConfigOption[]>([]);
   const [configLoading, setConfigLoading] = useState(true);
+
+  // Household members for owner selection
+  const [householdMembers, setHouseholdMembers] = useState<HouseholdMember[]>([]);
+  const [membersLoading, setMembersLoading] = useState(true);
 
   useEffect(() => {
     async function fetchConfig() {
@@ -47,7 +79,21 @@ export default function TaskForm({
         setConfigLoading(false);
       }
     }
+    async function fetchMembers() {
+      try {
+        const res = await fetch("/api/household/members");
+        if (res.ok) {
+          const data = await res.json();
+          setHouseholdMembers(data.members || []);
+        }
+      } catch {
+        // Non-critical — owner selection will be unavailable
+      } finally {
+        setMembersLoading(false);
+      }
+    }
     fetchConfig();
+    fetchMembers();
   }, []);
 
   const [formData, setFormData] = useState({
@@ -56,7 +102,14 @@ export default function TaskForm({
     statusId: task?.status?.id || task?.status_id || "",
     priorityId: task?.priority?.id || task?.priority_id || "",
     dueDate: task?.due_date || "",
+    assignedTo: task?.assignee?.id || "",
+    recurrenceRule: task?.recurrence_rule || "",
   });
+
+  // Additional owners (multi-select)
+  const [selectedOwners, setSelectedOwners] = useState<string[]>(
+    task?.additional_owners?.map((o) => o.id) || []
+  );
 
   const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>(
     task?.checklist_items || []
@@ -75,6 +128,14 @@ export default function TaskForm({
       ...prev,
       [name]: value,
     }));
+  };
+
+  const handleToggleOwner = (userId: string) => {
+    setSelectedOwners((prev) =>
+      prev.includes(userId)
+        ? prev.filter((id) => id !== userId)
+        : [...prev, userId]
+    );
   };
 
   const handleAddChecklistItem = () => {
@@ -107,12 +168,15 @@ export default function TaskForm({
     }
 
     try {
-      const payload = {
+      const payload: Record<string, unknown> = {
         title: formData.title.trim(),
         description: formData.description.trim() || null,
         status_id: formData.statusId || null,
         priority_id: formData.priorityId || null,
         due_date: formData.dueDate || null,
+        assigned_to: formData.assignedTo || null,
+        recurrence_rule: formData.recurrenceRule || null,
+        additional_owners: selectedOwners,
         checklist_items: checklistItems.filter((item) => item.title.trim()).map((item) => item.title.trim()),
       };
 
@@ -220,20 +284,110 @@ export default function TaskForm({
         </div>
       </div>
 
-      {/* Due Date */}
+      {/* Due Date and Recurrence row */}
+      <div className="grid grid-cols-2 gap-4">
+        {/* Due Date */}
+        <div>
+          <label className="block text-sm font-medium text-slate-100 mb-2">
+            Due Date
+          </label>
+          <input
+            type="date"
+            name="dueDate"
+            value={formData.dueDate}
+            onChange={handleInputChange}
+            disabled={submitting}
+            className="w-full bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50"
+          />
+        </div>
+
+        {/* Recurrence */}
+        <div>
+          <label className="block text-sm font-medium text-slate-100 mb-2">
+            Repeat
+          </label>
+          <select
+            name="recurrenceRule"
+            value={formData.recurrenceRule}
+            onChange={handleInputChange}
+            disabled={submitting}
+            className="w-full bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50"
+          >
+            {RECURRENCE_PRESETS.map((preset) => (
+              <option key={preset.value} value={preset.value}>
+                {preset.label}
+              </option>
+            ))}
+          </select>
+          {formData.recurrenceRule && !RECURRENCE_PRESETS.find((p) => p.value === formData.recurrenceRule) && (
+            <p className="text-xs text-slate-400 mt-1">
+              Custom: {describeRRule(formData.recurrenceRule)}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Assigned To */}
       <div>
         <label className="block text-sm font-medium text-slate-100 mb-2">
-          Due Date
+          Assigned To
         </label>
-        <input
-          type="date"
-          name="dueDate"
-          value={formData.dueDate}
+        <select
+          name="assignedTo"
+          value={formData.assignedTo}
           onChange={handleInputChange}
-          disabled={submitting}
+          disabled={submitting || membersLoading}
           className="w-full bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50"
-        />
+        >
+          <option value="">{membersLoading ? "Loading..." : "Unassigned"}</option>
+          {householdMembers.map((m) => (
+            <option key={m.user_id} value={m.user_id}>
+              {m.display_name || m.user?.full_name || m.user_id}
+            </option>
+          ))}
+        </select>
       </div>
+
+      {/* Additional Owners (co-owners) */}
+      {householdMembers.length > 1 && (
+        <div>
+          <label className="block text-sm font-medium text-slate-100 mb-2">
+            Co-owners
+            <span className="text-xs text-slate-400 ml-2 font-normal">
+              XP splits across all owners
+            </span>
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {householdMembers
+              .filter((m) => m.user_id !== formData.assignedTo)
+              .map((m) => {
+                const isSelected = selectedOwners.includes(m.user_id);
+                const name = m.display_name || m.user?.full_name || "Member";
+                return (
+                  <button
+                    key={m.user_id}
+                    type="button"
+                    onClick={() => handleToggleOwner(m.user_id)}
+                    disabled={submitting}
+                    className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors disabled:opacity-50 ${
+                      isSelected
+                        ? "bg-red-400/20 text-red-300 border border-red-400/50"
+                        : "bg-slate-800 text-slate-300 border border-slate-700 hover:border-slate-600"
+                    }`}
+                  >
+                    {isSelected ? "- " : "+ "}
+                    {name}
+                  </button>
+                );
+              })}
+          </div>
+          {selectedOwners.length > 0 && (
+            <p className="text-xs text-slate-400 mt-1">
+              {selectedOwners.length} co-owner{selectedOwners.length !== 1 ? "s" : ""} selected
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Checklist Items */}
       <div>
