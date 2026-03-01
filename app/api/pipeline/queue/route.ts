@@ -15,15 +15,7 @@ const PIPELINE_SECRET = process.env.PIPELINE_SECRET;
 export async function GET(request: NextRequest) {
   const auth = request.headers.get("authorization");
   if (!PIPELINE_SECRET || auth !== `Bearer ${PIPELINE_SECRET}`) {
-    return NextResponse.json({
-      error: "Unauthorized",
-      debug: {
-        has_secret: !!PIPELINE_SECRET,
-        secret_first8: PIPELINE_SECRET?.slice(0, 8) || "MISSING",
-        auth_first8: auth?.replace("Bearer ", "").slice(0, 8) || "MISSING",
-        match: auth === `Bearer ${PIPELINE_SECRET}`,
-      },
-    }, { status: 401 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const supabase = createServiceClient();
