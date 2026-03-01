@@ -62,12 +62,19 @@ jobs:
             - Don't change database migrations unless the feedback specifically requires schema changes
             - Keep your changes scoped — don't refactor unrelated code
 
-      - name: Check for changes
+      - name: Commit changes
         id: changes
         run: |
-          if git diff --quiet HEAD origin/main 2>/dev/null; then
-            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          git add -A
+          if git diff --cached --quiet; then
+            if git log origin/main..HEAD --oneline | grep -q .; then
+              echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            fi
           else
+            git -c user.name="Claude" -c user.email="claude[bot]@users.noreply.github.com" \
+              commit -m "pipeline: implement feedback $FEEDBACK_ID"
             echo "has_changes=true" >> "$GITHUB_OUTPUT"
           fi
 
