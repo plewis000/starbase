@@ -395,6 +395,17 @@ Each failure is tagged with:
 - **Pattern**: **Workers that create git branches must be idempotent** — always clean up before creating, never assume the branch doesn't exist. Manual intervention between runs can leave orphaned state that breaks assumptions.
 - **QA Rule**: Any automated git workflow should: (1) delete local branch if exists, (2) delete remote branch if exists, (3) then create fresh. Never rely on "this branch shouldn't exist."
 
+### F-028: Worker Push Failed — Claude Code Commits Directly, Worker Assumes Unstaged Changes
+- **Date**: 2026-03-01
+- **Session**: 11
+- **Category**: `pipeline`, `git`, `tool-integration`
+- **Severity**: Critical
+- **Symptom**: Worker ran Claude Code successfully (output showed "Changes Summary" with real code changes), but `git push` failed with `src refspec does not match any`. Discord showed "Failed" with the push error. Worker re-queued and failed in a loop.
+- **Root Cause**: Claude Code CLI with `--permission-mode bypassPermissions` makes its OWN commits directly (it uses Edit/Write tools and then commits). The worker assumed Claude would only leave unstaged changes, so it checked `git diff --stat` (unstaged only), found nothing, and concluded no changes were made. The worker then tried to `git add -A && git commit` (nothing to commit) and `git push` (no new ref to push). The actual changes were already committed by Claude on the branch but the worker's detection logic missed them.
+- **Fix**: Changed detection to check three things: (1) `git diff --stat` (unstaged), (2) `git diff --cached --stat` (staged), (3) `git log main..HEAD --oneline` (new commits). If Claude already committed, skip the worker's own commit step and go straight to push.
+- **Pattern**: **When orchestrating an AI coding tool, don't assume its output mode.** Claude Code with full permissions is an autonomous agent — it reads, edits, AND commits. The orchestrator (worker) must detect the actual state of the repo, not assume a specific workflow. Check all three: unstaged, staged, committed.
+- **QA Rule**: Any worker that runs an AI coding tool should check `git log <base>..HEAD` for new commits, not just `git diff`. The tool may commit directly.
+
 ---
 
 ## Trend Summary
