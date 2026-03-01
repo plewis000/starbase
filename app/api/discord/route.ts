@@ -1223,9 +1223,34 @@ async function handleModalSubmit(
         .update(updatePayload)
         .eq("id", feedbackId);
 
+      // Trigger GitHub Action via repository_dispatch
+      const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+      const GITHUB_REPO = process.env.GITHUB_REPO || "plewis000/starbase";
+      if (GITHUB_TOKEN) {
+        const dispatchRes = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/dispatches`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${GITHUB_TOKEN}`,
+            Accept: "application/vnd.github+json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            event_type: "pipeline-job",
+            client_payload: {
+              feedback_id: feedbackId,
+              type: existing.type || "feedback",
+              description: (notes ? `${existing.body}\n\nAdmin notes: ${notes}` : existing.body).slice(0, 500),
+            },
+          }),
+        });
+        if (!dispatchRes.ok) {
+          console.error("[pipeline] GitHub dispatch failed:", dispatchRes.status);
+        }
+      }
+
       const confirmMsg = notes
-        ? `Approved with notes — queued for pipeline worker.\n> ${notes.slice(0, 200)}`
-        : "Approved — queued for pipeline worker.";
+        ? `Approved with notes — queued for GitHub Action.\n> ${notes.slice(0, 200)}`
+        : "Approved — queued for GitHub Action.";
       await sendWebhookFollowup(webhookUrl, { content: confirmMsg });
 
       // Remove buttons from original embed

@@ -1,9 +1,20 @@
 /**
- * Notification trigger library.
- * Creates in-app notifications and dispatches to external channels (Discord).
+ * Notification Engine — consolidated from v1 + v2
  *
- * Usage: call triggerNotification() from any API route after a mutation.
- * It creates the DB record AND fires the Discord webhook if configured.
+ * Features:
+ *   - Watcher-aware: notifies entity watchers based on watch_level
+ *   - Mention-aware: notifies @mentioned users
+ *   - Subscription-aware: respects per-event-type opt-in/out
+ *   - Quiet hours: suppresses notifications during DND
+ *   - Grouping: collapses similar notifications
+ *   - Discord webhook support
+ *   - Simple single-recipient notifications (triggerNotification)
+ *   - Convenience helpers for common events (task assigned/commented/completed)
+ *
+ * Usage:
+ *   - Entity-aware (watchers, mentions): notifyEntity()
+ *   - Simple single-recipient: triggerNotification()
+ *   - Task-specific: notifyTaskAssigned(), notifyTaskCommented(), notifyTaskCompleted()
  */
 
 import { SupabaseClient } from "@supabase/supabase-js";
@@ -17,12 +28,35 @@ export type NotifyEvent =
   | "task_overdue"
   | "task_completed"
   | "task_handed_off"
+  | "task_status_changed"
+  | "goal_commented"
+  | "goal_completed"
+  | "goal_milestone_completed"
+  | "habit_commented"
+  | "habit_streak_milestone"
+  | "mention"
   | "checklist_complete"
   | "recurrence_created"
+  | "entity_updated"
   | "achievement_unlocked"
   | "level_up"
   | "loot_box_earned"
   | "system";
+
+// Keep v2 alias for any code that imported the old type name
+export type NotifyEventV2 = NotifyEvent;
+
+interface EntityNotifyPayload {
+  entityType: string;         // 'task', 'goal', 'habit'
+  entityId: string;
+  event: NotifyEvent;
+  actorUserId: string;        // Who triggered this
+  title: string;
+  body?: string;
+  metadata?: Record<string, unknown>;
+  mentionedUserIds?: string[]; // Users @mentioned in a comment
+  skipUserIds?: string[];      // Don't notify these users (e.g., the actor)
+}
 
 interface NotifyPayload {
   recipientUserId: string;
@@ -33,13 +67,189 @@ interface NotifyPayload {
   metadata?: Record<string, unknown>;
 }
 
-// ─── Core: create notification + dispatch ────────────────────
+// ─── Colors & Emoji ─────────────────────────────────────────
 
+const EVENT_COLORS: Partial<Record<NotifyEvent, number>> = {
+  task_assigned: 0x3b82f6,
+  task_commented: 0x8b5cf6,
+  task_overdue: 0xef4444,
+  task_completed: 0x22c55e,
+  task_handed_off: 0xf97316,
+  goal_commented: 0x8b5cf6,
+  goal_completed: 0x22c55e,
+  habit_commented: 0x8b5cf6,
+  mention: 0xeab308,
+  checklist_complete: 0x06b6d4,
+  recurrence_created: 0xeab308,
+  achievement_unlocked: 0xDC2626,
+  level_up: 0xDC2626,
+  loot_box_earned: 0xD4A857,
+  system: 0x64748b,
+};
+
+const EVENT_EMOJI: Partial<Record<NotifyEvent, string>> = {
+  task_assigned: "👤",
+  task_commented: "💬",
+  task_overdue: "⏰",
+  task_completed: "✅",
+  task_handed_off: "🔄",
+  goal_commented: "💬",
+  goal_completed: "🎯",
+  goal_milestone_completed: "🏆",
+  habit_commented: "💬",
+  habit_streak_milestone: "🔥",
+  mention: "📣",
+  checklist_complete: "☑️",
+  recurrence_created: "🔁",
+  achievement_unlocked: "🏆",
+  level_up: "⬆️",
+  loot_box_earned: "📦",
+  system: "🔔",
+};
+
+// ─── Core: Entity-aware notification ─────────────────────────
+
+/**
+ * Main entry point for entity-aware notifications.
+ * Determines recipients from watchers + mentions, checks subscriptions
+ * and quiet hours, then creates grouped notifications.
+ */
+export async function notifyEntity(
+  supabase: SupabaseClient,
+  payload: EntityNotifyPayload
+): Promise<void> {
+  const skipSet = new Set(payload.skipUserIds || []);
+  skipSet.add(payload.actorUserId);
+
+  const { data: watchers } = await platform(supabase)
+    .from("entity_watchers")
+    .select("user_id, watch_level")
+    .eq("entity_type", payload.entityType)
+    .eq("entity_id", payload.entityId);
+
+  const recipients = new Map<string, { source: string }>();
+
+  if (watchers) {
+    for (const w of watchers) {
+      if (w.watch_level === "muted") continue;
+      if (w.watch_level === "mentions_only") continue;
+      if (skipSet.has(w.user_id)) continue;
+      recipients.set(w.user_id, { source: "watcher" });
+    }
+  }
+
+  if (payload.mentionedUserIds) {
+    for (const uid of payload.mentionedUserIds) {
+      if (skipSet.has(uid)) continue;
+      const watcher = watchers?.find((w) => w.user_id === uid);
+      if (watcher?.watch_level === "muted") continue;
+      recipients.set(uid, { source: "mention" });
+    }
+
+    if (watchers) {
+      for (const w of watchers) {
+        if (w.watch_level !== "mentions_only") continue;
+        if (skipSet.has(w.user_id)) continue;
+        if (payload.mentionedUserIds.includes(w.user_id)) {
+          recipients.set(w.user_id, { source: "mention" });
+        }
+      }
+    }
+  }
+
+  if (recipients.size === 0) return;
+
+  const recipientIds = Array.from(recipients.keys());
+
+  const [subsRes, prefsRes] = await Promise.all([
+    platform(supabase)
+      .from("notification_subscriptions")
+      .select("user_id, event_type, enabled")
+      .in("user_id", recipientIds)
+      .eq("event_type", payload.event),
+    platform(supabase)
+      .from("user_notification_prefs")
+      .select("user_id, quiet_hours_start, quiet_hours_end, quiet_days, timezone")
+      .in("user_id", recipientIds),
+  ]);
+
+  const subscriptionMap = new Map<string, boolean>();
+  if (subsRes.data) {
+    for (const s of subsRes.data) {
+      subscriptionMap.set(s.user_id, s.enabled);
+    }
+  }
+
+  const quietMap = new Map<string, {
+    start: string | null;
+    end: string | null;
+    days: number[] | null;
+    timezone: string;
+  }>();
+  if (prefsRes.data) {
+    for (const p of prefsRes.data) {
+      quietMap.set(p.user_id, {
+        start: p.quiet_hours_start,
+        end: p.quiet_hours_end,
+        days: p.quiet_days,
+        timezone: p.timezone || "America/Chicago",
+      });
+    }
+  }
+
+  const groupKey = `${payload.event}:${payload.entityId}`;
+  const now = new Date();
+
+  const notifRows: Array<Record<string, unknown>> = [];
+  for (const [userId, meta] of recipients) {
+    const subEnabled = subscriptionMap.get(userId);
+    if (subEnabled === false) continue;
+
+    const quiet = quietMap.get(userId);
+    if (quiet && isInQuietHours(now, quiet)) continue;
+
+    notifRows.push({
+      user_id: userId,
+      title: payload.title,
+      body: payload.body || null,
+      source: payload.event,
+      entity_type: payload.entityType,
+      entity_id: payload.entityId,
+      event_type: payload.event,
+      group_key: groupKey,
+      metadata: {
+        ...payload.metadata,
+        source_user_id: payload.actorUserId,
+        notification_source: meta.source,
+      },
+    });
+  }
+
+  if (notifRows.length === 0) return;
+
+  const { error } = await platform(supabase)
+    .from("notifications")
+    .insert(notifRows);
+
+  if (error) {
+    console.error("Notification batch insert error:", error);
+  }
+
+  dispatchExternalChannels(supabase, recipientIds, payload).catch((err) =>
+    console.error("External dispatch error:", err)
+  );
+}
+
+// ─── Simple single-recipient notification ────────────────────
+
+/**
+ * Simple notification for a single recipient.
+ * Creates the DB record and dispatches to external channels.
+ */
 export async function triggerNotification(
   supabase: SupabaseClient,
   payload: NotifyPayload
 ) {
-  // 1. Create in-app notification
   const { data: notification, error } = await platform(supabase)
     .from("notifications")
     .insert({
@@ -60,7 +270,6 @@ export async function triggerNotification(
     return null;
   }
 
-  // 2. Check user's channel preferences and dispatch
   const { data: prefs } = await platform(supabase)
     .from("user_notification_prefs")
     .select("*, channel:notification_channels!user_notification_prefs_channel_id_fkey(slug)")
@@ -78,48 +287,87 @@ export async function triggerNotification(
           payload.body || "",
           payload.event
         );
-        // Mark as sent
         await platform(supabase)
           .from("notifications")
           .update({ sent_at: new Date().toISOString() })
           .eq("id", notification.id);
       }
-      // Future: add email, SMS, browser push handlers here
     }
   }
 
   return notification;
 }
 
-// ─── Discord webhook ─────────────────────────────────────────
+// ─── Quiet Hours Check ───────────────────────────────────────
 
-const EVENT_COLORS: Record<NotifyEvent, number> = {
-  task_assigned: 0x3b82f6,    // blue
-  task_commented: 0x8b5cf6,   // purple
-  task_overdue: 0xef4444,     // red
-  task_completed: 0x22c55e,   // green
-  task_handed_off: 0xf97316,  // orange
-  checklist_complete: 0x06b6d4,// cyan
-  recurrence_created: 0xeab308,// yellow
-  achievement_unlocked: 0xDC2626, // crimson — The System
-  level_up: 0xDC2626,            // crimson — The System
-  loot_box_earned: 0xD4A857,     // gold
-  system: 0x64748b,           // gray
-};
+function isInQuietHours(
+  now: Date,
+  prefs: {
+    start: string | null;
+    end: string | null;
+    days: number[] | null;
+    timezone: string;
+  }
+): boolean {
+  if (!prefs.start || !prefs.end) return false;
 
-const EVENT_EMOJI: Record<NotifyEvent, string> = {
-  task_assigned: "👤",
-  task_commented: "💬",
-  task_overdue: "⏰",
-  task_completed: "✅",
-  task_handed_off: "🔄",
-  checklist_complete: "☑️",
-  recurrence_created: "🔁",
-  achievement_unlocked: "🏆",
-  level_up: "⬆️",
-  loot_box_earned: "📦",
-  system: "🔔",
-};
+  try {
+    const userTime = new Date(
+      now.toLocaleString("en-US", { timeZone: prefs.timezone })
+    );
+    const currentHour = userTime.getHours();
+    const currentMinute = userTime.getMinutes();
+    const currentDay = userTime.getDay();
+
+    if (prefs.days && prefs.days.includes(currentDay)) {
+      return true;
+    }
+
+    const [startH, startM] = prefs.start.split(":").map(Number);
+    const [endH, endM] = prefs.end.split(":").map(Number);
+
+    const currentMinutes = currentHour * 60 + currentMinute;
+    const startMinutes = startH * 60 + (startM || 0);
+    const endMinutes = endH * 60 + (endM || 0);
+
+    if (startMinutes > endMinutes) {
+      return currentMinutes >= startMinutes || currentMinutes < endMinutes;
+    }
+
+    return currentMinutes >= startMinutes && currentMinutes < endMinutes;
+  } catch {
+    return false;
+  }
+}
+
+// ─── External Channel Dispatch ───────────────────────────────
+
+async function dispatchExternalChannels(
+  supabase: SupabaseClient,
+  recipientIds: string[],
+  payload: EntityNotifyPayload
+) {
+  const { data: prefs } = await platform(supabase)
+    .from("user_notification_prefs")
+    .select("user_id, enabled, config, channel:notification_channels!user_notification_prefs_channel_id_fkey(slug)")
+    .in("user_id", recipientIds)
+    .eq("enabled", true);
+
+  if (!prefs) return;
+
+  for (const pref of prefs) {
+    const channelData = pref.channel as unknown as { slug: string } | { slug: string }[] | null;
+    const channelSlug = Array.isArray(channelData) ? channelData[0]?.slug : channelData?.slug;
+    if (channelSlug === "discord" && pref.config?.webhook_url) {
+      await sendDiscordWebhook(
+        pref.config.webhook_url as string,
+        payload.title,
+        payload.body || "",
+        payload.event
+      );
+    }
+  }
+}
 
 async function sendDiscordWebhook(
   webhookUrl: string,
@@ -128,15 +376,18 @@ async function sendDiscordWebhook(
   event: NotifyEvent
 ) {
   try {
+    const emoji = EVENT_EMOJI[event] || "🔔";
+    const color = EVENT_COLORS[event] || 0x64748b;
+
     const response = await fetch(webhookUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         embeds: [
           {
-            title: `${EVENT_EMOJI[event]} ${title}`,
+            title: `${emoji} ${title}`,
             description: body || undefined,
-            color: EVENT_COLORS[event],
+            color,
             timestamp: new Date().toISOString(),
             footer: { text: "Desperado Club" },
           },
@@ -145,14 +396,53 @@ async function sendDiscordWebhook(
     });
 
     if (!response.ok) {
-      console.error("Discord webhook failed:", response.status, await response.text());
+      console.error("Discord webhook failed:", response.status);
     }
   } catch (err) {
     console.error("Discord webhook error:", err);
   }
 }
 
-// ─── Convenience helpers for common events ───────────────────
+// ─── Convenience: Auto-watch on first interaction ────────────
+
+export async function ensureWatching(
+  supabase: SupabaseClient,
+  entityType: string,
+  entityId: string,
+  userId: string,
+  watchLevel = "all"
+): Promise<void> {
+  const { error } = await platform(supabase)
+    .from("entity_watchers")
+    .upsert(
+      {
+        entity_type: entityType,
+        entity_id: entityId,
+        user_id: userId,
+        watch_level: watchLevel,
+      },
+      { onConflict: "entity_type,entity_id,user_id" }
+    );
+
+  if (error) {
+    console.error("Failed to ensure watcher:", error);
+  }
+}
+
+export async function getUserDisplayName(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<string> {
+  const { data } = await platform(supabase)
+    .from("users")
+    .select("full_name, display_name, email")
+    .eq("id", userId)
+    .single();
+
+  return data?.display_name || data?.full_name || data?.email || "Someone";
+}
+
+// ─── Task-specific convenience helpers ───────────────────────
 
 export async function notifyTaskAssigned(
   supabase: SupabaseClient,
@@ -161,17 +451,9 @@ export async function notifyTaskAssigned(
   assignerUserId: string,
   taskId: string
 ) {
-  // Don't notify if assigning to yourself
   if (assigneeUserId === assignerUserId) return;
 
-  // Get assigner name
-  const { data: assigner } = await platform(supabase)
-    .from("users")
-    .select("full_name, email")
-    .eq("id", assignerUserId)
-    .single();
-
-  const name = assigner?.full_name || assigner?.email || "Someone";
+  const name = await getUserDisplayName(supabase, assignerUserId);
 
   return triggerNotification(supabase, {
     recipientUserId: assigneeUserId,
@@ -190,17 +472,8 @@ export async function notifyTaskCommented(
   commenterId: string,
   commentBody: string
 ) {
-  // Get commenter name
-  const { data: commenter } = await platform(supabase)
-    .from("users")
-    .select("full_name, email")
-    .eq("id", commenterId)
-    .single();
+  const name = await getUserDisplayName(supabase, commenterId);
 
-  const name = commenter?.full_name || commenter?.email || "Someone";
-
-  // Notify all users involved with the task EXCEPT the commenter
-  // "Involved" = creator + assignee + previous commenters
   const { data: task } = await platform(supabase)
     .from("tasks")
     .select("created_by, assigned_to")
@@ -220,7 +493,7 @@ export async function notifyTaskCommented(
       involvedIds.add(c.user_id);
     }
   }
-  involvedIds.delete(commenterId); // Don't notify the commenter
+  involvedIds.delete(commenterId);
 
   const truncatedBody =
     commentBody.length > 200 ? commentBody.slice(0, 200) + "..." : commentBody;
@@ -245,15 +518,8 @@ export async function notifyTaskCompleted(
   taskTitle: string,
   completerId: string
 ) {
-  const { data: completer } = await platform(supabase)
-    .from("users")
-    .select("full_name, email")
-    .eq("id", completerId)
-    .single();
+  const name = await getUserDisplayName(supabase, completerId);
 
-  const name = completer?.full_name || completer?.email || "Someone";
-
-  // Notify task creator if different from completer
   const { data: task } = await platform(supabase)
     .from("tasks")
     .select("created_by, assigned_to")

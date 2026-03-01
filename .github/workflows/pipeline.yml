@@ -1,0 +1,126 @@
+name: Pipeline Job
+
+on:
+  repository_dispatch:
+    types: [pipeline-job]
+
+jobs:
+  execute:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+    env:
+      PIPELINE_API_URL: ${{ secrets.PIPELINE_API_URL }}
+      PIPELINE_SECRET: ${{ secrets.PIPELINE_SECRET }}
+      FEEDBACK_ID: ${{ github.event.client_payload.feedback_id }}
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Create feature branch
+        id: branch
+        run: |
+          SLUG=$(echo "${{ github.event.client_payload.description }}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | head -c 40 | sed 's/-$//')
+          SHORT_ID=$(echo "$FEEDBACK_ID" | head -c 8)
+          BRANCH="pipeline/${SHORT_ID}-${SLUG}"
+          git checkout -b "$BRANCH"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Report working status
+        run: |
+          curl -sf -X POST "$PIPELINE_API_URL/api/pipeline/status" \
+            -H "Authorization: Bearer $PIPELINE_SECRET" \
+            -H "Content-Type: application/json" \
+            -d "{\"feedback_id\": \"$FEEDBACK_ID\", \"pipeline_status\": \"working\", \"branch_name\": \"${{ steps.branch.outputs.branch }}\"}"
+
+      - name: Run Claude Code
+        id: claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: claude-sonnet-4-20250514
+          prompt: |
+            You are working on the Desperado Club (Starbase) codebase — a Next.js 14 app with Supabase, Discord integration, and gamification.
+
+            Implement this feedback item:
+            TYPE: ${{ github.event.client_payload.type }}
+            DESCRIPTION: ${{ github.event.client_payload.description }}
+
+            Guidelines:
+            - Make focused, minimal changes that address the feedback
+            - Follow existing code patterns and conventions
+            - Run `npx tsc --noEmit` to verify TypeScript compiles
+            - Don't modify .env files or commit secrets
+            - Don't change database migrations unless the feedback specifically requires schema changes
+            - Keep your changes scoped — don't refactor unrelated code
+
+      - name: Check for changes
+        id: changes
+        run: |
+          if git diff --quiet HEAD origin/main 2>/dev/null; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Push and create PR
+        id: pr
+        if: steps.changes.outputs.has_changes == 'true'
+        run: |
+          git push -u origin "${{ steps.branch.outputs.branch }}"
+
+          DESCRIPTION="${{ github.event.client_payload.description }}"
+          PR_URL=$(gh pr create \
+            --title "pipeline: ${DESCRIPTION:0:65}" \
+            --body "$(cat <<'PREOF'
+          ## Pipeline Job
+
+          **Feedback ID:** ${{ github.event.client_payload.feedback_id }}
+          **Type:** ${{ github.event.client_payload.type }}
+
+          ${{ github.event.client_payload.description }}
+
+          ---
+          Automated by Desperado Club Pipeline via Claude Code Action
+          PREOF
+          )")
+
+          PR_NUMBER=$(echo "$PR_URL" | grep -oE '[0-9]+$')
+          echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Notify pipeline — preview ready
+        if: steps.changes.outputs.has_changes == 'true' && steps.pr.outputs.pr_number != ''
+        run: |
+          BRANCH="${{ steps.branch.outputs.branch }}"
+          SAFE_BRANCH=$(echo "$BRANCH" | sed 's/\//-/g')
+          PREVIEW_URL="https://starbase-git-${SAFE_BRANCH}-plewis000s-projects.vercel.app"
+
+          curl -sf -X POST "$PIPELINE_API_URL/api/pipeline/status" \
+            -H "Authorization: Bearer $PIPELINE_SECRET" \
+            -H "Content-Type: application/json" \
+            -d "{\"feedback_id\": \"$FEEDBACK_ID\", \"pipeline_status\": \"preview_ready\", \"branch_name\": \"${{ steps.branch.outputs.branch }}\", \"preview_url\": \"${PREVIEW_URL}\", \"pr_number\": ${{ steps.pr.outputs.pr_number }}}"
+
+      - name: Notify pipeline — no changes
+        if: steps.changes.outputs.has_changes == 'false'
+        run: |
+          curl -sf -X POST "$PIPELINE_API_URL/api/pipeline/status" \
+            -H "Authorization: Bearer $PIPELINE_SECRET" \
+            -H "Content-Type: application/json" \
+            -d "{\"feedback_id\": \"$FEEDBACK_ID\", \"pipeline_status\": \"failed\", \"worker_log\": \"Claude made no code changes\"}"
+
+      - name: Notify pipeline — failure
+        if: failure()
+        run: |
+          curl -s -X POST "$PIPELINE_API_URL/api/pipeline/status" \
+            -H "Authorization: Bearer $PIPELINE_SECRET" \
+            -H "Content-Type: application/json" \
+            -d "{\"feedback_id\": \"$FEEDBACK_ID\", \"pipeline_status\": \"failed\", \"worker_log\": \"GitHub Action failed — check workflow run logs\"}" || true

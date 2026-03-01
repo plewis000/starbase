@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { platform } from "@/lib/supabase/schemas";
 import { logActivity } from "@/lib/activity-log";
 import { parseMentions, persistMentions } from "@/lib/mention-parser";
-import { notifyEntity, ensureWatching, getUserDisplayName } from "@/lib/notify-v2";
+import { notifyEntity, ensureWatching, getUserDisplayName } from "@/lib/notify";
 import { validateRequiredString, safeParseBody, isValidUUID, validateEnum } from "@/lib/validation";
 
 const VALID_ENTITY_TYPES = ["task", "goal", "habit"] as const;
