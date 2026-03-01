@@ -102,8 +102,9 @@ export async function POST(request: NextRequest) {
     const customId = interaction.data?.custom_id as string;
     const discordUserId = interaction.member?.user?.id || interaction.user?.id;
 
-    // Defer with update flag (type 6 = deferred update)
-    const deferResponse = NextResponse.json({ type: 6 });
+    // Defer with type 5 (deferred channel message) — sends a new follow-up message
+    // Type 6 (deferred update) is unreliable for follow-up POSTs
+    const deferResponse = NextResponse.json({ type: 5 });
     handleButtonInteraction(customId, discordUserId, interaction).catch(console.error);
     return deferResponse;
   }
@@ -913,87 +914,96 @@ async function handleButtonInteraction(
   const APP_ID = process.env.DISCORD_APP_ID!;
   const webhookUrl = `https://discord.com/api/v10/webhooks/${APP_ID}/${interaction.token}`;
 
-  const supabase = createServiceClient();
-  const userId = await resolveUser(supabase, discordUserId);
+  try {
+    const supabase = createServiceClient();
+    const userId = await resolveUser(supabase, discordUserId);
 
-  if (!userId) {
-    await sendWebhook(webhookUrl, { content: "I don't know who you are." });
-    return;
-  }
-
-  // Check admin role
-  const ctx = await getHouseholdContext(supabase, userId);
-  if (!ctx || ctx.role !== "admin") {
-    await sendWebhook(webhookUrl, { content: "Only admins can approve pipeline actions." });
-    return;
-  }
-
-  // Parse button custom_id: pipeline_approve_<feedback_id>, pipeline_ship_<feedback_id>, etc.
-  if (customId.startsWith("pipeline_approve_")) {
-    const feedbackId = customId.replace("pipeline_approve_", "");
-    await platform(supabase)
-      .from("feedback")
-      .update({ status: "planned", pipeline_status: "queued", updated_at: new Date().toISOString() })
-      .eq("id", feedbackId);
-
-    // Disable the buttons on the original message
-    if (interaction.message?.id) {
-      await editMessage(interaction.channel_id, interaction.message.id, {
-        components: [{
-          type: 1,
-          components: [
-            { type: 2, style: 3, label: "Approved ✅", custom_id: "noop", disabled: true },
-          ],
-        }],
-      });
-    }
-
-    await sendWebhook(webhookUrl, { content: "✅ Approved — queued for pipeline worker." });
-
-  } else if (customId.startsWith("pipeline_wontfix_")) {
-    const feedbackId = customId.replace("pipeline_wontfix_", "");
-    await platform(supabase)
-      .from("feedback")
-      .update({ status: "wont_fix", updated_at: new Date().toISOString() })
-      .eq("id", feedbackId);
-
-    if (interaction.message?.id) {
-      await editMessage(interaction.channel_id, interaction.message.id, {
-        components: [{
-          type: 1,
-          components: [
-            { type: 2, style: 4, label: "Won't Fix 🚫", custom_id: "noop", disabled: true },
-          ],
-        }],
-      });
-    }
-
-    await sendWebhook(webhookUrl, { content: "🚫 Marked as won't fix." });
-
-  } else if (customId.startsWith("pipeline_ship_")) {
-    const feedbackId = customId.replace("pipeline_ship_", "");
-
-    // Call the verify endpoint logic inline
-    const { data: feedback } = await platform(supabase)
-      .from("feedback")
-      .select("id, body, pipeline_status, pr_number, branch_name")
-      .eq("id", feedbackId)
-      .single();
-
-    if (!feedback || feedback.pipeline_status !== "preview_ready") {
-      await sendWebhook(webhookUrl, { content: "This feedback isn't ready for deployment." });
+    if (!userId) {
+      await sendWebhookFollowup(webhookUrl, { content: "I don't know who you are." });
       return;
     }
 
-    const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-    if (!GITHUB_TOKEN) {
-      await sendWebhook(webhookUrl, { content: "GITHUB_TOKEN not configured. Can't merge." });
+    // Check admin role
+    const ctx = await getHouseholdContext(supabase, userId);
+    if (!ctx || ctx.role !== "admin") {
+      await sendWebhookFollowup(webhookUrl, { content: "Only admins can approve pipeline actions." });
       return;
     }
 
-    try {
+    // Parse button custom_id: pipeline_approve_<feedback_id>, pipeline_ship_<feedback_id>, etc.
+    if (customId.startsWith("pipeline_approve_")) {
+      const feedbackId = customId.replace("pipeline_approve_", "");
+      const { error: updateErr } = await platform(supabase)
+        .from("feedback")
+        .update({ status: "planned", pipeline_status: "queued", updated_at: new Date().toISOString() })
+        .eq("id", feedbackId);
+
+      if (updateErr) {
+        await sendWebhookFollowup(webhookUrl, { content: `Failed to approve: ${updateErr.message}` });
+        return;
+      }
+
+      // Disable the buttons on the original message
+      if (interaction.message?.id) {
+        await editMessage(interaction.channel_id, interaction.message.id, {
+          components: [{
+            type: 1,
+            components: [
+              { type: 2, style: 3, label: "Approved", custom_id: "noop", disabled: true },
+            ],
+          }],
+        });
+      }
+
+      await sendWebhookFollowup(webhookUrl, { content: "Approved — queued for pipeline worker." });
+
+    } else if (customId.startsWith("pipeline_wontfix_")) {
+      const feedbackId = customId.replace("pipeline_wontfix_", "");
+      const { error: updateErr } = await platform(supabase)
+        .from("feedback")
+        .update({ status: "wont_fix", updated_at: new Date().toISOString() })
+        .eq("id", feedbackId);
+
+      if (updateErr) {
+        await sendWebhookFollowup(webhookUrl, { content: `Failed to update: ${updateErr.message}` });
+        return;
+      }
+
+      if (interaction.message?.id) {
+        await editMessage(interaction.channel_id, interaction.message.id, {
+          components: [{
+            type: 1,
+            components: [
+              { type: 2, style: 4, label: "Won't Fix", custom_id: "noop", disabled: true },
+            ],
+          }],
+        });
+      }
+
+      await sendWebhookFollowup(webhookUrl, { content: "Marked as won't fix." });
+
+    } else if (customId.startsWith("pipeline_ship_")) {
+      const feedbackId = customId.replace("pipeline_ship_", "");
+
+      const { data: feedback } = await platform(supabase)
+        .from("feedback")
+        .select("id, body, pipeline_status, pr_number, branch_name")
+        .eq("id", feedbackId)
+        .single();
+
+      if (!feedback || feedback.pipeline_status !== "preview_ready") {
+        await sendWebhookFollowup(webhookUrl, { content: "This feedback isn't ready for deployment." });
+        return;
+      }
+
+      const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+      if (!GITHUB_TOKEN) {
+        await sendWebhookFollowup(webhookUrl, { content: "GITHUB_TOKEN not configured. Can't merge." });
+        return;
+      }
+
       // Merge PR
-      await fetch(`https://api.github.com/repos/plewis000/starbase/pulls/${feedback.pr_number}/merge`, {
+      const mergeRes = await fetch(`https://api.github.com/repos/plewis000/starbase/pulls/${feedback.pr_number}/merge`, {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${GITHUB_TOKEN}`,
@@ -1005,6 +1015,12 @@ async function handleButtonInteraction(
           commit_title: `${feedback.body.slice(0, 72)} (#${feedback.pr_number})`,
         }),
       });
+
+      if (!mergeRes.ok) {
+        const mergeErr = await mergeRes.text();
+        await sendWebhookFollowup(webhookUrl, { content: `Failed to merge PR: ${mergeErr.slice(0, 200)}` });
+        return;
+      }
 
       // Clean up branch (best-effort)
       fetch(`https://api.github.com/repos/plewis000/starbase/git/refs/heads/${feedback.branch_name}`, {
@@ -1022,59 +1038,61 @@ async function handleButtonInteraction(
           components: [{
             type: 1,
             components: [
-              { type: 2, style: 3, label: "Shipped 🚀", custom_id: "noop", disabled: true },
+              { type: 2, style: 3, label: "Shipped", custom_id: "noop", disabled: true },
             ],
           }],
         });
       }
 
-      await sendWebhook(webhookUrl, { content: `🚀 **Shipped!** Merged PR #${feedback.pr_number} to main. Vercel deploying now.` });
-    } catch (e) {
-      await sendWebhook(webhookUrl, { content: `Failed to merge: ${e instanceof Error ? e.message : "Unknown error"}` });
-    }
+      await sendWebhookFollowup(webhookUrl, { content: `Shipped! Merged PR #${feedback.pr_number} to main. Vercel deploying now.` });
 
-  } else if (customId.startsWith("pipeline_reject_")) {
-    const feedbackId = customId.replace("pipeline_reject_", "");
+    } else if (customId.startsWith("pipeline_reject_")) {
+      const feedbackId = customId.replace("pipeline_reject_", "");
 
-    const { data: feedback } = await platform(supabase)
-      .from("feedback")
-      .select("id, pr_number, branch_name")
-      .eq("id", feedbackId)
-      .single();
+      const { data: feedback } = await platform(supabase)
+        .from("feedback")
+        .select("id, pr_number, branch_name")
+        .eq("id", feedbackId)
+        .single();
 
-    const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-    if (feedback && GITHUB_TOKEN && feedback.pr_number) {
-      // Close PR + delete branch (best-effort)
-      fetch(`https://api.github.com/repos/plewis000/starbase/pulls/${feedback.pr_number}`, {
-        method: "PATCH",
-        headers: { Authorization: `Bearer ${GITHUB_TOKEN}`, Accept: "application/vnd.github+json", "Content-Type": "application/json" },
-        body: JSON.stringify({ state: "closed" }),
-      }).catch(() => {});
-      if (feedback.branch_name) {
-        fetch(`https://api.github.com/repos/plewis000/starbase/git/refs/heads/${feedback.branch_name}`, {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${GITHUB_TOKEN}`, Accept: "application/vnd.github+json" },
+      const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+      if (feedback && GITHUB_TOKEN && feedback.pr_number) {
+        fetch(`https://api.github.com/repos/plewis000/starbase/pulls/${feedback.pr_number}`, {
+          method: "PATCH",
+          headers: { Authorization: `Bearer ${GITHUB_TOKEN}`, Accept: "application/vnd.github+json", "Content-Type": "application/json" },
+          body: JSON.stringify({ state: "closed" }),
         }).catch(() => {});
+        if (feedback.branch_name) {
+          fetch(`https://api.github.com/repos/plewis000/starbase/git/refs/heads/${feedback.branch_name}`, {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${GITHUB_TOKEN}`, Accept: "application/vnd.github+json" },
+          }).catch(() => {});
+        }
       }
+
+      await platform(supabase)
+        .from("feedback")
+        .update({ pipeline_status: "rejected", branch_name: null, preview_url: null, pr_number: null, updated_at: new Date().toISOString() })
+        .eq("id", feedbackId);
+
+      if (interaction.message?.id) {
+        await editMessage(interaction.channel_id, interaction.message.id, {
+          components: [{
+            type: 1,
+            components: [
+              { type: 2, style: 4, label: "Rejected", custom_id: "noop", disabled: true },
+            ],
+          }],
+        });
+      }
+
+      await sendWebhookFollowup(webhookUrl, { content: "Rejected. PR closed, branch deleted." });
     }
-
-    await platform(supabase)
-      .from("feedback")
-      .update({ pipeline_status: "rejected", branch_name: null, preview_url: null, pr_number: null, updated_at: new Date().toISOString() })
-      .eq("id", feedbackId);
-
-    if (interaction.message?.id) {
-      await editMessage(interaction.channel_id, interaction.message.id, {
-        components: [{
-          type: 1,
-          components: [
-            { type: 2, style: 4, label: "Rejected ❌", custom_id: "noop", disabled: true },
-          ],
-        }],
-      });
-    }
-
-    await sendWebhook(webhookUrl, { content: "❌ Rejected. PR closed, branch deleted." });
+  } catch (e) {
+    console.error("[handleButtonInteraction] Error:", e);
+    try {
+      await sendWebhookFollowup(webhookUrl, { content: `Something went wrong: ${e instanceof Error ? e.message : "Unknown error"}` });
+    } catch { /* webhook might have expired */ }
   }
 }
 
@@ -1095,12 +1113,19 @@ async function resolveUser(supabase: Supabase, discordUserId: string): Promise<s
 }
 
 async function sendWebhook(url: string, body: Record<string, unknown>) {
-  await fetch(url, {
+  const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+  if (!res.ok) {
+    const text = await res.text();
+    console.error("[sendWebhook] Failed:", res.status, text);
+  }
 }
+
+// For button interactions (type 6 defer): send follow-up message
+const sendWebhookFollowup = sendWebhook;
 
 async function logToChannel(summary: string) {
   try {
