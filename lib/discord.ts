@@ -41,6 +41,25 @@ export async function sendEmbed(channelId: string, embed: Record<string, unknown
   });
 }
 
+// Send a message with buttons (Discord message components)
+// Returns the message ID for tracking button interactions
+export async function sendMessageWithButtons(
+  channelId: string,
+  payload: { content?: string; embeds?: Record<string, unknown>[]; components: Record<string, unknown>[] }
+): Promise<string | null> {
+  const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+    method: "POST",
+    headers: headers(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    console.error("[discord] sendMessageWithButtons failed:", await res.text());
+    return null;
+  }
+  const msg = await res.json();
+  return msg.id || null;
+}
+
 // Get all channels in the guild
 export async function getGuildChannels(): Promise<DiscordChannel[]> {
   const res = await fetch(`${DISCORD_API}/guilds/${GUILD_ID}/channels`, {
@@ -148,6 +167,23 @@ export async function registerSlashCommands() {
       name: "crawl",
       description: "View your crawler profile and stats",
     },
+    {
+      name: "feedback",
+      description: "Submit a bug, wish, or feedback",
+      options: [
+        { name: "description", description: "What's the issue or idea?", type: 3, required: true },
+        { name: "type", description: "Type of feedback", type: 3, required: false, choices: [
+          { name: "Bug", value: "bug" },
+          { name: "Wish", value: "wish" },
+          { name: "Feedback", value: "feedback" },
+          { name: "Question", value: "question" },
+        ]},
+      ],
+    },
+    {
+      name: "pipeline",
+      description: "Show active pipeline jobs",
+    },
   ];
 
   const res = await fetch(`${DISCORD_API}/applications/${APP_ID}/guilds/${GUILD_ID}/commands`, {
@@ -199,10 +235,20 @@ export const CHANNELS = {
   GOALS: "goals",
   SHOPPING: "shopping",
   LOGS: "logs",
+  PIPELINE: "pipeline",
 } as const;
 
 // Bot embed colors — Desperado Club theme
 export const ZEV_COLOR = 0xD4A857;      // Warm gold — Zev's personal color
 export const SYSTEM_COLOR = 0xDC2626;   // Crimson red — The System's announcements
+
+// Update a message (e.g., to disable buttons after interaction)
+export async function editMessage(channelId: string, messageId: string, payload: Record<string, unknown>) {
+  await fetch(`${DISCORD_API}/channels/${channelId}/messages/${messageId}`, {
+    method: "PATCH",
+    headers: headers(),
+    body: JSON.stringify(payload),
+  });
+}
 
 export { DISCORD_API, GUILD_ID };

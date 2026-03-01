@@ -1,225 +1,146 @@
-# Starbase Codebase Map
+# Desperado Club (Starbase) — Codebase Map
 
-> **READ THIS FIRST** in every new session. This is the single source of truth for understanding the Starbase project structure, patterns, and conventions.
+> **READ THIS FIRST** in every session working on this project. Compact index — read specific files on demand.
 
-Last updated: 2026-02-25 (Session 5)
-
----
-
-## What Is Starbase?
-
-Personal command center for Parker Lewis — task management, household coordination, notifications. Built with Next.js 15 + React 19 + Supabase + TypeScript + Tailwind CSS. Deployed on Vercel.
+Last updated: 2026-02-28 (Session 10)
 
 ---
 
-## Tech Stack
+## What Is This?
 
-| Layer | Tech | Version |
-|-------|------|---------|
-| Framework | Next.js (App Router) | 15.2.6 |
-| UI | React | 19.0.1 |
-| Styling | Tailwind CSS (dark-first) | 3.4.1 |
-| Database | Supabase (PostgreSQL) | SSR 0.5.2 |
-| Auth | Supabase OAuth (Google) | via middleware |
-| Deploy | Vercel (preview deployments) | - |
-| Language | TypeScript (strict) | 5.x |
+Household command center + AI agent platform. Discord bot "Zev" + web UI. Tasks, habits, goals, shopping, budget, gamification (DCC theme), AI memory, onboarding, feedback. Built with Next.js 15 + Supabase + Claude API.
+
+**Infra:** GitHub `plewis000/starbase` | Vercel `desparado-club` | Domain `starbase-green.vercel.app` | Supabase `starbase` (US East)
 
 ---
 
-## Database: Custom Schemas
-
-Supabase uses **4 custom schemas** (not `public`). All must be exposed in Supabase Dashboard > Settings > API > Exposed schemas.
+## Database: 4 Custom Schemas
 
 | Schema | Purpose | Helper |
 |--------|---------|--------|
-| `platform` | Core tables (tasks, users, activity_log, notifications) | `platform(supabase)` |
-| `config` | Lookup tables (statuses, priorities, types, efforts, tags) | `config(supabase)` |
-| `household` | Reserved — household-specific tables | `household(supabase)` |
-| `finance` | Reserved — YNAB integration | `finance(supabase)` |
+| `platform` | Core tables (tasks, users, agent, gamification, feedback, households) | `platform(supabase)` |
+| `config` | Lookups (statuses, priorities, types, efforts, tags, onboarding questions, seasons) | `config(supabase)` |
+| `household` | Household-specific tables | `household(supabase)` |
+| `finance` | Plaid/budget integration | `finance(supabase)` |
 
-Schema helpers live in `lib/supabase/schemas.ts`.
+Schema helpers: `lib/supabase/schemas.ts`
 
-### Critical Pattern: Cross-Schema Enrichment
-
-PostgREST **cannot** resolve FK joins across schemas. Never use FK hint syntax (e.g., `status:task_statuses!fk(*)`) for cross-schema references. Instead:
-
-```
-getConfigLookups(supabase)  →  fetches all config + user tables into Maps
-enrichTasks(tasks, lookups) →  resolves FK IDs to full objects (O(1) per field)
-```
-
-See `lib/task-enrichment.ts`. Every GET endpoint follows this pattern.
+**11 migrations** (001–011). Key ones:
+- 005: agent_conversations, agent_messages, agent_actions, feedback
+- 006: gamification (XP, achievements, loot boxes, leaderboard)
+- 007: households, responsibilities, delegations, AI observations/decisions/suggestions, onboarding, user_model, boundaries, life_events, behavioral_aggregates
+- 008-009: indexes, computed functions, schema alignment
+- 010-011: RLS fixes, table permissions
 
 ---
 
-## Directory Structure
+## API Routes: 96 Total
 
-```
-starbase/
-├── app/
-│   ├── api/                    # 16 API route files
-│   │   ├── config/route.ts     # GET config lookups (statuses, priorities, etc.)
-│   │   ├── tasks/route.ts      # GET (list+filter) / POST (create)
-│   │   ├── tasks/[id]/route.ts # GET / PATCH / DELETE single task
-│   │   ├── tasks/[id]/subtasks/
-│   │   ├── tasks/[id]/comments/
-│   │   ├── tasks/[id]/checklist/
-│   │   ├── tasks/[id]/dependencies/
-│   │   ├── tasks/[id]/tags/
-│   │   ├── tags/route.ts
-│   │   └── notifications/      # inbox, preferences, single notification
-│   ├── tasks/                  # Task list + detail UI pages
-│   ├── notifications/          # Notification inbox UI
-│   ├── dashboard/              # Dashboard page
-│   ├── login/                  # Login page
-│   ├── auth/callback/          # OAuth callback
-│   ├── layout.tsx              # Root layout (dark theme, PWA meta)
-│   └── page.tsx                # Home redirect
-│
-├── components/
-│   ├── ui/                     # Primitives (AppShell, Modal, StatusBadge, etc.)
-│   ├── tasks/                  # TaskList, TaskDetail, TaskForm, FilterBar, etc.
-│   └── notifications/          # NotificationInbox
-│
-├── lib/
-│   ├── supabase/
-│   │   ├── schemas.ts          # platform(), config(), household(), finance()
-│   │   ├── server.ts           # SSR Supabase client (cookie-based)
-│   │   ├── client.ts           # Browser Supabase client
-│   │   └── middleware.ts        # Session refresh helper
-│   ├── task-enrichment.ts      # Cross-schema FK resolution (Maps pattern)
-│   ├── activity-log.ts         # logActivity(), logFieldChanges()
-│   ├── notify.ts               # triggerNotification(), Discord webhooks
-│   ├── recurrence-engine.ts    # createNextRecurrence() on task completion
-│   ├── recurrence.ts           # RRULE parser, getNextOccurrence()
-│   └── types.ts                # Shared TypeScript interfaces
-│
-├── qa/                         # QA linting scripts (run via npm run qa)
-│   ├── run-all.js              # Master runner
-│   ├── select-string-linter.js # Cross-schema FK hints, double wildcards
-│   ├── form-value-checker.js   # Display labels used as API values
-│   ├── config-hardcode-detector.js  # Hardcoded config IDs
-│   ├── api-contract-checker.js # Frontend-API param mismatches
-│   └── deploy-preflight.js     # Env vars, TypeScript, build checks
-│
-├── docs/
-│   ├── CODEBASE_MAP.md         # THIS FILE — read first every session
-│   ├── FAILURE_LOG.md          # All bugs with root cause + patterns
-│   └── TASK_ENGINE_API_SPEC.md # Full API specification
-│
-├── middleware.ts               # Root auth middleware (protects all routes)
-├── next.config.ts              # PWA headers
-├── tailwind.config.ts          # Default + dark theme
-└── package.json                # Scripts: dev, build, lint, qa, qa:*
-```
+| Domain | Routes | Key Files |
+|--------|--------|-----------|
+| Tasks | 14 | `app/api/tasks/` (CRUD, subtasks, checklist, comments, deps, tags) |
+| Goals | 7 | `app/api/goals/` (CRUD, habits, milestones, tags, tasks) |
+| Habits | 4 | `app/api/habits/` (CRUD, check-in, tags) |
+| Shopping | 4 | `app/api/shopping/` (lists, items) |
+| Household | 4 | `app/api/household/` (members, invite, redeem) |
+| Notifications | 4 | `app/api/notifications/` (inbox, prefs, subscriptions) |
+| Gamification | 6 | `app/api/gamification/` (profile, achievements, leaderboard, loot, party goals, rewards) |
+| AI Agent | 3 | `app/api/agent/` (chat, usage) |
+| AI Intelligence | 7 | `app/api/ai/` (observations, decisions, suggestions, user-model, aggregates, config-overrides) |
+| Discord | 2 | `app/api/discord/` (webhook handler, setup) |
+| Feedback | 3 | `app/api/feedback/` (CRUD, voting) |
+| Finance | 10 | `app/api/finance/` + `app/api/plaid/` (budgets, transactions, sync) |
+| Onboarding | 3 | `app/api/onboarding/` (state, advance, respond) |
+| Config/Admin | 3 | `app/api/config/`, `app/api/admin/config/` |
+| Other | 8 | commands, dashboard, engagement, features, life-events, user, boundaries, watchers |
+| Comments (v2) | 3 | `app/api/comments/` (polymorphic) |
+| Delegations | 5 | `app/api/delegations/`, `app/api/responsibilities/` |
+
+**API patterns:** Auth check → schema-scoped query → cross-schema enrichment → activity log → non-blocking notifications. See `lib/task-enrichment.ts` for the Maps pattern.
 
 ---
 
-## API Patterns
+## Agent Brain
 
-Every API route follows the same structure:
+| File | Purpose |
+|------|---------|
+| `lib/agent/client.ts` | Claude API client, model routing (Haiku/Sonnet), cost calc |
+| `lib/agent/tools.ts` | 45+ tool definitions (tasks, habits, goals, shopping, budget, feedback, AI memory, onboarding) |
+| `lib/agent/executor.ts` | Tool execution engine (large file) |
+| `lib/agent/summarizer.ts` | Context compression for long conversations |
 
-1. **Auth check** — `supabase.auth.getUser()` → 401 if missing
-2. **Schema-scoped queries** — `platform(supabase).from("tasks")` (never raw `.from()`)
-3. **Cross-schema enrichment** — `getConfigLookups()` + `enrichTasks()`
-4. **Activity logging** — `logActivity()` or `logFieldChanges()` on mutations
-5. **Non-blocking notifications** — `triggerNotification().catch(console.error)`
-
-### Sort Column Whitelist
-
-The tasks GET route validates sort params against a whitelist:
-```
-VALID_SORT_COLUMNS = ["due_date", "priority_id", "created_at", "updated_at", "title", "completed_at", "start_date", "sort_order"]
-```
-
-### Status/Priority Filters
-
-FilterBar sends **display names** ("To Do", "In Progress") as query params. The API does a `config.task_statuses.select("id").in("name", slugs)` lookup. This is intentional — the API translates names to UUIDs server-side.
-
-### TaskForm Config Fetch
-
-TaskForm fetches real UUIDs from `GET /api/config` on mount. Never hardcode status/priority IDs in components.
+**Models:** Haiku (fast/cheap) and Sonnet (smart). Routed by `routeModel(message)`.
 
 ---
 
-## Key Design Decisions
+## Discord Integration
 
-| # | Decision | Why |
-|---|----------|-----|
-| 1 | Cross-schema Maps enrichment | PostgREST can't join across schemas |
-| 2 | Field-level activity logging | Full audit trail for every change |
-| 3 | Soft deletes (archive) | Preserve data; tasks set to Archived status |
-| 4 | Non-blocking notifications | `.catch()` wrapper prevents API failures |
-| 5 | RRULE parser (custom) | Lightweight; covers 95% of household use cases |
-| 6 | Recurrence on completion | New task auto-created when Done |
-| 7 | Middleware auth enforcement | Single auth gate; no per-route checks needed |
-| 8 | Config fetched at runtime | TaskForm hits /api/config; no hardcoded IDs |
+**File:** `app/api/discord/route.ts` (814 lines)
+
+**Slash commands (direct DB, no AI cost):** `/task`, `/habit`, `/budget`, `/shop`, `/dashboard`, `/usage`, `/crawl`
+**Agent command:** `/ask` → full Claude agent loop with tools
+
+**User resolution:** Discord ID → `user_preferences` table → Supabase user_id
+**Personalities:** `lib/personalities/zev.ts` (friendly guide), `lib/personalities/system-ai.ts` (sarcastic system)
+
+---
+
+## Key Libraries
+
+| File | Purpose |
+|------|---------|
+| `lib/task-enrichment.ts` | Cross-schema FK resolution (Maps pattern) |
+| `lib/activity-log.ts` | `logActivity()`, `logFieldChanges()` |
+| `lib/notify.ts` / `lib/notify-v2.ts` | Notifications + Discord webhooks |
+| `lib/recurrence-engine.ts` | Auto-create next task on completion |
+| `lib/streak-engine.ts` | Streak calculation |
+| `lib/gamification.ts` | `awardXp()`, `checkAchievements()`, `ensureProfile()` |
+| `lib/goal-progress.ts` | Goal progress (4 types: manual, milestone, habit_driven, task_driven) |
+| `lib/household.ts` | Household context + member queries |
+| `lib/discord.ts` | Discord API helpers |
+| `lib/validation.ts` | Centralized validation (UUID, date, string, enum, pagination) |
+| `lib/supabase/middleware.ts` | Session refresh + auth enforcement |
+
+---
+
+## Auth Flow
+
+Middleware → Supabase OAuth (Google) → cookie session → RLS. Discord webhook excluded from auth middleware. Vercel wildcard redirect: `https://*-plewis000s-projects.vercel.app/**`
 
 ---
 
 ## QA Suite
 
-Run before every deployment:
-
 ```bash
-npm run qa          # All 5 checks
-npm run qa:select   # .select() anti-patterns
+npm run qa          # All checks
+npm run qa:select   # Cross-schema FK anti-patterns
 npm run qa:forms    # Form value mismatches
 npm run qa:config   # Hardcoded config values
 npm run qa:contracts # API contract violations
 npm run qa:preflight # Env + TypeScript + build
 ```
 
-All scripts exit non-zero on errors. See `docs/FAILURE_LOG.md` for the patterns these catch.
+Migration linter: `qa/migration-linter.js` (enforces GRANT + RLS + SECURITY DEFINER rules)
 
 ---
 
-## Auth Flow
+## Env Vars Required
 
-1. Middleware (`middleware.ts`) intercepts all requests
-2. Unauthenticated → redirect to `/login`
-3. Login page → "Continue with Google" → Supabase OAuth
-4. Callback at `/auth/callback` → exchanges code for session
-5. Session stored in cookies → `createClient()` reads on every request
-
-**Vercel wildcard redirect:** `https://*-plewis000s-projects.vercel.app/**` is in Supabase allowlist so preview deployments work.
-
----
-
-## UI Design System
-
-Dark-first Tailwind: `slate-950` bg, `slate-900` cards, `slate-800` borders, `green-400` accents. No component libraries — all hand-built in `components/ui/`.
-
-Components: AppShell (sidebar + header), Modal (3 sizes), StatusBadge, PriorityBadge, EmptyState, LoadingSpinner, BottomNav (mobile).
-
----
-
-## Context Files
-
-Located at `/context/` (sibling to `starbase/`):
-
-| File | Purpose |
-|------|---------|
-| `active_projects.md` | 16-project roadmap with phases |
-| `life_snapshot.md` | Parker's household, work, finances |
-| `my_preferences.md` | Communication style, work preferences |
-| `weekly_focus.md` | Current week priorities |
+```
+NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY
+ANTHROPIC_API_KEY
+DISCORD_BOT_TOKEN, DISCORD_APP_ID, DISCORD_PUBLIC_KEY, DISCORD_GUILD_ID
+PLAID_CLIENT_ID, PLAID_SECRET, PLAID_ENV, PLAID_WEBHOOK_VERIFY_TOKEN
+NEXT_PUBLIC_APP_URL
+```
 
 ---
 
 ## Related Docs
 
-- **Full API spec:** `docs/TASK_ENGINE_API_SPEC.md`
-- **Bug patterns:** `docs/FAILURE_LOG.md`
-- **User preferences:** `../context/my_preferences.md`
-
----
-
-## Quick Start for New Sessions
-
-1. Read this file (`docs/CODEBASE_MAP.md`)
-2. Check `docs/FAILURE_LOG.md` for recent issues
-3. Check `context/my_preferences.md` for Parker's work style
-4. Run `npm run qa` before any deployment
-5. Use `lib/task-enrichment.ts` for any new queries involving config/user data
-6. Log any new bugs to `docs/FAILURE_LOG.md` using the existing template
+- `docs/FAILURE_LOG.md` — Bug patterns + QA rules (F-001 through F-023)
+- `docs/TASK_ENGINE_API_SPEC.md` — Full API specification
+- `brief.md` — Project vision
+- `architecture.md` — System design
+- `ROADMAP.md` — Phase plan + blocked items
+- `status.md` — Current build state

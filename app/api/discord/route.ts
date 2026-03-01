@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyKey } from "discord-interactions";
-import { sendMessage, sendEmbed, CHANNELS, ZEV_COLOR, SYSTEM_COLOR, getGuildChannels } from "@/lib/discord";
+import { sendMessage, sendEmbed, sendMessageWithButtons, editMessage, CHANNELS, ZEV_COLOR, SYSTEM_COLOR, getGuildChannels } from "@/lib/discord";
+import { getHouseholdContext } from "@/lib/household";
 import { createClient } from "@/lib/supabase/server";
 import { platform, config, household, finance } from "@/lib/supabase/schemas";
 import {
@@ -87,6 +88,17 @@ export async function POST(request: NextRequest) {
     return deferResponse;
   }
 
+  // Type 3: Message component interaction (buttons)
+  if (interaction.type === 3) {
+    const customId = interaction.data?.custom_id as string;
+    const discordUserId = interaction.member?.user?.id || interaction.user?.id;
+
+    // Defer with update flag (type 6 = deferred update)
+    const deferResponse = NextResponse.json({ type: 6 });
+    handleButtonInteraction(customId, discordUserId, interaction).catch(console.error);
+    return deferResponse;
+  }
+
   return NextResponse.json({ type: 1 });
 }
 
@@ -137,6 +149,10 @@ async function processCommand(
         return await handleCrawl(supabase, userId, webhookUrl);
       case "ask":
         return await handleAsk(supabase, userId, options, interaction, webhookUrl);
+      case "feedback":
+        return await handleFeedback(supabase, userId, options, webhookUrl);
+      case "pipeline":
+        return await handlePipeline(supabase, webhookUrl);
       default:
         await sendWebhook(webhookUrl, { content: `Unknown command: ${commandName}` });
     }
@@ -772,6 +788,285 @@ async function handleCrawl(supabase: Supabase, userId: string, webhookUrl: strin
       footer: { text: "The Desperado Club — So fun it hurts." },
     }],
   });
+}
+
+// ── Feedback + Pipeline commands ──────────────────────────────────────
+
+async function handleFeedback(supabase: Supabase, userId: string, options: Record<string, unknown>, webhookUrl: string) {
+  const description = options.description as string;
+  const type = (options.type as string) || "feedback";
+
+  const ctx = await getHouseholdContext(supabase, userId);
+
+  // Create feedback entry
+  const { data: feedback, error } = await platform(supabase)
+    .from("feedback")
+    .insert({
+      household_id: ctx?.household_id || null,
+      submitted_by: userId,
+      type,
+      body: description,
+      source: "discord",
+    })
+    .select("id, type, body, status, created_at")
+    .single();
+
+  if (error) {
+    await sendWebhook(webhookUrl, { content: `Couldn't submit feedback. ${error.message}` });
+    return;
+  }
+
+  // Auto-upvote (fire-and-forget)
+  Promise.resolve(platform(supabase).from("feedback_votes").insert({ feedback_id: feedback.id, user_id: userId })).catch(() => {});
+
+  // Post to #pipeline channel with approve/reject buttons
+  const pipelineChannelId = process.env.PIPELINE_CHANNEL_ID;
+  if (pipelineChannelId) {
+    const typeEmoji: Record<string, string> = { bug: "🐛", wish: "⭐", feedback: "💬", question: "❓" };
+    const messageId = await sendMessageWithButtons(pipelineChannelId, {
+      embeds: [{
+        title: `${typeEmoji[type] || "💬"} New ${type}`,
+        description: description.slice(0, 2000),
+        color: ZEV_COLOR,
+        footer: { text: `ID: ${feedback.id.slice(0, 8)}` },
+      }],
+      components: [{
+        type: 1,
+        components: [
+          { type: 2, style: 3, label: "Approve", custom_id: `pipeline_approve_${feedback.id}`, emoji: { name: "✅" } },
+          { type: 2, style: 4, label: "Won't Fix", custom_id: `pipeline_wontfix_${feedback.id}`, emoji: { name: "🚫" } },
+        ],
+      }],
+    });
+
+    // Store message ID for button tracking
+    if (messageId) {
+      await platform(supabase)
+        .from("feedback")
+        .update({ discord_message_id: messageId })
+        .eq("id", feedback.id);
+    }
+  }
+
+  // Respond to the submitter
+  const typeLabel: Record<string, string> = { bug: "Bug logged", wish: "Wish captured", feedback: "Feedback received", question: "Question submitted" };
+  await sendWebhook(webhookUrl, {
+    embeds: [{
+      description: `**${typeLabel[type] || "Received"}:** ${description.slice(0, 200)}${description.length > 200 ? "..." : ""}\n\nPosted to #pipeline for review.`,
+      color: ZEV_COLOR,
+      footer: { text: "Free command — no API cost" },
+    }],
+  });
+}
+
+async function handlePipeline(supabase: Supabase, webhookUrl: string) {
+  // Get all active pipeline jobs
+  const { data: jobs } = await platform(supabase)
+    .from("feedback")
+    .select("id, type, body, status, pipeline_status, priority, preview_url, pr_number, created_at")
+    .not("pipeline_status", "is", null)
+    .not("pipeline_status", "in", '("approved")')
+    .order("created_at", { ascending: false })
+    .limit(10);
+
+  if (!jobs || jobs.length === 0) {
+    await sendWebhook(webhookUrl, { content: "No active pipeline jobs." });
+    return;
+  }
+
+  const statusEmoji: Record<string, string> = {
+    queued: "⏳", working: "⚙️", preview_ready: "👀", failed: "❌", rejected: "🚫",
+  };
+
+  const lines = jobs.map((j) => {
+    const emoji = statusEmoji[j.pipeline_status] || "❓";
+    const preview = j.preview_url ? ` [Preview](${j.preview_url})` : "";
+    return `${emoji} **${j.pipeline_status}** — ${j.body.slice(0, 60)}${j.body.length > 60 ? "..." : ""}${preview}`;
+  });
+
+  await sendWebhook(webhookUrl, {
+    embeds: [{
+      title: "Pipeline Status",
+      description: lines.join("\n"),
+      color: ZEV_COLOR,
+      footer: { text: `${jobs.length} active job${jobs.length > 1 ? "s" : ""}` },
+    }],
+  });
+}
+
+// ── Button interaction handler ───────────────────────────────────────
+
+async function handleButtonInteraction(
+  customId: string,
+  discordUserId: string,
+  interaction: { token: string; application_id: string; channel_id: string; message?: { id: string } },
+) {
+  const APP_ID = process.env.DISCORD_APP_ID!;
+  const webhookUrl = `https://discord.com/api/v10/webhooks/${APP_ID}/${interaction.token}`;
+
+  const supabase = await createClient();
+  const userId = await resolveUser(supabase, discordUserId);
+
+  if (!userId) {
+    await sendWebhook(webhookUrl, { content: "I don't know who you are." });
+    return;
+  }
+
+  // Check admin role
+  const ctx = await getHouseholdContext(supabase, userId);
+  if (!ctx || ctx.role !== "admin") {
+    await sendWebhook(webhookUrl, { content: "Only admins can approve pipeline actions." });
+    return;
+  }
+
+  // Parse button custom_id: pipeline_approve_<feedback_id>, pipeline_ship_<feedback_id>, etc.
+  if (customId.startsWith("pipeline_approve_")) {
+    const feedbackId = customId.replace("pipeline_approve_", "");
+    await platform(supabase)
+      .from("feedback")
+      .update({ status: "planned", pipeline_status: "queued", updated_at: new Date().toISOString() })
+      .eq("id", feedbackId);
+
+    // Disable the buttons on the original message
+    if (interaction.message?.id) {
+      await editMessage(interaction.channel_id, interaction.message.id, {
+        components: [{
+          type: 1,
+          components: [
+            { type: 2, style: 3, label: "Approved ✅", custom_id: "noop", disabled: true },
+          ],
+        }],
+      });
+    }
+
+    await sendWebhook(webhookUrl, { content: "✅ Approved — queued for pipeline worker." });
+
+  } else if (customId.startsWith("pipeline_wontfix_")) {
+    const feedbackId = customId.replace("pipeline_wontfix_", "");
+    await platform(supabase)
+      .from("feedback")
+      .update({ status: "wont_fix", updated_at: new Date().toISOString() })
+      .eq("id", feedbackId);
+
+    if (interaction.message?.id) {
+      await editMessage(interaction.channel_id, interaction.message.id, {
+        components: [{
+          type: 1,
+          components: [
+            { type: 2, style: 4, label: "Won't Fix 🚫", custom_id: "noop", disabled: true },
+          ],
+        }],
+      });
+    }
+
+    await sendWebhook(webhookUrl, { content: "🚫 Marked as won't fix." });
+
+  } else if (customId.startsWith("pipeline_ship_")) {
+    const feedbackId = customId.replace("pipeline_ship_", "");
+
+    // Call the verify endpoint logic inline
+    const { data: feedback } = await platform(supabase)
+      .from("feedback")
+      .select("id, body, pipeline_status, pr_number, branch_name")
+      .eq("id", feedbackId)
+      .single();
+
+    if (!feedback || feedback.pipeline_status !== "preview_ready") {
+      await sendWebhook(webhookUrl, { content: "This feedback isn't ready for deployment." });
+      return;
+    }
+
+    const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+    if (!GITHUB_TOKEN) {
+      await sendWebhook(webhookUrl, { content: "GITHUB_TOKEN not configured. Can't merge." });
+      return;
+    }
+
+    try {
+      // Merge PR
+      await fetch(`https://api.github.com/repos/plewis000/starbase/pulls/${feedback.pr_number}/merge`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${GITHUB_TOKEN}`,
+          Accept: "application/vnd.github+json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          merge_method: "squash",
+          commit_title: `${feedback.body.slice(0, 72)} (#${feedback.pr_number})`,
+        }),
+      });
+
+      // Clean up branch (best-effort)
+      fetch(`https://api.github.com/repos/plewis000/starbase/git/refs/heads/${feedback.branch_name}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${GITHUB_TOKEN}`, Accept: "application/vnd.github+json" },
+      }).catch(() => {});
+
+      await platform(supabase)
+        .from("feedback")
+        .update({ pipeline_status: "approved", status: "done", updated_at: new Date().toISOString() })
+        .eq("id", feedbackId);
+
+      if (interaction.message?.id) {
+        await editMessage(interaction.channel_id, interaction.message.id, {
+          components: [{
+            type: 1,
+            components: [
+              { type: 2, style: 3, label: "Shipped 🚀", custom_id: "noop", disabled: true },
+            ],
+          }],
+        });
+      }
+
+      await sendWebhook(webhookUrl, { content: `🚀 **Shipped!** Merged PR #${feedback.pr_number} to main. Vercel deploying now.` });
+    } catch (e) {
+      await sendWebhook(webhookUrl, { content: `Failed to merge: ${e instanceof Error ? e.message : "Unknown error"}` });
+    }
+
+  } else if (customId.startsWith("pipeline_reject_")) {
+    const feedbackId = customId.replace("pipeline_reject_", "");
+
+    const { data: feedback } = await platform(supabase)
+      .from("feedback")
+      .select("id, pr_number, branch_name")
+      .eq("id", feedbackId)
+      .single();
+
+    const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+    if (feedback && GITHUB_TOKEN && feedback.pr_number) {
+      // Close PR + delete branch (best-effort)
+      fetch(`https://api.github.com/repos/plewis000/starbase/pulls/${feedback.pr_number}`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${GITHUB_TOKEN}`, Accept: "application/vnd.github+json", "Content-Type": "application/json" },
+        body: JSON.stringify({ state: "closed" }),
+      }).catch(() => {});
+      if (feedback.branch_name) {
+        fetch(`https://api.github.com/repos/plewis000/starbase/git/refs/heads/${feedback.branch_name}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${GITHUB_TOKEN}`, Accept: "application/vnd.github+json" },
+        }).catch(() => {});
+      }
+    }
+
+    await platform(supabase)
+      .from("feedback")
+      .update({ pipeline_status: "rejected", branch_name: null, preview_url: null, pr_number: null, updated_at: new Date().toISOString() })
+      .eq("id", feedbackId);
+
+    if (interaction.message?.id) {
+      await editMessage(interaction.channel_id, interaction.message.id, {
+        components: [{
+          type: 1,
+          components: [
+            { type: 2, style: 4, label: "Rejected ❌", custom_id: "noop", disabled: true },
+          ],
+        }],
+      });
+    }
+
+    await sendWebhook(webhookUrl, { content: "❌ Rejected. PR closed, branch deleted." });
+  }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────

@@ -12,7 +12,8 @@
     "qa:forms": "node qa/form-value-checker.js",
     "qa:config": "node qa/config-hardcode-detector.js",
     "qa:contracts": "node qa/api-contract-checker.js",
-    "qa:preflight": "node qa/deploy-preflight.js"
+    "qa:preflight": "node qa/deploy-preflight.js",
+    "worker": "tsx tools/pipeline-worker.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
