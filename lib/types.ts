@@ -19,11 +19,17 @@ export interface Comment {
   id: string;
   user_id: string;
   body: string;
+  parent_id?: string | null;
   created_at: string;
+  updated_at?: string;
   user?: {
     full_name: string;
     avatar_url?: string | null;
   };
+  author?: UserSummary | null;
+  mentions?: ParsedMention[];
+  replies?: Comment[];
+  reply_count?: number;
 }
 
 export interface ActivityEntry {
@@ -41,8 +47,21 @@ export interface Subtask {
   id: string;
   title: string;
   status?: {
+    id?: string;
     name: string;
   };
+  assignee?: UserSummary | null;
+  due_date?: string;
+  completed_at?: string | null;
+}
+
+export interface RecurrenceContext {
+  source_id?: string;
+  source_title?: string;
+  previous_id?: string;
+  next_id?: string;
+  next_due_date?: string;
+  occurrence_count?: number;
 }
 
 export interface Task {
@@ -65,15 +84,19 @@ export interface Task {
     id: string;
     full_name: string;
   };
+  additional_owners?: UserSummary[];
   creator?: {
     id: string;
     full_name: string;
   };
   due_date?: string;
+  recurrence_rule?: string;
+  recurrence_context?: RecurrenceContext;
   tags: Tag[];
   checklist_items: ChecklistItem[];
   comments: Comment[];
   subtasks: Subtask[];
+  subtask_progress?: { done: number; total: number };
   dependencies: Dependency;
   activity: ActivityEntry[];
 }
@@ -85,6 +108,9 @@ export interface TaskFormData {
   due_date?: string;
   status_id?: string;
   priority_id?: string;
+  assigned_to?: string;
+  additional_owners?: string[];
+  recurrence_rule?: string;
   checklist_items?: ChecklistItem[];
 }
 

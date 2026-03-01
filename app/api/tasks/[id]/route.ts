@@ -78,6 +78,15 @@ export async function GET(
     assignee: st.assigned_to ? lookups.users.get(st.assigned_to) || null : null,
   }));
 
+  // Compute subtask progress
+  const doneStatusNames = ["Done", "Completed"];
+  const subtaskDone = enrichedSubtasks.filter(
+    (st: any) => st.status && doneStatusNames.includes(st.status.name)
+  ).length;
+  const subtaskProgress = enrichedSubtasks.length > 0
+    ? { done: subtaskDone, total: enrichedSubtasks.length }
+    : undefined;
+
   // Fetch dependencies separately (bidirectional — same-schema joins should work)
   const { data: blocks } = await platform(supabase)
     .from("task_dependencies")
@@ -98,14 +107,62 @@ export async function GET(
     .order("performed_at", { ascending: false })
     .limit(50);
 
+  // Fetch recurrence chain context if this is a recurring task
+  let recurrenceContext: {
+    source_id?: string;
+    source_title?: string;
+    previous_id?: string;
+    next_id?: string;
+    next_due_date?: string;
+    occurrence_count?: number;
+  } | undefined;
+
+  if (rawTask.recurrence_rule) {
+    const sourceId = rawTask.recurrence_source_id || rawTask.id;
+
+    // Count total occurrences in this chain
+    const { count: occurrenceCount } = await platform(supabase)
+      .from("tasks")
+      .select("id", { count: "exact", head: true })
+      .or(`id.eq.${sourceId},recurrence_source_id.eq.${sourceId}`);
+
+    // Find the next (future) occurrence in this chain
+    const { data: nextOccurrence } = await platform(supabase)
+      .from("tasks")
+      .select("id, due_date")
+      .eq("recurrence_source_id", sourceId)
+      .gt("created_at", rawTask.created_at)
+      .order("created_at", { ascending: true })
+      .limit(1);
+
+    // Find the previous occurrence
+    const { data: prevOccurrence } = await platform(supabase)
+      .from("tasks")
+      .select("id")
+      .or(`id.eq.${sourceId},recurrence_source_id.eq.${sourceId}`)
+      .lt("created_at", rawTask.created_at)
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    recurrenceContext = {
+      source_id: sourceId,
+      previous_id: prevOccurrence?.[0]?.id || undefined,
+      next_id: nextOccurrence?.[0]?.id || undefined,
+      next_due_date: nextOccurrence?.[0]?.due_date || undefined,
+      occurrence_count: occurrenceCount || undefined,
+    };
+  }
+
   return NextResponse.json({
     task: {
       ...task,
       subtasks: enrichedSubtasks,
+      subtask_progress: subtaskProgress,
       dependencies: {
         blocks: blocks || [],
         blocked_by: blockedBy || [],
       },
+      recurrence_context: recurrenceContext,
       activity: activity || [],
     },
   });
@@ -155,6 +212,18 @@ export async function PATCH(
 
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
   const updateFields: Record<string, unknown> = {};
+
+  // Handle additional_owners update via metadata
+  if ("additional_owners" in body && Array.isArray(body.additional_owners)) {
+    const validOwners = body.additional_owners.filter(
+      (id: unknown) => typeof id === "string" && memberIds.includes(id as string)
+    );
+    const existingMetadata = (currentTask.metadata as Record<string, unknown>) || {};
+    updateFields.metadata = {
+      ...existingMetadata,
+      additional_owners: validOwners,
+    };
+  }
 
   // Only include fields that were actually sent
   const allowedFields = [
@@ -293,7 +362,7 @@ export async function PATCH(
       (err) => console.error("Completion notification error:", err)
     );
 
-    // Award XP for completing the task (non-blocking)
+    // Award XP for completing the task, split across all owners (non-blocking)
     (async () => {
       try {
         // Map priority to XP — higher priority = more XP
@@ -316,22 +385,37 @@ export async function PATCH(
         const completedAt = Date.now();
         const isSpeedComplete = (completedAt - createdAt) < 3600000; // 1 hour
         const bonusXp = isSpeedComplete ? 15 : 0;
+        const totalXp = xpAmount + bonusXp;
 
-        await awardXp(
-          supabase,
-          user.id,
-          xpAmount + bonusXp,
-          "task_complete",
-          `Completed: ${updatedTask.title}${isSpeedComplete ? " (speed bonus!)" : ""}`,
-          id
-        );
+        // Collect all owners: primary assignee + additional owners
+        const allOwners = new Set<string>();
+        if (currentTask.assigned_to) allOwners.add(currentTask.assigned_to);
+        const additionalOwners: string[] = (currentTask.metadata as any)?.additional_owners || [];
+        for (const oid of additionalOwners) allOwners.add(oid);
+        // If no owners assigned, award to the user who completed it
+        if (allOwners.size === 0) allOwners.add(user.id);
 
-        // Check for task-related achievements
-        await checkAchievements(supabase, user.id, "task_complete", {
-          taskId: id,
-          priority: priority?.name,
-          isSpeedComplete,
-        });
+        // Split XP across all owners (each gets full share, minimum 1)
+        const xpPerOwner = Math.max(1, Math.round(totalXp / allOwners.size));
+
+        for (const ownerId of allOwners) {
+          await awardXp(
+            supabase,
+            ownerId,
+            xpPerOwner,
+            "task_complete",
+            `Completed: ${updatedTask.title}${isSpeedComplete ? " (speed bonus!)" : ""}${allOwners.size > 1 ? ` (split ${allOwners.size}-way)` : ""}`,
+            "task",
+            id
+          );
+
+          // Check for task-related achievements
+          await checkAchievements(supabase, ownerId, "task_complete", {
+            taskId: id,
+            priority: priority?.name,
+            isSpeedComplete,
+          });
+        }
       } catch (err) {
         console.error("Gamification error:", err);
       }

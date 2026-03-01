@@ -86,6 +86,16 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // Owner filter: includes primary assignee AND additional owners from metadata
+  const owner = params.get("owner");
+  if (owner) {
+    const ownerId = owner === "me" ? user.id : owner;
+    if (isValidUUID(ownerId)) {
+      const metaFilter = JSON.stringify({ additional_owners: [ownerId] });
+      query = query.or(`assigned_to.eq.${ownerId},metadata.cs.${metaFilter}`);
+    }
+  }
+
   // Due date filter
   const due = params.get("due");
   if (due) {
@@ -182,7 +192,42 @@ export async function GET(request: NextRequest) {
   const lookups = await getConfigLookups(supabase);
   const enrichedTasks = enrichTasks(tasks || [], lookups);
 
-  return NextResponse.json({ tasks: enrichedTasks, total: count || 0 });
+  // Fetch subtask counts for all returned tasks
+  const taskIds = (tasks || []).map((t: any) => t.id);
+  let subtaskCountMap: Record<string, { done: number; total: number }> = {};
+  if (taskIds.length > 0) {
+    const { data: subtasks } = await platform(supabase)
+      .from("tasks")
+      .select("parent_task_id, status_id")
+      .in("parent_task_id", taskIds);
+
+    if (subtasks && subtasks.length > 0) {
+      // Get "Done" status IDs
+      const doneStatusIds = new Set<string>();
+      for (const [sid, s] of lookups.statuses) {
+        if (s.name === "Done" || s.name === "Completed") doneStatusIds.add(sid);
+      }
+
+      for (const st of subtasks) {
+        if (!st.parent_task_id) continue;
+        if (!subtaskCountMap[st.parent_task_id]) {
+          subtaskCountMap[st.parent_task_id] = { done: 0, total: 0 };
+        }
+        subtaskCountMap[st.parent_task_id].total++;
+        if (doneStatusIds.has(st.status_id)) {
+          subtaskCountMap[st.parent_task_id].done++;
+        }
+      }
+    }
+  }
+
+  // Attach subtask progress to enriched tasks
+  const tasksWithProgress = enrichedTasks.map((t: any) => ({
+    ...t,
+    subtask_progress: subtaskCountMap[t.id] || undefined,
+  }));
+
+  return NextResponse.json({ tasks: tasksWithProgress, total: count || 0 });
 }
 
 // =============================================================
@@ -214,6 +259,7 @@ export async function POST(request: NextRequest) {
     priority_id,
     task_type_id,
     assigned_to,
+    additional_owners,
     due_date,
     schedule_date,
     effort_level_id,
@@ -225,11 +271,20 @@ export async function POST(request: NextRequest) {
     checklist_items,
   } = body;
 
-  // If assigning to someone, verify they're in the same household
+  // Verify all assignees are in the same household
+  const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
   if (assigned_to && assigned_to !== user.id) {
-    const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
     if (!memberIds.includes(assigned_to)) {
       return NextResponse.json({ error: "Cannot assign to user outside your household" }, { status: 403 });
+    }
+  }
+  // Validate additional owners
+  const validAdditionalOwners: string[] = [];
+  if (additional_owners && Array.isArray(additional_owners)) {
+    for (const ownerId of additional_owners) {
+      if (typeof ownerId === "string" && memberIds.includes(ownerId)) {
+        validAdditionalOwners.push(ownerId);
+      }
     }
   }
 
@@ -276,6 +331,9 @@ export async function POST(request: NextRequest) {
       recurrence_rule: recurrence_rule || null,
       parent_task_id: parent_task_id || null,
       source: "manual",
+      metadata: validAdditionalOwners.length > 0
+        ? { additional_owners: validAdditionalOwners }
+        : null,
     })
     .select("*")
     .single();

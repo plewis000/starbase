@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
 import { notifyTaskCommented } from "@/lib/notify";
+import { parseMentions } from "@/lib/mention-parser";
 import { platform } from "@/lib/supabase/schemas";
 import { getConfigLookups } from "@/lib/task-enrichment";
+import { isValidUUID } from "@/lib/validation";
 import { getHouseholdContext, getHouseholdMemberIds, verifyTaskHouseholdAccess } from "@/lib/household";
 
 // Helper to enrich comments with author data from platform.users
@@ -15,10 +17,10 @@ function enrichComments(comments: any[], lookups: { users: Map<string, any> }) {
 }
 
 // =============================================================
-// GET /api/tasks/:id/comments — List comments chronologically
+// GET /api/tasks/:id/comments — List comments (threaded or flat)
 // =============================================================
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
@@ -39,24 +41,67 @@ export async function GET(
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
-  const { data: rawComments, error } = await platform(supabase)
+  const flat = request.nextUrl.searchParams.get("flat") === "true";
+
+  let query = platform(supabase)
     .from("task_comments")
     .select("*")
     .eq("task_id", id)
     .order("created_at", { ascending: true });
+
+  if (!flat) {
+    // Top-level comments only; replies fetched separately
+    query = query.is("parent_id", null);
+  }
+
+  const { data: rawComments, error } = await query;
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
   const lookups = await getConfigLookups(supabase);
-  const comments = enrichComments(rawComments || [], lookups);
 
+  if (!flat && rawComments && rawComments.length > 0) {
+    // Fetch replies for all top-level comments
+    const parentIds = rawComments.map((c: any) => c.id);
+    const { data: rawReplies } = await platform(supabase)
+      .from("task_comments")
+      .select("*")
+      .in("parent_id", parentIds)
+      .order("created_at", { ascending: true });
+
+    const enrichedAll = enrichComments(
+      [...rawComments, ...(rawReplies || [])],
+      lookups
+    );
+
+    // Build threaded structure
+    const replyMap = new Map<string, any[]>();
+    for (const c of enrichedAll) {
+      if (c.parent_id) {
+        if (!replyMap.has(c.parent_id)) replyMap.set(c.parent_id, []);
+        replyMap.get(c.parent_id)!.push(c);
+      }
+    }
+
+    const threaded = enrichedAll
+      .filter((c: any) => !c.parent_id)
+      .map((c: any) => ({
+        ...c,
+        replies: replyMap.get(c.id) || [],
+        reply_count: (replyMap.get(c.id) || []).length,
+      }));
+
+    return NextResponse.json({ comments: threaded });
+  }
+
+  const comments = enrichComments(rawComments || [], lookups);
   return NextResponse.json({ comments });
 }
 
 // =============================================================
-// POST /api/tasks/:id/comments — Add a comment
+// POST /api/tasks/:id/comments — Add a comment (with threading + mentions)
 // =============================================================
 export async function POST(
   request: NextRequest,
@@ -83,7 +128,7 @@ export async function POST(
   let body;
 
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
-  const { body: commentBody } = body;
+  const { body: commentBody, parent_id } = body;
 
   if (
     !commentBody ||
@@ -94,6 +139,23 @@ export async function POST(
       { error: "Comment body is required" },
       { status: 400 }
     );
+  }
+
+  // Validate parent_id if provided (must be a comment on same task)
+  if (parent_id) {
+    if (!isValidUUID(parent_id)) {
+      return NextResponse.json({ error: "parent_id must be a valid UUID" }, { status: 400 });
+    }
+    const { data: parentComment } = await platform(supabase)
+      .from("task_comments")
+      .select("id")
+      .eq("id", parent_id)
+      .eq("task_id", id)
+      .single();
+
+    if (!parentComment) {
+      return NextResponse.json({ error: "Parent comment not found on this task" }, { status: 404 });
+    }
   }
 
   // Get task title for notifications
@@ -107,12 +169,15 @@ export async function POST(
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
+  const trimmedBody = commentBody.trim();
+
   const { data: rawComment, error } = await platform(supabase)
     .from("task_comments")
     .insert({
       task_id: id,
       user_id: user.id,
-      body: commentBody.trim(),
+      body: trimmedBody,
+      parent_id: parent_id || null,
     })
     .select("*")
     .single();
@@ -124,9 +189,9 @@ export async function POST(
   await logActivity(supabase, {
     entity_type: "task",
     entity_id: id,
-    action: "commented",
+    action: parent_id ? "replied" : "commented",
     performed_by: user.id,
-    metadata: { comment_id: rawComment.id },
+    metadata: { comment_id: rawComment.id, parent_id: parent_id || undefined },
   });
 
   // Update task's last_touched_at
@@ -135,14 +200,25 @@ export async function POST(
     .update({ last_touched_at: new Date().toISOString() })
     .eq("id", id);
 
+  // Parse @mentions (non-blocking)
+  let mentions: any[] = [];
+  try {
+    const mentionResult = await parseMentions(supabase, trimmedBody);
+    mentions = mentionResult.mentions || [];
+  } catch (err) {
+    console.error("Mention parsing error:", err);
+  }
+
   // Enrich with author data
   const lookups = await getConfigLookups(supabase);
   const comment = enrichComments([rawComment], lookups)[0];
 
   // Notify all involved users (non-blocking)
-  notifyTaskCommented(supabase, id, task.title, user.id, commentBody.trim()).catch(
+  notifyTaskCommented(supabase, id, task.title, user.id, trimmedBody).catch(
     (err) => console.error("Comment notification error:", err)
   );
 
-  return NextResponse.json({ comment }, { status: 201 });
+  return NextResponse.json({
+    comment: { ...comment, mentions },
+  }, { status: 201 });
 }
