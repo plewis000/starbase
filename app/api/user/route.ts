@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -16,14 +16,15 @@ export async function GET() {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  // Fire-and-forget: ensure gamification profile exists + track login
-  import("@/lib/gamification")
-    .then(async ({ ensureProfile, updateLoginStreak, awardXp }) => {
+  // Background: ensure gamification profile exists + track login (P024: use after() for serverless)
+  after(async () => {
+    try {
+      const { ensureProfile, updateLoginStreak, awardXp } = await import("@/lib/gamification");
       await ensureProfile(supabase, user.id);
       await updateLoginStreak(supabase, user.id);
       await awardXp(supabase, user.id, 5, "daily_login", "Daily login bonus");
-    })
-    .catch(() => {});
+    } catch { /* gamification is non-critical */ }
+  });
 
   // Check integration statuses
   const hasDiscord = !!process.env.DISCORD_BOT_TOKEN && !!process.env.DISCORD_GUILD_ID;
