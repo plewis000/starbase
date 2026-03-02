@@ -57,20 +57,30 @@
 - **Confidence:** 🟡 75% (Gmail fetch not wired yet — placeholder)
 - **Build:** PASS
 
-## Known Gaps
-1. **Gmail fetch from cron** — MCP tools are session-scoped. The cron route can't call Gmail MCP directly. Need either:
-   - Direct Gmail API with OAuth refresh token stored in Supabase
-   - Or: have Sisyphus CLI run the scan and post results to the API
-   - Decision deferred — this is the critical path item for the brief to actually work
-2. **Supabase schema exposure** — The `ea` schema needs to be added to Supabase Dashboard > Settings > API > Exposed schemas
-3. **EA_CHANNEL_ID env var** — Need a dedicated Discord channel for EA briefs (or reuse PIPELINE_CHANNEL_ID)
-4. **Discord command re-registration** — Need to hit POST /api/discord/setup to register the new /brief command
-5. **Migration not yet applied** — Migrations written but not yet run against Supabase
+## Task 4: QA Pass (Phase 1D)
+- **Mode:** DEVELOPER
+- **What:** Fixed 20 issues found by QA sweep (3 critical, 5 high, 8 medium, 4 low)
+- **Key fixes:**
+  - Removed module-level cache (stale across serverless warm starts)
+  - Added fallback for AI classification failures (no silent email drops)
+  - Fixed was_surfaced flag using actual surfacedIds from ranking
+  - Added Discord 2000 char limit handling
+  - Lazy-import anthropic client (no crash on routes that don't need AI)
+  - Guard parseInt(internalDate) with Date.now() fallback
+  - Removed unused imports from cron route
+- **Confidence:** 🟢 90%
+- **Build:** PASS
 
-## Session Summary (in progress)
-- **Tasks completed:** 3 (schema, classifier, brief gen)
-- **PRs created:** 0 (will create after QA pass)
-- **High-value work remaining:** Yes — Gmail fetch, migration apply, E2E test, QA
-- **Blocked tasks:** Gmail cron fetch (needs OAuth decision)
-- **Waterfall position:** Priority 1 (parking lot item: EA project)
-- **Diminishing returns reached:** No
+## Known Gaps (Updated)
+1. **Gmail fetch from cron** — BLOCKED on Parker. MCP tools are session-scoped. Need OAuth refresh token flow. Parker must click "Allow" on Google consent screen.
+2. **Supabase schema exposure** — The `ea` schema needs to be added to Supabase Dashboard > Settings > API > Exposed schemas. Can use Chrome extension for this.
+3. **Discord bot token INVALID** — BLOCKED on Parker. Token returns 401. Parker needs to reset in Developer Portal → Bot → Reset Token. Once reset: create #ea-briefs channel, register /brief command, set EA_CHANNEL_ID.
+4. ~~Migration not yet applied~~ — ✅ DONE (applied via Supabase MCP, verified: 41 senders, 9 categories, 14 rules)
+
+## Session Summary
+- **Tasks completed:** 4 (schema, classifier, brief gen, QA pass)
+- **PRs created:** 0 (creating now)
+- **Blocked on Parker:** Discord bot token reset, Gmail OAuth consent
+- **Waterfall position:** EA Phase 1 core complete, blocked on external auth
+- **Diminishing returns on EA:** Yes — remaining work requires Parker's auth actions
+- **Next:** Moving to other projects per Parker's request
