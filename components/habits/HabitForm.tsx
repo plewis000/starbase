@@ -37,6 +37,8 @@ export default function HabitForm({ onSave, onCancel }: HabitFormProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [frequencyId, setFrequencyId] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [timePreferenceId, setTimePreferenceId] = useState("");
   const [targetCount, setTargetCount] = useState("1");
   const [specificDays, setSpecificDays] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
@@ -44,6 +46,8 @@ export default function HabitForm({ onSave, onCancel }: HabitFormProps) {
   const [selectedGoalIds, setSelectedGoalIds] = useState<string[]>([]);
 
   const [frequencies, setFrequencies] = useState<ConfigItem[]>([]);
+  const [categories, setCategories] = useState<ConfigItem[]>([]);
+  const [timePreferences, setTimePreferences] = useState<ConfigItem[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
 
   useEffect(() => {
@@ -53,6 +57,8 @@ export default function HabitForm({ onSave, onCancel }: HabitFormProps) {
         if (res.ok) {
           const data = await res.json();
           setFrequencies(data.habit_frequencies || []);
+          setCategories(data.goal_categories || []);
+          setTimePreferences(data.habit_time_preferences || []);
           // Default to first frequency
           if (data.habit_frequencies?.length > 0 && !frequencyId) {
             setFrequencyId(data.habit_frequencies[0].id);
@@ -107,6 +113,8 @@ export default function HabitForm({ onSave, onCancel }: HabitFormProps) {
         frequency_id: frequencyId,
         target_count: parseInt(targetCount) || 1,
       };
+      if (categoryId) body.category_id = categoryId;
+      if (timePreferenceId) body.time_preference_id = timePreferenceId;
       if (specificDays.length > 0) body.specific_days = specificDays;
       if (selectedGoalIds.length > 0) body.goal_ids = selectedGoalIds;
 
@@ -157,6 +165,35 @@ export default function HabitForm({ onSave, onCancel }: HabitFormProps) {
           rows={2}
           className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400/50 resize-none"
         />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-slate-300 mb-1">Category</label>
+          <select
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value)}
+            className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:border-red-400/50"
+          >
+            <option value="">None</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>{c.icon ? `${c.icon} ` : ""}{c.name}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-300 mb-1">Best time</label>
+          <select
+            value={timePreferenceId}
+            onChange={(e) => setTimePreferenceId(e.target.value)}
+            className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:border-red-400/50"
+          >
+            <option value="">Anytime</option>
+            {timePreferences.map((t) => (
+              <option key={t.id} value={t.id}>{t.icon ? `${t.icon} ` : ""}{t.name}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
