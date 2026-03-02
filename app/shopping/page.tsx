@@ -53,6 +53,7 @@ export default function ShoppingPage() {
   const [newItemName, setNewItemName] = useState("");
   const [newItemQty, setNewItemQty] = useState("");
   const [newItemCategory, setNewItemCategory] = useState("");
+  const [linkedItemIds, setLinkedItemIds] = useState<Set<string>>(new Set());
 
   // Fetch all lists
   const fetchLists = useCallback(async () => {
@@ -107,6 +108,38 @@ export default function ShoppingPage() {
 
   useEffect(() => { fetchLists(); }, [fetchLists]);
   useEffect(() => { fetchActiveList(); }, [fetchActiveList]);
+
+  // Check which shopping items have entity links
+  useEffect(() => {
+    if (!activeList?.items || activeList.items.length === 0) {
+      setLinkedItemIds(new Set());
+      return;
+    }
+    const checkLinks = async () => {
+      const linked = new Set<string>();
+      // Batch check — fetch links for each item (max 30 to avoid flooding)
+      const itemsToCheck = activeList.items!.slice(0, 30);
+      await Promise.allSettled(
+        itemsToCheck.map(async (item) => {
+          try {
+            const res = await fetch(
+              `/api/entity-links?entity_type=shopping_item&entity_id=${item.id}`
+            );
+            if (res.ok) {
+              const data = await res.json();
+              if (data.links && data.links.length > 0) {
+                linked.add(item.id);
+              }
+            }
+          } catch {
+            // Best effort
+          }
+        })
+      );
+      setLinkedItemIds(linked);
+    };
+    checkLinks();
+  }, [activeList]);
 
   // Extract categories from items
   useEffect(() => {
@@ -263,6 +296,7 @@ export default function ShoppingPage() {
         throw new Error("Failed to create link");
       }
 
+      setLinkedItemIds((prev) => new Set([...prev, item.id]));
       toast.success(`Task created and linked to "${item.name}"`);
     } catch {
       toast.error("Failed to track as task");
@@ -463,8 +497,15 @@ export default function ShoppingPage() {
                             </span>
                           )}
 
+                          {/* Linked badge */}
+                          {linkedItemIds.has(item.id) && (
+                            <span className="text-xs text-blue-400" title="Linked to task">
+                              ⚡
+                            </span>
+                          )}
+
                           {/* Track as task button */}
-                          {!item.checked && (
+                          {!item.checked && !linkedItemIds.has(item.id) && (
                             <button
                               onClick={() => handleTrackAsTask(item)}
                               disabled={trackingItemId === item.id}
