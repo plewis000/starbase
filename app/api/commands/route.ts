@@ -164,7 +164,7 @@ async function executeCommand(
       .select("id, title, current_streak, best_streak, status")
       .eq("owner_id", userId)
       .eq("status", "active")
-      .order("name");
+      .order("title");
 
     if (!habits || habits.length === 0) return { response: "No active habits. The Training Grounds are empty." };
 
@@ -172,7 +172,7 @@ async function executeCommand(
     const { data: checkins } = await platform(supabase)
       .from("habit_check_ins")
       .select("habit_id")
-      .eq("user_id", userId)
+      .eq("checked_by", userId)
       .eq("check_date", today);
 
     const doneIds = new Set((checkins || []).map((c) => c.habit_id));
@@ -297,16 +297,16 @@ async function executeCommand(
   if (lower === "goals") {
     const { data: goals } = await platform(supabase)
       .from("goals")
-      .select("id, title, status, progress_pct, target_date")
+      .select("id, title, status, progress_value, target_date")
       .eq("owner_id", userId)
-      .in("status", ["active", "in_progress"])
+      .in("status", ["active"])
       .order("target_date", { ascending: true })
       .limit(10);
 
     if (!goals || goals.length === 0) return { response: "No active goals. Visit the War Room to set some." };
 
     const lines = goals.map((g) => {
-      const pct = g.progress_pct ? `${Math.round(g.progress_pct)}%` : "0%";
+      const pct = g.progress_value ? `${Math.round(g.progress_value)}%` : "0%";
       const due = g.target_date ? ` (target: ${g.target_date})` : "";
       return `• ${g.title} — ${pct}${due}`;
     });
@@ -383,7 +383,7 @@ async function executeCommand(
       platform(supabase)
         .from("habit_check_ins")
         .select("id", { count: "exact", head: true })
-        .eq("user_id", userId)
+        .eq("checked_by", userId)
         .eq("check_date", today),
       platform(supabase)
         .from("xp_ledger")

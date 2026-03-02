@@ -33,7 +33,7 @@ interface CrawlerData {
     xpInLevel: number;
     progress: number;
   };
-  recentXp: { action_type: string; xp_amount: number; description: string }[];
+  recentXp: { action_type: string; amount: number; description: string }[];
 }
 
 export default function DashboardPage() {
