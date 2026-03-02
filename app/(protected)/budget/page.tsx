@@ -6,6 +6,8 @@ import SpendingSummary from "@/components/finance/SpendingSummary";
 import BudgetOverview from "@/components/finance/BudgetOverview";
 import PlaidLink from "@/components/finance/PlaidLink";
 import AccountsList from "@/components/finance/AccountsList";
+import PageHeader from "@/components/ui/PageHeader";
+import TabBar from "@/components/ui/TabBar";
 
 type Tab = "triage" | "spending" | "budgets" | "accounts";
 
@@ -47,34 +49,21 @@ export default function BudgetPage() {
   return (
     <div className="p-6">
       <div className="max-w-5xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-slate-100">Budget</h1>
-          {hasAccounts === false && (
-            <PlaidLink onSuccess={() => { checkAccounts(); fetchCounts(); }} />
-          )}
-        </div>
+        <PageHeader
+          title="The Vault"
+          subtitle="Track spending, set budgets, stay accountable."
+          action={
+            hasAccounts === false ? (
+              <PlaidLink onSuccess={() => { checkAccounts(); fetchCounts(); }} />
+            ) : undefined
+          }
+        />
 
-        {/* Tab bar */}
-        <div className="flex gap-1 bg-slate-900 p-1 rounded-lg border border-slate-800">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 px-4 py-2.5 rounded-md text-sm font-medium transition-all relative ${
-                activeTab === tab.id
-                  ? "bg-slate-800 text-red-400"
-                  : "text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              {tab.label}
-              {tab.badge !== undefined && (
-                <span className="ml-2 inline-flex items-center justify-center w-5 h-5 text-xs bg-amber-500/20 text-amber-300 rounded-full">
-                  {tab.badge > 99 ? "99+" : tab.badge}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
+        <TabBar
+          tabs={tabs.map((t) => ({ id: t.id, label: t.label, count: t.badge }))}
+          activeTab={activeTab}
+          onTabChange={(id) => setActiveTab(id as Tab)}
+        />
 
         {/* Tab content */}
         {activeTab === "triage" && (

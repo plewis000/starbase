@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import Link from "next/link";
 import { useToast } from "@/components/ui/Toast";
+import PageHeader from "@/components/ui/PageHeader";
 
 interface Goal {
   id: string;
@@ -95,29 +95,23 @@ export default function PartyGoalsPage() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Link href="/crawl" className="text-slate-400 hover:text-slate-100 text-sm transition-colors">
-              The Crawl
-            </Link>
-            <span className="text-slate-600">/</span>
-            <span className="text-slate-100 text-sm font-medium">Party Quests</span>
-          </div>
-          <h1 className="text-2xl font-bold text-slate-100">Party Quests</h1>
-          <p className="text-sm text-slate-400 mt-1">
-            Shared goals for the household. Complete together for bonus XP. The System respects cooperation. Barely.
-          </p>
-        </div>
-        <button
-          onClick={() => setShowPicker(true)}
-          disabled={unlinkedGoals.length === 0}
-          className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors"
-        >
-          + Add Quest
-        </button>
-      </div>
+      <PageHeader
+        title="Party Quests"
+        subtitle="Shared goals for the household. Complete together for bonus XP. The System respects cooperation. Barely."
+        breadcrumbs={[
+          { label: "The Crawl", href: "/crawl" },
+          { label: "Party Quests" },
+        ]}
+        action={
+          <button
+            onClick={() => setShowPicker(true)}
+            disabled={unlinkedGoals.length === 0}
+            className="dcc-btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            + Add Quest
+          </button>
+        }
+      />
 
       {/* Goal Picker */}
       {showPicker && (

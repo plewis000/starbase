@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import OutcomesPanel from "@/components/dashboard/OutcomesPanel";
+import { DashboardSkeleton } from "@/components/ui/Skeleton";
 
 interface Task {
   id: string;
@@ -94,13 +95,7 @@ export default function DashboardPage() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="p-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-dungeon-500 font-mono text-sm">Loading systems...</div>
-        </div>
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   return (
