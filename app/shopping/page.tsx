@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import EmptyState from "@/components/ui/EmptyState";
 import Modal from "@/components/ui/Modal";
+import { useToast } from "@/components/ui/Toast";
 
 interface ShoppingCategory {
   id: string;
@@ -38,8 +39,10 @@ interface ShoppingList {
 }
 
 export default function ShoppingPage() {
+  const toast = useToast();
   const [lists, setLists] = useState<ShoppingList[]>([]);
   const [activeListId, setActiveListId] = useState<string | null>(null);
+  const [trackingItemId, setTrackingItemId] = useState<string | null>(null);
   const [activeList, setActiveList] = useState<ShoppingList | null>(null);
   const [categories, setCategories] = useState<ShoppingCategory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -224,6 +227,47 @@ export default function ShoppingPage() {
       await fetchLists();
     } catch (err) {
       console.error("Failed to delete list:", err);
+    }
+  };
+
+  const handleTrackAsTask = async (item: ShoppingItem) => {
+    setTrackingItemId(item.id);
+    try {
+      // 1. Create a task with the shopping item's name
+      const taskRes = await fetch("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: `Buy: ${item.name}${item.quantity ? ` (${item.quantity})` : ""}`,
+        }),
+      });
+      if (!taskRes.ok) throw new Error("Failed to create task");
+      const taskData = await taskRes.json();
+      const taskId = taskData.task?.id;
+      if (!taskId) throw new Error("No task ID returned");
+
+      // 2. Create entity link between shopping item and task
+      const linkRes = await fetch("/api/entity-links", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          source_type: "shopping_item",
+          source_id: item.id,
+          target_type: "task",
+          target_id: taskId,
+          link_type: "syncs_with",
+          sync_completion: true,
+        }),
+      });
+      if (!linkRes.ok && linkRes.status !== 409) {
+        throw new Error("Failed to create link");
+      }
+
+      toast.success(`Task created and linked to "${item.name}"`);
+    } catch {
+      toast.error("Failed to track as task");
+    } finally {
+      setTrackingItemId(null);
     }
   };
 
@@ -417,6 +461,26 @@ export default function ShoppingPage() {
                             <span className="text-xs text-amber-400" title="Staple item">
                               ★
                             </span>
+                          )}
+
+                          {/* Track as task button */}
+                          {!item.checked && (
+                            <button
+                              onClick={() => handleTrackAsTask(item)}
+                              disabled={trackingItemId === item.id}
+                              className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-blue-400 transition-all p-1 flex-shrink-0"
+                              title="Track as task"
+                            >
+                              {trackingItemId === item.id ? (
+                                <span className="text-xs">...</span>
+                              ) : (
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                  <line x1="12" y1="8" x2="12" y2="16" />
+                                  <line x1="8" y1="12" x2="16" y2="12" />
+                                </svg>
+                              )}
+                            </button>
                           )}
 
                           {/* Delete button */}
