@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { EntityLink, LinkableEntityType, EntityLinkType } from "@/lib/types";
+import LinkPicker from "./LinkPicker";
 
 interface EntityLinksSectionProps {
   entityType: LinkableEntityType;
@@ -15,6 +16,7 @@ interface LinkedEntityDisplay {
   linkedId: string;
   direction: "outgoing" | "incoming";
   label: string;
+  displayName?: string;
 }
 
 const LINK_TYPE_LABELS: Record<EntityLinkType, { outgoing: string; incoming: string }> = {
@@ -37,9 +39,9 @@ const ENTITY_TYPE_LABELS: Record<LinkableEntityType, string> = {
   shopping_item: "Shopping",
 };
 
-// Linkable target types per entity type
-const LINKABLE_TARGETS: Record<LinkableEntityType, LinkableEntityType[]> = {
-  task: ["shopping_item", "habit", "goal"],
+// Linkable target types per entity type (only types with searchable APIs for the picker)
+const LINKABLE_PICKER_TYPES: Record<LinkableEntityType, Array<"task" | "habit" | "goal">> = {
+  task: ["habit", "goal"],
   habit: ["task", "goal"],
   goal: ["task", "habit"],
   shopping_item: ["task"],
@@ -52,13 +54,9 @@ export default function EntityLinksSection({
 }: EntityLinksSectionProps) {
   const [links, setLinks] = useState<EntityLink[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showLinkForm, setShowLinkForm] = useState(false);
-  const [linkTargetType, setLinkTargetType] = useState<LinkableEntityType | "">("");
-  const [linkTargetId, setLinkTargetId] = useState("");
-  const [linkType, setLinkType] = useState<EntityLinkType>("syncs_with");
-  const [syncCompletion, setSyncCompletion] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [error, setError] = useState("");
+  const [entityNames, setEntityNames] = useState<Record<string, string>>({});
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerTargetType, setPickerTargetType] = useState<"task" | "habit" | "goal">("task");
 
   const fetchLinks = useCallback(async () => {
     try {
@@ -70,7 +68,7 @@ export default function EntityLinksSection({
         setLinks(data.links || []);
       }
     } catch {
-      // Silently fail — section just shows empty
+      // Silently fail
     } finally {
       setLoading(false);
     }
@@ -79,6 +77,57 @@ export default function EntityLinksSection({
   useEffect(() => {
     fetchLinks();
   }, [fetchLinks]);
+
+  // Fetch display names for linked entities
+  useEffect(() => {
+    if (links.length === 0) return;
+
+    const idsToFetch: { type: LinkableEntityType; id: string }[] = [];
+    for (const link of links) {
+      const isSource = link.source_type === entityType && link.source_id === entityId;
+      const linkedType = isSource ? link.target_type : link.source_type;
+      const linkedId = isSource ? link.target_id : link.source_id;
+      const key = `${linkedType}:${linkedId}`;
+      if (!entityNames[key]) {
+        idsToFetch.push({ type: linkedType, id: linkedId });
+      }
+    }
+
+    if (idsToFetch.length === 0) return;
+
+    // Fetch names in parallel — best effort
+    const fetchNames = async () => {
+      const newNames: Record<string, string> = {};
+      await Promise.allSettled(
+        idsToFetch.map(async ({ type, id }) => {
+          try {
+            let url = "";
+            if (type === "task") url = `/api/tasks/${id}`;
+            else if (type === "habit") url = `/api/habits/${id}`;
+            else if (type === "goal") url = `/api/goals/${id}`;
+            else return; // shopping_item has no individual fetch endpoint
+
+            const res = await fetch(url);
+            if (res.ok) {
+              const data = await res.json();
+              const entity = data.task || data.habit || data.goal;
+              if (entity) {
+                newNames[`${type}:${id}`] = entity.title || entity.name || id.slice(0, 8);
+              }
+            }
+          } catch {
+            // Best effort
+          }
+        })
+      );
+
+      if (Object.keys(newNames).length > 0) {
+        setEntityNames((prev) => ({ ...prev, ...newNames }));
+      }
+    };
+
+    fetchNames();
+  }, [links, entityType, entityId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const displayLinks: LinkedEntityDisplay[] = links.map((link) => {
     const isSource = link.source_type === entityType && link.source_id === entityId;
@@ -89,6 +138,7 @@ export default function EntityLinksSection({
       outgoing: link.link_type,
       incoming: link.link_type,
     };
+    const nameKey = `${linkedType}:${linkedId}`;
 
     return {
       link,
@@ -96,50 +146,31 @@ export default function EntityLinksSection({
       linkedId,
       direction,
       label: labels[direction],
+      displayName: entityNames[nameKey],
     };
   });
 
-  const handleCreateLink = async () => {
-    if (!linkTargetType || !linkTargetId.trim()) return;
-    setCreating(true);
-    setError("");
-
-    try {
-      const res = await fetch("/api/entity-links", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          source_type: entityType,
-          source_id: entityId,
-          target_type: linkTargetType,
-          target_id: linkTargetId.trim(),
-          link_type: linkType,
-          sync_completion: syncCompletion,
-        }),
-      });
-
-      if (res.status === 409) {
-        setError("Link already exists");
-        return;
+  const handlePickerSelect = async (selectedIds: string[]) => {
+    // Create entity links for each selected entity
+    for (const targetId of selectedIds) {
+      try {
+        await fetch("/api/entity-links", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            source_type: entityType,
+            source_id: entityId,
+            target_type: pickerTargetType,
+            target_id: targetId,
+            link_type: "syncs_with",
+            sync_completion: false,
+          }),
+        });
+      } catch {
+        // Skip individual failures
       }
-
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data.error || "Failed to create link");
-        return;
-      }
-
-      setShowLinkForm(false);
-      setLinkTargetType("");
-      setLinkTargetId("");
-      setLinkType("syncs_with");
-      setSyncCompletion(false);
-      await fetchLinks();
-    } catch {
-      setError("Failed to create link");
-    } finally {
-      setCreating(false);
     }
+    await fetchLinks();
   };
 
   const handleRemoveLink = async (linkId: string) => {
@@ -151,49 +182,78 @@ export default function EntityLinksSection({
     }
   };
 
-  if (loading) return null; // Don't show skeleton for this section
-  if (links.length === 0 && !showLinkForm) {
+  const openPicker = (targetType: "task" | "habit" | "goal") => {
+    setPickerTargetType(targetType);
+    setPickerOpen(true);
+  };
+
+  // Get IDs already linked for excluding from picker
+  const linkedIds = links.map((l) => {
+    const isSource = l.source_type === entityType && l.source_id === entityId;
+    return isSource ? l.target_id : l.source_id;
+  });
+
+  if (loading) return null;
+
+  const availableTypes = LINKABLE_PICKER_TYPES[entityType];
+
+  if (links.length === 0) {
     return (
-      <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-slate-100">Linked Items</h3>
-          <button
-            onClick={() => setShowLinkForm(true)}
-            className="text-xs text-slate-400 hover:text-red-400 transition-colors"
-          >
-            + Add Link
-          </button>
+      <>
+        <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-semibold text-slate-100">Linked Items</h3>
+          </div>
+          <p className="text-xs text-slate-500 mb-3">
+            No linked items. Link to tasks, habits, or goals.
+          </p>
+          <div className="flex gap-2">
+            {availableTypes.map((t) => (
+              <button
+                key={t}
+                onClick={() => openPicker(t)}
+                className="px-3 py-1.5 text-xs text-slate-400 hover:text-red-400 bg-slate-900 border border-slate-700 hover:border-red-400/30 rounded-lg transition-colors"
+              >
+                {ENTITY_TYPE_ICONS[t]} Link {ENTITY_TYPE_LABELS[t]}
+              </button>
+            ))}
+          </div>
         </div>
-        <p className="text-xs text-slate-500 mt-2">
-          No linked items. Link to tasks, habits, goals, or shopping items.
-        </p>
-      </div>
+        <LinkPicker
+          entityType={pickerTargetType}
+          onSelect={handlePickerSelect}
+          excludeIds={linkedIds}
+          isOpen={pickerOpen}
+          onClose={() => setPickerOpen(false)}
+        />
+      </>
     );
   }
 
   return (
-    <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-slate-100">
-          Linked Items{" "}
-          {links.length > 0 && (
+    <>
+      <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-slate-100">
+            Linked Items{" "}
             <span className="text-xs text-slate-400 font-normal">({links.length})</span>
-          )}
-        </h3>
-        {!showLinkForm && (
-          <button
-            onClick={() => setShowLinkForm(true)}
-            className="text-xs text-slate-400 hover:text-red-400 transition-colors"
-          >
-            + Add Link
-          </button>
-        )}
-      </div>
+          </h3>
+          <div className="flex gap-1">
+            {availableTypes.map((t) => (
+              <button
+                key={t}
+                onClick={() => openPicker(t)}
+                className="text-xs text-slate-500 hover:text-red-400 transition-colors px-1.5 py-0.5"
+                title={`Link ${ENTITY_TYPE_LABELS[t]}`}
+              >
+                + {ENTITY_TYPE_LABELS[t]}
+              </button>
+            ))}
+          </div>
+        </div>
 
-      {/* Existing links */}
-      {displayLinks.length > 0 && (
-        <div className="space-y-2 mb-3">
-          {displayLinks.map(({ link, linkedType, linkedId, label }) => (
+        <div className="space-y-2">
+          {displayLinks.map(({ link, linkedType, linkedId, label, displayName }) => (
             <div
               key={link.id}
               className="flex items-center gap-2 p-2 bg-slate-900 rounded-lg border border-slate-800 group"
@@ -207,25 +267,25 @@ export default function EntityLinksSection({
                   <span className="text-xs px-1.5 py-0.5 bg-slate-800 rounded text-slate-400">
                     {ENTITY_TYPE_LABELS[linkedType]}
                   </span>
+                  {link.sync_completion && (
+                    <span
+                      className="text-xs text-amber-400"
+                      title="Completion synced"
+                    >
+                      sync
+                    </span>
+                  )}
                 </div>
                 <p
                   className={`text-sm text-slate-300 truncate ${
                     onNavigate ? "cursor-pointer hover:text-red-400" : ""
                   }`}
                   onClick={() => onNavigate?.(linkedType, linkedId)}
-                  title={linkedId}
+                  title={displayName || linkedId}
                 >
-                  {linkedId.slice(0, 8)}...
+                  {displayName || `${linkedId.slice(0, 8)}...`}
                 </p>
               </div>
-              {link.sync_completion && (
-                <span
-                  className="text-xs text-amber-400 flex-shrink-0"
-                  title="Completion synced"
-                >
-                  ⚡
-                </span>
-              )}
               <button
                 onClick={() => handleRemoveLink(link.id)}
                 className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 transition-all p-1 flex-shrink-0"
@@ -247,83 +307,14 @@ export default function EntityLinksSection({
             </div>
           ))}
         </div>
-      )}
-
-      {/* Add link form */}
-      {showLinkForm && (
-        <div className="bg-slate-900 rounded-lg p-3 space-y-3 border border-slate-700">
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-xs text-slate-400 mb-1 block">Target Type</label>
-              <select
-                value={linkTargetType}
-                onChange={(e) => setLinkTargetType(e.target.value as LinkableEntityType)}
-                className="w-full px-2 py-1.5 bg-slate-800 border border-slate-700 rounded text-sm text-slate-100 focus:outline-none focus:border-red-400"
-              >
-                <option value="">Select...</option>
-                {LINKABLE_TARGETS[entityType].map((t) => (
-                  <option key={t} value={t}>
-                    {ENTITY_TYPE_ICONS[t]} {ENTITY_TYPE_LABELS[t]}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs text-slate-400 mb-1 block">Link Type</label>
-              <select
-                value={linkType}
-                onChange={(e) => setLinkType(e.target.value as EntityLinkType)}
-                className="w-full px-2 py-1.5 bg-slate-800 border border-slate-700 rounded text-sm text-slate-100 focus:outline-none focus:border-red-400"
-              >
-                <option value="syncs_with">Syncs with</option>
-                <option value="derived_from">Derived from</option>
-                <option value="tracks">Tracks</option>
-              </select>
-            </div>
-          </div>
-          <div>
-            <label className="text-xs text-slate-400 mb-1 block">Target ID</label>
-            <input
-              type="text"
-              value={linkTargetId}
-              onChange={(e) => setLinkTargetId(e.target.value)}
-              placeholder="Paste entity UUID..."
-              className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="sync-completion"
-              checked={syncCompletion}
-              onChange={(e) => setSyncCompletion(e.target.checked)}
-              className="rounded accent-red-400"
-            />
-            <label htmlFor="sync-completion" className="text-xs text-slate-400">
-              Sync completion (completing one completes the other)
-            </label>
-          </div>
-          {error && <p className="text-xs text-red-400">{error}</p>}
-          <div className="flex gap-2">
-            <button
-              onClick={() => {
-                setShowLinkForm(false);
-                setError("");
-              }}
-              className="flex-1 px-3 py-1.5 text-slate-400 hover:text-slate-100 transition-colors text-sm"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleCreateLink}
-              disabled={creating || !linkTargetType || !linkTargetId.trim()}
-              className="flex-1 px-3 py-1.5 bg-red-400 hover:bg-red-500 disabled:bg-slate-700 disabled:cursor-not-allowed text-slate-950 font-medium rounded text-sm transition-colors"
-            >
-              {creating ? "Linking..." : "Link"}
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
+      </div>
+      <LinkPicker
+        entityType={pickerTargetType}
+        onSelect={handlePickerSelect}
+        excludeIds={linkedIds}
+        isOpen={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+      />
+    </>
   );
 }
