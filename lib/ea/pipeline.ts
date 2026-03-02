@@ -2,19 +2,14 @@
  * EA Pipeline — Orchestrator
  *
  * The main entry point for running the EA pipeline:
- * 1. Scan Gmail for new emails (via MCP tools from the API route)
- * 2. Filter already-processed emails
- * 3. Classify (rules + AI)
- * 4. Generate brief
- * 5. Deliver via Discord
- * 6. Store signals + brief
- *
- * Called from:
- * - /api/cron/ea-brief (daily 8am PST trigger)
- * - /api/ea/brief (on-demand via /brief slash command)
+ * 1. Filter already-processed emails
+ * 2. Classify (rules + AI)
+ * 3. Generate brief
+ * 4. Deliver via Discord
+ * 5. Store signals + brief
  */
 
-import { loadClassifierConfig, classifyEmails, clearClassifierCache } from "./classifier";
+import { classifyEmails } from "./classifier";
 import { filterAlreadyProcessed, updateScanState, type ParsedEmail } from "./scanner";
 import { generateBrief, storeBrief, storeEmailSignals } from "./brief-generator";
 import { sendMessage } from "@/lib/discord";
@@ -31,13 +26,6 @@ export interface PipelineResult {
   error?: string;
 }
 
-/**
- * Run the full EA pipeline.
- *
- * @param parsedEmails - Pre-parsed emails from Gmail MCP (the API route handles fetching)
- * @param briefType - "daily" | "on_demand" | "weekly"
- * @param discordChannelId - Channel to deliver the brief to
- */
 export async function runPipeline(
   parsedEmails: ParsedEmail[],
   briefType: "daily" | "on_demand" | "weekly" = "daily",
@@ -46,8 +34,8 @@ export async function runPipeline(
   try {
     // Step 1: Filter already-processed
     const allIds = parsedEmails.map((e) => e.gmail_message_id);
-    const newIds = await filterAlreadyProcessed(allIds);
-    const newEmails = parsedEmails.filter((e) => newIds.includes(e.gmail_message_id));
+    const newIdSet = new Set(await filterAlreadyProcessed(allIds));
+    const newEmails = parsedEmails.filter((e) => newIdSet.has(e.gmail_message_id));
 
     if (newEmails.length === 0) {
       return {
@@ -61,25 +49,26 @@ export async function runPipeline(
       };
     }
 
-    // Step 2: Load classifier config + classify
-    await loadClassifierConfig();
+    // Step 2: Classify
     const classified = await classifyEmails(newEmails);
-    clearClassifierCache();
 
     // Step 3: Generate brief
     const brief = await generateBrief(classified, briefType);
 
-    // Step 4: Store brief + signals
+    // Step 4: Store brief
     const briefId = await storeBrief(brief);
-    await storeEmailSignals(classified, briefId);
 
-    // Step 5: Deliver via Discord
+    // Step 5: Store signals with correct was_surfaced flag
+    const surfacedIds = new Set(brief.items.map((item) => item.signal_id));
+    await storeEmailSignals(classified, briefId, surfacedIds);
+
+    // Step 6: Deliver via Discord
     if (discordChannelId && brief.discord_text) {
       await sendMessage(discordChannelId, brief.discord_text);
     }
 
-    // Step 6: Update scan state
-    await updateScanState(parsedEmails.length);
+    // Step 7: Update scan state
+    await updateScanState(newEmails.length);
 
     return {
       success: true,

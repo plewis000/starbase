@@ -45,7 +45,7 @@ export function parseGmailMessage(msg: GmailMessage): ParsedEmail {
   return {
     gmail_message_id: msg.id,
     gmail_thread_id: msg.threadId,
-    received_at: new Date(parseInt(msg.internalDate)).toISOString(),
+    received_at: new Date(parseInt(msg.internalDate) || Date.now()).toISOString(),
     sender: getHeader("From") || "unknown",
     subject: getHeader("Subject"),
     snippet: msg.snippet || null,

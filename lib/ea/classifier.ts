@@ -12,7 +12,6 @@
 
 import { createServiceClient } from "@/lib/supabase/service";
 import { ea } from "@/lib/supabase/schemas";
-import { anthropic, getModel } from "@/lib/agent/client";
 import type {
   SenderProfile,
   CategoryConfig,
@@ -22,13 +21,20 @@ import type {
   ClassifiedEmail,
 } from "./types";
 
-// ── Cached config (loaded once per pipeline run) ──
+const VALID_CATEGORIES = new Set<EmailCategory>([
+  "health", "financial", "family", "household", "dev_infrastructure",
+  "work_shuttle", "security_auth", "promotions", "community", "other",
+]);
 
-let senderProfileCache: SenderProfile[] | null = null;
-let categoryConfigCache: Map<string, CategoryConfig> | null = null;
-let explicitRulesCache: ExplicitRule[] | null = null;
+// ── Config loading (per-call, not cached across invocations) ──
 
-export async function loadClassifierConfig() {
+interface ClassifierConfig {
+  profiles: SenderProfile[];
+  categories: Map<string, CategoryConfig>;
+  rules: ExplicitRule[];
+}
+
+export async function loadClassifierConfig(): Promise<ClassifierConfig> {
   const supabase = createServiceClient();
 
   const [{ data: profiles }, { data: categories }, { data: rules }] = await Promise.all([
@@ -37,37 +43,36 @@ export async function loadClassifierConfig() {
     ea(supabase).from("explicit_rules").select("*").eq("active", true),
   ]);
 
-  senderProfileCache = profiles || [];
-  categoryConfigCache = new Map(
-    (categories || []).map((c: CategoryConfig) => [c.category_name, c])
-  );
-  explicitRulesCache = rules || [];
-}
-
-export function clearClassifierCache() {
-  senderProfileCache = null;
-  categoryConfigCache = null;
-  explicitRulesCache = null;
+  return {
+    profiles: profiles || [],
+    categories: new Map(
+      (categories || []).map((c: CategoryConfig) => [c.category_name, c])
+    ),
+    rules: rules || [],
+  };
 }
 
 // ── Sender Matching ──
 
 function extractDomain(email: string): string {
   const at = email.lastIndexOf("@");
-  return at >= 0 ? email.slice(at + 1).toLowerCase() : email.toLowerCase();
+  if (at < 0 || at === email.length - 1) return "unknown";
+  return email.slice(at + 1).toLowerCase();
 }
 
-function findSenderProfile(senderEmail: string, domain: string): SenderProfile | null {
-  if (!senderProfileCache) return null;
-
+function findSenderProfile(
+  senderEmail: string,
+  domain: string,
+  profiles: SenderProfile[]
+): SenderProfile | null {
   // Exact email match first
-  const exactMatch = senderProfileCache.find(
+  const exactMatch = profiles.find(
     (p) => p.sender_email && p.sender_email.toLowerCase() === senderEmail.toLowerCase()
   );
   if (exactMatch) return exactMatch;
 
   // Domain match (may return multiple — pick highest importance)
-  const domainMatches = senderProfileCache.filter(
+  const domainMatches = profiles.filter(
     (p) => p.sender_domain.toLowerCase() === domain.toLowerCase()
   );
 
@@ -80,7 +85,6 @@ function findSenderProfile(senderEmail: string, domain: string): SenderProfile |
 // ── Explicit Rule Matching ──
 
 function matchesPattern(pattern: string, email: string, domain: string): boolean {
-  // Pattern format: "*@domain.com" or exact email
   if (pattern.startsWith("*@")) {
     const patternDomain = pattern.slice(2).toLowerCase();
     return domain.toLowerCase() === patternDomain ||
@@ -89,18 +93,20 @@ function matchesPattern(pattern: string, email: string, domain: string): boolean
   return email.toLowerCase() === pattern.toLowerCase();
 }
 
-function checkExplicitRules(senderEmail: string, domain: string): {
+function checkExplicitRules(
+  senderEmail: string,
+  domain: string,
+  rules: ExplicitRule[]
+): {
   alwaysSurface: boolean;
   autoSuppress: boolean;
   shareWith: string[];
 } {
-  if (!explicitRulesCache) return { alwaysSurface: false, autoSuppress: false, shareWith: [] };
-
   let alwaysSurface = false;
   let autoSuppress = false;
   const shareWith: string[] = [];
 
-  for (const rule of explicitRulesCache) {
+  for (const rule of rules) {
     if (!rule.sender_pattern) continue;
     if (!matchesPattern(rule.sender_pattern, senderEmail, domain)) continue;
 
@@ -117,16 +123,13 @@ function checkExplicitRules(senderEmail: string, domain: string): {
     }
   }
 
-  // always_surface overrides auto_suppress
   if (alwaysSurface) autoSuppress = false;
-
   return { alwaysSurface, autoSuppress, shareWith };
 }
 
 // ── Deduplication Key ──
 
 function generateDeduplicateKey(sender: string, subject: string | null): string {
-  // Normalize subject: strip Re:, Fwd:, etc. and lowercase
   const normalized = (subject || "")
     .replace(/^(re|fwd|fw):\s*/gi, "")
     .toLowerCase()
@@ -138,29 +141,39 @@ function generateDeduplicateKey(sender: string, subject: string | null): string 
 
 // ── Rule-Based Classification (Pass 1) ──
 
-interface RawEmail {
+export interface RawEmail {
   gmail_message_id: string;
   gmail_thread_id?: string;
   received_at: string;
-  sender: string;       // "Name <email@domain.com>" or just "email@domain.com"
+  sender: string;
   subject: string | null;
   snippet: string | null;
 }
 
 function parseSenderEmail(sender: string): string {
-  const match = sender.match(/<([^>]+)>/);
-  return match ? match[1] : sender;
+  const match = sender.match(/<([^>]+@[^>]+)>/);
+  if (match) return match[1];
+  // Fallback: if it looks like an email, use it
+  if (sender.includes("@")) return sender.trim();
+  return sender.trim() || "unknown@unknown";
 }
 
-export function classifyByRules(email: RawEmail): ClassifiedEmail | null {
+function validateCategory(category: string): EmailCategory {
+  return VALID_CATEGORIES.has(category as EmailCategory)
+    ? (category as EmailCategory)
+    : "other";
+}
+
+export function classifyByRules(email: RawEmail, config: ClassifierConfig): ClassifiedEmail | null {
   const senderEmail = parseSenderEmail(email.sender);
   const domain = extractDomain(senderEmail);
-  const profile = findSenderProfile(senderEmail, domain);
-  const rules = checkExplicitRules(senderEmail, domain);
+  const profile = findSenderProfile(senderEmail, domain, config.profiles);
+  const rules = checkExplicitRules(senderEmail, domain, config.rules);
 
-  if (!profile) return null; // Unknown sender — needs AI classification
+  if (!profile) return null;
 
-  const categoryConf = categoryConfigCache?.get(profile.category);
+  const categoryConf = config.categories.get(profile.category);
+  const profileShareWith = Array.isArray(profile.share_with) ? profile.share_with : [];
 
   return {
     gmail_message_id: email.gmail_message_id,
@@ -170,11 +183,11 @@ export function classifyByRules(email: RawEmail): ClassifiedEmail | null {
     sender_domain: domain,
     subject: email.subject,
     snippet: email.snippet,
-    category: profile.category as EmailCategory,
+    category: validateCategory(profile.category),
     urgency_score: (categoryConf?.urgency_default || 3) as UrgencyLevel,
     importance_score: rules.alwaysSurface ? 1.0 : rules.autoSuppress ? 0.1 : profile.importance_weight,
     deduplicate_key: generateDeduplicateKey(senderEmail, email.subject),
-    share_with: [...new Set([...profile.share_with, ...rules.shareWith])],
+    share_with: [...new Set([...profileShareWith, ...rules.shareWith])],
   };
 }
 
@@ -200,15 +213,37 @@ Urgency (1-4):
 3 = Awareness only (statements, tracking, deploy notifications)
 4 = Archive (expired codes, resolved threads, marketing)
 
-Respond with ONLY a JSON object:
-{"category": "...", "urgency": N, "importance": 0.XX}
+Respond with ONLY a JSON array of objects, one per email:
+[{"category": "...", "urgency": N, "importance": 0.XX}]
 
 importance is 0.0-1.0 based on how likely the user needs to see this.`;
+
+function fallbackClassify(email: RawEmail): ClassifiedEmail {
+  const senderEmail = parseSenderEmail(email.sender);
+  const domain = extractDomain(senderEmail);
+  return {
+    gmail_message_id: email.gmail_message_id,
+    gmail_thread_id: email.gmail_thread_id || null,
+    received_at: email.received_at,
+    sender: senderEmail,
+    sender_domain: domain,
+    subject: email.subject,
+    snippet: email.snippet,
+    category: "other",
+    urgency_score: 3,
+    importance_score: 0.5,
+    deduplicate_key: generateDeduplicateKey(senderEmail, email.subject),
+    share_with: [],
+  };
+}
 
 export async function classifyByAI(emails: RawEmail[]): Promise<ClassifiedEmail[]> {
   if (emails.length === 0) return [];
 
-  // Batch classify — up to 20 at a time to save API calls
+  // Lazy import to avoid crashing routes that don't need AI
+  const { anthropic, getModel } = await import("@/lib/agent/client");
+
+  // Batch classify — up to 10 at a time
   const batches: RawEmail[][] = [];
   for (let i = 0; i < emails.length; i += 10) {
     batches.push(emails.slice(i, i + 10));
@@ -235,43 +270,35 @@ export async function classifyByAI(emails: RawEmail[]): Promise<ClassifiedEmail[
       });
 
       const text = response.content[0].type === "text" ? response.content[0].text : "";
-      // Extract JSON array from response
       const jsonMatch = text.match(/\[[\s\S]*\]/);
-      if (jsonMatch) {
-        const classifications = JSON.parse(jsonMatch[0]) as Array<{
-          category: string;
-          urgency: number;
-          importance: number;
-        }>;
 
-        for (let i = 0; i < batch.length && i < classifications.length; i++) {
-          const email = batch[i];
-          const cls = classifications[i];
-          const senderEmail = parseSenderEmail(email.sender);
-          const domain = extractDomain(senderEmail);
-
-          results.push({
-            gmail_message_id: email.gmail_message_id,
-            gmail_thread_id: email.gmail_thread_id || null,
-            received_at: email.received_at,
-            sender: senderEmail,
-            sender_domain: domain,
-            subject: email.subject,
-            snippet: email.snippet,
-            category: (cls.category || "other") as EmailCategory,
-            urgency_score: Math.max(1, Math.min(4, cls.urgency || 3)) as UrgencyLevel,
-            importance_score: Math.max(0, Math.min(1, cls.importance || 0.5)),
-            deduplicate_key: generateDeduplicateKey(senderEmail, email.subject),
-            share_with: [],
-          });
-        }
+      if (!jsonMatch) {
+        // AI didn't return valid JSON — fall back for entire batch
+        console.warn("[ea/classifier] AI returned no JSON array, falling back for batch");
+        results.push(...batch.map(fallbackClassify));
+        continue;
       }
-    } catch (err) {
-      console.error("[ea/classifier] AI classification failed:", err);
-      // Fallback: classify unknowns as "other" with neutral scores
-      for (const email of batch) {
+
+      const classifications = JSON.parse(jsonMatch[0]) as Array<{
+        category: string;
+        urgency: number;
+        importance: number;
+      }>;
+
+      for (let i = 0; i < batch.length; i++) {
+        const email = batch[i];
+
+        if (i >= classifications.length) {
+          // AI returned fewer classifications than emails — fallback for remainder
+          console.warn(`[ea/classifier] AI returned ${classifications.length}/${batch.length} classifications`);
+          results.push(fallbackClassify(email));
+          continue;
+        }
+
+        const cls = classifications[i];
         const senderEmail = parseSenderEmail(email.sender);
         const domain = extractDomain(senderEmail);
+
         results.push({
           gmail_message_id: email.gmail_message_id,
           gmail_thread_id: email.gmail_thread_id || null,
@@ -280,13 +307,16 @@ export async function classifyByAI(emails: RawEmail[]): Promise<ClassifiedEmail[
           sender_domain: domain,
           subject: email.subject,
           snippet: email.snippet,
-          category: "other",
-          urgency_score: 3,
-          importance_score: 0.5,
+          category: validateCategory(cls.category || "other"),
+          urgency_score: Math.max(1, Math.min(4, cls.urgency || 3)) as UrgencyLevel,
+          importance_score: Math.max(0, Math.min(1, cls.importance || 0.5)),
           deduplicate_key: generateDeduplicateKey(senderEmail, email.subject),
           share_with: [],
         });
       }
+    } catch (err) {
+      console.error("[ea/classifier] AI classification failed:", err);
+      results.push(...batch.map(fallbackClassify));
     }
   }
 
@@ -296,13 +326,14 @@ export async function classifyByAI(emails: RawEmail[]): Promise<ClassifiedEmail[
 // ── Main classify function ──
 
 export async function classifyEmails(rawEmails: RawEmail[]): Promise<ClassifiedEmail[]> {
-  if (!senderProfileCache) await loadClassifierConfig();
+  // Always load fresh config (no stale cache across serverless invocations)
+  const config = await loadClassifierConfig();
 
   const classified: ClassifiedEmail[] = [];
   const needsAI: RawEmail[] = [];
 
   for (const email of rawEmails) {
-    const result = classifyByRules(email);
+    const result = classifyByRules(email, config);
     if (result) {
       classified.push(result);
     } else {

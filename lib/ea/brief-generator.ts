@@ -3,13 +3,11 @@
  *
  * Takes classified emails + config → produces a formatted brief.
  * Two output formats: Discord (short, 2000 char limit) and full text.
- *
- * Uses Claude Sonnet for narrative synthesis (Zev's voice).
  */
 
 import { createServiceClient } from "@/lib/supabase/service";
 import { ea } from "@/lib/supabase/schemas";
-import { anthropic, getModel } from "@/lib/agent/client";
+import { sendMessage } from "@/lib/discord";
 import type {
   ClassifiedEmail,
   CategoryConfig,
@@ -33,10 +31,12 @@ function deduplicateEmails(emails: ClassifiedEmail[]): BriefItem[] {
 
   const items: BriefItem[] = [];
   for (const [, group] of groups) {
-    // Take the most recent / highest urgency from the group
-    const representative = group.reduce((best, e) =>
-      e.urgency_score < best.urgency_score ? e : best
-    );
+    // Sort by urgency (lowest=most urgent), then by received_at (newest first)
+    const sorted = group.sort((a, b) => {
+      if (a.urgency_score !== b.urgency_score) return a.urgency_score - b.urgency_score;
+      return new Date(b.received_at).getTime() - new Date(a.received_at).getTime();
+    });
+    const representative = sorted[0];
 
     items.push({
       signal_id: representative.gmail_message_id,
@@ -58,7 +58,7 @@ function deduplicateEmails(emails: ClassifiedEmail[]): BriefItem[] {
 
 // ── Ranking ──
 
-function rankItems(
+export function rankItems(
   items: BriefItem[],
   categoryConfig: Map<string, CategoryConfig>
 ): { surfaced: BriefItem[]; suppressed: BriefItem[] } {
@@ -70,10 +70,7 @@ function rankItems(
     const catWeight = catConf?.weight || 0.5;
     const suppressThreshold = catConf?.suppress_threshold || 0.2;
 
-    // Apply category weight to importance
     const effectiveScore = item.importance * catWeight;
-
-    // Set detail level from config
     item.detail_level = (catConf?.detail_level || "summary") as DetailLevel;
 
     if (effectiveScore < suppressThreshold) {
@@ -83,7 +80,6 @@ function rankItems(
     }
   }
 
-  // Sort surfaced by: urgency ASC (1=most urgent), then importance DESC
   surfaced.sort((a, b) => {
     if (a.urgency !== b.urgency) return a.urgency - b.urgency;
     return b.importance - a.importance;
@@ -126,7 +122,6 @@ function formatBriefItemShort(item: BriefItem, index: number): string {
     return `${index}. ${urgency}${emoji} **${item.sender_name}**: ${item.subject}${countSuffix}${shareSuffix}`;
   }
 
-  // summary level
   return `${index}. ${urgency}${emoji} **${item.sender_name}**: ${item.subject}${countSuffix}\n   ${item.snippet.slice(0, 100)}${shareSuffix}`;
 }
 
@@ -150,7 +145,6 @@ function buildDiscordBrief(
 
   const sections: string[] = [header, ""];
 
-  // Urgent items (urgency 1)
   const urgent = surfaced.filter((i) => i.urgency === 1);
   if (urgent.length > 0) {
     sections.push("**⚡ Act Today:**");
@@ -158,7 +152,6 @@ function buildDiscordBrief(
     sections.push("");
   }
 
-  // Action items (urgency 2)
   const action = surfaced.filter((i) => i.urgency === 2);
   if (action.length > 0) {
     sections.push("**📌 This Week:**");
@@ -169,7 +162,6 @@ function buildDiscordBrief(
     sections.push("");
   }
 
-  // Awareness (urgency 3-4)
   const awareness = surfaced.filter((i) => i.urgency >= 3);
   if (awareness.length > 0) {
     sections.push("**📧 FYI:**");
@@ -192,11 +184,38 @@ function buildDiscordBrief(
     sections.push("");
   }
 
-  // Feedback prompt
   sections.push("──────────────────────────");
   sections.push("Reply: **1** = useful | **2** = too noisy | **3** = missed something");
 
-  return sections.join("\n");
+  let text = sections.join("\n");
+
+  // Discord 2000 char limit — truncate FYI items if needed
+  if (text.length > 1900) {
+    // Rebuild without FYI snippets
+    const compact = surfaced.map((item, i) => {
+      const urgencyLabel = URGENCY_LABEL[item.urgency] || "";
+      const emoji = CATEGORY_EMOJI[item.category] || "📧";
+      const countSuffix = item.count > 1 ? ` (×${item.count})` : "";
+      return `${i + 1}. ${urgencyLabel}${emoji} **${item.sender_name}**: ${item.subject}${countSuffix}`;
+    });
+
+    text = [
+      header,
+      "",
+      ...compact,
+      "",
+      suppressedCount > 0 ? `*...and ${suppressedCount} other emails (noise)*` : "",
+      "──────────────────────────",
+      "Reply: **1** = useful | **2** = too noisy | **3** = missed something",
+    ].filter(Boolean).join("\n");
+  }
+
+  // Final safety: hard truncate at 1950
+  if (text.length > 1950) {
+    text = text.slice(0, 1947) + "...";
+  }
+
+  return text;
 }
 
 // ── Main Pipeline ──
@@ -205,7 +224,6 @@ export async function generateBrief(
   classifiedEmails: ClassifiedEmail[],
   briefType: "daily" | "on_demand" | "weekly" = "daily"
 ): Promise<GeneratedBrief> {
-  // Load category config
   const supabase = createServiceClient();
   const { data: categories } = await ea(supabase)
     .from("category_config")
@@ -215,13 +233,8 @@ export async function generateBrief(
     (categories || []).map((c: CategoryConfig) => [c.category_name, c])
   );
 
-  // Step 1: Deduplicate
   const items = deduplicateEmails(classifiedEmails);
-
-  // Step 2: Rank and split into surfaced vs suppressed
   const { surfaced, suppressed } = rankItems(items, categoryConfig);
-
-  // Step 3: Format Discord brief
   const discordText = buildDiscordBrief(surfaced, suppressed.length, briefType);
 
   return {
@@ -261,7 +274,8 @@ export async function storeBrief(brief: GeneratedBrief): Promise<string> {
 
 export async function storeEmailSignals(
   classified: ClassifiedEmail[],
-  briefId: string | null
+  briefId: string | null,
+  surfacedIds: Set<string>
 ): Promise<void> {
   const supabase = createServiceClient();
 
@@ -279,10 +293,9 @@ export async function storeEmailSignals(
     deduplicate_key: e.deduplicate_key,
     share_with: e.share_with,
     brief_id: briefId,
-    was_surfaced: e.importance_score >= 0.2, // rough threshold
+    was_surfaced: surfacedIds.has(e.gmail_message_id),
   }));
 
-  // Insert in batches of 50
   for (let i = 0; i < records.length; i += 50) {
     const batch = records.slice(i, i + 50);
     const { error } = await ea(supabase)
@@ -291,6 +304,8 @@ export async function storeEmailSignals(
 
     if (error) {
       console.error("[ea/brief] Failed to store signals batch:", error);
+      // Don't throw — signal storage failure shouldn't break the pipeline
+      // The brief was already generated and delivered
     }
   }
 }

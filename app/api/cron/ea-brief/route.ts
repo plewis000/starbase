@@ -17,7 +17,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runPipeline } from "@/lib/ea/pipeline";
 import { buildSearchQuery, getLastScanTime, type ParsedEmail } from "@/lib/ea/scanner";
-import { anthropic, getModel } from "@/lib/agent/client";
 
 const EA_CHANNEL_ID = process.env.EA_CHANNEL_ID || process.env.PIPELINE_CHANNEL_ID;
 
