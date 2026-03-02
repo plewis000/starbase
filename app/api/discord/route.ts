@@ -1019,7 +1019,7 @@ async function handleButtonInteraction(
       // Optimistic lock: set to shipped before merging to prevent double-click
       const { count } = await platform(supabase)
         .from("feedback")
-        .update({ pipeline_status: "shipped", status: "done", updated_at: new Date().toISOString() })
+        .update({ pipeline_status: "shipped", status: "done", updated_at: new Date().toISOString() }, { count: "exact" })
         .eq("id", feedbackId)
         .eq("pipeline_status", "preview_ready");
 
@@ -1103,7 +1103,7 @@ async function handleButtonInteraction(
       // Optimistic lock
       const { count } = await platform(supabase)
         .from("feedback")
-        .update({ pipeline_status: "rejected", status: "planned", branch_name: null, preview_url: null, pr_number: null, updated_at: new Date().toISOString() })
+        .update({ pipeline_status: "rejected", status: "planned", branch_name: null, preview_url: null, pr_number: null, updated_at: new Date().toISOString() }, { count: "exact" })
         .eq("id", feedbackId)
         .in("pipeline_status", rejectableStatuses);
 
