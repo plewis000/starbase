@@ -109,34 +109,27 @@ export default function ShoppingPage() {
   useEffect(() => { fetchLists(); }, [fetchLists]);
   useEffect(() => { fetchActiveList(); }, [fetchActiveList]);
 
-  // Check which shopping items have entity links
+  // Check which shopping items have entity links (single batch request)
   useEffect(() => {
     if (!activeList?.items || activeList.items.length === 0) {
       setLinkedItemIds(new Set());
       return;
     }
     const checkLinks = async () => {
-      const linked = new Set<string>();
-      // Batch check — fetch links for each item (max 30 to avoid flooding)
-      const itemsToCheck = activeList.items!.slice(0, 30);
-      await Promise.allSettled(
-        itemsToCheck.map(async (item) => {
-          try {
-            const res = await fetch(
-              `/api/entity-links?entity_type=shopping_item&entity_id=${item.id}`
-            );
-            if (res.ok) {
-              const data = await res.json();
-              if (data.links && data.links.length > 0) {
-                linked.add(item.id);
-              }
-            }
-          } catch {
-            // Best effort
-          }
-        })
-      );
-      setLinkedItemIds(linked);
+      try {
+        const ids = activeList.items!.map((i) => i.id);
+        const res = await fetch("/api/entity-links/batch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ entity_type: "shopping_item", entity_ids: ids }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setLinkedItemIds(new Set(Object.keys(data.linked || {})));
+        }
+      } catch {
+        // Best effort
+      }
     };
     checkLinks();
   }, [activeList]);
@@ -219,6 +212,14 @@ export default function ShoppingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ checked }),
       });
+      // If checking off a linked item, trigger completion sync
+      if (checked && linkedItemIds.has(itemId)) {
+        fetch("/api/entity-links/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ entity_type: "shopping_item", entity_id: itemId }),
+        }).catch(() => {}); // Fire-and-forget — don't block UI
+      }
       await fetchLists(); // Update counts
     } catch (err) {
       console.error("Failed to toggle item:", err);
