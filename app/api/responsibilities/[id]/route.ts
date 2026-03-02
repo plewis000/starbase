@@ -1,7 +1,7 @@
 // ============================================================
 // FILE: app/api/responsibilities/[id]/route.ts
 // PURPOSE: Single responsibility — get detail, update, delete, reassign
-// PART OF: Desperado Club
+// PART OF: The Keep
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";

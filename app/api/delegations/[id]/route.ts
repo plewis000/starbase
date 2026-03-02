@@ -2,7 +2,7 @@
 // FILE: app/api/delegations/[id]/route.ts
 // PURPOSE: Delegation status management — accept, decline, complete, cancel
 //          Handles the full delegation lifecycle with ownership transfer
-// PART OF: Desperado Club
+// PART OF: The Keep
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";

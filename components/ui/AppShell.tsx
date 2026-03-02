@@ -76,7 +76,7 @@ export default function AppShell({ user, children }: AppShellProps) {
             <Link href="/dashboard" className="flex items-center gap-2">
               <span className="text-crimson-400 text-xl">🗡️</span>
               <span className="dcc-heading text-lg text-slate-100 tracking-wider">
-                Desperado Club
+                The Keep
               </span>
             </Link>
           </div>

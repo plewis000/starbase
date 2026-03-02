@@ -2,7 +2,7 @@
 // FILE: app/api/household/invite/route.ts
 // PURPOSE: Household invite codes — generate and list
 //          Admin generates a code, partner enters it to join
-// PART OF: Desperado Club
+// PART OF: The Keep
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";

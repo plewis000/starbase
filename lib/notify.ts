@@ -389,7 +389,7 @@ async function sendDiscordWebhook(
             description: body || undefined,
             color,
             timestamp: new Date().toISOString(),
-            footer: { text: "Desperado Club" },
+            footer: { text: "The Keep" },
           },
         ],
       }),

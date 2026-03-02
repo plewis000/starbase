@@ -2,7 +2,7 @@
 // FILE: app/api/ai/config-overrides/route.ts
 // PURPOSE: Config override layer — AI writes overrides, not base config
 //          Per-user or per-household scope. Natural language audit trail.
-// PART OF: Desperado Club
+// PART OF: The Keep
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";

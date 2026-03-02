@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import AppShell from "@/components/ui/AppShell";
 
 export const metadata = {
-  title: "Admin - Desperado Club",
+  title: "Admin - The Keep",
   description: "System configuration",
 };
 

@@ -2,7 +2,7 @@
 // FILE: app/api/ai/suggestions/route.ts
 // PURPOSE: AI suggestion pipeline — list and create suggestions
 //          11 categories from habit tweaks to financial insights
-// PART OF: Desperado Club
+// PART OF: The Keep
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";

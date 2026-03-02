@@ -2,7 +2,7 @@
 // FILE: lib/household.ts
 // PURPOSE: Shared household lookup helper — resolves current user's
 //          household_id for any route that needs household-scoped data
-// PART OF: Desperado Club
+// PART OF: The Keep
 // ============================================================
 
 import { SupabaseClient } from "@supabase/supabase-js";

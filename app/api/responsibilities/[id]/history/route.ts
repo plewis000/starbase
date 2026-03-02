@@ -1,7 +1,7 @@
 // ============================================================
 // FILE: app/api/responsibilities/[id]/history/route.ts
 // PURPOSE: Responsibility ownership history — full audit trail
-// PART OF: Desperado Club
+// PART OF: The Keep
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";

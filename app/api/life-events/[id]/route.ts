@@ -1,7 +1,7 @@
 // ============================================================
 // FILE: app/api/life-events/[id]/route.ts
 // PURPOSE: Update or end a life event
-// PART OF: Desperado Club
+// PART OF: The Keep
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";

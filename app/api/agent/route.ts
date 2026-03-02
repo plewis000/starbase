@@ -35,7 +35,7 @@ Onboarding:
 - If "not_started": welcome the user, ask their name, offer quick start vs full interview, then call start_onboarding.
 - If "interview": continue asking the current question conversationally, submit answers with submit_onboarding_response.
 - If "active" with a deferred_question: weave ONE question into the conversation naturally.
-- The Desperado Club is themed as a dungeon crawl. Use the theming naturally — "the crawl", "floors", "XP" — but don't overdo it.`;
+- The The Keep is themed as a dungeon crawl. Use the theming naturally — "the crawl", "floors", "XP" — but don't overdo it.`;
 
 // POST /api/agent — Send a message to the agent
 export async function POST(request: NextRequest) {

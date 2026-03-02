@@ -1,7 +1,7 @@
 // ============================================================
 // FILE: app/api/boundaries/[id]/route.ts
 // PURPOSE: Update or deactivate a specific boundary
-// PART OF: Desperado Club
+// PART OF: The Keep
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";

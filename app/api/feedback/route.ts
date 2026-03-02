@@ -2,7 +2,7 @@
 // FILE: app/api/feedback/route.ts
 // PURPOSE: Feedback submission + listing — frictionless input from any user
 //          Zev classifies after submission. No priority required at submit time.
-// PART OF: Desperado Club
+// PART OF: The Keep
 // ============================================================
 
 import { NextRequest, NextResponse, after } from "next/server";

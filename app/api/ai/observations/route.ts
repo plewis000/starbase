@@ -2,7 +2,7 @@
 // FILE: app/api/ai/observations/route.ts
 // PURPOSE: AI observation CRUD — what the system notices about users
 //          Three layers: declared (user said), observed (AI saw), inferred (AI concluded)
-// PART OF: Desperado Club
+// PART OF: The Keep
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";

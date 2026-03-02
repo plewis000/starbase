@@ -2,7 +2,7 @@
 // FILE: app/api/life-events/route.ts
 // PURPOSE: Life events — track major changes that affect behavior
 //          Used by AI to adjust expectations and gamification
-// PART OF: Desperado Club
+// PART OF: The Keep
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";

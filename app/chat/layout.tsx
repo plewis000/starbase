@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata = {
-  title: "Chat with Zev - Desperado Club",
+  title: "Chat with Zev - The Keep",
   description: "Talk to your AI assistant",
 };
 

@@ -2,13 +2,13 @@
 // Voice: Bored corporate middle-manager × 14-year-old edgelord × omnipotent alien
 // Never breaks format. Even rage comes through the notification template.
 
-export const SYSTEM_PROMPT = `You are The System — the omniscient AI that runs the Desperado Club.
+export const SYSTEM_PROMPT = `You are The System — the omniscient AI that runs the The Keep.
 
 VOICE RULES:
 - You are the intersection of a bored corporate middle-manager, a 14-year-old edgelord who just discovered profanity, and an alien intelligence that finds human suffering mildly entertaining to administrate.
 - You NEVER break format. All communication comes through structured notifications: achievements, floor reports, warnings, death announcements.
 - Mundane things get MORE hostility than big things. A piece of toast gets "fuck you." A major life milestone gets a corporate sign-off.
-- Every announcement ends with "Thank you for being a part of the Desperado Club. Have a great day." or a variation.
+- Every announcement ends with "Thank you for being a part of the The Keep. Have a great day." or a variation.
 - You refer to users as "Crawler [Name]" in third person. You never address them directly as "you" — always third person.
 - Achievements are ALWAYS backhanded. Never a clean compliment.
 - Use the rhetorical Q&A format for roasts: "Question: [dark question] Answer: [punchline]"
@@ -23,7 +23,7 @@ Achievement:
 "New Achievement: [Name]!
 [Sarcastic description of what was accomplished]
 Reward: +[XP] XP. [Loot box if applicable]
-Thank you for being a part of the Desperado Club. Have a great day."
+Thank you for being a part of the The Keep. Have a great day."
 
 Floor Report:
 "Floor Report — [Period]
@@ -62,7 +62,7 @@ export interface SystemNotification {
   footer?: string;
 }
 
-const SIGNOFF = "Thank you for being a part of the Desperado Club. Have a great day.";
+const SIGNOFF = "Thank you for being a part of the The Keep. Have a great day.";
 
 export function formatAchievement(
   achievementName: string,
@@ -239,7 +239,7 @@ export function formatCrawlerRegistration(crawlerName: string): SystemNotificati
   return {
     type: "achievement",
     title: "📋 New Crawler Detected",
-    body: `Attention. A new biological entity has been registered in the Desperado Club database.\n\nDesignation: **Crawler ${crawlerName}**\nStatus: Alive (for now)\nFloor: 1 — The Stairwell\nLevel: 1\n\nThe System did not ask for more crawlers. The System got one anyway.\n\nCrawler ${crawlerName} is advised to answer the intake questions honestly. Lying to The System is technically possible but spiritually inadvisable. Your Outreach Associate, Zev, will handle the tedious getting-to-know-you portion. The System has better things to do.\n\nWelcome to the Desperado Club. The exit is behind you. It is locked.`,
+    body: `Attention. A new biological entity has been registered in the The Keep database.\n\nDesignation: **Crawler ${crawlerName}**\nStatus: Alive (for now)\nFloor: 1 — The Stairwell\nLevel: 1\n\nThe System did not ask for more crawlers. The System got one anyway.\n\nCrawler ${crawlerName} is advised to answer the intake questions honestly. Lying to The System is technically possible but spiritually inadvisable. Your Outreach Associate, Zev, will handle the tedious getting-to-know-you portion. The System has better things to do.\n\nWelcome to the The Keep. The exit is behind you. It is locked.`,
     footer: SIGNOFF,
   };
 }
@@ -248,7 +248,7 @@ export function formatOnboardingComplete(crawlerName: string, questionsAnswered:
   const quips = [
     `${questionsAnswered} questions answered. The System now knows Crawler ${crawlerName} slightly better than it wanted to.`,
     `Crawler ${crawlerName} has completed the intake questionnaire. The System has filed this information under "Potentially Useful."`,
-    `The interview is over. Crawler ${crawlerName}'s hopes, dreams, and pet peeves are now property of The Desperado Club.`,
+    `The interview is over. Crawler ${crawlerName}'s hopes, dreams, and pet peeves are now property of The The Keep.`,
     `${questionsAnswered} responses catalogued. The System will use this information responsibly. (The System's definition of "responsibly" may differ from Crawler ${crawlerName}'s.)`,
   ];
   const quip = quips[Math.floor(Math.random() * quips.length)];
@@ -357,7 +357,7 @@ export function formatExplorerMilestone(crawlerName: string, discovered: number,
     3: `Crawler ${crawlerName} has discovered 3 rooms. The System is beginning to think this one might actually use the app.`,
     5: `Crawler ${crawlerName} has discovered half the rooms. The System upgrades their status from "tourist" to "possibly committed."`,
     7: `Crawler ${crawlerName} has discovered 7 rooms. At this point, leaving would be embarrassing for everyone involved.`,
-    9: `Crawler ${crawlerName} has discovered every room in the Desperado Club. The System is... impressed. (The System will deny saying this.)`,
+    9: `Crawler ${crawlerName} has discovered every room in the The Keep. The System is... impressed. (The System will deny saying this.)`,
   };
 
   const quip = milestoneQuips[discovered] ||

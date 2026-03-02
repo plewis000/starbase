@@ -2,7 +2,7 @@
 // FILE: app/api/ai/decisions/route.ts
 // PURPOSE: AI decision log — records every AI-initiated action with reasoning
 //          Enables outcome tracking and model improvement
-// PART OF: Desperado Club
+// PART OF: The Keep
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";

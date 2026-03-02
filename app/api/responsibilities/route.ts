@@ -1,7 +1,7 @@
 // ============================================================
 // FILE: app/api/responsibilities/route.ts
 // PURPOSE: Responsibility CRUD — list and create household responsibilities
-// PART OF: Desperado Club
+// PART OF: The Keep
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";

@@ -2,7 +2,7 @@
 // FILE: lib/suggestion-engine.ts
 // PURPOSE: Analyze observations + behavioral data to generate
 //          proactive AI suggestions. Called by batch job or agent.
-// PART OF: Desperado Club
+// PART OF: The Keep
 // ============================================================
 
 import { SupabaseClient } from "@supabase/supabase-js";

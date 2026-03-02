@@ -1,4 +1,4 @@
-# Starbase — Architecture
+# The Keep — Architecture
 
 Last updated: 2026-02-26 (Sisyphus import)
 

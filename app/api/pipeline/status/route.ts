@@ -2,7 +2,7 @@
 // FILE: app/api/pipeline/status/route.ts
 // PURPOSE: Worker reports pipeline progress — triggers Discord notifications
 // AUTH: PIPELINE_SECRET
-// PART OF: Desperado Club
+// PART OF: The Keep
 // ============================================================
 
 import { NextRequest, NextResponse, after } from "next/server";
@@ -12,7 +12,7 @@ import { sendMessageWithButtons, sendMessage, ZEV_COLOR } from "@/lib/discord";
 import { isValidUUID } from "@/lib/validation";
 
 const PIPELINE_SECRET = process.env.PIPELINE_SECRET;
-const GITHUB_REPO = process.env.GITHUB_REPO || "plewis000/starbase";
+const GITHUB_REPO = process.env.GITHUB_REPO || "plewis000/the-keep";
 
 const VALID_PIPELINE_STATUSES = ["queued", "working", "preview_ready", "approved", "shipped", "rejected", "failed"] as const;
 type PipelineStatus = typeof VALID_PIPELINE_STATUSES[number];
@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
         } else if (pipeline_status === "preview_ready") {
           const previewLink = feedback.preview_url ? `[Open Preview](${feedback.preview_url})` : "Pending...";
           const prLink = feedback.pr_number ? `[PR #${feedback.pr_number}](https://github.com/${GITHUB_REPO}/pull/${feedback.pr_number})` : "—";
-          const prodLink = `[Production](https://starbase-green.vercel.app)`;
+          const prodLink = `[Production](https://the-keep.vercel.app)`;
           await sendMessageWithButtons(channelId, {
             embeds: [{
               title: "Preview Ready — Test Before Shipping",

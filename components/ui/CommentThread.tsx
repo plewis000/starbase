@@ -5,6 +5,12 @@ import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { useToast } from "@/components/ui/Toast";
 import { CommentV2, CommentEntityType } from "@/lib/types";
 
+interface MemberOption {
+  user_id: string;
+  display_name?: string;
+  user?: { full_name?: string; avatar_url?: string | null } | null;
+}
+
 interface CommentThreadProps {
   entityType: CommentEntityType;
   entityId: string;
@@ -312,6 +318,8 @@ export default function CommentThread({
   const [newComment, setNewComment] = useState("");
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [showMentionPicker, setShowMentionPicker] = useState(false);
+  const [householdMembers, setHouseholdMembers] = useState<MemberOption[]>([]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const toast = useToast();
 
@@ -320,6 +328,16 @@ export default function CommentThread({
     fetch("/api/user")
       .then((res) => res.ok ? res.json() : null)
       .then((data) => { if (data?.user?.id) setCurrentUserId(data.user.id); })
+      .catch(() => {});
+  }, []);
+
+  // Fetch household members for @mention support
+  useEffect(() => {
+    fetch("/api/household/members")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.members) setHouseholdMembers(data.members);
+      })
       .catch(() => {});
   }, []);
 

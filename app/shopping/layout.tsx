@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import AppShell from "@/components/ui/AppShell";
 
 export const metadata = {
-  title: "Shopping - Desperado Club",
+  title: "Shopping - The Keep",
   description: "Manage your shopping lists",
 };
 

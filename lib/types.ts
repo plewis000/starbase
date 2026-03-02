@@ -476,7 +476,7 @@ export interface HabitTag {
   };
 }
 
-// ---- GAMIFICATION (Desperado Club) ----
+// ---- GAMIFICATION (The Keep) ----
 
 export type AchievementTier = "common" | "uncommon" | "rare" | "epic" | "legendary";
 export type AchievementCategory = "productivity" | "finance" | "health" | "streak" | "social" | "meta" | "party" | "seasonal";

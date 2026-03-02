@@ -3,14 +3,14 @@
 // PURPOSE: Track feature area discoveries. Each feature area is
 //          a "room" in the dungeon that the crawler discovers.
 //          First visit triggers The System's announcement.
-// PART OF: Desperado Club
+// PART OF: The Keep
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { platform } from "@/lib/supabase/schemas";
 
-// The rooms of the Desperado Club
+// The rooms of the The Keep
 export const FEATURE_AREAS = [
   "tasks",       // The Task Board
   "habits",      // The Training Grounds

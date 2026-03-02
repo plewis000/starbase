@@ -1,7 +1,7 @@
 // ============================================================
 // FILE: app/api/ai/suggestions/[id]/route.ts
 // PURPOSE: Respond to an AI suggestion — accept, dismiss, snooze
-// PART OF: Desperado Club
+// PART OF: The Keep
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
