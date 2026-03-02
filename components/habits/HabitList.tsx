@@ -105,6 +105,12 @@ export default function HabitList({ onSelectHabit, onCreateHabit, selectedHabitI
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ check_date: today }),
       });
+      // Trigger completion sync for linked entities (fire-and-forget)
+      fetch("/api/entity-links/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entity_type: "habit", entity_id: habitId }),
+      }).catch(() => {});
     }
     fetchHabits();
   };
