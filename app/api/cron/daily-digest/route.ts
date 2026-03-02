@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { platform } from "@/lib/supabase/schemas";
+import { platform, config } from "@/lib/supabase/schemas";
 import { sendEmbed, ZEV_COLOR } from "@/lib/discord";
 
 export async function GET(request: NextRequest) {
@@ -20,12 +20,28 @@ export async function GET(request: NextRequest) {
   const now = new Date();
   const todayStr = now.toISOString().slice(0, 10);
 
+  // Look up "open" status IDs (non-completed, non-abandoned)
+  const { data: activeStatuses } = await config(supabase)
+    .from("task_statuses")
+    .select("id, name")
+    .eq("active", true);
+
+  // Filter to non-terminal statuses (exclude "Done", "Shipped", "Abandoned", etc.)
+  const terminalNames = new Set(["done", "shipped", "completed", "abandoned", "cancelled"]);
+  const openStatusIds = (activeStatuses || [])
+    .filter(s => !terminalNames.has(s.name.toLowerCase()))
+    .map(s => s.id);
+
+  if (openStatusIds.length === 0) {
+    return NextResponse.json({ message: "No open statuses found", overdue: 0, today: 0 });
+  }
+
   // Fetch overdue tasks
   const { data: overdue } = await platform(supabase)
     .from("tasks")
     .select("id, title, due_date, assigned_to")
     .lt("due_date", todayStr)
-    .in("status_slug", ["open", "in_progress"])
+    .in("status_id", openStatusIds)
     .order("due_date", { ascending: true })
     .limit(20);
 
@@ -34,8 +50,8 @@ export async function GET(request: NextRequest) {
     .from("tasks")
     .select("id, title, due_date, assigned_to")
     .eq("due_date", todayStr)
-    .in("status_slug", ["open", "in_progress"])
-    .order("priority_order", { ascending: true })
+    .in("status_id", openStatusIds)
+    .order("created_at", { ascending: true })
     .limit(20);
 
   const channelId = process.env.PIPELINE_CHANNEL_ID;
