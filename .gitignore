@@ -41,3 +41,5 @@ node_modules/
 .env.local 
 starbase/ 
 .vercel
+.env.production
+.env.vercel

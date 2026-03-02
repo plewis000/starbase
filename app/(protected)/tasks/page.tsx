@@ -37,9 +37,9 @@ export default function TasksPage() {
   return (
     <div>
       {/* Desktop layout: List on left, detail on right */}
-      <div className="hidden lg:flex h-screen">
+      <div className="hidden lg:flex h-[calc(100vh-4rem)]">
         {/* Task list */}
-        <div className="flex-1 overflow-hidden border-r border-slate-800">
+        <div className="flex-1 overflow-hidden border-r border-dungeon-700">
           <div className="h-full overflow-y-auto p-6">
             <div className="max-w-4xl mx-auto">
               <TaskList
@@ -55,7 +55,7 @@ export default function TasksPage() {
 
         {/* Task detail panel */}
         {selectedTaskId && (
-          <div className="w-[480px] overflow-hidden">
+          <div className="w-[480px] overflow-y-auto">
             <TaskDetail
               taskId={selectedTaskId}
               onClose={handleCloseTaskDetail}

@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import AppShell from "@/components/ui/AppShell";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { useToast } from "@/components/ui/Toast";
 import type {
@@ -180,7 +179,7 @@ export default function CrawlPage() {
       : achievements.filter(a => a.category === achievementFilter);
 
   return (
-    <AppShell user={user}>
+    <>
       <div className="max-w-5xl mx-auto p-6">
         {/* Header */}
         <div className="mb-6">
@@ -565,6 +564,6 @@ export default function CrawlPage() {
           </div>
         ) : null}
       </div>
-    </AppShell>
+    </>
   );
 }

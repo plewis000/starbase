@@ -20,8 +20,8 @@ export default function GoalsPage() {
   return (
     <div>
       {/* Desktop */}
-      <div className="hidden lg:flex h-screen">
-        <div className="flex-1 overflow-hidden border-r border-slate-800">
+      <div className="hidden lg:flex h-[calc(100vh-4rem)]">
+        <div className="flex-1 overflow-hidden border-r border-dungeon-700">
           <div className="h-full overflow-y-auto p-6">
             <div className="max-w-4xl mx-auto">
               <GoalList
@@ -34,7 +34,7 @@ export default function GoalsPage() {
           </div>
         </div>
         {selectedGoalId && (
-          <div className="w-[480px] overflow-hidden">
+          <div className="w-[480px] overflow-y-auto">
             <GoalDetail
               goalId={selectedGoalId}
               onClose={() => setSelectedGoalId(undefined)}
