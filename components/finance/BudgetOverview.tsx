@@ -92,7 +92,7 @@ export default function BudgetOverview() {
                 <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all ${
-                      isOver ? "bg-red-500" : isWarning ? "bg-amber-500" : "bg-red-500"
+                      isOver ? "bg-red-500" : isWarning ? "bg-amber-500" : "bg-green-500"
                     }`}
                     style={{ width: `${Math.min(b.percent_used, 100)}%` }}
                   />
@@ -101,7 +101,7 @@ export default function BudgetOverview() {
                   <span className={`text-xs ${isOver ? "text-red-400" : "text-slate-500"}`}>
                     {b.percent_used}% used
                   </span>
-                  <span className={`text-xs ${b.remaining < 0 ? "text-red-400" : "text-red-400"}`}>
+                  <span className={`text-xs ${b.remaining < 0 ? "text-red-400" : "text-slate-400"}`}>
                     {b.remaining >= 0 ? `${fmt(b.remaining)} left` : `${fmt(Math.abs(b.remaining))} over`}
                   </span>
                 </div>

@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
   // Fetch non-split transactions
   const { data: transactions } = await finance(supabase)
     .from("transactions")
-    .select("amount, category_id, is_split_parent, pending")
+    .select("amount, category_id, is_split_parent, pending, reviewed")
     .eq("user_id", user.id)
     .eq("excluded", false)
     .is("split_parent_id", null)
@@ -155,6 +155,6 @@ export async function GET(request: NextRequest) {
     daily_average: Math.round((totalSpending / daysDiff) * 100) / 100,
     projected_monthly: period === "month" ? Math.round((totalSpending / dayOfMonth) * daysInMonth * 100) / 100 : null,
     breakdown: budgetComparison,
-    unreviewed_count: (transactions || []).filter((t) => !t.is_split_parent && !(categoryMap.get(t.category_id || "")?.is_income)).length,
+    unreviewed_count: (transactions || []).filter((t) => !t.is_split_parent && !t.reviewed && !(categoryMap.get(t.category_id || "")?.is_income)).length,
   });
 }

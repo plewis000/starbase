@@ -238,18 +238,24 @@ export async function checkAchievements(
     const met = await evaluateTrigger(supabase, userId, achievement, context);
     if (!met) continue;
 
-    // Unlock the achievement
+    // Unlock the achievement (upsert to prevent constraint violation on race conditions)
     const newCount = existingCount + 1;
-    await supabase
+    const { error: unlockError } = await supabase
       .schema("platform")
       .from("achievement_unlocks")
-      .insert({
+      .upsert({
         user_id: userId,
         achievement_id: achievement.id,
         xp_awarded: achievement.xp_reward,
         unlock_count: newCount,
+        unlocked_at: new Date().toISOString(),
         metadata: context,
-      });
+      }, { onConflict: "user_id,achievement_id,unlock_count" });
+
+    if (unlockError) {
+      console.error("[gamification] Achievement unlock failed:", unlockError);
+      continue;
+    }
 
     // Award XP
     await awardXp(
