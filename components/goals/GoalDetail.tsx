@@ -81,6 +81,7 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
   const [availableHabits, setAvailableHabits] = useState<AvailableHabit[]>([]);
   const [pickerLoading, setPickerLoading] = useState(false);
   const [selectedHabitsToAdd, setSelectedHabitsToAdd] = useState<string[]>([]);
+  const [togglingMilestone, setTogglingMilestone] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchGoal = async () => {
@@ -98,6 +99,32 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
     };
     fetchGoal();
   }, [goalId]);
+
+  const handleToggleMilestone = async (milestone: Milestone) => {
+    if (togglingMilestone) return;
+    setTogglingMilestone(milestone.id);
+    try {
+      const completed = !milestone.completed_at;
+      const res = await fetch(`/api/goals/${goalId}/milestones/${milestone.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ completed }),
+      });
+      if (res.ok) {
+        // Re-fetch goal to get updated milestones and progress
+        const goalRes = await fetch(`/api/goals/${goalId}`);
+        if (goalRes.ok) {
+          const data = await goalRes.json();
+          setGoal(data.goal);
+        }
+        onGoalUpdated?.();
+      }
+    } catch {
+      toast.error("Failed to update milestone");
+    } finally {
+      setTogglingMilestone(null);
+    }
+  };
 
   const handleStatusChange = async (newStatus: string) => {
     if (!goal || updating) return;
@@ -299,7 +326,12 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
             </h3>
             <div className="space-y-2">
               {milestones.sort((a, b) => a.sort_order - b.sort_order).map((m) => (
-                <div key={m.id} className="flex items-center gap-3 p-3 bg-slate-900 rounded-lg border border-slate-800">
+                <button
+                  key={m.id}
+                  onClick={() => handleToggleMilestone(m)}
+                  disabled={togglingMilestone === m.id}
+                  className="w-full flex items-center gap-3 p-3 bg-slate-900 rounded-lg border border-slate-800 hover:border-slate-600 transition-colors text-left disabled:opacity-50"
+                >
                   <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
                     m.completed_at ? "border-red-400 bg-red-400/20" : "border-slate-600"
                   }`}>
@@ -319,7 +351,7 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
                       {new Date(m.target_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                     </span>
                   )}
-                </div>
+                </button>
               ))}
             </div>
           </div>
