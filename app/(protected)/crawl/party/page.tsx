@@ -143,7 +143,7 @@ export default function PartyGoalsPage() {
                   <button
                     onClick={() => handleAdd(goal.id)}
                     disabled={adding === goal.id}
-                    className="px-3 py-1.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded text-xs font-medium transition-colors"
+                    className="dcc-btn-primary text-xs disabled:opacity-50"
                   >
                     {adding === goal.id ? "Adding..." : "Make Party Quest"}
                   </button>
