@@ -7,7 +7,7 @@ import { SupabaseClient } from "@supabase/supabase-js";
  * The Supabase JS client defaults to 'public', so we must specify the schema.
  *
  * IMPORTANT: These schemas must be added to the Supabase project's exposed schemas
- * in Dashboard > Settings > API > Exposed schemas (add: platform, config, household, finance).
+ * in Dashboard > Settings > API > Exposed schemas (add: platform, config, household, finance, ea).
  */
 
 export function platform(supabase: SupabaseClient) {
@@ -24,4 +24,8 @@ export function household(supabase: SupabaseClient) {
 
 export function finance(supabase: SupabaseClient) {
   return supabase.schema("finance");
+}
+
+export function ea(supabase: SupabaseClient) {
+  return supabase.schema("ea");
 }

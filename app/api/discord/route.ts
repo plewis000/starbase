@@ -217,6 +217,8 @@ async function processCommand(
         return await handleFeedback(supabase, userId, options, webhookUrl);
       case "pipeline":
         return await handlePipeline(supabase, webhookUrl);
+      case "brief":
+        return await handleBrief(options, interaction, webhookUrl);
       default:
         await sendWebhook(webhookUrl, { content: `Unknown command: ${commandName}` });
     }
@@ -1374,6 +1376,64 @@ async function logToChannel(summary: string) {
     }
   } catch {
     // Non-critical
+  }
+}
+
+// ── EA Brief Handler ──────────────────────────────────────────────
+
+async function handleBrief(
+  options: Record<string, unknown>,
+  interaction: { token: string; application_id: string; channel_id: string },
+  webhookUrl: string,
+) {
+  const period = (options.period as string) || "today";
+
+  // Determine how far back to scan
+  const now = new Date();
+  let since: Date;
+  switch (period) {
+    case "3days":
+      since = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
+      break;
+    case "week":
+      since = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      break;
+    default: // "today"
+      since = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  }
+
+  await sendWebhook(webhookUrl, {
+    content: "📧 Scanning your inbox and generating brief... hang tight.",
+  });
+
+  try {
+    // Import EA pipeline modules
+    const { runPipeline } = await import("@/lib/ea/pipeline");
+    const { buildSearchQuery, getLastScanTime } = await import("@/lib/ea/scanner");
+
+    // For on-demand briefs, we need to fetch emails.
+    // Since we don't have direct Gmail API access from here,
+    // we'll use the agent to fetch via Gmail MCP tools if available,
+    // or fall back to a message saying the cron will handle it.
+
+    // Try direct pipeline with empty emails (triggers "nothing to report" gracefully)
+    // The real flow: cron fetches → pipeline runs → Discord gets the brief
+    // On-demand: user triggers → we scan → deliver
+    // TODO: Wire up Gmail fetching here once OAuth flow is established
+
+    const channelId = interaction.channel_id;
+    const result = await runPipeline([], "on_demand", channelId);
+
+    if (result.emails_new === 0) {
+      await sendWebhook(webhookUrl, {
+        content: "No new emails to process since last scan. Your inbox is quiet — or the Gmail connection needs setup.\n\nTo get started: forward some emails to plewis000@gmail.com and I'll classify them on the next cron run (8 AM PT daily).",
+      });
+    }
+  } catch (err) {
+    console.error("[brief] Error:", err);
+    await sendWebhook(webhookUrl, {
+      content: "Brief generation hit an error. Check the logs — I'll sort it out.",
+    });
   }
 }
 

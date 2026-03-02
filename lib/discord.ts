@@ -190,6 +190,23 @@ export async function registerSlashCommands() {
       name: "pipeline",
       description: "Show active pipeline jobs",
     },
+    {
+      name: "brief",
+      description: "Get your email intelligence brief",
+      options: [
+        {
+          name: "period",
+          description: "Time period to scan",
+          type: 3,
+          required: false,
+          choices: [
+            { name: "Today", value: "today" },
+            { name: "Last 3 days", value: "3days" },
+            { name: "Last week", value: "week" },
+          ],
+        },
+      ],
+    },
   ];
 
   const res = await fetch(`${DISCORD_API}/applications/${APP_ID}/guilds/${GUILD_ID}/commands`, {
