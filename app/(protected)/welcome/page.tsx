@@ -87,16 +87,16 @@ export default function WelcomePage() {
         {/* CTA buttons */}
         <div className="space-y-3">
           <Link
-            href="/tasks"
+            href="/welcome/setup"
             className="block w-full dcc-btn-primary py-3 text-base text-center"
           >
-            Go to Tasks
+            Set Up Your Household
           </Link>
           <Link
-            href="/dashboard"
+            href="/tasks"
             className="block w-full py-3 text-sm text-dungeon-500 hover:text-slate-300 transition-colors font-mono text-center"
           >
-            Skip to Dashboard &rarr;
+            Skip — I&apos;ll explore on my own &rarr;
           </Link>
         </div>
       </div>
