@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity, logFieldChanges } from "@/lib/activity-log";
 import { createNextRecurrence } from "@/lib/recurrence-engine";
@@ -362,8 +362,8 @@ export async function PATCH(
       (err) => console.error("Completion notification error:", err)
     );
 
-    // Award XP for completing the task, split across all owners (non-blocking)
-    (async () => {
+    // Award XP for completing the task, split across all owners (P024 — runs after response)
+    after(async () => {
       try {
         // Map priority to XP — higher priority = more XP
         const { data: priority } = await config(supabase)
@@ -419,7 +419,7 @@ export async function PATCH(
       } catch (err) {
         console.error("Gamification error:", err);
       }
-    })();
+    });
   }
 
   // Fetch full updated task

@@ -14,7 +14,7 @@ export async function GET() {
       id,
       party_xp_bonus,
       created_at,
-      goal:goals(id, title, description, status, progress_pct, target_date, created_at)
+      goal:goals(id, title, description, status, progress_value, target_date, created_at)
     `)
     .eq("is_party_goal", true);
 
