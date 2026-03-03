@@ -8,6 +8,39 @@ import EmptyState from "@/components/ui/EmptyState";
 import CompletionCelebration from "@/components/ui/CompletionCelebration";
 import { useToast } from "@/components/ui/Toast";
 
+// Simple NLP for quick-add: extracts date keywords and returns clean title + due date
+function parseQuickAddDate(input: string): { title: string; dueDate: string | null } {
+  const today = new Date();
+  const dayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+
+  // Patterns: "today", "tomorrow", "monday", "tuesday", etc.
+  const patterns: [RegExp, () => Date][] = [
+    [/\b(today)\b/i, () => today],
+    [/\b(tonight)\b/i, () => today],
+    [/\b(tomorrow)\b/i, () => { const d = new Date(today); d.setDate(d.getDate() + 1); return d; }],
+    ...dayNames.map((day, i) => [
+      new RegExp(`\\b(${day})\\b`, "i"),
+      () => {
+        const d = new Date(today);
+        const diff = (i - today.getDay() + 7) % 7 || 7;
+        d.setDate(d.getDate() + diff);
+        return d;
+      },
+    ] as [RegExp, () => Date]),
+  ];
+
+  for (const [pattern, getDate] of patterns) {
+    if (pattern.test(input)) {
+      const title = input.replace(pattern, "").replace(/\s+/g, " ").trim();
+      const date = getDate();
+      const dueDate = date.toISOString().split("T")[0];
+      return { title: title || input, dueDate };
+    }
+  }
+
+  return { title: input, dueDate: null };
+}
+
 interface Tag {
   id: string;
   tag_id: string;
@@ -101,6 +134,10 @@ export default function TaskList({
         currentFilters.priority !== "All"
       ) {
         params.append("priority", currentFilters.priority);
+      }
+
+      if (currentFilters.owner && currentFilters.owner === "me") {
+        params.append("owner", "me");
       }
 
       if (currentFilters.due && currentFilters.due !== "All") {
@@ -200,7 +237,10 @@ export default function TaskList({
       // Trigger completion sync for linked entities (fire-and-forget)
       if (!isCompleted) {
         setShowCelebration(true);
-        toast.success("Task complete! 🎉");
+        toast.success("Task complete!", {
+          label: "Undo",
+          onClick: () => handleQuickComplete(taskId),
+        });
         fetch("/api/entity-links/sync", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -219,8 +259,11 @@ export default function TaskList({
   };
 
   const handleQuickAdd = async () => {
-    const title = quickAddTitle.trim();
-    if (!title || quickAdding) return;
+    const rawTitle = quickAddTitle.trim();
+    if (!rawTitle || quickAdding) return;
+
+    // Simple NLP: extract date keywords from title
+    const { title, dueDate } = parseQuickAddDate(rawTitle);
 
     setQuickAdding(true);
     try {
@@ -228,10 +271,13 @@ export default function TaskList({
       const configData = await configRes.json();
       const defaultStatus = configData.task_statuses?.[0]?.id;
 
+      const payload: Record<string, unknown> = { title, status_id: defaultStatus };
+      if (dueDate) payload.due_date = dueDate;
+
       const res = await fetch("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, status_id: defaultStatus }),
+        body: JSON.stringify(payload),
       });
 
       if (res.ok) {

@@ -9,6 +9,7 @@ export interface TaskFilters {
   search?: string;
   sort?: string;
   direction?: "asc" | "desc";
+  owner?: string;
 }
 
 interface FilterBarProps {
@@ -95,6 +96,30 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
 
   return (
     <div className="space-y-4">
+      {/* Mine / All toggle */}
+      <div className="flex items-center gap-1 bg-dungeon-850 border border-dungeon-700 rounded-lg p-1 w-fit">
+        <button
+          onClick={() => updateFilter("owner", "me")}
+          className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
+            filters.owner === "me"
+              ? "bg-crimson-600 text-white shadow-sm"
+              : "text-dungeon-500 hover:text-slate-300"
+          }`}
+        >
+          Mine
+        </button>
+        <button
+          onClick={() => updateFilter("owner", "")}
+          className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
+            !filters.owner || filters.owner === ""
+              ? "bg-crimson-600 text-white shadow-sm"
+              : "text-dungeon-500 hover:text-slate-300"
+          }`}
+        >
+          All
+        </button>
+      </div>
+
       {/* Search bar */}
       <div className="flex gap-2 items-center">
         <div className="flex-1 relative">
