@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import Link from "next/link";
 import { useToast } from "@/components/ui/Toast";
+import PageHeader from "@/components/ui/PageHeader";
 
 interface TierInfo {
   slug: string;
@@ -145,32 +145,26 @@ export default function RewardsPage() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Link href="/crawl" className="text-slate-400 hover:text-slate-100 text-sm transition-colors">
-              The Crawl
-            </Link>
-            <span className="text-slate-600">/</span>
-            <span className="text-slate-100 text-sm font-medium">Reward Pool</span>
-          </div>
-          <h1 className="text-2xl font-bold text-slate-100">Loot Box Rewards</h1>
-          <p className="text-sm text-slate-400 mt-1">
-            Define what you can win. The System doesn&apos;t hand out participation trophies.
-          </p>
-        </div>
-        <button
-          onClick={() => {
-            setShowForm(true);
-            setEditingId(null);
-            setFormData({ name: "", description: "", tierSlug: "bronze" });
-          }}
-          className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors"
-        >
-          + Add Reward
-        </button>
-      </div>
+      <PageHeader
+        title="Loot Box Rewards"
+        subtitle="Define what you can win. The System doesn't hand out participation trophies."
+        breadcrumbs={[
+          { label: "The Crawl", href: "/crawl" },
+          { label: "Reward Pool" },
+        ]}
+        action={
+          <button
+            onClick={() => {
+              setShowForm(true);
+              setEditingId(null);
+              setFormData({ name: "", description: "", tierSlug: "bronze" });
+            }}
+            className="dcc-btn-primary"
+          >
+            + Add Reward
+          </button>
+        }
+      />
 
       {/* Tier Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

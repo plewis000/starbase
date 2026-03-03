@@ -57,18 +57,18 @@ export default function SettingsPage() {
 
   return (
     <div className="p-6 max-w-3xl mx-auto space-y-6">
-      <h1 className="text-2xl font-bold text-slate-100">Settings</h1>
+      <h1 className="text-2xl font-bold text-slate-100 dcc-heading tracking-wide">Registry</h1>
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-lg border border-slate-800">
+      <div className="flex items-center gap-1 dcc-card p-1">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
               activeTab === tab.id
-                ? "bg-slate-800 text-red-400"
-                : "text-slate-400 hover:text-slate-100"
+                ? "bg-dungeon-800 text-crimson-400"
+                : "text-dungeon-500 hover:text-slate-100"
             }`}
           >
             <span>{tab.icon}</span>
@@ -79,7 +79,7 @@ export default function SettingsPage() {
 
       {/* Profile Tab */}
       {activeTab === "profile" && user && (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-6">
+        <div className="dcc-card p-6 space-y-6">
           <div className="flex items-center gap-4">
             {user.avatar_url ? (
               <img src={user.avatar_url} alt={user.full_name} className="w-16 h-16 rounded-full" />
@@ -115,7 +115,7 @@ export default function SettingsPage() {
       {activeTab === "integrations" && (
         <div className="space-y-4">
           {/* Discord */}
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 flex items-center justify-between">
+          <div className="dcc-card p-5 flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-lg bg-indigo-600/20 flex items-center justify-center text-lg">💬</div>
               <div>
@@ -125,7 +125,7 @@ export default function SettingsPage() {
             </div>
             <span className={`px-3 py-1 rounded-full text-xs font-medium ${
               integrations?.discord?.connected
-                ? "bg-red-500/20 text-red-400"
+                ? "bg-green-500/20 text-green-400"
                 : "bg-slate-700 text-slate-400"
             }`}>
               {integrations?.discord?.connected ? "Connected" : "Not connected"}
@@ -133,7 +133,7 @@ export default function SettingsPage() {
           </div>
 
           {/* Plaid */}
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 flex items-center justify-between">
+          <div className="dcc-card p-5 flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-lg bg-emerald-600/20 flex items-center justify-center text-lg">🏦</div>
               <div>
@@ -143,7 +143,7 @@ export default function SettingsPage() {
             </div>
             <span className={`px-3 py-1 rounded-full text-xs font-medium ${
               integrations?.plaid?.connected
-                ? "bg-red-500/20 text-red-400"
+                ? "bg-green-500/20 text-green-400"
                 : "bg-slate-700 text-slate-400"
             }`}>
               {integrations?.plaid?.connected
@@ -153,7 +153,7 @@ export default function SettingsPage() {
           </div>
 
           {/* Claude API */}
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 flex items-center justify-between">
+          <div className="dcc-card p-5 flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-lg bg-amber-600/20 flex items-center justify-center text-lg font-bold text-amber-400">Z</div>
               <div>
@@ -163,7 +163,7 @@ export default function SettingsPage() {
             </div>
             <span className={`px-3 py-1 rounded-full text-xs font-medium ${
               integrations?.anthropic?.connected
-                ? "bg-red-500/20 text-red-400"
+                ? "bg-green-500/20 text-green-400"
                 : "bg-slate-700 text-slate-400"
             }`}>
               {integrations?.anthropic?.connected ? "Active" : "Not configured"}
@@ -174,7 +174,7 @@ export default function SettingsPage() {
 
       {/* Notifications Tab */}
       {activeTab === "notifications" && (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
+        <div className="dcc-card p-6 space-y-4">
           <p className="text-sm text-slate-400">
             Notification preferences are managed in the Notifications page.
           </p>
@@ -188,7 +188,7 @@ export default function SettingsPage() {
       )}
 
       {/* Keyboard shortcuts */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+      <div className="dcc-card p-6">
         <h3 className="text-sm font-semibold text-slate-100 mb-3">Keyboard Shortcuts</h3>
         <div className="grid grid-cols-2 gap-2 text-sm">
           <div className="flex items-center justify-between">
