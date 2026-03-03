@@ -18,9 +18,10 @@ export default function WelcomePage() {
     // Fetch user and household info
     async function loadContext() {
       try {
-        const [userRes, householdRes] = await Promise.all([
+        const [userRes, householdRes, tasksRes] = await Promise.all([
           fetch("/api/user"),
           fetch("/api/household"),
+          fetch("/api/tasks?limit=1"),
         ]);
         if (userRes.ok) {
           const userData = await userRes.json();
@@ -30,12 +31,20 @@ export default function WelcomePage() {
           const householdData = await householdRes.json();
           setHouseholdName(householdData.household?.name || "the household");
         }
+        // If user already has tasks, redirect to dashboard
+        if (tasksRes.ok) {
+          const tasksData = await tasksRes.json();
+          if ((tasksData.total ?? 0) > 0) {
+            router.push("/dashboard");
+            return;
+          }
+        }
       } catch {
         // Non-critical
       }
     }
     loadContext();
-  }, []);
+  }, [router]);
 
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden p-6">

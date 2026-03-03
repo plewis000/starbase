@@ -160,7 +160,9 @@ export default function TaskCard({
       {/* Task content */}
       <div className="flex-1 min-w-0">
         {/* Title */}
-        <h3 className="text-slate-100 font-medium truncate mb-1">
+        <h3 className={`font-medium truncate mb-1 transition-all duration-300 ${
+          isCompleted ? "text-slate-500 line-through" : "text-slate-100"
+        }`}>
           {task.recurrence_rule && (
             <span className="text-blue-400 mr-1.5" title="Recurring task">🔄</span>
           )}
