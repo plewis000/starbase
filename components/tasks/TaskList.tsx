@@ -5,6 +5,7 @@ import FilterBar, { TaskFilters } from "./FilterBar";
 import TaskCard from "./TaskCard";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import EmptyState from "@/components/ui/EmptyState";
+import CompletionCelebration from "@/components/ui/CompletionCelebration";
 import { useToast } from "@/components/ui/Toast";
 
 interface Tag {
@@ -166,6 +167,7 @@ export default function TaskList({
 
   const [quickAddTitle, setQuickAddTitle] = useState("");
   const [quickAdding, setQuickAdding] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
 
   const handleLoadMore = () => {
     setOffset((prev) => prev + 1);
@@ -197,6 +199,8 @@ export default function TaskList({
       });
       // Trigger completion sync for linked entities (fire-and-forget)
       if (!isCompleted) {
+        setShowCelebration(true);
+        toast.success("Task complete! 🎉");
         fetch("/api/entity-links/sync", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -248,6 +252,11 @@ export default function TaskList({
 
   return (
     <div className="space-y-6">
+      <CompletionCelebration
+        show={showCelebration}
+        onComplete={() => setShowCelebration(false)}
+      />
+
       {/* Header with New Task button */}
       <div className="flex items-center justify-between gap-4">
         <div>
@@ -296,10 +305,10 @@ export default function TaskList({
       ) : tasks.length === 0 ? (
         <EmptyState
           icon="📋"
-          title="No tasks found"
-          description="Create a new task or adjust your filters to get started."
+          title="Your task board is empty"
+          description="Start by adding your first task — anything from 'take out the trash' to 'plan vacation'. Quick-add above or tap the button."
           action={{
-            label: "New Task",
+            label: "Create Your First Task",
             onClick: onCreateTask,
           }}
         />

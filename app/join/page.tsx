@@ -39,7 +39,7 @@ export default function JoinPage() {
         return;
       }
 
-      router.push("/dashboard");
+      router.push("/welcome");
     } catch {
       setError("Network error. Check your connection and try again.");
     } finally {

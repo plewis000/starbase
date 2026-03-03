@@ -259,8 +259,14 @@ export default function DashboardPage() {
               ))}
             </div>
           ) : (
-            <div className="dcc-card p-6 text-center">
-              <p className="text-dungeon-500 text-sm font-mono">No tasks due today. The System is suspicious of your productivity.</p>
+            <div className="dcc-card p-6 text-center space-y-3">
+              <p className="text-dungeon-500 text-sm font-mono">No tasks due today.</p>
+              <Link
+                href="/tasks"
+                className="inline-block px-4 py-2 text-sm font-medium text-crimson-400 border border-crimson-800 rounded-lg hover:bg-crimson-900/20 transition-colors font-mono"
+              >
+                Add a task &rarr;
+              </Link>
             </div>
           )}
         </section>
