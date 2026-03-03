@@ -462,6 +462,7 @@ export default function ShoppingPage() {
             icon="🛒"
             title="Your shopping lists are empty"
             description="Create a list for your next grocery run — add items, check them off as you shop, and never forget the milk again."
+            tip="Tip: Shopping lists are for store runs. For recurring purchases like 'buy milk weekly', use a task with a recurrence."
             action={{
               label: "Create Your First List",
               onClick: () => setShowNewListModal(true),
