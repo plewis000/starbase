@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getHouseholdContext } from "@/lib/household";
 import AppShell from "@/components/ui/AppShell";
 
 export default async function ProtectedLayout({
@@ -14,6 +15,12 @@ export default async function ProtectedLayout({
 
   if (!user) {
     redirect("/login");
+  }
+
+  // Redirect to /join if user has no household membership
+  const household = await getHouseholdContext(supabase, user.id);
+  if (!household) {
+    redirect("/join");
   }
 
   const userData = {
