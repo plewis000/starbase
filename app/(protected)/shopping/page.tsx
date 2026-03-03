@@ -3,8 +3,41 @@
 import React, { useState, useEffect, useCallback } from "react";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import EmptyState from "@/components/ui/EmptyState";
+import CompletionCelebration from "@/components/ui/CompletionCelebration";
 import Modal from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
+
+// Parse quantity from item name: "2 lbs chicken" → { name: "chicken", quantity: "2 lbs" }
+// Also handles: "milk x3", "3x eggs", "chicken (2 lbs)"
+function parseItemInput(input: string): { name: string; quantity: string | null } {
+  const trimmed = input.trim();
+
+  // Pattern: "3x eggs" or "eggs x3"
+  const xPattern = /^(\d+)\s*x\s+(.+)$/i;
+  const xMatch = trimmed.match(xPattern);
+  if (xMatch) return { name: xMatch[2].trim(), quantity: xMatch[1] };
+
+  const trailingX = /^(.+?)\s+x(\d+)$/i;
+  const trailingMatch = trimmed.match(trailingX);
+  if (trailingMatch) return { name: trailingMatch[1].trim(), quantity: trailingMatch[2] };
+
+  // Pattern: "2 lbs chicken", "1 gallon milk", "3 bags chips"
+  const unitPattern = /^(\d+(?:\.\d+)?)\s+(lbs?|oz|kg|g|gallon|gallons|gal|bags?|boxes?|cans?|bottles?|packs?|bunche?s?|dozen|doz|ct|count|liters?|l)\s+(.+)$/i;
+  const unitMatch = trimmed.match(unitPattern);
+  if (unitMatch) return { name: unitMatch[3].trim(), quantity: `${unitMatch[1]} ${unitMatch[2]}` };
+
+  // Pattern: "chicken (2 lbs)"
+  const parenPattern = /^(.+?)\s*\((.+?)\)\s*$/;
+  const parenMatch = trimmed.match(parenPattern);
+  if (parenMatch) return { name: parenMatch[1].trim(), quantity: parenMatch[2].trim() };
+
+  // Pattern: just a number prefix "3 apples"
+  const numPrefix = /^(\d+)\s+(.+)$/;
+  const numMatch = trimmed.match(numPrefix);
+  if (numMatch) return { name: numMatch[2].trim(), quantity: numMatch[1] };
+
+  return { name: trimmed, quantity: null };
+}
 
 interface ShoppingCategory {
   id: string;
@@ -54,6 +87,8 @@ export default function ShoppingPage() {
   const [newItemQty, setNewItemQty] = useState("");
   const [newItemCategory, setNewItemCategory] = useState("");
   const [linkedItemIds, setLinkedItemIds] = useState<Set<string>>(new Set());
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Fetch all lists
   const fetchLists = useCallback(async () => {
@@ -171,13 +206,24 @@ export default function ShoppingPage() {
 
   const handleAddItem = async () => {
     if (!newItemName.trim() || !activeListId) return;
+
+    // Smart parse: extract quantity from name if qty field is empty
+    let itemName = newItemName.trim();
+    let itemQty = newItemQty.trim() || null;
+
+    if (!itemQty) {
+      const parsed = parseItemInput(itemName);
+      itemName = parsed.name;
+      itemQty = parsed.quantity;
+    }
+
     try {
       const res = await fetch(`/api/shopping/${activeListId}/items`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: newItemName.trim(),
-          quantity: newItemQty.trim() || null,
+          name: itemName,
+          quantity: itemQty,
           category_id: newItemCategory || null,
         }),
       });
@@ -185,11 +231,14 @@ export default function ShoppingPage() {
         setNewItemName("");
         setNewItemQty("");
         setNewItemCategory("");
+        toast.success("Item added");
         await fetchActiveList();
         await fetchLists();
+      } else {
+        toast.error("Failed to add item");
       }
-    } catch (err) {
-      console.error("Failed to add item:", err);
+    } catch {
+      toast.error("Failed to add item");
     }
   };
 
@@ -220,6 +269,17 @@ export default function ShoppingPage() {
           body: JSON.stringify({ entity_type: "shopping_item", entity_id: itemId }),
         }).catch(() => {}); // Fire-and-forget — don't block UI
       }
+      // Celebrate when all items are checked off
+      if (checked) {
+        const updatedItems = activeList?.items?.map((i) =>
+          i.id === itemId ? { ...i, checked: true } : i
+        );
+        const allChecked = updatedItems?.every((i) => i.checked);
+        if (allChecked && updatedItems && updatedItems.length > 0) {
+          setShowCelebration(true);
+          toast.success("List complete! Nice shopping!");
+        }
+      }
       await fetchLists(); // Update counts
     } catch (err) {
       console.error("Failed to toggle item:", err);
@@ -243,24 +303,40 @@ export default function ShoppingPage() {
   const handleClearChecked = async () => {
     if (!activeList?.items) return;
     const checkedItems = activeList.items.filter((i) => i.checked);
-    await Promise.all(
-      checkedItems.map((item) =>
-        fetch(`/api/shopping/${activeListId}/items/${item.id}`, { method: "DELETE" })
-      )
-    );
-    await fetchActiveList();
-    await fetchLists();
+    if (checkedItems.length === 0) return;
+
+    // Optimistic removal
+    setActiveList((prev) => {
+      if (!prev) return prev;
+      return { ...prev, items: prev.items?.filter((i) => !i.checked) };
+    });
+
+    try {
+      await Promise.all(
+        checkedItems.map((item) =>
+          fetch(`/api/shopping/${activeListId}/items/${item.id}`, { method: "DELETE" })
+        )
+      );
+      toast.success(`Cleared ${checkedItems.length} item${checkedItems.length > 1 ? "s" : ""}`);
+      await fetchLists();
+    } catch {
+      toast.error("Failed to clear items");
+      await fetchActiveList(); // Revert
+    }
   };
 
   const handleDeleteList = async () => {
     if (!activeListId) return;
     try {
+      const listName = lists.find((l) => l.id === activeListId)?.name || "list";
       await fetch(`/api/shopping/${activeListId}`, { method: "DELETE" });
       setActiveListId(null);
       setActiveList(null);
+      setShowDeleteConfirm(false);
+      toast.success(`Deleted "${listName}"`);
       await fetchLists();
-    } catch (err) {
-      console.error("Failed to delete list:", err);
+    } catch {
+      toast.error("Failed to delete list");
     }
   };
 
@@ -341,6 +417,10 @@ export default function ShoppingPage() {
 
   return (
     <div>
+      <CompletionCelebration
+        show={showCelebration}
+        onComplete={() => setShowCelebration(false)}
+      />
       <div className="max-w-4xl mx-auto p-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -380,10 +460,10 @@ export default function ShoppingPage() {
         {lists.length === 0 ? (
           <EmptyState
             icon="🛒"
-            title="No shopping lists yet"
-            description="Create your first shopping list to get started."
+            title="Your shopping lists are empty"
+            description="Create a list for your next grocery run — add items, check them off as you shop, and never forget the milk again."
             action={{
-              label: "Create List",
+              label: "Create Your First List",
               onClick: () => setShowNewListModal(true),
             }}
           />
@@ -428,7 +508,8 @@ export default function ShoppingPage() {
             ) : items.length === 0 ? (
               <div className="text-center py-12">
                 <div className="text-4xl mb-3">🛒</div>
-                <p className="text-slate-400">This list is empty. Add some items!</p>
+                <p className="text-slate-300 font-medium mb-1">This list is ready for items</p>
+                <p className="text-slate-500 text-sm">Type an item above and press Enter — try &quot;2 lbs chicken&quot; or &quot;milk x3&quot;</p>
               </div>
             ) : (
               <div className="space-y-6">
@@ -554,12 +635,30 @@ export default function ShoppingPage() {
                         Clear checked
                       </button>
                     )}
-                    <button
-                      onClick={handleDeleteList}
-                      className="px-3 py-1.5 text-sm text-slate-500 hover:text-red-400 transition-colors"
-                    >
-                      Delete list
-                    </button>
+                    {showDeleteConfirm ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-400">Delete this list?</span>
+                        <button
+                          onClick={handleDeleteList}
+                          className="px-2 py-1 text-xs text-red-400 border border-red-400/30 rounded hover:bg-red-400/10 transition-colors"
+                        >
+                          Yes, delete
+                        </button>
+                        <button
+                          onClick={() => setShowDeleteConfirm(false)}
+                          className="px-2 py-1 text-xs text-slate-400 border border-slate-700 rounded hover:bg-slate-800 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setShowDeleteConfirm(true)}
+                        className="px-3 py-1.5 text-sm text-slate-500 hover:text-red-400 transition-colors"
+                      >
+                        Delete list
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

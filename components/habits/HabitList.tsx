@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import HabitCard from "./HabitCard";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import EmptyState from "@/components/ui/EmptyState";
+import CompletionCelebration from "@/components/ui/CompletionCelebration";
 import { useToast } from "@/components/ui/Toast";
 
 interface Habit {
@@ -63,9 +64,11 @@ function QuickAddHabit({ onCreated }: { onCreated: () => void }) {
 }
 
 export default function HabitList({ onSelectHabit, onCreateHabit, selectedHabitId }: HabitListProps) {
+  const toast = useToast();
   const [habits, setHabits] = useState<Habit[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "active" | "paused">("active");
+  const [showCelebration, setShowCelebration] = useState(false);
 
   const fetchHabits = useCallback(async () => {
     try {
@@ -98,6 +101,7 @@ export default function HabitList({ onSelectHabit, onCreateHabit, selectedHabitI
     if (habit.checked_today) {
       // Undo check-in
       await fetch(`/api/habits/${habitId}/check-in?date=${today}`, { method: "DELETE" });
+      toast.success("Check-in removed");
     } else {
       // Create check-in
       await fetch(`/api/habits/${habitId}/check-in`, {
@@ -111,6 +115,20 @@ export default function HabitList({ onSelectHabit, onCreateHabit, selectedHabitI
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ entity_type: "habit", entity_id: habitId }),
       }).catch(() => {});
+
+      // Check if all habits are now done → celebrate
+      const willBeAllDone = habits.filter((h) => h.status === "active").every(
+        (h) => h.checked_today || h.id === habitId
+      );
+      if (willBeAllDone && activeCount > 0) {
+        setShowCelebration(true);
+        toast.success("All habits done today!");
+      } else {
+        const newStreak = (habit.current_streak || 0) + 1;
+        if (newStreak === 7) toast.success(`${habit.title} — 7-day streak!`);
+        else if (newStreak === 30) toast.success(`${habit.title} — 30-day streak!`);
+        else toast.success(`${habit.title} checked in`);
+      }
     }
     fetchHabits();
   };
@@ -121,6 +139,10 @@ export default function HabitList({ onSelectHabit, onCreateHabit, selectedHabitI
 
   return (
     <div className="space-y-6">
+      <CompletionCelebration
+        show={showCelebration}
+        onComplete={() => setShowCelebration(false)}
+      />
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div>
@@ -182,9 +204,9 @@ export default function HabitList({ onSelectHabit, onCreateHabit, selectedHabitI
       ) : habits.length === 0 ? (
         <EmptyState
           icon="🔄"
-          title="No habits found"
-          description="Build consistency by tracking your daily habits."
-          action={{ label: "New Habit", onClick: onCreateHabit }}
+          title="Start building your routine"
+          description="Track daily habits like 'drink water', 'exercise', or 'read for 15 minutes'. Small habits compound into big changes — start with just one."
+          action={{ label: "Create Your First Habit", onClick: onCreateHabit }}
         />
       ) : (
         <div className="space-y-2">
