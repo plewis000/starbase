@@ -186,11 +186,17 @@ async function processCommand(
 
   try {
     const supabase = createServiceClient();
+
+    // /link runs before user resolution — it creates the link
+    if (commandName === "link") {
+      return await handleLink(supabase, discordUserId, options, webhookUrl);
+    }
+
     const userId = await resolveUser(supabase, discordUserId);
 
     if (!userId) {
       await sendWebhook(webhookUrl, {
-        content: "I don't know who you are. Ask Parker to link your Discord account — I don't just talk to strangers.",
+        content: "I don't know who you are yet. Use **/link** with your email to connect your Discord account, or ask Parker to help.",
       });
       return;
     }
@@ -226,6 +232,78 @@ async function processCommand(
       content: "Something broke on my end. Not your fault. Try again in a sec.",
     });
   }
+}
+
+// ── Link handler (runs before user resolution) ──────────────────────
+
+async function handleLink(supabase: Supabase, discordUserId: string, options: Record<string, unknown>, webhookUrl: string) {
+  const email = (options.email as string || "").trim().toLowerCase();
+
+  if (!email || !email.includes("@")) {
+    await sendWebhook(webhookUrl, { content: "Please provide a valid email address." });
+    return;
+  }
+
+  // Check if already linked
+  const { data: existing } = await platform(supabase)
+    .from("user_preferences")
+    .select("user_id")
+    .eq("preference_key", "discord_user_id")
+    .eq("preference_value", JSON.stringify(discordUserId))
+    .maybeSingle();
+
+  if (existing) {
+    await sendWebhook(webhookUrl, { content: "Your Discord is already linked! You're good to go — try **/dashboard** or **/task**." });
+    return;
+  }
+
+  // Find the user by email in auth.users (need to match against platform.users which stores email)
+  const { data: user } = await platform(supabase)
+    .from("users")
+    .select("id, email, display_name")
+    .eq("email", email)
+    .maybeSingle();
+
+  if (!user) {
+    await sendWebhook(webhookUrl, {
+      content: `No account found for **${email}**. Make sure you've signed up at https://starbase-green.vercel.app first, then try again.`,
+    });
+    return;
+  }
+
+  // Check they're in a household
+  const { data: membership } = await platform(supabase)
+    .from("household_members")
+    .select("household_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!membership) {
+    await sendWebhook(webhookUrl, {
+      content: `Found your account, but you haven't joined a household yet. Go to https://starbase-green.vercel.app/join and enter your invite code first.`,
+    });
+    return;
+  }
+
+  // Link Discord
+  const { error } = await platform(supabase)
+    .from("user_preferences")
+    .insert({
+      user_id: user.id,
+      preference_key: "discord_user_id",
+      preference_value: JSON.stringify(discordUserId),
+    });
+
+  if (error) {
+    console.error("Discord link failed:", error.message);
+    await sendWebhook(webhookUrl, { content: "Something went wrong linking your account. Try again or ask Parker for help." });
+    return;
+  }
+
+  const name = user.display_name || email.split("@")[0];
+  await sendWebhook(webhookUrl, {
+    content: `Linked! Welcome, **${name}**. You now have full access to all slash commands.\n\nTry these:\n• **/dashboard** — your daily overview\n• **/task** — create a task\n• **/shop** — add to shopping list\n• **/habit** — check in to a habit\n• **/ask** — ask me anything`,
+  });
 }
 
 // ── Direct command handlers (no Claude API cost) ──────────────────────
@@ -272,7 +350,8 @@ async function handleTask(supabase: Supabase, userId: string, options: Record<st
     .single();
 
   if (error) {
-    await sendWebhook(webhookUrl, { content: `Couldn't create task. ${error.message}` });
+    console.error("Discord task create failed:", error.message);
+    await sendWebhook(webhookUrl, { content: "Couldn't create task. Something went wrong." });
     return;
   }
 
@@ -343,7 +422,8 @@ async function handleHabit(supabase: Supabase, userId: string, options: Record<s
     .insert({ habit_id: match.id, checked_by: userId, check_in_date: today, status: "done" });
 
   if (error) {
-    await sendWebhook(webhookUrl, { content: `Check-in failed. ${error.message}` });
+    console.error("Discord habit check-in failed:", error.message);
+    await sendWebhook(webhookUrl, { content: "Check-in failed. Something went wrong." });
     return;
   }
 
@@ -513,7 +593,8 @@ async function handleShop(supabase: Supabase, userId: string, options: Record<st
     .insert(insertData);
 
   if (error) {
-    await sendWebhook(webhookUrl, { content: `Couldn't add items. ${error.message}` });
+    console.error("Discord shopping add failed:", error.message);
+    await sendWebhook(webhookUrl, { content: "Couldn't add items. Something went wrong." });
     return;
   }
 
@@ -876,7 +957,8 @@ async function handleFeedback(supabase: Supabase, userId: string, options: Recor
     .single();
 
   if (error) {
-    await sendWebhook(webhookUrl, { content: `Couldn't submit feedback. ${error.message}` });
+    console.error("Discord feedback submit failed:", error.message);
+    await sendWebhook(webhookUrl, { content: "Couldn't submit feedback. Something went wrong." });
     return;
   }
 
