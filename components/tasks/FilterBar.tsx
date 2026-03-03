@@ -48,6 +48,16 @@ const SORT_OPTIONS: { label: string; value: string }[] = [
   { label: "Title", value: "title" },
 ];
 
+// Preset quick-access filter views
+const SAVED_VIEWS: { label: string; icon: string; filters: Partial<TaskFilters> }[] = [
+  { label: "All Tasks", icon: "📋", filters: { status: "All", priority: "All", due: "All", owner: "", sort: "due_date", direction: "asc" } },
+  { label: "My Overdue", icon: "🔴", filters: { owner: "me", due: "overdue", status: "All", priority: "All", sort: "due_date", direction: "asc" } },
+  { label: "Due Today", icon: "📅", filters: { due: "today", status: "All", priority: "All", owner: "", sort: "priority_id", direction: "asc" } },
+  { label: "This Week", icon: "📆", filters: { due: "this_week", status: "All", priority: "All", owner: "", sort: "due_date", direction: "asc" } },
+  { label: "High Priority", icon: "🔥", filters: { priority: "Urgent,High", status: "All", due: "All", owner: "", sort: "due_date", direction: "asc" } },
+  { label: "Unassigned", icon: "👤", filters: { owner: "", status: "To Do", priority: "All", due: "All", sort: "created_at", direction: "desc" } },
+];
+
 export default function FilterBar({ onFilterChange }: FilterBarProps) {
   const [filters, setFilters] = useState<TaskFilters>({
     status: "All",
@@ -57,6 +67,7 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
     sort: "due_date",
     direction: "asc",
   });
+  const [activeView, setActiveView] = useState<string | null>("All Tasks");
 
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
@@ -77,11 +88,23 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
     [filters, searchTimeout, onFilterChange]
   );
 
+  // Apply a saved view
+  const applyView = useCallback(
+    (view: typeof SAVED_VIEWS[number]) => {
+      const newFilters: TaskFilters = { ...filters, ...view.filters, search: "" };
+      setFilters(newFilters);
+      setActiveView(view.label);
+      onFilterChange(newFilters);
+    },
+    [filters, onFilterChange]
+  );
+
   // Update filter and notify parent
   const updateFilter = useCallback(
     (key: keyof TaskFilters, value: string) => {
       const newFilters: TaskFilters = { ...filters, [key]: value };
       setFilters(newFilters);
+      setActiveView(null); // Clear active view when manually changing filters
       onFilterChange(newFilters);
     },
     [filters, onFilterChange]
@@ -96,6 +119,24 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
 
   return (
     <div className="space-y-4">
+      {/* Saved views — horizontal scroll */}
+      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
+        {SAVED_VIEWS.map((view) => (
+          <button
+            key={view.label}
+            onClick={() => applyView(view)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all border ${
+              activeView === view.label
+                ? "bg-crimson-900/30 border-crimson-700 text-crimson-300"
+                : "bg-dungeon-850 border-dungeon-700 text-dungeon-500 hover:text-slate-300 hover:border-dungeon-600"
+            }`}
+          >
+            <span>{view.icon}</span>
+            {view.label}
+          </button>
+        ))}
+      </div>
+
       {/* Mine / All toggle */}
       <div className="flex items-center gap-1 bg-dungeon-850 border border-dungeon-700 rounded-lg p-1 w-fit">
         <button
