@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import CommentThread from "@/components/ui/CommentThread";
+import EntityLinksSection from "@/components/ui/EntityLinksSection";
 import { useToast } from "@/components/ui/Toast";
 
 interface CheckIn {
@@ -291,6 +292,9 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
         {habit.description && (
           <p className="text-slate-300 text-sm leading-relaxed">{habit.description}</p>
         )}
+
+        {/* Linked Items (cross-module) */}
+        <EntityLinksSection entityType="habit" entityId={habitId} />
 
         {/* Linked Goals */}
         {(habit.linked_goals && habit.linked_goals.length > 0) || showGoalPicker ? (

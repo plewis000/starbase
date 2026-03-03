@@ -256,6 +256,24 @@ export interface CheckInFormData {
   mood?: HabitMood;
 }
 
+// ---- ENTITY LINKS (cross-module) ----
+
+export type EntityLinkType = "derived_from" | "tracks" | "syncs_with";
+export type LinkableEntityType = "task" | "habit" | "goal" | "shopping_item";
+
+export interface EntityLink {
+  id: string;
+  source_type: LinkableEntityType;
+  source_id: string;
+  target_type: LinkableEntityType;
+  target_id: string;
+  link_type: EntityLinkType;
+  sync_completion: boolean;
+  created_by?: string;
+  created_at?: string;
+  metadata?: Record<string, unknown>;
+}
+
 // ---- LINKING ----
 
 export interface LinkedHabit {

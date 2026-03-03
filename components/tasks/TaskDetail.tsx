@@ -7,6 +7,7 @@ import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import Modal from "@/components/ui/Modal";
 import ChecklistWidget from "./ChecklistWidget";
 import CommentThread from "@/components/ui/CommentThread";
+import EntityLinksSection from "@/components/ui/EntityLinksSection";
 import TaskForm from "./TaskForm";
 import {
   Task,
@@ -602,6 +603,9 @@ export default function TaskDetail({
             />
           </div>
         )}
+
+        {/* Linked Items */}
+        <EntityLinksSection entityType="task" entityId={task.id} />
 
         {/* Comments */}
         <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">

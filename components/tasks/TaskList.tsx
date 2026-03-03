@@ -195,6 +195,14 @@ export default function TaskList({
           completed_at: isCompleted ? null : new Date().toISOString(),
         }),
       });
+      // Trigger completion sync for linked entities (fire-and-forget)
+      if (!isCompleted) {
+        fetch("/api/entity-links/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ entity_type: "task", entity_id: taskId }),
+        }).catch(() => {});
+      }
       onTaskUpdated?.();
     } catch {
       toast.error("Failed to update task");

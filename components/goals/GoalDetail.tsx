@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import CommentThread from "@/components/ui/CommentThread";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import EntityLinksSection from "@/components/ui/EntityLinksSection";
 import { useToast } from "@/components/ui/Toast";
 
 interface Milestone {
@@ -501,6 +502,9 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
             </div>
           </div>
         )}
+
+        {/* Cross-Module Links */}
+        <EntityLinksSection entityType="goal" entityId={goalId} />
 
         {/* Status actions */}
         {goal.status === "active" && (
