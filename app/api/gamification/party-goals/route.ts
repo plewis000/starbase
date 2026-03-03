@@ -18,7 +18,7 @@ export async function GET() {
     `)
     .eq("is_party_goal", true);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
   return NextResponse.json({ partyGoals: partyGoals || [] });
 }
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     .select("*")
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
   return NextResponse.json({ partyGoal: data }, { status: 201 });
 }
@@ -67,7 +67,7 @@ export async function DELETE(request: NextRequest) {
     .delete()
     .eq("goal_id", goalId);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
   return NextResponse.json({ success: true });
 }

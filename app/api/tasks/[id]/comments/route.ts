@@ -59,7 +59,7 @@ export async function GET(
   const { data: rawComments, error } = await query;
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   const lookups = await getConfigLookups(supabase);
@@ -189,7 +189,7 @@ export async function POST(
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   await logActivity(supabase, {

@@ -28,7 +28,7 @@ export async function GET(
     .eq("entity_type", entityType)
     .eq("entity_id", entityId);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
   // Enrich with user info
   const userIds = (watchers || []).map((w) => w.user_id);
@@ -95,7 +95,7 @@ export async function POST(
     .select("*")
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
   return NextResponse.json({ watcher }, { status: 201 });
 }
@@ -123,7 +123,7 @@ export async function DELETE(
     .eq("entity_id", entityId)
     .eq("user_id", user.id);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
   return NextResponse.json({ success: true });
 }

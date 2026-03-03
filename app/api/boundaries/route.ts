@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
   const { data: boundaries, error } = await query;
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   return NextResponse.json({ boundaries: boundaries || [] });
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   return NextResponse.json({ boundary }, { status: 201 });

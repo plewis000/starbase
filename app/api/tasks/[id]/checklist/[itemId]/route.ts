@@ -64,7 +64,7 @@ export async function PATCH(
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   const action = body.checked ? "checked" : body.checked === false ? "unchecked" : "updated";
@@ -136,7 +136,7 @@ export async function DELETE(
     .eq("task_id", taskId);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   await logActivity(supabase, {

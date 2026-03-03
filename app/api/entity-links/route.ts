@@ -53,10 +53,12 @@ export async function GET(req: NextRequest) {
   ]);
 
   if (asSource.error) {
-    return NextResponse.json({ error: asSource.error.message }, { status: 500 });
+    console.error(asSource.error.message);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
   if (asTarget.error) {
-    return NextResponse.json({ error: asTarget.error.message }, { status: 500 });
+    console.error(asTarget.error.message);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   // Combine and deduplicate (shouldn't have dupes but be safe)
@@ -141,7 +143,7 @@ export async function POST(req: NextRequest) {
     if (error.code === "23505") {
       return NextResponse.json({ error: "This link already exists" }, { status: 409 });
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   return NextResponse.json({ link: data }, { status: 201 });
@@ -169,7 +171,7 @@ export async function DELETE(req: NextRequest) {
     .eq("id", id);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   return NextResponse.json({ success: true });

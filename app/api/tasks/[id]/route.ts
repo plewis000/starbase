@@ -55,7 +55,7 @@ export async function GET(
     if (error.code === "PGRST116") {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   // Get config lookups for enrichment
@@ -479,7 +479,7 @@ export async function DELETE(
   if (hard) {
     const { error } = await platform(supabase).from("tasks").delete().eq("id", id);
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 
     await logActivity(supabase, {
@@ -509,7 +509,7 @@ export async function DELETE(
       .eq("id", id);
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 
     await logActivity(supabase, {

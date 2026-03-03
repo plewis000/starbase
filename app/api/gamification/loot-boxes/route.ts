@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
   const { data: boxes, error } = await query;
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   return NextResponse.json({

@@ -21,7 +21,7 @@ export async function GET() {
     .order("is_default", { ascending: false })
     .order("created_at", { ascending: false });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
   // For each list, get item counts
   const listsWithCounts = await Promise.all(
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
     .select("*")
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
   return NextResponse.json({ list }, { status: 201 });
 }

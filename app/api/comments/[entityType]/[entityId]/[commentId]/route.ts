@@ -129,7 +129,7 @@ export async function PATCH(
       .select("*")
       .single();
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
     return NextResponse.json({ comment: updated });
   }
 
@@ -170,7 +170,7 @@ export async function PATCH(
     .select("*")
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
   // Re-parse mentions
   const mentionResult = await parseMentions(supabase, bodyCheck.value);
@@ -229,7 +229,7 @@ export async function DELETE(
     })
     .eq("id", commentId);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
   await logActivity(supabase, {
     entity_type: entityType,

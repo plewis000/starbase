@@ -31,7 +31,7 @@ export async function GET(
     .select("id, tag_id, created_at")
     .eq("habit_id", id);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
   // Enrich with tag details
   const tagIds = (habitTags || []).map((ht) => ht.tag_id);
@@ -93,7 +93,7 @@ export async function POST(
     .upsert(rows, { onConflict: "habit_id,tag_id" })
     .select("*");
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
   return NextResponse.json({ habit_tags: inserted }, { status: 201 });
 }
@@ -131,7 +131,7 @@ export async function DELETE(
     .eq("habit_id", id)
     .eq("tag_id", tagId);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
   return NextResponse.json({ success: true });
 }

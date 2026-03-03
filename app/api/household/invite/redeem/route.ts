@@ -89,7 +89,8 @@ export async function POST(request: NextRequest) {
     });
 
   if (memberErr) {
-    return NextResponse.json({ error: memberErr.message }, { status: 500 });
+    console.error(memberErr.message);
+    return NextResponse.json({ error: "Failed to join household" }, { status: 500 });
   }
 
   // Increment usage count

@@ -64,7 +64,7 @@ export async function GET(
 
   const { data: rawComments, error } = await query;
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
   // If threaded mode, also fetch replies
   let replies: Record<string, unknown>[] = [];
@@ -191,7 +191,7 @@ export async function POST(
     .select("*")
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
   // Parse mentions and persist
   const mentionResult = await parseMentions(supabase, bodyCheck.value);

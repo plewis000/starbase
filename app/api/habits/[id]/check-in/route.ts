@@ -105,7 +105,7 @@ export async function POST(
         { status: 409 }
       );
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   // Get frequency details for streak calculation
@@ -223,7 +223,7 @@ export async function DELETE(
     .eq("check_date", date);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   // Verify habit for streak recalc

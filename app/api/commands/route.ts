@@ -116,7 +116,7 @@ async function executeCommand(
       .select("id, title")
       .single();
 
-    if (error) return { response: `Failed to create task: ${error.message}` };
+    if (error) { console.error(error.message); return { response: "Failed to create task" }; }
     return { response: `Task created: **${task.title}**`, data: task };
   }
 

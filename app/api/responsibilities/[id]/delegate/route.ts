@@ -59,7 +59,7 @@ export async function GET(
   const { data: delegations, error } = await query;
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   return NextResponse.json({ delegations: delegations || [] });
@@ -187,7 +187,7 @@ export async function POST(
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   // Notify the target user

@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     .is("effective_until", null)
     .order("created_at");
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
   // Fetch categories
   const { data: categories } = await config(supabase)
@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
     .select("*")
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
   // Create default alerts if requested or use defaults
   const alertThresholds = Array.isArray(alerts) ? alerts : [75, 90];
