@@ -506,10 +506,39 @@ export default function ShoppingPage() {
                 <LoadingSpinner size="md" />
               </div>
             ) : items.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="text-4xl mb-3">🛒</div>
-                <p className="text-slate-300 font-medium mb-1">This list is ready for items</p>
-                <p className="text-slate-500 text-sm">Type an item above and press Enter — try &quot;2 lbs chicken&quot; or &quot;milk x3&quot;</p>
+              <div className="space-y-6">
+                <div className="text-center py-8">
+                  <div className="text-4xl mb-3">🛒</div>
+                  <p className="text-slate-300 font-medium mb-1">This list is ready for items</p>
+                  <p className="text-slate-500 text-sm">Type an item above and press Enter — try &quot;2 lbs chicken&quot; or &quot;milk x3&quot;</p>
+                </div>
+                <div className="bg-dungeon-850 border border-dungeon-700 rounded-xl p-5">
+                  <h3 className="text-sm font-semibold text-slate-300 mb-3">Common items — tap to add</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {["Milk", "Eggs", "Bread", "Butter", "Chicken", "Rice", "Bananas", "Onions", "Tomatoes", "Cheese", "Pasta", "Coffee"].map((item) => (
+                      <button
+                        key={item}
+                        onClick={async () => {
+                          try {
+                            const res = await fetch(`/api/shopping/${activeListId}/items`, {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ name: item }),
+                            });
+                            if (res.ok) {
+                              toast.success(`Added ${item}`);
+                              await fetchActiveList();
+                              await fetchLists();
+                            }
+                          } catch { toast.error("Failed to add item"); }
+                        }}
+                        className="px-3 py-1.5 rounded-full text-xs font-medium bg-dungeon-900 border border-dungeon-700 text-slate-400 hover:text-slate-200 hover:border-crimson-700 transition-all"
+                      >
+                        {item}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="space-y-6">
@@ -559,8 +588,8 @@ export default function ShoppingPage() {
                           </button>
 
                           {/* Item name */}
-                          <span className={`flex-1 text-sm ${
-                            item.checked ? "text-slate-500 line-through" : "text-slate-100"
+                          <span className={`flex-1 text-sm transition-all duration-300 ${
+                            item.checked ? "text-slate-500 line-through opacity-60" : "text-slate-100"
                           }`}>
                             {item.name}
                           </span>

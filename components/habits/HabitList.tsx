@@ -63,6 +63,59 @@ function QuickAddHabit({ onCreated }: { onCreated: () => void }) {
   );
 }
 
+const HABIT_SUGGESTIONS = [
+  { title: "Drink 8 glasses of water", icon: "💧" },
+  { title: "Exercise for 30 minutes", icon: "🏋️" },
+  { title: "Read for 15 minutes", icon: "📖" },
+  { title: "Take a walk outside", icon: "🚶" },
+  { title: "Tidy up for 10 minutes", icon: "🧹" },
+  { title: "Meditate for 5 minutes", icon: "🧘" },
+  { title: "No phone before bed", icon: "📱" },
+  { title: "Cook a meal at home", icon: "🍳" },
+];
+
+function HabitSuggestions({ onCreated }: { onCreated: () => void }) {
+  const toast = useToast();
+  const [creating, setCreating] = useState<string | null>(null);
+
+  const handleCreate = async (title: string) => {
+    setCreating(title);
+    try {
+      const configRes = await fetch("/api/config");
+      const configData = await configRes.json();
+      const dailyFreq = configData.habit_frequencies?.find((f: { name: string }) => f.name.toLowerCase() === "daily");
+
+      const res = await fetch("/api/habits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, frequency_id: dailyFreq?.id }),
+      });
+      if (res.ok) { onCreated(); toast.success(`Added "${title}"`); }
+      else { toast.error("Failed to create habit"); }
+    } catch { toast.error("Failed to create habit"); }
+    setCreating(null);
+  };
+
+  return (
+    <div className="bg-dungeon-850 border border-dungeon-700 rounded-xl p-5">
+      <h3 className="text-sm font-semibold text-slate-300 mb-3">Quick start — tap to add</h3>
+      <div className="flex flex-wrap gap-2">
+        {HABIT_SUGGESTIONS.map((s) => (
+          <button
+            key={s.title}
+            onClick={() => handleCreate(s.title)}
+            disabled={creating === s.title}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-dungeon-900 border border-dungeon-700 text-slate-400 hover:text-slate-200 hover:border-crimson-700 disabled:opacity-50 transition-all"
+          >
+            <span>{s.icon}</span>
+            {s.title}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function HabitList({ onSelectHabit, onCreateHabit, selectedHabitId }: HabitListProps) {
   const toast = useToast();
   const [habits, setHabits] = useState<Habit[]>([]);
@@ -202,12 +255,15 @@ export default function HabitList({ onSelectHabit, onCreateHabit, selectedHabitI
       {loading ? (
         <div className="flex justify-center py-12"><LoadingSpinner size="lg" /></div>
       ) : habits.length === 0 ? (
-        <EmptyState
-          icon="🔄"
-          title="Start building your routine"
-          description="Track daily habits like 'drink water', 'exercise', or 'read for 15 minutes'. Small habits compound into big changes — start with just one."
-          action={{ label: "Create Your First Habit", onClick: onCreateHabit }}
-        />
+        <div className="space-y-6">
+          <EmptyState
+            icon="🔄"
+            title="Start building your routine"
+            description="Track daily habits like 'drink water', 'exercise', or 'read for 15 minutes'. Small habits compound into big changes — start with just one."
+            action={{ label: "Create Your First Habit", onClick: onCreateHabit }}
+          />
+          <HabitSuggestions onCreated={fetchHabits} />
+        </div>
       ) : (
         <div className="space-y-2">
           {habits.map((habit) => (
