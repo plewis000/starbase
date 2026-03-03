@@ -9,6 +9,7 @@ export default function JoinPage() {
   const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,7 +40,9 @@ export default function JoinPage() {
         return;
       }
 
-      router.push("/welcome");
+      setSuccess(true);
+      // Brief pause so user sees success before redirect
+      setTimeout(() => router.push("/welcome"), 800);
     } catch {
       setError("Network error. Check your connection and try again.");
     } finally {
@@ -101,10 +104,14 @@ export default function JoinPage() {
 
             <button
               type="submit"
-              disabled={loading || !inviteCode.trim()}
-              className="w-full dcc-btn-primary py-3 text-base disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              disabled={loading || success || !inviteCode.trim()}
+              className={`w-full py-3 text-base disabled:cursor-not-allowed disabled:transform-none transition-all ${
+                success
+                  ? "bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 rounded-lg font-medium"
+                  : "dcc-btn-primary disabled:opacity-50"
+              }`}
             >
-              {loading ? "Joining..." : "Join Household"}
+              {success ? "You're in! ✓" : loading ? "Joining..." : "Join Household"}
             </button>
           </div>
         </form>

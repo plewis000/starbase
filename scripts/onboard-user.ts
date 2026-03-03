@@ -69,20 +69,22 @@ const messages = [
 Parker's got the app ready for you to try out. Here's the link:
 **https://starbase-green.vercel.app**
 
-Sign in with your Google account and you'll land on the dashboard.`,
+Sign in with your Google account — it'll take you right where you need to go.`,
 
   // Message 2 — Invite Code
-  `One thing — after you sign in, you'll need to join the household. Enter this code when prompted:
+  `After you sign in, it'll ask for a household code. Here's yours:
 **\`${inviteCode}\`**
-That links your account to Parker's so you see shared tasks and everything stays in sync.`,
+Type that in and you're linked to Parker's account — shared tasks, shared goals, everything in sync.`,
 
   // Message 3 — What To Do
-  `Here's all I'd ask: poke around the Tasks section. Create a task, check one off, open one up. If anything feels weird, broken, or you think "this should work differently" — tap the gold **Z** button in the corner, go to the **Feedback** tab, and tell me. Bug, wish, or general thoughts — all useful.
+  `Once you're in, it'll walk you through a quick setup — pick which rooms you want to manage, and it'll pre-load common tasks for each one. Takes about a minute. After that, the task board is all yours.
 
-No pressure, no homework. Just use it like any todo app and let us know what sucks.`,
+Poke around. Complete a task. Create one. If anything feels weird or you think "this should work differently" — tap the gold **Z** button in the corner, go to the **Feedback** tab, and tell me. Bug, wish, or random thought — all useful.`,
 
   // Message 4 — Warm Close
-  `That's it from me. I'll check in tomorrow to see how it's going. If you need anything, you can talk to me through the app too — same Z button, Chat tab.
+  `That's it from me. No pressure, no homework — just use it and let us know what sucks. I'll check in tomorrow to see how it's going.
+
+If you need anything, you can talk to me through the app too — same Z button, Chat tab.
 
 Welcome to the club. 🏰`,
 ];

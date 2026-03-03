@@ -66,6 +66,7 @@ export default function DashboardPage() {
   const [todayDate, setTodayDate] = useState("");
   const [crawler, setCrawler] = useState<CrawlerData | null>(null);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [totalTaskCount, setTotalTaskCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -80,11 +81,18 @@ export default function DashboardPage() {
           setDisplayName(userData.full_name || userData.email || "there");
         }
 
-        const tasksRes = await fetch("/api/tasks?due_today=true&limit=5");
+        const [tasksRes, allTasksRes] = await Promise.all([
+          fetch("/api/tasks?due_today=true&limit=5"),
+          fetch("/api/tasks?limit=1"),
+        ]);
         if (tasksRes.ok) {
           const tasksData = await tasksRes.json();
           const parsedTasks = Array.isArray(tasksData) ? tasksData : tasksData.tasks || [];
           setTasks(parsedTasks);
+        }
+        if (allTasksRes.ok) {
+          const allData = await allTasksRes.json();
+          setTotalTaskCount(allData.total ?? 0);
         }
 
         const crawlRes = await fetch("/api/gamification");
@@ -131,6 +139,25 @@ export default function DashboardPage() {
           </h1>
           <p className="text-sm text-dungeon-500 mt-1 font-mono">{todayDate}</p>
         </div>
+
+        {/* Setup nudge for new users with zero tasks */}
+        {totalTaskCount === 0 && (
+          <Link href="/welcome/setup" className="block">
+            <div className="dcc-card-hover p-5 border-gold-800/40 relative overflow-hidden">
+              <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-gold-400 to-transparent opacity-60" />
+              <div className="flex items-center gap-4">
+                <span className="text-3xl">🏠</span>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-slate-100">Set up your household</p>
+                  <p className="text-xs text-dungeon-500 mt-0.5">Pick your rooms and pre-load common tasks in about a minute.</p>
+                </div>
+                <svg className="w-5 h-5 text-gold-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </div>
+          </Link>
+        )}
 
         {/* Crawler Status Card */}
         {crawler && (
