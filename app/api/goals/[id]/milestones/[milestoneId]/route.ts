@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { platform } from "@/lib/supabase/schemas";
 import { logActivity } from "@/lib/activity-log";
@@ -61,9 +61,9 @@ export async function PATCH(
     await recalculateAndUpdateGoalProgress(supabase, goalId).catch(console.error);
   }
 
-  // Award XP for completing a milestone (non-blocking)
+  // Award XP for completing a milestone (P024 — runs after response)
   if (body.completed === true) {
-    (async () => {
+    after(async () => {
       try {
         await awardXp(
           supabase,
@@ -80,7 +80,7 @@ export async function PATCH(
       } catch (err) {
         console.error("Gamification error:", err);
       }
-    })();
+    });
   }
 
   return NextResponse.json({ milestone });

@@ -162,6 +162,27 @@ export async function PATCH(
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  // Handle goal linking if goal_ids provided
+  if (Array.isArray(body.goal_ids)) {
+    // Remove existing links
+    await platform(supabase)
+      .from("goal_habits")
+      .delete()
+      .eq("habit_id", id);
+
+    // Insert new links
+    if (body.goal_ids.length > 0) {
+      const links = body.goal_ids.map((goalId: string) => ({
+        goal_id: goalId,
+        habit_id: id,
+        weight: 1.0,
+      }));
+      await platform(supabase)
+        .from("goal_habits")
+        .insert(links);
+    }
+  }
+
   await logFieldChanges(supabase, "habit", id, user.id, currentHabit, updates).catch(console.error);
 
   const lookups = await getGoalHabitLookups(supabase);

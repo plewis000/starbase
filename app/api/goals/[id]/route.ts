@@ -1,9 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { platform } from "@/lib/supabase/schemas";
 import { getGoalHabitLookups, enrichGoal } from "@/lib/goal-habit-enrichment";
 import { logActivity, logFieldChanges } from "@/lib/activity-log";
 import { recalculateAndUpdateGoalProgress } from "@/lib/goal-progress";
+import { awardXp, checkAchievements } from "@/lib/gamification";
 
 // ---- GET: Single goal with full details ----
 
@@ -172,6 +173,18 @@ export async function PATCH(
   // If current_value changed on a manual goal, recalculate progress
   if (body.current_value !== undefined && currentGoal.progress_type === "manual" && currentGoal.target_value) {
     await recalculateAndUpdateGoalProgress(supabase, id).catch(console.error);
+  }
+
+  // Award XP when goal is completed (runs after response — P024)
+  if (updates.status === "completed" && currentGoal.status !== "completed") {
+    after(async () => {
+      try {
+        await awardXp(supabase, user.id, 100, "goal_completed", `Goal completed: ${updated.title}`, id);
+        await checkAchievements(supabase, user.id, "goal_completed", { goalId: id });
+      } catch (err) {
+        console.error("[goals] Gamification error on completion:", err);
+      }
+    });
   }
 
   const lookups = await getGoalHabitLookups(supabase);

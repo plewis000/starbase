@@ -283,7 +283,7 @@ async function listHabits(supabase: Supabase, userId: string, input: Record<stri
 
   let query = platform(supabase)
     .from("habits")
-    .select("id, title, description, status, frequency:habit_frequencies(name), current_streak, longest_streak, last_check_in")
+    .select("id, title, description, status, frequency:habit_frequencies(name), current_streak, longest_streak, last_completed_at")
     .in("owner_id", memberIds)
     .order("title");
 
@@ -305,15 +305,34 @@ async function checkInHabit(supabase: Supabase, userId: string, input: Record<st
     .from("habit_check_ins")
     .upsert({
       habit_id: habitId,
-      user_id: userId,
+      checked_by: userId,
       check_date: checkDate,
-      value: input.value ? Number(input.value) : 1,
+      value: input.value ? Number(input.value) : null,
       note: (input.note as string) || null,
-    }, { onConflict: "habit_id,user_id,check_date" })
+    }, { onConflict: "habit_id,checked_by,check_date" })
     .select("id, check_date, value")
     .single();
 
   if (error) return { success: false, error: error.message };
+
+  // Recalculate streak after check-in
+  try {
+    const { recalculateAndUpdateStreak } = await import("@/lib/streak-engine");
+    const { data: habit } = await platform(supabase)
+      .from("habits")
+      .select("target_count, started_on, frequency:habit_frequencies(target_type)")
+      .eq("id", habitId)
+      .single();
+    if (habit) {
+      const targetType = (habit.frequency as any)?.target_type || "daily";
+      const streakResult = await recalculateAndUpdateStreak(
+        supabase, habitId, habit.target_count || 1, targetType, habit.started_on
+      );
+      return { success: true, data: { check_in: data, streak: streakResult, message: `Habit checked in for ${checkDate}` } };
+    }
+  } catch {
+    // Streak recalc failed — still return success for the check-in
+  }
   return { success: true, data: { check_in: data, message: `Habit checked in for ${checkDate}` } };
 }
 

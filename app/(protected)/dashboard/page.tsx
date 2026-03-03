@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import OutcomesPanel from "@/components/dashboard/OutcomesPanel";
+import { DashboardSkeleton } from "@/components/ui/Skeleton";
 
 interface Task {
   id: string;
@@ -33,8 +34,31 @@ interface CrawlerData {
     xpInLevel: number;
     progress: number;
   };
-  recentXp: { action_type: string; xp_amount: number; description: string }[];
+  recentXp: { action_type: string; amount: number; description: string }[];
 }
+
+// Fun welcome message variations for the command deck
+const getWelcomeMessage = (displayName: string) => {
+  const welcomeMessages = [
+    `Welcome back, ${displayName}`,
+    `The Command Deck awaits, ${displayName}`,
+    `Good to see you again, ${displayName}`,
+    `Back for more, ${displayName}?`,
+    `The System missed you, ${displayName}`,
+    `Ready to ride again, ${displayName}?`,
+    `Another day in the wastes, ${displayName}`,
+    `Welcome to your domain, ${displayName}`,
+    `The crew's all here, ${displayName}`,
+    `Time to make some moves, ${displayName}`,
+    `Back in the saddle, ${displayName}?`,
+    `Your command deck is loaded and ready, ${displayName}`,
+  ];
+
+  // Use a simple hash of the current day to get consistent but rotating messages
+  const today = new Date().toDateString();
+  const hash = today.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
+  return welcomeMessages[hash % welcomeMessages.length];
+};
 
 export default function DashboardPage() {
   const [displayName, setDisplayName] = useState("there");
@@ -94,13 +118,7 @@ export default function DashboardPage() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="p-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-dungeon-500 font-mono text-sm">Loading systems...</div>
-        </div>
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   return (
@@ -109,7 +127,7 @@ export default function DashboardPage() {
         {/* Greeting */}
         <div>
           <h1 className="text-3xl font-bold text-slate-100 dcc-heading tracking-wide">
-            Welcome back, {displayName}
+            {getWelcomeMessage(displayName)}
           </h1>
           <p className="text-sm text-dungeon-500 mt-1 font-mono">{todayDate}</p>
         </div>
