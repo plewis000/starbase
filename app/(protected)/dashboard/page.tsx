@@ -21,6 +21,20 @@ interface Suggestion {
   confidence: number;
 }
 
+interface DashboardHabit {
+  id: string;
+  title: string;
+  current_streak: number;
+  checked_today?: boolean;
+}
+
+interface ShoppingListSummary {
+  id: string;
+  name: string;
+  total_items: number;
+  checked_items: number;
+}
+
 interface CrawlerData {
   profile: {
     crawler_name: string;
@@ -67,6 +81,8 @@ export default function DashboardPage() {
   const [crawler, setCrawler] = useState<CrawlerData | null>(null);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [totalTaskCount, setTotalTaskCount] = useState<number | null>(null);
+  const [habits, setHabits] = useState<DashboardHabit[]>([]);
+  const [shoppingLists, setShoppingLists] = useState<ShoppingListSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -101,10 +117,22 @@ export default function DashboardPage() {
           setCrawler(crawlData);
         }
 
-        const suggestionsRes = await fetch("/api/ai/suggestions?status=pending&limit=3");
+        const [suggestionsRes, habitsRes, shoppingRes] = await Promise.all([
+          fetch("/api/ai/suggestions?status=pending&limit=3"),
+          fetch("/api/habits?status=active&limit=10"),
+          fetch("/api/shopping"),
+        ]);
         if (suggestionsRes.ok) {
           const suggestionsData = await suggestionsRes.json();
           setSuggestions(suggestionsData.suggestions || []);
+        }
+        if (habitsRes.ok) {
+          const habitsData = await habitsRes.json();
+          setHabits(habitsData.habits || []);
+        }
+        if (shoppingRes.ok) {
+          const shoppingData = await shoppingRes.json();
+          setShoppingLists(shoppingData.lists || []);
         }
 
         setTodayDate(
@@ -297,6 +325,108 @@ export default function DashboardPage() {
             </div>
           )}
         </section>
+
+        {/* Today's Habits */}
+        {habits.length > 0 && (
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-slate-100 dcc-heading tracking-wide">Today&apos;s Habits</h2>
+              <Link
+                href="/habits"
+                className="text-xs text-dungeon-500 hover:text-crimson-400 transition-colors font-mono"
+              >
+                View all &rarr;
+              </Link>
+            </div>
+            <div className="dcc-card p-4">
+              {/* Progress summary */}
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm text-slate-300">
+                  {habits.filter((h) => h.checked_today).length}/{habits.length} done
+                </span>
+                <span className="text-sm font-bold text-crimson-400 font-mono">
+                  {habits.length > 0
+                    ? Math.round((habits.filter((h) => h.checked_today).length / habits.length) * 100)
+                    : 0}%
+                </span>
+              </div>
+              <div className="w-full bg-dungeon-800 rounded-full h-1.5 mb-3">
+                <div
+                  className="bg-crimson-500 h-1.5 rounded-full transition-all"
+                  style={{ width: `${habits.length > 0 ? (habits.filter((h) => h.checked_today).length / habits.length) * 100 : 0}%` }}
+                />
+              </div>
+              {/* Habit list — unchecked first */}
+              <div className="space-y-1">
+                {[...habits].sort((a, b) => (a.checked_today ? 1 : 0) - (b.checked_today ? 1 : 0)).slice(0, 6).map((habit) => (
+                  <div key={habit.id} className="flex items-center gap-3 py-1.5">
+                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                      habit.checked_today
+                        ? "border-crimson-400 bg-crimson-400/20"
+                        : "border-dungeon-600"
+                    }`}>
+                      {habit.checked_today && (
+                        <svg className="w-2.5 h-2.5 text-crimson-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </div>
+                    <span className={`text-sm flex-1 ${habit.checked_today ? "text-dungeon-500 line-through" : "text-slate-300"}`}>
+                      {habit.title}
+                    </span>
+                    {habit.current_streak > 0 && (
+                      <span className="text-xs text-amber-400 font-mono">🔥{habit.current_streak}</span>
+                    )}
+                  </div>
+                ))}
+                {habits.length > 6 && (
+                  <Link href="/habits" className="block text-xs text-dungeon-500 hover:text-crimson-400 transition-colors pt-1 font-mono">
+                    +{habits.length - 6} more &rarr;
+                  </Link>
+                )}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Shopping Lists */}
+        {shoppingLists.length > 0 && (
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-slate-100 dcc-heading tracking-wide">Shopping</h2>
+              <Link
+                href="/shopping"
+                className="text-xs text-dungeon-500 hover:text-crimson-400 transition-colors font-mono"
+              >
+                View all &rarr;
+              </Link>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {shoppingLists.slice(0, 4).map((list) => {
+                const remaining = list.total_items - list.checked_items;
+                const pct = list.total_items > 0 ? Math.round((list.checked_items / list.total_items) * 100) : 0;
+                return (
+                  <Link key={list.id} href="/shopping" className="block">
+                    <div className="dcc-card-hover p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-slate-200 truncate">{list.name}</span>
+                        <span className="text-xs text-dungeon-500 font-mono flex-shrink-0 ml-2">
+                          {remaining > 0 ? `${remaining} left` : "Done!"}
+                        </span>
+                      </div>
+                      <div className="w-full bg-dungeon-800 rounded-full h-1">
+                        <div
+                          className={`h-1 rounded-full transition-all ${pct === 100 ? "bg-emerald-500" : "bg-crimson-500"}`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {/* Quick Action Buttons */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
