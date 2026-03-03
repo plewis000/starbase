@@ -4,6 +4,7 @@ interface EmptyStateProps {
   icon?: string;
   title: string;
   description?: string;
+  tip?: string;
   action?: {
     label: string;
     onClick: () => void;
@@ -14,6 +15,7 @@ export default function EmptyState({
   icon,
   title,
   description,
+  tip,
   action,
 }: EmptyStateProps) {
   return (
@@ -30,6 +32,9 @@ export default function EmptyState({
         >
           {action.label}
         </button>
+      )}
+      {tip && (
+        <p className="text-dungeon-600 text-xs max-w-xs mt-6 italic">{tip}</p>
       )}
     </div>
   );

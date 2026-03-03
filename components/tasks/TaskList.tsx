@@ -353,6 +353,7 @@ export default function TaskList({
           icon="📋"
           title="Your task board is empty"
           description="Start by adding your first task — anything from 'take out the trash' to 'plan vacation'. Quick-add above or tap the button."
+          tip="Tip: Tasks are for one-time to-dos. For recurring things (daily cleanup, weekly laundry), try habits instead."
           action={{
             label: "Create Your First Task",
             onClick: onCreateTask,

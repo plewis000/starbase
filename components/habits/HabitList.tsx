@@ -56,7 +56,7 @@ function QuickAddHabit({ onCreated }: { onCreated: () => void }) {
       value={title}
       onChange={(e) => setTitle(e.target.value)}
       onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
-      placeholder="Quick add habit... (press Enter, defaults to daily)"
+      placeholder="Quick add habit... (e.g., 'drink water', 'exercise')"
       disabled={adding}
       className="w-full bg-slate-900 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-500/50 disabled:opacity-50 transition-colors"
     />
@@ -224,15 +224,22 @@ export default function HabitList({ onSelectHabit, onCreateHabit, selectedHabitI
       {activeCount > 0 && (
         <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-slate-100">Today&apos;s Progress</span>
-            <span className="text-sm text-red-400 font-bold">{completionRate}%</span>
+            <span className="text-sm font-medium text-slate-100">
+              {completionRate === 100 ? "All done today!" : completionRate >= 50 ? "Keep it up!" : "Today\u2019s Progress"}
+            </span>
+            <span className={`text-sm font-bold ${completionRate === 100 ? "text-emerald-400" : "text-red-400"}`}>{completionRate}%</span>
           </div>
           <div className="w-full bg-slate-800 rounded-full h-2">
             <div
-              className="bg-red-400 h-2 rounded-full transition-all"
+              className={`h-2 rounded-full transition-all ${completionRate === 100 ? "bg-emerald-400" : "bg-red-400"}`}
               style={{ width: `${completionRate}%` }}
             />
           </div>
+          <p className="text-xs text-dungeon-500 mt-2">
+            {checkedCount === 0 ? "Start your day — check in on your first habit" :
+             completionRate === 100 ? `${activeCount} habits done. You\u2019re on fire!` :
+             `${activeCount - checkedCount} habit${activeCount - checkedCount > 1 ? "s" : ""} remaining today`}
+          </p>
         </div>
       )}
 
@@ -260,6 +267,7 @@ export default function HabitList({ onSelectHabit, onCreateHabit, selectedHabitI
             icon="🔄"
             title="Start building your routine"
             description="Track daily habits like 'drink water', 'exercise', or 'read for 15 minutes'. Small habits compound into big changes — start with just one."
+            tip="Tip: Use habits for things you do regularly (daily/weekly). Use tasks for one-time to-dos with a due date."
             action={{ label: "Create Your First Habit", onClick: onCreateHabit }}
           />
           <HabitSuggestions onCreated={fetchHabits} />
