@@ -23,6 +23,7 @@ export async function GET(request: Request) {
   const category = searchParams.get("category"); // category slug
   const timeframe = searchParams.get("timeframe"); // timeframe slug
   const parentId = searchParams.get("parent_id"); // for sub-goals
+  const search = searchParams.get("search"); // title/description search
   const includeProgress = searchParams.get("include_progress") !== "false"; // default true
 
   let query = platform(supabase)
@@ -45,6 +46,10 @@ export async function GET(request: Request) {
   } else {
     // Top-level goals only by default
     query = query.is("parent_goal_id", null);
+  }
+
+  if (search) {
+    query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`);
   }
 
   const { data: goals, count, error } = await query;

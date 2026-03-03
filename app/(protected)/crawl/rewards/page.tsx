@@ -4,18 +4,33 @@ import React, { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/Toast";
 import PageHeader from "@/components/ui/PageHeader";
 
+interface TierInfo {
+  slug: string;
+  name: string;
+  color: string;
+  icon: string;
+}
+
 interface Reward {
   id: string;
-  tier: string;
+  tier_id: string;
+  tier: TierInfo | null;
   name: string;
   description: string | null;
-  is_active: boolean;
+  active: boolean;
   created_at: string;
 }
 
-const TIERS = ["bronze", "silver", "gold", "platinum"] as const;
+interface TierConfig {
+  id: string;
+  slug: string;
+  name: string;
+  sort_order: number;
+}
 
-const TIER_CONFIG: Record<string, { label: string; color: string; border: string; bg: string; icon: string }> = {
+const TIER_SLUGS = ["bronze", "silver", "gold", "platinum"] as const;
+
+const TIER_DISPLAY: Record<string, { label: string; color: string; border: string; bg: string; icon: string }> = {
   bronze: { label: "Bronze", color: "text-amber-600", border: "border-amber-700/50", bg: "bg-amber-950/30", icon: "🥉" },
   silver: { label: "Silver", color: "text-slate-300", border: "border-slate-500/50", bg: "bg-slate-800/50", icon: "🥈" },
   gold: { label: "Gold", color: "text-amber-400", border: "border-amber-500/50", bg: "bg-amber-900/20", icon: "🥇" },
@@ -25,12 +40,16 @@ const TIER_CONFIG: Record<string, { label: string; color: string; border: string
 export default function RewardsPage() {
   const toast = useToast();
   const [rewards, setRewards] = useState<Reward[]>([]);
+  const [tiers, setTiers] = useState<TierConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTier, setActiveTier] = useState<string>("all");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({ name: "", description: "", tier: "bronze" });
+  const [formData, setFormData] = useState({ name: "", description: "", tierSlug: "bronze" });
   const [saving, setSaving] = useState(false);
+
+  // Build slug→id map from tiers
+  const tierIdMap = new Map(tiers.map((t) => [t.slug, t.id]));
 
   const fetchRewards = async () => {
     try {
@@ -38,6 +57,7 @@ export default function RewardsPage() {
       if (res.ok) {
         const data = await res.json();
         setRewards(data.rewards || []);
+        setTiers(data.tiers || []);
       }
     } catch {
       toast.error("Failed to load rewards");
@@ -60,13 +80,15 @@ export default function RewardsPage() {
         : "/api/gamification/rewards";
       const method = editingId ? "PATCH" : "POST";
 
+      const tierId = tierIdMap.get(formData.tierSlug);
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          ...(editingId ? { id: editingId } : {}),
           name: formData.name.trim(),
           description: formData.description.trim() || null,
-          tier: formData.tier,
+          tier_id: tierId,
         }),
       });
 
@@ -78,10 +100,10 @@ export default function RewardsPage() {
       toast.success(editingId ? "Reward updated" : "Reward added to the pool");
       setShowForm(false);
       setEditingId(null);
-      setFormData({ name: "", description: "", tier: "bronze" });
+      setFormData({ name: "", description: "", tierSlug: "bronze" });
       fetchRewards();
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to save");
     } finally {
       setSaving(false);
     }
@@ -99,17 +121,17 @@ export default function RewardsPage() {
   };
 
   const startEdit = (reward: Reward) => {
-    setFormData({ name: reward.name, description: reward.description || "", tier: reward.tier });
+    setFormData({ name: reward.name, description: reward.description || "", tierSlug: reward.tier?.slug || "bronze" });
     setEditingId(reward.id);
     setShowForm(true);
   };
 
   const filteredRewards = activeTier === "all"
     ? rewards
-    : rewards.filter((r) => r.tier === activeTier);
+    : rewards.filter((r) => r.tier?.slug === activeTier);
 
-  const rewardsByTier = TIERS.reduce((acc, tier) => {
-    acc[tier] = rewards.filter((r) => r.tier === tier).length;
+  const rewardsByTier = TIER_SLUGS.reduce((acc, slug) => {
+    acc[slug] = rewards.filter((r) => r.tier?.slug === slug).length;
     return acc;
   }, {} as Record<string, number>);
 
@@ -135,7 +157,7 @@ export default function RewardsPage() {
             onClick={() => {
               setShowForm(true);
               setEditingId(null);
-              setFormData({ name: "", description: "", tier: "bronze" });
+              setFormData({ name: "", description: "", tierSlug: "bronze" });
             }}
             className="dcc-btn-primary"
           >
@@ -146,8 +168,8 @@ export default function RewardsPage() {
 
       {/* Tier Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {TIERS.map((tier) => {
-          const cfg = TIER_CONFIG[tier];
+        {TIER_SLUGS.map((tier) => {
+          const cfg = TIER_DISPLAY[tier];
           return (
             <button
               key={tier}
@@ -205,14 +227,14 @@ export default function RewardsPage() {
             <div>
               <label className="text-sm text-slate-400 block mb-1">Tier</label>
               <div className="flex gap-2">
-                {TIERS.map((tier) => {
-                  const cfg = TIER_CONFIG[tier];
+                {TIER_SLUGS.map((tier) => {
+                  const cfg = TIER_DISPLAY[tier];
                   return (
                     <button
                       key={tier}
-                      onClick={() => setFormData({ ...formData, tier })}
+                      onClick={() => setFormData({ ...formData, tierSlug: tier })}
                       className={`px-3 py-2 rounded-lg border text-sm font-medium transition-all ${
-                        formData.tier === tier
+                        formData.tierSlug === tier
                           ? `${cfg.bg} ${cfg.border} ${cfg.color}`
                           : "bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600"
                       }`}
@@ -249,7 +271,7 @@ export default function RewardsPage() {
           <div className="text-4xl mb-3">📦</div>
           <p className="text-slate-400">
             {activeTier !== "all"
-              ? `No ${TIER_CONFIG[activeTier]?.label} rewards yet.`
+              ? `No ${TIER_DISPLAY[activeTier]?.label} rewards yet.`
               : "Your reward pool is empty. Add rewards to make loot boxes worth opening."}
           </p>
           {rewards.length === 0 && (
@@ -261,7 +283,7 @@ export default function RewardsPage() {
       ) : (
         <div className="space-y-2">
           {filteredRewards.map((reward) => {
-            const cfg = TIER_CONFIG[reward.tier] || TIER_CONFIG.bronze;
+            const cfg = TIER_DISPLAY[reward.tier?.slug || "bronze"] || TIER_DISPLAY.bronze;
             return (
               <div
                 key={reward.id}

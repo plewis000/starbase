@@ -9,7 +9,7 @@ interface Goal {
   title: string;
   description: string | null;
   status: string;
-  progress_pct: number;
+  progress_value: number;
   target_date: string | null;
 }
 
@@ -169,7 +169,7 @@ export default function PartyGoalsPage() {
           {partyGoals.map((pg) => {
             const goal = pg.goal;
             if (!goal) return null;
-            const progress = goal.progress_pct || 0;
+            const progress = goal.progress_value || 0;
             return (
               <div
                 key={pg.id}

@@ -43,3 +43,4 @@ starbase/
 .vercel
 .env.production
 .env.vercel
+.env*.local
