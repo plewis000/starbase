@@ -7,11 +7,15 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { platform } from "@/lib/supabase/schemas";
 import { validateRequiredString } from "@/lib/validation";
 
 // POST /api/household/invite/redeem — join household using invite code
+// Uses service role for DB operations because new users have no household
+// membership yet, so RLS would block all queries.
 export async function POST(request: NextRequest) {
+  // Cookie client — only for identifying the user
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -19,8 +23,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Service role client — bypasses RLS for invite redemption
+  const adminDb = createServiceClient();
+
   // Check if user already in a household
-  const { data: existingMembership } = await platform(supabase)
+  const { data: existingMembership } = await platform(adminDb)
     .from("household_members")
     .select("household_id")
     .eq("user_id", user.id)
@@ -46,7 +53,7 @@ export async function POST(request: NextRequest) {
   const code = codeCheck.value.toUpperCase().trim();
 
   // Find the invite
-  const { data: invite, error: inviteErr } = await platform(supabase)
+  const { data: invite, error: inviteErr } = await platform(adminDb)
     .from("household_invites")
     .select("*")
     .eq("invite_code", code)
@@ -59,8 +66,7 @@ export async function POST(request: NextRequest) {
 
   // Check expiry
   if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
-    // Deactivate expired invite
-    await platform(supabase)
+    await platform(adminDb)
       .from("household_invites")
       .update({ is_active: false })
       .eq("id", invite.id);
@@ -70,7 +76,7 @@ export async function POST(request: NextRequest) {
 
   // Check usage limit
   if (invite.times_used >= invite.max_uses) {
-    await platform(supabase)
+    await platform(adminDb)
       .from("household_invites")
       .update({ is_active: false })
       .eq("id", invite.id);
@@ -79,7 +85,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Add user to household
-  const { error: memberErr } = await platform(supabase)
+  const { error: memberErr } = await platform(adminDb)
     .from("household_members")
     .insert({
       household_id: invite.household_id,
@@ -94,7 +100,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Increment usage count
-  await platform(supabase)
+  await platform(adminDb)
     .from("household_invites")
     .update({
       times_used: invite.times_used + 1,
@@ -103,7 +109,7 @@ export async function POST(request: NextRequest) {
     .eq("id", invite.id);
 
   // Fetch household name for the welcome message
-  const { data: household } = await platform(supabase)
+  const { data: household } = await platform(adminDb)
     .from("households")
     .select("name")
     .eq("id", invite.household_id)
