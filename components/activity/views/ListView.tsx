@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useUserPreference } from "@/hooks/useUserPreferences";
 
 interface Task {
   id: string;
@@ -34,6 +35,8 @@ interface Props {
   selectedTaskIds?: Set<string>;
   onToggleSelect?: (id: string, shiftKey: boolean) => void;
   groupBy?: GroupBy;
+  totalCount?: number;
+  onSelectAll?: () => void;
 }
 
 type ColumnKey = "status" | "priority" | "assignee" | "due_date" | "type" | "effort" | "tags" | "created_at" | "recurrence";
@@ -57,20 +60,7 @@ const ALL_COLUMNS: ColumnDef[] = [
 ];
 
 const DEFAULT_COLUMNS: ColumnKey[] = ["status", "priority", "assignee", "due_date", "tags"];
-const LS_KEY = "task_list_columns";
-
-function loadColumns(): ColumnKey[] {
-  if (typeof window === "undefined") return DEFAULT_COLUMNS;
-  try {
-    const stored = localStorage.getItem(LS_KEY);
-    if (stored) return JSON.parse(stored);
-  } catch {}
-  return DEFAULT_COLUMNS;
-}
-
-function saveColumns(cols: ColumnKey[]) {
-  try { localStorage.setItem(LS_KEY, JSON.stringify(cols)); } catch {}
-}
+const DEFAULT_COLUMN_ORDER: ColumnKey[] = ["status", "priority", "assignee", "due_date", "type", "effort", "tags", "created_at", "recurrence"];
 
 function formatRelDate(d?: string): string {
   if (!d) return "";
@@ -481,20 +471,33 @@ function groupTasks(tasks: Task[], groupBy: GroupBy): { label: string; tasks: Ta
   return Object.entries(groups).map(([label, tasks]) => ({ label, tasks }));
 }
 
-export default function ListView({ tasks, onQuickComplete, completedTaskId, config, onSelect, selectedTaskIds, onToggleSelect, groupBy }: Props) {
-  const [visibleColumns, setVisibleColumns] = useState<ColumnKey[]>(DEFAULT_COLUMNS);
+export default function ListView({ tasks, onQuickComplete, completedTaskId, config, onSelect, selectedTaskIds, onToggleSelect, groupBy, totalCount, onSelectAll }: Props) {
+  const { value: visibleColumns, setValue: setVisibleColumns } = useUserPreference<ColumnKey[]>("task_list_columns", DEFAULT_COLUMNS);
+  const { value: columnOrder, setValue: setColumnOrder } = useUserPreference<ColumnKey[]>("task_list_column_order", DEFAULT_COLUMN_ORDER);
   const [showColumnPicker, setShowColumnPicker] = useState(false);
-
-  useEffect(() => {
-    setVisibleColumns(loadColumns());
-  }, []);
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
 
   const toggleColumn = useCallback((key: ColumnKey) => {
-    setVisibleColumns((prev) => {
-      const next = prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key];
-      saveColumns(next);
-      return next;
-    });
+    const next = visibleColumns.includes(key) ? visibleColumns.filter((k) => k !== key) : [...visibleColumns, key];
+    setVisibleColumns(next);
+  }, [visibleColumns, setVisibleColumns]);
+
+  const handleDragStart = useCallback((idx: number) => {
+    setDragIdx(idx);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent, idx: number) => {
+    e.preventDefault();
+    if (dragIdx === null || dragIdx === idx) return;
+    const next = [...columnOrder];
+    const [moved] = next.splice(dragIdx, 1);
+    next.splice(idx, 0, moved);
+    setColumnOrder(next);
+    setDragIdx(idx);
+  }, [dragIdx, columnOrder, setColumnOrder]);
+
+  const handleDragEnd = useCallback(() => {
+    setDragIdx(null);
   }, []);
 
   const handleInlineUpdate = useCallback(async (taskId: string, patch: Record<string, unknown>) => {
@@ -521,7 +524,10 @@ export default function ListView({ tasks, onQuickComplete, completedTaskId, conf
     } catch {}
   }, []);
 
-  const activeColumns = ALL_COLUMNS.filter((c) => visibleColumns.includes(c.key));
+  const activeColumns = columnOrder
+    .filter((key) => visibleColumns.includes(key))
+    .map((key) => ALL_COLUMNS.find((c) => c.key === key)!)
+    .filter(Boolean);
   const groups = groupTasks(tasks, groupBy || "none");
 
   const renderCell = (task: Task, col: ColumnDef) => {
@@ -638,18 +644,34 @@ export default function ListView({ tasks, onQuickComplete, completedTaskId, conf
             </svg>
           </button>
           {showColumnPicker && (
-            <div className="absolute right-0 top-full mt-1 z-30 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 min-w-[140px]">
-              {ALL_COLUMNS.map((col) => (
-                <label key={col.key} className="flex items-center gap-2 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-700 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={visibleColumns.includes(col.key)}
-                    onChange={() => toggleColumn(col.key)}
-                    className="rounded border-slate-600"
-                  />
-                  {col.label}
-                </label>
-              ))}
+            <div className="absolute right-0 top-full mt-1 z-30 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 min-w-[160px]">
+              {columnOrder.map((key, idx) => {
+                const col = ALL_COLUMNS.find((c) => c.key === key);
+                if (!col) return null;
+                return (
+                  <div
+                    key={col.key}
+                    draggable
+                    onDragStart={() => handleDragStart(idx)}
+                    onDragOver={(e) => handleDragOver(e, idx)}
+                    onDragEnd={handleDragEnd}
+                    className={`flex items-center gap-2 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-700 cursor-grab ${
+                      dragIdx === idx ? "bg-slate-700/50" : ""
+                    }`}
+                  >
+                    <span className="text-slate-500 text-[10px] select-none cursor-grab">⠿</span>
+                    <label className="flex items-center gap-2 cursor-pointer flex-1">
+                      <input
+                        type="checkbox"
+                        checked={visibleColumns.includes(col.key)}
+                        onChange={() => toggleColumn(col.key)}
+                        className="rounded border-slate-600"
+                      />
+                      {col.label}
+                    </label>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -657,7 +679,23 @@ export default function ListView({ tasks, onQuickComplete, completedTaskId, conf
 
       {/* Header row */}
       <div className="flex items-center gap-2 px-3 py-1.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-800/50">
-        {onToggleSelect && <div className="w-5 flex-shrink-0" />}
+        {onToggleSelect && (
+          <div className="w-5 flex-shrink-0 flex items-center justify-center">
+            <input
+              type="checkbox"
+              ref={(el) => {
+                if (el) {
+                  const someSelected = (selectedTaskIds?.size ?? 0) > 0;
+                  const allSelected = selectedTaskIds?.size === (totalCount ?? 0) && (totalCount ?? 0) > 0;
+                  el.indeterminate = someSelected && !allSelected;
+                }
+              }}
+              checked={selectedTaskIds?.size === (totalCount ?? 0) && (totalCount ?? 0) > 0}
+              onChange={() => onSelectAll?.()}
+              className="w-4 h-4 rounded border-slate-600 cursor-pointer"
+            />
+          </div>
+        )}
         <div className="w-5 flex-shrink-0" />
         <div className="flex-1 min-w-0">Title</div>
         {activeColumns.map((col) => (

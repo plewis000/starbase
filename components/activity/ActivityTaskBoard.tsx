@@ -5,12 +5,15 @@ import ListView from "./views/ListView";
 import BoardView from "./views/BoardView";
 import TimelineView from "./views/TimelineView";
 import GanttView from "./views/GanttView";
+import CalendarView, { type CalendarItem } from "@/components/ui/CalendarView";
 import QuickAddBar from "./QuickAddBar";
 import ActivityFilterBar, { type ActivityFilters, type SavedView, type GroupBy } from "./ActivityFilterBar";
 import BulkActionBar from "./BulkActionBar";
 import CompletionCelebration from "@/components/ui/CompletionCelebration";
+import { useUserPreference } from "@/hooks/useUserPreferences";
+import { useHouseholdTimezone } from "@/hooks/useHouseholdTimezone";
 
-type ViewMode = "list" | "board" | "timeline" | "gantt";
+type ViewMode = "list" | "board" | "timeline" | "gantt" | "calendar";
 
 interface Task {
   id: string;
@@ -34,6 +37,9 @@ interface ConfigData {
   statuses: { id: string; name: string; color?: string; sort_order: number }[];
   priorities: { id: string; name: string; color?: string; sort_order: number }[];
   members: { user_id: string; display_name?: string; user?: { id: string; full_name: string; email: string; avatar_url?: string | null } | null }[];
+  task_types: { id: string; name: string; display_color?: string; icon?: string; sort_order: number }[];
+  effort_levels: { id: string; name: string; display_color?: string; icon?: string; sort_order: number }[];
+  tags: { id: string; name: string; display_color?: string; slug?: string }[];
 }
 
 interface ActivityTaskBoardProps {
@@ -49,8 +55,6 @@ interface ActivityTaskBoardProps {
   /** Called to open the create task modal */
   onCreateTask?: () => void;
 }
-
-const SAVED_VIEWS_KEY = "activity_saved_views";
 
 export default function ActivityTaskBoard({
   customFetch,
@@ -70,6 +74,8 @@ export default function ActivityTaskBoard({
     })
   );
 
+  const { timezone } = useHouseholdTimezone();
+
   const [tasks, setTasks] = useState<Task[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -84,15 +90,10 @@ export default function ActivityTaskBoard({
     direction: "asc",
     owner: "",
   });
-  const [savedViews, setSavedViews] = useState<SavedView[]>(() => {
-    if (typeof window === "undefined") return [];
-    try {
-      const stored = localStorage.getItem(SAVED_VIEWS_KEY);
-      return stored ? JSON.parse(stored) : [];
-    } catch { return []; }
-  });
+  const { value: savedViews, setValue: setSavedViews } = useUserPreference<SavedView[]>("activity_saved_views", []);
   const [completedTaskId, setCompletedTaskId] = useState<string | null>(null);
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
+  const [bulkMode, setBulkMode] = useState(false);
   const lastSelectedRef = useRef<string | null>(null);
   const fetchRef = useRef(0);
 
@@ -108,15 +109,20 @@ export default function ActivityTaskBoard({
   useEffect(() => {
     const fetchConfig = async () => {
       try {
-        const [configRes, membersRes] = await Promise.all([
+        const [configRes, membersRes, tagsRes] = await Promise.all([
           apiFetch(configPath),
           apiFetch("/api/household/members"),
+          apiFetch("/api/tags"),
         ]);
         const configData = await configRes.json();
         const membersData = await membersRes.json();
+        const tagsData = await tagsRes.json();
         setConfig({
           statuses: configData.statuses || [],
           priorities: configData.priorities || [],
+          task_types: configData.types || [],
+          effort_levels: configData.efforts || [],
+          tags: tagsData.tags || [],
           members: membersData.members || [],
         });
       } catch (err) {
@@ -247,27 +253,23 @@ export default function ActivityTaskBoard({
   }, []);
 
   const handleSaveView = useCallback((view: SavedView) => {
-    setSavedViews((prev) => {
-      const existing = prev.findIndex((v) => v.name === view.name);
-      let next: SavedView[];
-      if (existing >= 0) {
-        next = [...prev];
-        next[existing] = view;
-      } else {
-        next = [...prev, view];
-      }
-      try { localStorage.setItem(SAVED_VIEWS_KEY, JSON.stringify(next)); } catch {}
-      return next;
-    });
-  }, []);
+    const existing = savedViews.findIndex((v) => v.name === view.name);
+    let next: SavedView[];
+    if (existing >= 0) {
+      next = [...savedViews];
+      next[existing] = view;
+    } else {
+      next = [...savedViews, view];
+    }
+    setSavedViews(next);
+  }, [savedViews, setSavedViews]);
 
   const handleDeleteView = useCallback((viewName: string) => {
-    setSavedViews((prev) => {
-      const next = prev.filter((v) => v.name !== viewName);
-      try { localStorage.setItem(SAVED_VIEWS_KEY, JSON.stringify(next)); } catch {}
-      return next;
-    });
-  }, []);
+    // Archive instead of delete (no deletion principle)
+    setSavedViews(savedViews.map((v) =>
+      v.name === viewName ? { ...v, archived: true } as any : v
+    ));
+  }, [savedViews, setSavedViews]);
 
   // Drag-and-drop status change handler (optimistic)
   const handleStatusChange = useCallback(async (taskId: string, newStatusId: string) => {
@@ -332,24 +334,57 @@ export default function ActivityTaskBoard({
     } catch { /* silent */ }
   }, [selectedTaskIds, filters, fetchTasks]);
 
-  const handleBulkDelete = useCallback(async () => {
+  const exitBulkMode = useCallback(() => {
+    setBulkMode(false);
+    setSelectedTaskIds(new Set());
+  }, []);
+
+  const handleSelectAll = useCallback(() => {
+    if (selectedTaskIds.size === tasks.length && tasks.length > 0) {
+      setSelectedTaskIds(new Set());
+    } else {
+      setSelectedTaskIds(new Set(tasks.map((t) => t.id)));
+    }
+  }, [tasks, selectedTaskIds]);
+
+  const handleBulkArchive = useCallback(async () => {
+    if (!config) return;
+    const doneStatus = config.statuses.find((s) => s.name === "Done");
+    if (!doneStatus) return;
+    await handleBulkUpdate({ status_id: doneStatus.id });
+  }, [config, handleBulkUpdate]);
+
+  const handleBulkTagAction = useCallback(async (action: "add" | "remove", tagId: string) => {
     const ids = Array.from(selectedTaskIds);
     if (ids.length === 0) return;
     try {
-      await apiFetch("/api/tasks/bulk", {
-        method: "DELETE",
-        body: JSON.stringify({ task_ids: ids }),
+      await apiFetch("/api/tasks/bulk/tags", {
+        method: "POST",
+        body: JSON.stringify({ task_ids: ids, action, tag_id: tagId }),
       });
-      setSelectedTaskIds(new Set());
       fetchTasks(filters);
     } catch { /* silent */ }
   }, [selectedTaskIds, filters, fetchTasks]);
+
+  // Auto-exit bulk mode on view change
+  useEffect(() => {
+    exitBulkMode();
+  }, [viewMode]);
+
+  // Escape key exits bulk mode
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && bulkMode) exitBulkMode();
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [bulkMode, exitBulkMode]);
 
   const handleSelectTask = useCallback((taskId: string) => {
     onSelectTask?.(taskId);
   }, [onSelectTask]);
 
-  const allViews = [...defaultViews, ...savedViews];
+  const allViews = [...defaultViews, ...savedViews.filter((v: any) => !v.archived)];
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -372,12 +407,28 @@ export default function ActivityTaskBoard({
               <span className="hidden sm:inline">New Task</span>
             </button>
           )}
+          <button
+              onClick={() => bulkMode ? exitBulkMode() : setBulkMode(true)}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1 ${
+                bulkMode
+                  ? "bg-amber-600 hover:bg-amber-500 text-white"
+                  : "border border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600"
+              }`}
+            >
+              {bulkMode ? "Exit Select" : (
+                <>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2" /><polyline points="9 11 12 14 22 4" /></svg>
+                  <span className="hidden sm:inline">Select</span>
+                </>
+              )}
+            </button>
           <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded-lg p-0.5">
             {([
               { key: "list" as ViewMode, icon: "☰", label: "List" },
               { key: "board" as ViewMode, icon: "▦", label: "Board" },
               { key: "timeline" as ViewMode, icon: "═", label: "Timeline" },
               { key: "gantt" as ViewMode, icon: "▐", label: "Gantt" },
+              { key: "calendar" as ViewMode, icon: "📅", label: "Cal" },
             ]).map(({ key, icon, label }) => (
               <button
                 key={key}
@@ -434,8 +485,10 @@ export default function ActivityTaskBoard({
             completedTaskId={completedTaskId}
             config={config}
             onSelect={handleSelectTask}
-            selectedTaskIds={selectedTaskIds}
-            onToggleSelect={handleToggleSelect}
+            selectedTaskIds={bulkMode ? selectedTaskIds : undefined}
+            onToggleSelect={bulkMode ? handleToggleSelect : undefined}
+            totalCount={bulkMode ? tasks.length : undefined}
+            onSelectAll={bulkMode ? handleSelectAll : undefined}
             groupBy={filters.groupBy}
           />
         ) : viewMode === "board" ? (
@@ -454,12 +507,26 @@ export default function ActivityTaskBoard({
             completedTaskId={completedTaskId}
             onSelect={handleSelectTask}
           />
-        ) : (
+        ) : viewMode === "gantt" ? (
           <GanttView
             tasks={tasks}
             onSelect={handleSelectTask}
+            timezone={timezone}
           />
-        )}
+        ) : viewMode === "calendar" ? (
+          <CalendarView
+            items={tasks.map((t): CalendarItem => ({
+              type: "task",
+              id: t.id,
+              title: t.title,
+              date: t.due_date || "",
+              color: t.completed_at ? "#22c55e" : "#ef4444",
+              meta: { completed: !!t.completed_at },
+            })).filter((i) => i.date)}
+            timezone={timezone}
+            onItemClick={(item) => handleSelectTask(item.id)}
+          />
+        ) : null}
       </div>
 
       {/* Completion celebration */}
@@ -469,13 +536,18 @@ export default function ActivityTaskBoard({
       />
 
       {/* Bulk action bar */}
-      <BulkActionBar
-        selectedCount={selectedTaskIds.size}
-        config={config}
-        onBulkUpdate={handleBulkUpdate}
-        onBulkDelete={handleBulkDelete}
-        onClearSelection={() => setSelectedTaskIds(new Set())}
-      />
+      {bulkMode && (
+        <BulkActionBar
+          selectedCount={selectedTaskIds.size}
+          totalCount={tasks.length}
+          config={config}
+          onBulkUpdate={handleBulkUpdate}
+          onBulkArchive={handleBulkArchive}
+          onBulkTagAction={handleBulkTagAction}
+          onClearSelection={() => setSelectedTaskIds(new Set())}
+          onExitBulkMode={exitBulkMode}
+        />
+      )}
     </div>
   );
 }

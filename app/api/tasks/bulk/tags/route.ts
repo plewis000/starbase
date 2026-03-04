@@ -4,10 +4,10 @@ import { platform } from "@/lib/supabase/schemas";
 import { getHouseholdContext, getHouseholdMemberIds, verifyTaskHouseholdAccess } from "@/lib/household";
 
 // =============================================================
-// PATCH /api/tasks/bulk — Bulk update tasks
-// Body: { task_ids: string[], patch: { status_id?, priority_id?, assigned_to? } }
+// POST /api/tasks/bulk/tags — Bulk add/remove tags
+// Body: { task_ids: string[], action: "add" | "remove", tag_id: string }
 // =============================================================
-export async function PATCH(request: NextRequest) {
+export async function POST(request: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -20,14 +20,18 @@ export async function PATCH(request: NextRequest) {
   const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
 
   const body = await request.json();
-  const { task_ids, patch } = body;
+  const { task_ids, action, tag_id } = body;
 
   if (!Array.isArray(task_ids) || task_ids.length === 0) {
     return NextResponse.json({ error: "task_ids required" }, { status: 400 });
   }
 
-  if (!patch || typeof patch !== "object") {
-    return NextResponse.json({ error: "patch required" }, { status: 400 });
+  if (!["add", "remove"].includes(action)) {
+    return NextResponse.json({ error: "action must be 'add' or 'remove'" }, { status: 400 });
+  }
+
+  if (!tag_id) {
+    return NextResponse.json({ error: "tag_id required" }, { status: 400 });
   }
 
   // Verify all tasks belong to household
@@ -37,25 +41,27 @@ export async function PATCH(request: NextRequest) {
     }
   }
 
-  // Build the update object from allowed fields
-  const allowedFields = ["status_id", "priority_id", "assigned_to", "due_date", "task_type_id", "effort_level_id"];
-  const updateData: Record<string, unknown> = {};
-  for (const field of allowedFields) {
-    if (patch[field] !== undefined) updateData[field] = patch[field];
-  }
+  if (action === "add") {
+    const rows = task_ids.map((task_id: string) => ({ task_id, tag_id }));
+    const { error } = await platform(supabase)
+      .from("task_tags")
+      .upsert(rows, { onConflict: "task_id,tag_id", ignoreDuplicates: true });
 
-  if (Object.keys(updateData).length === 0) {
-    return NextResponse.json({ error: "No valid fields in patch" }, { status: 400 });
-  }
+    if (error) {
+      console.error("Bulk tag add error:", error.message);
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    }
+  } else {
+    const { error } = await platform(supabase)
+      .from("task_tags")
+      .delete()
+      .in("task_id", task_ids)
+      .eq("tag_id", tag_id);
 
-  const { error } = await platform(supabase)
-    .from("tasks")
-    .update(updateData)
-    .in("id", task_ids);
-
-  if (error) {
-    console.error("Bulk update error:", error.message);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    if (error) {
+      console.error("Bulk tag remove error:", error.message);
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    }
   }
 
   return NextResponse.json({ success: true, updated: task_ids.length });
