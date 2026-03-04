@@ -4,14 +4,15 @@ import { updateSession } from "@/lib/supabase/middleware";
 export async function middleware(request: NextRequest) {
   // Discord Activities load at root "/" via the discordsays.com proxy.
   // Detect Discord iframe context and redirect to /activity.
+  // Discord Activities load at root "/" via the discordsays.com proxy.
+  // Rewrite (not redirect) to /activity so content is served without URL change.
   const url = request.nextUrl;
   if (url.pathname === "/") {
     const params = url.searchParams;
     if (params.has("frame_id") || params.has("instance_id") || params.has("platform")) {
-      const activityUrl = new URL("/activity", request.url);
-      // Preserve Discord's query params
-      params.forEach((value, key) => activityUrl.searchParams.set(key, value));
-      return NextResponse.redirect(activityUrl);
+      const activityUrl = url.clone();
+      activityUrl.pathname = "/activity";
+      return NextResponse.rewrite(activityUrl);
     }
   }
 
