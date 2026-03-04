@@ -13,7 +13,7 @@ interface ModalProps {
 const sizeClasses = {
   sm: "max-w-sm",
   md: "max-w-md",
-  lg: "max-w-lg",
+  lg: "max-w-2xl",
 };
 
 export default function Modal({
@@ -87,7 +87,7 @@ export default function Modal({
         </div>
 
         {/* Content */}
-        <div className="px-6 py-4">{children}</div>
+        <div className="px-6 py-4 max-h-[85vh] overflow-y-auto">{children}</div>
       </div>
 
       <style>{`

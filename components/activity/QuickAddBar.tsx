@@ -156,7 +156,8 @@ export default function QuickAddBar({ onAdd, config }: QuickAddBarProps) {
       }
     }
 
-    const ok = await onAdd(parsed.title, parsed.dueDate || undefined, extra);
+    const todayStr = new Date().toISOString().split("T")[0];
+    const ok = await onAdd(parsed.title, parsed.dueDate || todayStr, extra);
 
     if (ok) {
       setValue("");

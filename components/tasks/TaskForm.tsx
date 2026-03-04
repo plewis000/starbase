@@ -1,9 +1,12 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import DatePicker from "@/components/ui/DatePicker";
 import { useToast } from "@/components/ui/Toast";
-import { Task, ChecklistItem, UserSummary } from "@/lib/types";
+import { useTaskConfig } from "@/hooks/useTaskConfig";
+import { Task, ChecklistItem } from "@/lib/types";
+import { StatusPicker, PriorityPicker, TypePicker, EffortPicker, AssigneePicker, TagPicker } from "./FieldPickers";
 import RecurrenceEditor from "./RecurrenceEditor";
 
 interface TaskFormProps {
@@ -12,102 +15,29 @@ interface TaskFormProps {
   onCancel: () => void;
 }
 
-interface ConfigOption {
-  id: string;
-  name: string;
-  slug?: string;
-  color?: string;
-  sort_order?: number;
-}
+const SECTION_LABEL = "block text-xs text-slate-400 font-semibold uppercase tracking-wider mb-2";
 
-interface HouseholdMember {
-  user_id: string;
-  display_name?: string;
-  user?: UserSummary | null;
-}
-
-const RECURRENCE_PRESETS = [
-  { label: "None", value: "" },
-  { label: "Daily", value: "FREQ=DAILY;INTERVAL=1" },
-  { label: "Every weekday", value: "FREQ=DAILY;BYDAY=MO,TU,WE,TH,FR" },
-  { label: "Weekly", value: "FREQ=WEEKLY;INTERVAL=1" },
-  { label: "Biweekly", value: "FREQ=WEEKLY;INTERVAL=2" },
-  { label: "Monthly", value: "FREQ=MONTHLY;INTERVAL=1" },
-  { label: "Quarterly", value: "FREQ=MONTHLY;INTERVAL=3" },
-];
-
-function describeRRule(rule: string): string {
-  if (!rule) return "None";
-  const preset = RECURRENCE_PRESETS.find((p) => p.value === rule);
-  if (preset) return preset.label;
-  // Fallback: parse basic RRULE
-  const parts = Object.fromEntries(rule.split(";").map((p) => p.split("=")));
-  const freq = parts.FREQ?.toLowerCase() || "custom";
-  const interval = parts.INTERVAL ? parseInt(parts.INTERVAL) : 1;
-  if (interval === 1) return `Every ${freq.replace("ly", "")}`;
-  return `Every ${interval} ${freq.replace("ly", "")}s`;
-}
-
-export default function TaskForm({
-  task,
-  onSave,
-  onCancel,
-}: TaskFormProps) {
+export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
   const isEditing = !!task;
   const toast = useToast();
-
-  // Fetch config options from API (real UUIDs, not hardcoded slugs)
-  const [statuses, setStatuses] = useState<ConfigOption[]>([]);
-  const [priorities, setPriorities] = useState<ConfigOption[]>([]);
-  const [configLoading, setConfigLoading] = useState(true);
-
-  // Household members for owner selection
-  const [householdMembers, setHouseholdMembers] = useState<HouseholdMember[]>([]);
-  const [membersLoading, setMembersLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchConfig() {
-      try {
-        const res = await fetch("/api/config");
-        if (res.ok) {
-          const data = await res.json();
-          setStatuses(data.statuses || []);
-          setPriorities(data.priorities || []);
-        }
-      } catch {
-        toast.error("Failed to load task options");
-      } finally {
-        setConfigLoading(false);
-      }
-    }
-    async function fetchMembers() {
-      try {
-        const res = await fetch("/api/household/members");
-        if (res.ok) {
-          const data = await res.json();
-          setHouseholdMembers(data.members || []);
-        }
-      } catch {
-        // Non-critical — owner selection will be unavailable
-      } finally {
-        setMembersLoading(false);
-      }
-    }
-    fetchConfig();
-    fetchMembers();
-  }, []);
+  const { config, loading: configLoading } = useTaskConfig();
 
   const [formData, setFormData] = useState({
     title: task?.title || "",
     description: task?.description || "",
     statusId: task?.status?.id || task?.status_id || "",
     priorityId: task?.priority?.id || task?.priority_id || "",
-    dueDate: task?.due_date || "",
+    dueDate: task?.due_date || new Date().toISOString().split("T")[0],
     assignedTo: task?.assignee?.id || "",
     recurrenceRule: task?.recurrence_rule || "",
+    taskTypeId: (task as unknown as Record<string, unknown>)?.task_type_id as string || "",
+    effortLevelId: (task as unknown as Record<string, unknown>)?.effort_level_id as string || "",
   });
 
-  // Additional owners (multi-select)
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>(
+    task?.tags?.map((t) => t.tag_id) || []
+  );
+
   const [selectedOwners, setSelectedOwners] = useState<string[]>(
     task?.additional_owners?.map((o) => o.id) || []
   );
@@ -119,36 +49,23 @@ export default function TaskForm({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  const handleInputChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
+  const setField = (field: string, value: string) =>
+    setFormData((prev) => ({ ...prev, [field]: value }));
 
   const handleToggleOwner = (userId: string) => {
     setSelectedOwners((prev) =>
-      prev.includes(userId)
-        ? prev.filter((id) => id !== userId)
-        : [...prev, userId]
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
     );
   };
 
   const handleAddChecklistItem = () => {
     if (!newChecklistItem.trim()) return;
-
     const newItem: ChecklistItem = {
       id: `temp-${Date.now()}`,
       title: newChecklistItem.trim(),
       checked: false,
       sort_order: checklistItems.length,
     };
-
     setChecklistItems((prev) => [...prev, newItem]);
     setNewChecklistItem("");
   };
@@ -177,7 +94,10 @@ export default function TaskForm({
         due_date: formData.dueDate || null,
         assigned_to: formData.assignedTo || null,
         recurrence_rule: formData.recurrenceRule || null,
+        task_type_id: formData.taskTypeId || null,
+        effort_level_id: formData.effortLevelId || null,
         additional_owners: selectedOwners,
+        tag_ids: selectedTagIds,
         checklist_items: checklistItems.filter((item) => item.title.trim()).map((item) => item.title.trim()),
       };
 
@@ -206,160 +126,139 @@ export default function TaskForm({
     }
   };
 
+  const members = config?.members || [];
+  const statuses = config?.statuses || [];
+  const priorities = config?.priorities || [];
+  const taskTypes = config?.task_types || [];
+  const effortLevels = config?.effort_levels || [];
+  const tags = config?.tags || [];
+
+  if (configLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <LoadingSpinner size="md" />
+      </div>
+    );
+  }
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Title */}
+    <form onSubmit={handleSubmit} className="space-y-5">
+      {/* 1. Title */}
       <div>
-        <label className="block text-sm font-medium text-slate-100 mb-2">
-          Task Title *
-        </label>
+        <label className={SECTION_LABEL}>Title *</label>
         <input
           type="text"
-          name="title"
           value={formData.title}
-          onChange={handleInputChange}
+          onChange={(e) => setField("title", e.target.value)}
           placeholder="Enter task title..."
           disabled={submitting}
+          autoFocus
           className="w-full bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50"
         />
       </div>
 
-      {/* Description */}
+      {/* 2. Status + Priority (side by side) */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className={SECTION_LABEL}>Status</label>
+          <StatusPicker
+            options={statuses}
+            value={formData.statusId}
+            onChange={(id) => setField("statusId", id)}
+            disabled={submitting}
+          />
+        </div>
+        <div>
+          <label className={SECTION_LABEL}>Priority</label>
+          <PriorityPicker
+            options={priorities}
+            value={formData.priorityId}
+            onChange={(id) => setField("priorityId", id)}
+            disabled={submitting}
+          />
+        </div>
+      </div>
+
+      {/* 3. Type pills (if types exist) */}
+      {taskTypes.length > 0 && (
+        <div>
+          <label className={SECTION_LABEL}>Type</label>
+          <TypePicker
+            options={taskTypes}
+            value={formData.taskTypeId}
+            onChange={(id) => setField("taskTypeId", id)}
+            disabled={submitting}
+          />
+        </div>
+      )}
+
+      {/* 4. Effort pills (if effort levels exist) */}
+      {effortLevels.length > 0 && (
+        <div>
+          <label className={SECTION_LABEL}>Effort</label>
+          <EffortPicker
+            options={effortLevels}
+            value={formData.effortLevelId}
+            onChange={(id) => setField("effortLevelId", id)}
+            disabled={submitting}
+          />
+        </div>
+      )}
+
+      {/* 5. Due Date + Recurrence (side by side) */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className={SECTION_LABEL}>Due Date</label>
+          <DatePicker
+            value={formData.dueDate}
+            onChange={(d) => setField("dueDate", d)}
+          />
+        </div>
+        <div>
+          <label className={SECTION_LABEL}>Repeat</label>
+          <RecurrenceEditor
+            value={formData.recurrenceRule}
+            onChange={(rule) => setField("recurrenceRule", rule)}
+          />
+        </div>
+      </div>
+
+      {/* 6. Assignee pills */}
       <div>
-        <label className="block text-sm font-medium text-slate-100 mb-2">
-          Description
-        </label>
-        <textarea
-          name="description"
-          value={formData.description}
-          onChange={handleInputChange}
-          placeholder="Add a detailed description..."
+        <label className={SECTION_LABEL}>Assigned To</label>
+        <AssigneePicker
+          members={members}
+          value={formData.assignedTo}
+          onChange={(id) => setField("assignedTo", id)}
           disabled={submitting}
-          rows={4}
-          className="w-full bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50 resize-none"
         />
       </div>
 
-      {/* Status and Priority row */}
-      <div className="grid grid-cols-2 gap-4">
-        {/* Status */}
+      {/* 7. Co-owners toggle pills */}
+      {members.length > 1 && (
         <div>
-          <label className="block text-sm font-medium text-slate-100 mb-2">
-            Status
-          </label>
-          <select
-            name="statusId"
-            value={formData.statusId}
-            onChange={handleInputChange}
-            disabled={submitting || configLoading}
-            className="w-full bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50"
-          >
-            <option value="">{configLoading ? "Loading..." : "Select status..."}</option>
-            {statuses.map((status) => (
-              <option key={status.id} value={status.id}>
-                {status.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Priority */}
-        <div>
-          <label className="block text-sm font-medium text-slate-100 mb-2">
-            Priority
-          </label>
-          <select
-            name="priorityId"
-            value={formData.priorityId}
-            onChange={handleInputChange}
-            disabled={submitting || configLoading}
-            className="w-full bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50"
-          >
-            <option value="">{configLoading ? "Loading..." : "Select priority..."}</option>
-            {priorities.map((priority) => (
-              <option key={priority.id} value={priority.id}>
-                {priority.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* Due Date and Recurrence row */}
-      <div className="grid grid-cols-2 gap-4">
-        {/* Due Date */}
-        <div>
-          <label className="block text-sm font-medium text-slate-100 mb-2">
-            Due Date
-          </label>
-          <input
-            type="date"
-            name="dueDate"
-            value={formData.dueDate}
-            onChange={handleInputChange}
-            disabled={submitting}
-            className="w-full bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50"
-          />
-        </div>
-
-        {/* Recurrence */}
-        <div>
-          <label className="block text-sm font-medium text-slate-100 mb-2">
-            Repeat
-          </label>
-          <RecurrenceEditor
-            value={formData.recurrenceRule}
-            onChange={(rule) => setFormData((prev) => ({ ...prev, recurrenceRule: rule }))}
-          />
-        </div>
-      </div>
-
-      {/* Assigned To */}
-      <div>
-        <label className="block text-sm font-medium text-slate-100 mb-2">
-          Assigned To
-        </label>
-        <select
-          name="assignedTo"
-          value={formData.assignedTo}
-          onChange={handleInputChange}
-          disabled={submitting || membersLoading}
-          className="w-full bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50"
-        >
-          <option value="">{membersLoading ? "Loading..." : "Unassigned"}</option>
-          {householdMembers.map((m) => (
-            <option key={m.user_id} value={m.user_id}>
-              {m.display_name || m.user?.full_name || m.user_id}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Additional Owners (co-owners) */}
-      {householdMembers.length > 1 && (
-        <div>
-          <label className="block text-sm font-medium text-slate-100 mb-2">
+          <label className={SECTION_LABEL}>
             Co-owners
-            <span className="text-xs text-slate-400 ml-2 font-normal">
+            <span className="text-xs text-slate-500 ml-2 font-normal normal-case tracking-normal">
               XP splits across all owners
             </span>
           </label>
-          <div className="flex flex-wrap gap-2">
-            {householdMembers
+          <div className="flex flex-wrap gap-1.5">
+            {members
               .filter((m) => m.user_id !== formData.assignedTo)
               .map((m) => {
-                const isSelected = selectedOwners.includes(m.user_id);
                 const name = m.display_name || m.user?.full_name || "Member";
+                const isSelected = selectedOwners.includes(m.user_id);
                 return (
                   <button
                     key={m.user_id}
                     type="button"
                     onClick={() => handleToggleOwner(m.user_id)}
                     disabled={submitting}
-                    className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors disabled:opacity-50 ${
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all disabled:opacity-50 ${
                       isSelected
-                        ? "bg-red-400/20 text-red-300 border border-red-400/50"
-                        : "bg-slate-800 text-slate-300 border border-slate-700 hover:border-slate-600"
+                        ? "bg-red-400/20 text-red-300 ring-2 ring-red-400/60 border-transparent"
+                        : "bg-slate-700 text-slate-300 border-slate-600 hover:ring-1 hover:ring-slate-500"
                     }`}
                   >
                     {isSelected ? "- " : "+ "}
@@ -369,26 +268,50 @@ export default function TaskForm({
               })}
           </div>
           {selectedOwners.length > 0 && (
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-xs text-slate-500 mt-1">
               {selectedOwners.length} co-owner{selectedOwners.length !== 1 ? "s" : ""} selected
             </p>
           )}
         </div>
       )}
 
-      {/* Checklist Items */}
+      {/* 8. Tags toggle pills */}
+      {tags.length > 0 && (
+        <div>
+          <label className={SECTION_LABEL}>Tags</label>
+          <TagPicker
+            options={tags}
+            selectedIds={selectedTagIds}
+            onChange={setSelectedTagIds}
+            disabled={submitting}
+          />
+        </div>
+      )}
+
+      {/* 9. Description */}
       <div>
-        <label className="block text-sm font-medium text-slate-100 mb-2">
-          Checklist Items
-        </label>
+        <label className={SECTION_LABEL}>Description</label>
+        <textarea
+          value={formData.description}
+          onChange={(e) => setField("description", e.target.value)}
+          placeholder="Add a detailed description..."
+          disabled={submitting}
+          rows={3}
+          className="w-full bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50 resize-none"
+        />
+      </div>
+
+      {/* 10. Checklist Items */}
+      <div>
+        <label className={SECTION_LABEL}>Checklist Items</label>
         <div className="space-y-2 mb-3">
           {checklistItems.map((item) => (
             <div key={item.id} className="flex items-center gap-2">
               <input
                 type="checkbox"
                 checked={item.checked}
-                disabled={submitting}
-                className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-red-400 cursor-pointer disabled:opacity-50"
+                readOnly
+                className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-red-400 cursor-pointer"
               />
               <span className="flex-1 text-sm text-slate-100">{item.title}</span>
               <button
@@ -402,14 +325,12 @@ export default function TaskForm({
             </div>
           ))}
         </div>
-
-        {/* Add checklist item */}
         <div className="flex gap-2">
           <input
             type="text"
             value={newChecklistItem}
             onChange={(e) => setNewChecklistItem(e.target.value)}
-            onKeyPress={(e) => {
+            onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
                 handleAddChecklistItem();
@@ -437,7 +358,7 @@ export default function TaskForm({
         </div>
       )}
 
-      {/* Form actions */}
+      {/* 11. Form actions */}
       <div className="flex gap-3 justify-end pt-4 border-t border-slate-800">
         <button
           type="button"

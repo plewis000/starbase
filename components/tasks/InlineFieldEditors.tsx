@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import DatePicker from "@/components/ui/DatePicker";
 import { ConfigOption, HouseholdMember } from "@/hooks/useTaskConfig";
 
 // ─── Shared helpers ─────────────────────────────────────────────────────
@@ -298,13 +299,13 @@ export function InlineDatePicker({
   };
 
   return (
-    <input
-      type="date"
-      value={currentValue || ""}
-      onChange={(e) => handleChange(e.target.value)}
-      disabled={saving}
-      className="min-h-[44px] bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50 cursor-pointer"
-    />
+    <div className={saving ? "opacity-60 pointer-events-none" : ""}>
+      <DatePicker
+        value={currentValue || ""}
+        onChange={handleChange}
+        showRelative
+      />
+    </div>
   );
 }
 
