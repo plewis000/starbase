@@ -215,7 +215,7 @@ export default function TaskList({
     const task = tasks.find((t) => t.id === taskId);
     if (!task) return;
 
-    const isCompleted = !!task.completed_at;
+    const isCompleted = task.status?.name === "Done" || !!task.completed_at;
 
     // Optimistic update
     setTasks((prev) =>
@@ -227,13 +227,29 @@ export default function TaskList({
     );
 
     try {
-      await fetch(`/api/tasks/${taskId}`, {
+      // Fetch config to get the target status ID
+      const configRes = await fetch("/api/config");
+      const configData = await configRes.json();
+      const statuses = configData.task_statuses || [];
+      const targetStatus = isCompleted
+        ? statuses.find((s: { name: string }) => s.name === "To Do")
+        : statuses.find((s: { name: string }) => s.name === "Done");
+
+      if (!targetStatus) {
+        toast.error("Could not find target status");
+        return;
+      }
+
+      const res = await fetch(`/api/tasks/${taskId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          completed_at: isCompleted ? null : new Date().toISOString(),
-        }),
+        body: JSON.stringify({ status_id: targetStatus.id }),
       });
+
+      if (!res.ok) {
+        throw new Error("Failed to update task");
+      }
+
       // Trigger completion sync for linked entities (fire-and-forget)
       if (!isCompleted) {
         setShowCelebration(true);
