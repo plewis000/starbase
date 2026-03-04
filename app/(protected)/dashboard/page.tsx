@@ -9,7 +9,7 @@ interface Task {
   id: string;
   title: string;
   due_date: string;
-  priority: string;
+  priority: { name: string; display_color?: string } | string | null;
 }
 
 interface Suggestion {
@@ -298,19 +298,23 @@ export default function DashboardPage() {
                     <div className="w-4 h-4 rounded border border-dungeon-600 bg-dungeon-800" />
                     <span className="text-sm text-slate-300">{task.title}</span>
                   </div>
-                  {task.priority && (
-                    <span
-                      className={`text-xs px-2 py-1 rounded font-mono ${
-                        task.priority === "high"
-                          ? "bg-crimson-900/30 text-crimson-400 border border-crimson-800"
-                          : task.priority === "medium"
-                          ? "bg-gold-900/30 text-gold-400 border border-gold-800"
-                          : "bg-dungeon-800 text-dungeon-500 border border-dungeon-700"
-                      }`}
-                    >
-                      {task.priority}
-                    </span>
-                  )}
+                  {task.priority && (() => {
+                    const pName = typeof task.priority === "string" ? task.priority : task.priority?.name || "";
+                    const pLower = pName.toLowerCase();
+                    return (
+                      <span
+                        className={`text-xs px-2 py-1 rounded font-mono ${
+                          pLower === "high" || pLower === "critical"
+                            ? "bg-crimson-900/30 text-crimson-400 border border-crimson-800"
+                            : pLower === "medium"
+                            ? "bg-gold-900/30 text-gold-400 border border-gold-800"
+                            : "bg-dungeon-800 text-dungeon-500 border border-dungeon-700"
+                        }`}
+                      >
+                        {pName}
+                      </span>
+                    );
+                  })()}
                 </div>
               ))}
             </div>

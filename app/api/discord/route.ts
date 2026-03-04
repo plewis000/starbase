@@ -742,7 +742,14 @@ async function handleAsk(
   const message = options.message as string;
   const response = await runAgent(supabase, userId, message, "discord", interaction.channel_id);
 
-  await sendWebhook(webhookUrl, { content: response.text });
+  const costStr = `$${(response.costCents / 100).toFixed(4)}`;
+  await sendWebhook(webhookUrl, {
+    content: response.text,
+    embeds: [{
+      color: 0x2F3136,
+      footer: { text: `Cost: ${costStr}` },
+    }],
+  });
 
   if (response.toolRounds > 0) {
     await logToChannel(response.summary);
