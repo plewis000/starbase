@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
-import { DiscordSDK } from "@discord/embedded-app-sdk";
 import ActivityProvider from "@/components/activity/ActivityProvider";
 import ActivityTaskBoard from "@/components/activity/ActivityTaskBoard";
 
@@ -11,24 +10,37 @@ export default function ActivityPage() {
   const [state, setState] = useState<SDKState>("loading");
   const [token, setToken] = useState<string | null>(null);
   const [error, setError] = useState<string>("");
-  const sdkRef = useRef<DiscordSDK | null>(null);
+  const [debugLog, setDebugLog] = useState<string[]>([]);
+  const sdkRef = useRef<any>(null);
+
+  const log = (msg: string) => {
+    console.log(`[activity] ${msg}`);
+    setDebugLog((prev) => [...prev.slice(-9), msg]);
+  };
 
   useEffect(() => {
     async function initDiscord() {
       try {
         const appId = process.env.NEXT_PUBLIC_DISCORD_APP_ID;
+        log(`App ID: ${appId ? appId.slice(0, 8) + "..." : "MISSING"}`);
+
         if (!appId) {
           throw new Error("NEXT_PUBLIC_DISCORD_APP_ID is not set");
         }
 
-        // Initialize Discord SDK
+        // Dynamic import to avoid SSR issues
+        log("Importing Discord SDK...");
+        const { DiscordSDK } = await import("@discord/embedded-app-sdk");
+
+        log("Creating SDK instance...");
         const sdk = new DiscordSDK(appId);
         sdkRef.current = sdk;
 
-        // Wait for SDK to be ready
+        log("Waiting for SDK ready...");
         await sdk.ready();
+        log("SDK ready!");
 
-        // Authorize — request identify scope
+        log("Requesting authorization...");
         const { code } = await sdk.commands.authorize({
           client_id: appId,
           response_type: "code",
@@ -36,8 +48,9 @@ export default function ActivityPage() {
           prompt: "none",
           scope: ["identify"],
         });
+        log(`Got auth code: ${code.slice(0, 8)}...`);
 
-        // Exchange code for access token via our backend
+        log("Exchanging token...");
         const tokenRes = await fetch("/api/activity/token", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -46,19 +59,22 @@ export default function ActivityPage() {
 
         if (!tokenRes.ok) {
           const data = await tokenRes.json().catch(() => ({}));
-          throw new Error(data.error || "Token exchange failed");
+          throw new Error(data.error || `Token exchange failed (${tokenRes.status})`);
         }
 
         const { access_token } = await tokenRes.json();
+        log("Token received, authenticating...");
 
-        // Authenticate with Discord SDK
         await sdk.commands.authenticate({ access_token });
+        log("Authenticated! Loading task board...");
 
         setToken(access_token);
         setState("ready");
       } catch (err) {
+        const msg = err instanceof Error ? err.message : "Failed to initialize";
         console.error("Discord Activity init failed:", err);
-        setError(err instanceof Error ? err.message : "Failed to initialize");
+        log(`ERROR: ${msg}`);
+        setError(msg);
         setState("error");
       }
     }
@@ -72,6 +88,13 @@ export default function ActivityPage() {
         <div className="text-center space-y-4">
           <div className="animate-spin w-10 h-10 border-2 border-slate-700 border-t-crimson-500 rounded-full mx-auto" />
           <p className="text-sm text-slate-500 font-mono">Connecting to Discord...</p>
+          {debugLog.length > 0 && (
+            <div className="mt-2">
+              {debugLog.map((l, i) => (
+                <p key={i} className="text-[10px] text-slate-600 font-mono">{l}</p>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -87,6 +110,14 @@ export default function ActivityPage() {
           <p className="text-xs text-slate-600">
             Make sure your Discord account is linked using <code className="text-crimson-400">/link</code> in Discord.
           </p>
+          {debugLog.length > 0 && (
+            <div className="mt-4 p-3 bg-slate-900 rounded text-left">
+              <p className="text-[10px] text-slate-600 font-mono mb-1">Debug log:</p>
+              {debugLog.map((l, i) => (
+                <p key={i} className="text-[10px] text-slate-500 font-mono">{l}</p>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     );
