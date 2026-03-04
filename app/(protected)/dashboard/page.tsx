@@ -94,7 +94,8 @@ export default function DashboardPage() {
         const userRes = await fetch("/api/user");
         if (userRes.ok) {
           const userData = await userRes.json();
-          setDisplayName(userData.full_name || userData.email || "there");
+          const u = userData.user || userData;
+          setDisplayName(u.full_name || u.email || "there");
         }
 
         const [tasksRes, allTasksRes] = await Promise.all([
