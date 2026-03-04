@@ -505,6 +505,13 @@ export default function SetupPage() {
               </p>
             </div>
 
+            <div className="dcc-card p-4 text-left space-y-2">
+              <p className="text-sm font-medium text-slate-200">Connect Discord</p>
+              <p className="text-xs text-dungeon-500">
+                Use <code className="text-crimson-400">/link your@email.com</code> in our Discord server to connect your account. This lets you manage tasks, submit feedback, and get notifications right from Discord.
+              </p>
+            </div>
+
             <button
               onClick={() => router.push("/tasks")}
               className="w-full dcc-btn-primary py-3 text-base"

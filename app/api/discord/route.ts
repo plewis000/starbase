@@ -192,6 +192,15 @@ async function processCommand(
       return await handleLink(supabase, discordUserId, options, webhookUrl);
     }
 
+    // /feedback and /pipeline work without a linked account
+    if (commandName === "feedback") {
+      const userId = await resolveUser(supabase, discordUserId);
+      return await handleFeedback(supabase, userId, discordUserId, options, webhookUrl);
+    }
+    if (commandName === "pipeline") {
+      return await handlePipeline(supabase, webhookUrl);
+    }
+
     const userId = await resolveUser(supabase, discordUserId);
 
     if (!userId) {
@@ -219,10 +228,6 @@ async function processCommand(
         return await handleCrawl(supabase, userId, webhookUrl);
       case "ask":
         return await handleAsk(supabase, userId, options, interaction, webhookUrl);
-      case "feedback":
-        return await handleFeedback(supabase, userId, options, webhookUrl);
-      case "pipeline":
-        return await handlePipeline(supabase, webhookUrl);
       default:
         await sendWebhook(webhookUrl, { content: `Unknown command: ${commandName}` });
     }
@@ -937,20 +942,42 @@ async function handleCrawl(supabase: Supabase, userId: string, webhookUrl: strin
 
 // ── Feedback + Pipeline commands ──────────────────────────────────────
 
-async function handleFeedback(supabase: Supabase, userId: string, options: Record<string, unknown>, webhookUrl: string) {
+async function handleFeedback(supabase: Supabase, userId: string | null, discordUserId: string, options: Record<string, unknown>, webhookUrl: string) {
   const description = options.description as string;
   const type = (options.type as string) || "feedback";
 
-  const ctx = await getHouseholdContext(supabase, userId);
+  // For unlinked users, resolve household from guild's admin user
+  // Feedback still gets posted to #pipeline for review regardless
+  let effectiveUserId = userId;
+  let ctx = userId ? await getHouseholdContext(supabase, userId) : null;
 
-  // Create feedback entry
+  if (!effectiveUserId) {
+    // Find any household admin to attribute the feedback to
+    const { data: admin } = await platform(supabase)
+      .from("household_members")
+      .select("user_id, household_id")
+      .eq("role", "admin")
+      .limit(1)
+      .single();
+    if (admin) {
+      effectiveUserId = admin.user_id;
+      ctx = { household_id: admin.household_id, role: "admin", user_id: admin.user_id };
+    }
+  }
+
+  if (!effectiveUserId) {
+    await sendWebhook(webhookUrl, { content: "Couldn't submit feedback — no household found. Use **/link** to connect your account first." });
+    return;
+  }
+
+  // Create feedback entry — stores Discord user ID in metadata for unlinked users
   const { data: feedback, error } = await platform(supabase)
     .from("feedback")
     .insert({
       household_id: ctx?.household_id || null,
-      submitted_by: userId,
+      submitted_by: effectiveUserId,
       type,
-      body: description,
+      body: userId ? description : `[Discord: ${discordUserId}] ${description}`,
       source: "discord",
     })
     .select("id, type, body, status, created_at")
@@ -962,8 +989,10 @@ async function handleFeedback(supabase: Supabase, userId: string, options: Recor
     return;
   }
 
-  // Auto-upvote (fire-and-forget)
-  Promise.resolve(platform(supabase).from("feedback_votes").insert({ feedback_id: feedback.id, user_id: userId })).catch(() => {});
+  // Auto-upvote (fire-and-forget) — only if linked
+  if (userId) {
+    Promise.resolve(platform(supabase).from("feedback_votes").insert({ feedback_id: feedback.id, user_id: userId })).catch(() => {});
+  }
 
   // Post to #pipeline channel with approve/reject buttons
   const pipelineChannelId = process.env.PIPELINE_CHANNEL_ID;
