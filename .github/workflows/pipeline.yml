@@ -93,19 +93,21 @@ jobs:
           git push -u origin "${{ steps.branch.outputs.branch }}"
 
           TITLE="pipeline: ${DESCRIPTION:0:65}"
-          BODY=$(cat <<EOF
+
+          # Write PR body to a temp file to avoid shell interpolation issues with special chars
+          cat > /tmp/pr-body.md <<'PREOF'
           ## Pipeline Job
+          PREOF
+          echo "" >> /tmp/pr-body.md
+          echo "**Feedback ID:** ${FB_ID}" >> /tmp/pr-body.md
+          echo "**Type:** ${FB_TYPE}" >> /tmp/pr-body.md
+          echo "" >> /tmp/pr-body.md
+          echo "${DESCRIPTION}" >> /tmp/pr-body.md
+          echo "" >> /tmp/pr-body.md
+          echo "---" >> /tmp/pr-body.md
+          echo "Automated by Starbase Pipeline via Claude Code Action" >> /tmp/pr-body.md
 
-          **Feedback ID:** ${FB_ID}
-          **Type:** ${FB_TYPE}
-
-          ${DESCRIPTION}
-
-          ---
-          Automated by Desperado Club Pipeline via Claude Code Action
-          EOF
-          )
-          PR_URL=$(gh pr create --title "$TITLE" --body "$BODY")
+          PR_URL=$(gh pr create --title "$TITLE" --body-file /tmp/pr-body.md)
 
           PR_NUMBER=$(echo "$PR_URL" | grep -oE '[0-9]+$')
           echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
