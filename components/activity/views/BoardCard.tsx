@@ -18,6 +18,8 @@ interface BoardCardProps {
   task: Task;
   isDone: boolean;
   isCompleted: boolean;
+  isGhost?: boolean;
+  isOverlay?: boolean;
   onSelect?: (id: string) => void;
   onQuickComplete: (id: string) => void;
 }
@@ -58,26 +60,26 @@ function dateColor(d?: string): string {
   return "text-slate-500";
 }
 
-export default function BoardCard({ task, isDone, isCompleted, onSelect, onQuickComplete }: BoardCardProps) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+export default function BoardCard({ task, isDone, isCompleted, isGhost, isOverlay, onSelect, onQuickComplete }: BoardCardProps) {
+  const { attributes, listeners, setNodeRef } = useDraggable({
     id: task.id,
     data: { task },
+    disabled: isOverlay,
   });
-
-  const style = transform
-    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`, zIndex: 50 }
-    : undefined;
 
   return (
     <div
-      ref={setNodeRef}
-      style={style}
-      {...listeners}
-      {...attributes}
-      onClick={() => onSelect?.(task.id)}
-      className={`p-2.5 rounded-lg bg-slate-950/60 border border-slate-800/50 hover:border-slate-700 transition-all cursor-grab active:cursor-grabbing ${
-        isCompleted ? "ring-1 ring-green-500/30" : ""
-      } ${isDragging ? "opacity-50 shadow-xl" : ""}`}
+      ref={isOverlay ? undefined : setNodeRef}
+      {...(isOverlay ? {} : listeners)}
+      {...(isOverlay ? {} : attributes)}
+      onClick={() => !isGhost && onSelect?.(task.id)}
+      className={`p-2.5 rounded-lg border transition-all ${
+        isOverlay
+          ? "bg-slate-900 border-slate-600 cursor-grabbing ring-1 ring-red-400/30"
+          : isGhost
+            ? "bg-slate-950/30 border-dashed border-slate-700/50 opacity-30"
+            : "bg-slate-950/60 border-slate-800/50 hover:border-slate-700 cursor-grab active:cursor-grabbing"
+      } ${isCompleted ? "ring-1 ring-green-500/30" : ""}`}
     >
       {/* Title row with priority dot */}
       <div className="flex items-start gap-2">

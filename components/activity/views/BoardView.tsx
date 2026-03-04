@@ -1,7 +1,7 @@
 "use client";
 
-import React from "react";
-import { DndContext, DragEndEvent, DragOverlay, useDroppable, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import React, { useState } from "react";
+import { DndContext, DragEndEvent, DragStartEvent, DragOverlay, useDroppable, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import BoardCard from "./BoardCard";
 
 interface Task {
@@ -104,6 +104,7 @@ function DroppableColumn({
 }
 
 export default function BoardView({ tasks, onQuickComplete, completedTaskId, config, onSelect, onStatusChange }: Props) {
+  const [activeId, setActiveId] = useState<string | null>(null);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
@@ -136,7 +137,12 @@ export default function BoardView({ tasks, onQuickComplete, completedTaskId, con
     }
   }
 
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
+    setActiveId(null);
     const { active, over } = event;
     if (!over || !onStatusChange) return;
 
@@ -151,8 +157,10 @@ export default function BoardView({ tasks, onQuickComplete, completedTaskId, con
     }
   };
 
+  const activeTask = activeId ? tasks.find((t) => t.id === activeId) : null;
+
   return (
-    <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div className="flex gap-3 overflow-x-auto h-full pb-2">
         {columns.map((col) => {
           const colTasks = grouped[col.id] || [];
@@ -173,6 +181,7 @@ export default function BoardView({ tasks, onQuickComplete, completedTaskId, con
                   task={task}
                   isDone={isDone}
                   isCompleted={task.id === completedTaskId}
+                  isGhost={task.id === activeId}
                   onSelect={onSelect}
                   onQuickComplete={onQuickComplete}
                 />
@@ -184,6 +193,22 @@ export default function BoardView({ tasks, onQuickComplete, completedTaskId, con
           );
         })}
       </div>
+
+      {/* Drag overlay — renders above everything, no clipping */}
+      <DragOverlay dropAnimation={{ duration: 200, easing: "ease" }}>
+        {activeTask ? (
+          <div className="rotate-[2deg] scale-105 shadow-2xl shadow-black/50">
+            <BoardCard
+              task={activeTask}
+              isDone={false}
+              isCompleted={false}
+              isOverlay
+              onSelect={() => {}}
+              onQuickComplete={() => {}}
+            />
+          </div>
+        ) : null}
+      </DragOverlay>
     </DndContext>
   );
 }
