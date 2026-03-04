@@ -32,6 +32,7 @@ const navItems: NavItem[] = [
   { href: "/comms", label: "Comms", icon: "💬" },
   { href: "/crawl", label: "The Crawl", icon: "🗡️" },
   { href: "/tasks", label: "Task Board", icon: "📋" },
+  { href: "/calendar", label: "Calendar", icon: "📅" },
   { href: "/budget", label: "The Vault", icon: "💰" },
   { href: "/goals", label: "War Room", icon: "🎯" },
   { href: "/habits", label: "Training Grounds", icon: "🔄" },

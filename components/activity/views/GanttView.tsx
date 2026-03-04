@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useRef } from "react";
 import GanttBar from "./GanttBar";
 import GanttDependencyLines from "./GanttDependencyLines";
+import { todayInTimezone } from "@/lib/dateUtils";
 
 interface Task {
   id: string;
@@ -20,6 +21,7 @@ interface Task {
 interface Props {
   tasks: Task[];
   onSelect?: (id: string) => void;
+  timezone?: string;
 }
 
 type ZoomLevel = "day" | "week" | "month";
@@ -57,15 +59,15 @@ function daysBetween(d1: Date, d2: Date): number {
 const ROW_HEIGHT = 36;
 const LABEL_WIDTH = 200;
 
-export default function GanttView({ tasks, onSelect }: Props) {
+export default function GanttView({ tasks, onSelect, timezone }: Props) {
   const [zoom, setZoom] = useState<ZoomLevel>("day");
   const scrollRef = useRef<HTMLDivElement>(null);
   const config = ZOOM_CONFIG[zoom];
 
   // Calculate date range
   const { startDate, endDate, totalDays, sortedTasks } = useMemo(() => {
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
+    const now = timezone ? todayInTimezone(timezone) : new Date();
+    if (!timezone) now.setHours(0, 0, 0, 0);
 
     let minDate = new Date(now);
     let maxDate = new Date(now);
@@ -98,13 +100,13 @@ export default function GanttView({ tasks, onSelect }: Props) {
     });
 
     return { startDate: minDate, endDate: maxDate, totalDays, sortedTasks: sorted };
-  }, [tasks]);
+  }, [tasks, timezone]);
 
   // Generate day columns for header
   const dayColumns = useMemo(() => {
     const cols: { date: Date; label: string; isToday: boolean; isWeekend: boolean }[] = [];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = timezone ? todayInTimezone(timezone) : new Date();
+    if (!timezone) today.setHours(0, 0, 0, 0);
 
     for (let i = 0; i < totalDays; i++) {
       const date = new Date(startDate);
@@ -117,7 +119,7 @@ export default function GanttView({ tasks, onSelect }: Props) {
       });
     }
     return cols;
-  }, [startDate, totalDays, config]);
+  }, [startDate, totalDays, config, timezone]);
 
   // Calculate task positions
   const taskPositions = useMemo(() => {
@@ -176,8 +178,8 @@ export default function GanttView({ tasks, onSelect }: Props) {
   }, [sortedTasks]);
 
   // Today red line position
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = timezone ? todayInTimezone(timezone) : new Date();
+  if (!timezone) today.setHours(0, 0, 0, 0);
   const todayOffset = daysBetween(startDate, today) * config.dayWidth;
 
   const chartWidth = totalDays * config.dayWidth;

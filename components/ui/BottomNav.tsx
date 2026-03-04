@@ -19,6 +19,7 @@ const navItems: NavItem[] = [
 ];
 
 const moreItems: NavItem[] = [
+  { href: "/calendar", label: "Calendar", icon: "📅" },
   { href: "/budget", label: "Vault", icon: "💰" },
   { href: "/shopping", label: "Shop", icon: "🛒" },
   { href: "/chat", label: "Zev", icon: "💬" },
@@ -43,7 +44,7 @@ export default function BottomNav() {
             onClick={() => setShowMore(false)}
           />
           <div className="fixed bottom-[4.5rem] left-2 right-2 bg-dungeon-900 border border-dungeon-700 rounded-xl z-50 lg:hidden p-2">
-            <div className="grid grid-cols-5 gap-1">
+            <div className="grid grid-cols-3 gap-1">
               {moreItems.map((item) => {
                 const isActive = pathname.startsWith(item.href);
                 return (

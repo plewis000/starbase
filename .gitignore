@@ -1,3 +1,6 @@
+# local scripts (contain secrets)
+/scripts/
+
 # dependencies
 /node_modules
 /.pnp
