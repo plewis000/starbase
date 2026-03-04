@@ -412,15 +412,7 @@ export default function TaskDetail({
 
         {/* Description */}
         <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-slate-100">Description</h3>
-            <button
-              onClick={() => setEditingDescription(!editingDescription)}
-              className="text-slate-400 hover:text-slate-100 transition-colors p-1"
-            >
-              ✏️
-            </button>
-          </div>
+          <h3 className="text-sm font-semibold text-slate-100 mb-3">Description</h3>
           {editingDescription ? (
             <textarea
               defaultValue={task.description ?? ""}
@@ -433,9 +425,12 @@ export default function TaskDetail({
               className="w-full bg-slate-700 border border-red-400 rounded px-3 py-2 text-sm text-slate-100 focus:outline-none resize-none"
             />
           ) : (
-            <div className="text-sm text-slate-300 whitespace-pre-wrap">
+            <div
+              onClick={() => setEditingDescription(true)}
+              className="text-sm text-slate-300 whitespace-pre-wrap cursor-pointer hover:bg-slate-700/50 rounded px-2 py-1.5 -mx-2 -my-1.5 transition-colors"
+            >
               {task.description || (
-                <span className="text-slate-500 italic">No description</span>
+                <span className="text-slate-500 italic">Click to add description...</span>
               )}
             </div>
           )}

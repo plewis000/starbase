@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 
 interface Task {
   id: string;
@@ -48,10 +48,10 @@ const ALL_COLUMNS: ColumnDef[] = [
   { key: "status", label: "Status", width: "w-24" },
   { key: "priority", label: "Priority", width: "w-20" },
   { key: "assignee", label: "Assignee", width: "w-24" },
-  { key: "due_date", label: "Due", width: "w-24" },
+  { key: "due_date", label: "Due", width: "w-28" },
   { key: "type", label: "Type", width: "w-20" },
   { key: "effort", label: "Effort", width: "w-20" },
-  { key: "tags", label: "Tags", width: "w-28" },
+  { key: "tags", label: "Tags", width: "w-32" },
   { key: "created_at", label: "Created", width: "w-24" },
   { key: "recurrence", label: "Recur", width: "w-16" },
 ];
@@ -123,23 +123,35 @@ function initials(name?: string): string {
   return name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
 }
 
-// Inline cell editing for status/priority
+// Inline cell editing for status/priority/type/effort
 function InlineCellPicker({
   options,
   currentId,
   onSelect,
   colorFn,
+  allowDeselect,
 }: {
   options: { id: string; name: string }[];
   currentId?: string;
-  onSelect: (id: string) => void;
+  onSelect: (id: string | null) => void;
   colorFn?: (name: string) => string;
+  allowDeselect?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
   const current = options.find((o) => o.id === currentId);
 
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
   return (
-    <div className="relative">
+    <div className="relative" ref={ref}>
       <button
         onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
         className={`px-1.5 py-0.5 rounded text-[10px] font-medium border truncate max-w-full ${
@@ -150,6 +162,14 @@ function InlineCellPicker({
       </button>
       {open && (
         <div className="absolute top-full left-0 mt-1 z-30 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 min-w-[100px]">
+          {allowDeselect && currentId && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onSelect(null); setOpen(false); }}
+              className="w-full text-left px-3 py-1.5 text-xs text-slate-400 italic hover:bg-slate-700 transition-colors"
+            >
+              None
+            </button>
+          )}
           {options.map((opt) => (
             <button
               key={opt.id}
@@ -163,6 +183,282 @@ function InlineCellPicker({
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// Inline assignee picker
+function InlineCellAssignee({
+  task,
+  members,
+  onUpdate,
+}: {
+  task: Task;
+  members: any[];
+  onUpdate: (taskId: string, patch: Record<string, unknown>) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
+        className="flex items-center gap-1 hover:bg-slate-800 rounded px-1 py-0.5 transition-colors"
+      >
+        {task.assignee ? (
+          <>
+            <div className="w-5 h-5 rounded-full bg-slate-800 flex items-center justify-center text-[8px] font-bold text-slate-300 border border-slate-700" title={task.assignee.full_name}>
+              {task.assignee.avatar_url ? (
+                <img src={task.assignee.avatar_url} alt="" className="w-full h-full rounded-full object-cover" />
+              ) : initials(task.assignee.full_name)}
+            </div>
+            <span className="text-[10px] text-slate-400 truncate">{task.assignee.full_name?.split(" ")[0]}</span>
+          </>
+        ) : (
+          <span className="text-[10px] text-slate-600">—</span>
+        )}
+      </button>
+      {open && (
+        <div className="absolute top-full left-0 mt-1 z-30 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 min-w-[120px]">
+          <button
+            onClick={(e) => { e.stopPropagation(); onUpdate(task.id, { assigned_to: null }); setOpen(false); }}
+            className={`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-700 transition-colors ${
+              !task.assigned_to ? "text-red-400 font-medium" : "text-slate-400 italic"
+            }`}
+          >
+            Unassigned
+          </button>
+          {members.map((m: any) => {
+            const name = m.user?.full_name || m.display_name || m.user_id;
+            const userId = m.user_id;
+            return (
+              <button
+                key={userId}
+                onClick={(e) => { e.stopPropagation(); onUpdate(task.id, { assigned_to: userId }); setOpen(false); }}
+                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-700 transition-colors flex items-center gap-2 ${
+                  userId === task.assigned_to ? "text-red-400 font-medium" : "text-slate-200"
+                }`}
+              >
+                <div className="w-4 h-4 rounded-full bg-slate-700 flex items-center justify-center text-[7px] font-bold text-slate-300">
+                  {initials(name)}
+                </div>
+                {name}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Inline date picker
+function InlineCellDate({
+  task,
+  onUpdate,
+}: {
+  task: Task;
+  onUpdate: (taskId: string, patch: Record<string, unknown>) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const presets = [
+    { label: "Today", days: 0 },
+    { label: "Tomorrow", days: 1 },
+    { label: "Next week", days: 7 },
+    { label: "None", days: -1 },
+  ];
+
+  const getDateStr = (days: number) => {
+    if (days < 0) return null;
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    return d.toISOString().split("T")[0];
+  };
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
+        className="hover:bg-slate-800 rounded px-1 py-0.5 transition-colors"
+      >
+        {task.due_date ? (
+          <span className={`text-[10px] font-mono ${dateColor(task.due_date)}`}>{formatRelDate(task.due_date)}</span>
+        ) : (
+          <span className="text-[10px] text-slate-600">—</span>
+        )}
+      </button>
+      {open && (
+        <div className="absolute top-full left-0 mt-1 z-30 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 min-w-[100px]">
+          {presets.map((p) => (
+            <button
+              key={p.label}
+              onClick={(e) => {
+                e.stopPropagation();
+                onUpdate(task.id, { due_date: getDateStr(p.days) });
+                setOpen(false);
+              }}
+              className="w-full text-left px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-700 transition-colors"
+            >
+              {p.label}
+            </button>
+          ))}
+          <div className="border-t border-slate-700 mt-1 pt-1 px-2 pb-1">
+            <input
+              type="date"
+              defaultValue={task.due_date || ""}
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => {
+                onUpdate(task.id, { due_date: e.target.value || null });
+                setOpen(false);
+              }}
+              className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none"
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Inline tags editor
+function InlineCellTags({
+  task,
+  availableTags,
+  onUpdate,
+}: {
+  task: Task;
+  availableTags: any[];
+  onUpdate: (taskId: string, action: { type: "addTag" | "removeTag"; tagId: string; assocId?: string }) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const currentTagIds = (task.tags || []).map((t: any) => t.tag_id);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
+        className="flex gap-1 overflow-hidden hover:bg-slate-800 rounded px-1 py-0.5 transition-colors min-w-[20px]"
+      >
+        {task.tags && task.tags.length > 0 ? (
+          task.tags.slice(0, 2).map((tag: any) => tag.tag && (
+            <span key={tag.id} className="text-[10px] text-slate-500 truncate" style={{ color: tag.tag.display_color }}>
+              {tag.tag.name}
+            </span>
+          ))
+        ) : (
+          <span className="text-[10px] text-slate-600">—</span>
+        )}
+      </button>
+      {open && (
+        <div className="absolute top-full left-0 mt-1 z-30 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 min-w-[140px]">
+          {availableTags.map((tag: any) => {
+            const isActive = currentTagIds.includes(tag.id);
+            const assoc = (task.tags || []).find((t: any) => t.tag_id === tag.id);
+            return (
+              <button
+                key={tag.id}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (isActive && assoc) {
+                    onUpdate(task.id, { type: "removeTag", tagId: tag.id, assocId: assoc.tag_id });
+                  } else {
+                    onUpdate(task.id, { type: "addTag", tagId: tag.id });
+                  }
+                }}
+                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-700 transition-colors flex items-center gap-2 ${
+                  isActive ? "text-red-400 font-medium" : "text-slate-200"
+                }`}
+              >
+                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: tag.display_color || "#64748b" }} />
+                {tag.name}
+                {isActive && <span className="ml-auto text-red-400">✓</span>}
+              </button>
+            );
+          })}
+          {availableTags.length === 0 && (
+            <span className="px-3 py-1.5 text-xs text-slate-500">No tags configured</span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Inline title editor
+function InlineCellTitle({
+  task,
+  isCompleted,
+  onUpdate,
+}: {
+  task: Task;
+  isCompleted: boolean;
+  onUpdate: (taskId: string, patch: Record<string, unknown>) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+
+  if (editing) {
+    return (
+      <input
+        type="text"
+        defaultValue={task.title}
+        autoFocus
+        onClick={(e) => e.stopPropagation()}
+        onBlur={(e) => {
+          const val = e.currentTarget.value.trim();
+          if (val && val !== task.title) onUpdate(task.id, { title: val });
+          setEditing(false);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            const val = e.currentTarget.value.trim();
+            if (val && val !== task.title) onUpdate(task.id, { title: val });
+            setEditing(false);
+          }
+          if (e.key === "Escape") setEditing(false);
+        }}
+        className="w-full bg-slate-800 border border-red-400 rounded px-2 py-0.5 text-sm font-medium text-slate-100 focus:outline-none"
+      />
+    );
+  }
+
+  return (
+    <div
+      onClick={(e) => { e.stopPropagation(); setEditing(true); }}
+      className={`text-sm font-medium truncate cursor-text hover:text-red-400 transition-colors ${isCompleted ? "line-through text-slate-500" : "text-slate-100"}`}
+    >
+      {task.title}
     </div>
   );
 }
@@ -211,6 +507,20 @@ export default function ListView({ tasks, onQuickComplete, completedTaskId, conf
     } catch {}
   }, []);
 
+  const handleTagUpdate = useCallback(async (taskId: string, action: { type: "addTag" | "removeTag"; tagId: string; assocId?: string }) => {
+    try {
+      if (action.type === "addTag") {
+        await fetch(`/api/tasks/${taskId}/tags`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tag_id: action.tagId }),
+        });
+      } else {
+        await fetch(`/api/tasks/${taskId}/tags/${action.assocId}`, { method: "DELETE" });
+      }
+    } catch {}
+  }, []);
+
   const activeColumns = ALL_COLUMNS.filter((c) => visibleColumns.includes(c.key));
   const groups = groupTasks(tasks, groupBy || "none");
 
@@ -255,6 +565,9 @@ export default function ListView({ tasks, onQuickComplete, completedTaskId, conf
         ) : null;
 
       case "assignee":
+        if (config?.members) {
+          return <InlineCellAssignee task={task} members={config.members} onUpdate={handleInlineUpdate} />;
+        }
         return task.assignee ? (
           <div className="flex items-center gap-1">
             <div className="w-5 h-5 rounded-full bg-slate-800 flex items-center justify-center text-[8px] font-bold text-slate-300 border border-slate-700" title={task.assignee.full_name}>
@@ -267,26 +580,36 @@ export default function ListView({ tasks, onQuickComplete, completedTaskId, conf
         ) : <span className="text-[10px] text-slate-600">—</span>;
 
       case "due_date":
-        return task.due_date ? (
-          <span className={`text-[10px] font-mono ${dateColor(task.due_date)}`}>{formatRelDate(task.due_date)}</span>
-        ) : <span className="text-[10px] text-slate-600">—</span>;
+        return <InlineCellDate task={task} onUpdate={handleInlineUpdate} />;
 
       case "type":
+        if (config?.task_types) {
+          return (
+            <InlineCellPicker
+              options={config.task_types}
+              currentId={(task as any).task_type_id}
+              onSelect={(id) => handleInlineUpdate(task.id, { task_type_id: id })}
+              allowDeselect
+            />
+          );
+        }
         return <span className="text-[10px] text-slate-500">{(task as any).task_type?.name || "—"}</span>;
 
       case "effort":
+        if (config?.effort_levels) {
+          return (
+            <InlineCellPicker
+              options={config.effort_levels}
+              currentId={(task as any).effort_level_id}
+              onSelect={(id) => handleInlineUpdate(task.id, { effort_level_id: id })}
+              allowDeselect
+            />
+          );
+        }
         return <span className="text-[10px] text-slate-500">{(task as any).effort_level?.name || "—"}</span>;
 
       case "tags":
-        return (
-          <div className="flex gap-1 overflow-hidden">
-            {task.tags?.slice(0, 2).map((tag: any) => tag.tag && (
-              <span key={tag.id} className="text-[10px] text-slate-500 truncate" style={{ color: tag.tag.display_color }}>
-                {tag.tag.name}
-              </span>
-            ))}
-          </div>
-        );
+        return <InlineCellTags task={task} availableTags={config?.tags || []} onUpdate={handleTagUpdate} />;
 
       case "created_at":
         return <span className="text-[10px] text-slate-600">{task.created_at ? formatRelDate(task.created_at) : "—"}</span>;
@@ -397,9 +720,7 @@ export default function ListView({ tasks, onQuickComplete, completedTaskId, conf
 
               {/* Title */}
               <div className="flex-1 min-w-0">
-                <div className={`text-sm font-medium truncate ${isCompleted ? "line-through text-slate-500" : "text-slate-100"}`}>
-                  {task.title}
-                </div>
+                <InlineCellTitle task={task} isCompleted={isCompleted} onUpdate={handleInlineUpdate} />
                 {/* Subtask/checklist progress inline */}
                 {(task.subtask_progress?.total || checklist.length > 0) && (
                   <div className="flex items-center gap-2 mt-0.5">
