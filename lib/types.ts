@@ -13,6 +13,8 @@ export interface ChecklistItem {
   title: string;
   checked: boolean;
   sort_order: number;
+  assigned_to?: string;
+  assignee?: { id: string; full_name: string; avatar_url?: string | null };
 }
 
 export interface Comment {
@@ -350,7 +352,7 @@ export interface DashboardSummary {
 
 // ---- COMMENTS (Polymorphic, v2) ----
 
-export type CommentEntityType = "task" | "goal" | "habit";
+export type CommentEntityType = "task" | "goal" | "habit" | "thread";
 
 export interface CommentV2 {
   id: string;

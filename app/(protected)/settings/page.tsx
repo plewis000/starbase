@@ -227,6 +227,7 @@ function ConfigSection({ table, label }: { table: string; label: string }) {
   const toast = useToast();
   const [items, setItems] = useState<ConfigItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showInactive, setShowInactive] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editColor, setEditColor] = useState("");
@@ -314,12 +315,23 @@ function ConfigSection({ table, label }: { table: string; label: string }) {
     <div className="dcc-card p-5 space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-slate-100">{label}</h3>
-        <button
-          onClick={() => setShowAdd(!showAdd)}
-          className="px-3 py-1 text-xs font-medium text-red-400 border border-red-400/30 rounded-lg hover:bg-red-400/10 transition-colors"
-        >
-          + Add
-        </button>
+        <div className="flex items-center gap-2">
+          <label className="flex items-center gap-1.5 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={showInactive}
+              onChange={(e) => setShowInactive(e.target.checked)}
+              className="rounded border-slate-600 w-3.5 h-3.5"
+            />
+            <span className="text-[10px] text-slate-500">Show inactive</span>
+          </label>
+          <button
+            onClick={() => setShowAdd(!showAdd)}
+            className="px-3 py-1 text-xs font-medium text-red-400 border border-red-400/30 rounded-lg hover:bg-red-400/10 transition-colors"
+          >
+            + Add
+          </button>
+        </div>
       </div>
 
       {/* Add form */}
@@ -352,11 +364,13 @@ function ConfigSection({ table, label }: { table: string; label: string }) {
 
       {/* Items list */}
       <div className="space-y-1">
-        {items.map((item, idx) => (
+        {items.filter((item) => showInactive || item.active !== false).map((item, idx) => {
+          const isInactive = item.active === false;
+          return (
           <div
             key={item.id}
             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-              item.active === false ? "opacity-40" : "hover:bg-slate-800/50"
+              isInactive ? "opacity-50" : "hover:bg-slate-800/50"
             }`}
           >
             {/* Sort order indicator */}
@@ -399,8 +413,13 @@ function ConfigSection({ table, label }: { table: string; label: string }) {
               <>
                 <div className="flex-1 flex items-center gap-2">
                   {item.icon && <span className="text-sm">{item.icon}</span>}
-                  <span className="text-sm text-slate-200">{item.name}</span>
+                  <span className={`text-sm ${isInactive ? "line-through text-slate-500" : "text-slate-200"}`}>{item.name}</span>
                   {item.slug && <span className="text-[10px] text-slate-600 font-mono">{item.slug}</span>}
+                  {isInactive && (
+                    <span className="px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider bg-slate-700 text-slate-400 rounded">
+                      Inactive
+                    </span>
+                  )}
                 </div>
 
                 {/* Actions */}
@@ -428,7 +447,8 @@ function ConfigSection({ table, label }: { table: string; label: string }) {
               </>
             )}
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {items.length === 0 && (

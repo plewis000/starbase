@@ -1,6 +1,8 @@
 "use client";
 
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import React, { useState, useCallback, useRef } from "react";
+
+export type GroupBy = "none" | "assignee" | "priority" | "status";
 
 export interface ActivityFilters {
   status?: string;
@@ -10,12 +12,21 @@ export interface ActivityFilters {
   sort?: string;
   direction?: "asc" | "desc";
   owner?: string;
+  groupBy?: GroupBy;
 }
 
 export interface SavedView {
   name: string;
   icon: string;
   filters: Partial<ActivityFilters>;
+  isDefault?: boolean;
+}
+
+interface ConfigData {
+  statuses?: { id: string; name: string; sort_order: number }[];
+  priorities?: { id: string; name: string; sort_order: number }[];
+  members?: { user_id: string; display_name?: string; user?: { full_name: string } | null }[];
+  [key: string]: any;
 }
 
 interface Props {
@@ -23,9 +34,11 @@ interface Props {
   onFilterChange: (f: ActivityFilters) => void;
   savedViews: SavedView[];
   onSaveView: (view: SavedView) => void;
+  onDeleteView?: (viewName: string) => void;
+  config?: ConfigData | null;
 }
 
-const STATUS_OPTIONS = [
+const FALLBACK_STATUS_OPTIONS = [
   { label: "All", value: "All" },
   { label: "To Do", value: "To Do" },
   { label: "In Progress", value: "In Progress" },
@@ -34,13 +47,33 @@ const STATUS_OPTIONS = [
   { label: "Someday", value: "Someday" },
 ];
 
-const PRIORITY_OPTIONS = [
+const FALLBACK_PRIORITY_OPTIONS = [
   { label: "All", value: "All" },
   { label: "Urgent", value: "Urgent" },
   { label: "High", value: "High" },
   { label: "Medium", value: "Medium" },
   { label: "Low", value: "Low" },
 ];
+
+function buildStatusOptions(config?: ConfigData | null) {
+  if (!config?.statuses?.length) return FALLBACK_STATUS_OPTIONS;
+  return [
+    { label: "All", value: "All" },
+    ...[...config.statuses]
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map((s) => ({ label: s.name, value: s.name })),
+  ];
+}
+
+function buildPriorityOptions(config?: ConfigData | null) {
+  if (!config?.priorities?.length) return FALLBACK_PRIORITY_OPTIONS;
+  return [
+    { label: "All", value: "All" },
+    ...[...config.priorities]
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map((p) => ({ label: p.name, value: p.name })),
+  ];
+}
 
 const DUE_OPTIONS = [
   { label: "All", value: "All" },
@@ -58,13 +91,27 @@ const SORT_OPTIONS = [
   { label: "Title", value: "title" },
 ];
 
-export default function ActivityFilterBar({ filters, onFilterChange, savedViews, onSaveView }: Props) {
+const GROUP_BY_OPTIONS = [
+  { label: "None", value: "none" },
+  { label: "Status", value: "status" },
+  { label: "Priority", value: "priority" },
+  { label: "Assignee", value: "assignee" },
+];
+
+const EMOJI_PICKS = ["📋", "🔴", "📅", "📆", "🔥", "⭐", "🎯", "🏷️", "👤", "🚀", "💡", "🐛", "📌", "⚡", "🎨", "🔧"];
+
+export default function ActivityFilterBar({ filters, onFilterChange, savedViews, onSaveView, onDeleteView, config }: Props) {
+  const statusOptions = buildStatusOptions(config);
+  const priorityOptions = buildPriorityOptions(config);
   const [activeView, setActiveView] = useState<string | null>("All Tasks");
   const [expanded, setExpanded] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [saveName, setSaveName] = useState("");
+  const [saveIcon, setSaveIcon] = useState("⭐");
+  const [editingView, setEditingView] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editIcon, setEditIcon] = useState("");
   const searchTimeout = useRef<NodeJS.Timeout | null>(null);
-  const searchRef = useRef<HTMLInputElement>(null);
 
   const update = useCallback((key: keyof ActivityFilters, value: string) => {
     const next = { ...filters, [key]: value };
@@ -89,44 +136,104 @@ export default function ActivityFilterBar({ filters, onFilterChange, savedViews,
     if (!saveName.trim()) return;
     onSaveView({
       name: saveName.trim(),
-      icon: "⭐",
+      icon: saveIcon,
       filters: { ...filters, search: undefined },
     });
     setSaveName("");
+    setSaveIcon("⭐");
     setShowSaveDialog(false);
-  }, [saveName, filters, onSaveView]);
+  }, [saveName, saveIcon, filters, onSaveView]);
+
+  const handleEditView = useCallback((view: SavedView) => {
+    if (view.isDefault) return;
+    setEditingView(view.name);
+    setEditName(view.name);
+    setEditIcon(view.icon);
+  }, []);
+
+  const handleSaveEdit = useCallback(() => {
+    if (!editName.trim() || !editingView) return;
+    // Delete old view and save renamed one
+    onDeleteView?.(editingView);
+    const view = savedViews.find((v) => v.name === editingView);
+    if (view) {
+      onSaveView({ ...view, name: editName.trim(), icon: editIcon });
+    }
+    setEditingView(null);
+  }, [editName, editIcon, editingView, savedViews, onDeleteView, onSaveView]);
 
   return (
     <div className="space-y-2">
       {/* Saved views — horizontal scroll */}
       <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-hide">
         {savedViews.map((view) => (
-          <button
-            key={view.name}
-            onClick={() => applyView(view)}
-            className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all border ${
-              activeView === view.name
-                ? "bg-crimson-900/30 border-crimson-700 text-crimson-300"
-                : "bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-300 hover:border-slate-700"
-            }`}
-          >
-            <span>{view.icon}</span>
-            {view.name}
-          </button>
+          <div key={view.name} className="relative group flex-shrink-0">
+            {editingView === view.name ? (
+              <div className="flex items-center gap-1 bg-slate-800 border border-slate-600 rounded-full px-1 py-0.5">
+                <select
+                  value={editIcon}
+                  onChange={(e) => setEditIcon(e.target.value)}
+                  className="bg-transparent text-xs w-8 cursor-pointer"
+                >
+                  {EMOJI_PICKS.map((e) => <option key={e} value={e}>{e}</option>)}
+                </select>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleSaveEdit(); if (e.key === "Escape") setEditingView(null); }}
+                  className="bg-transparent text-xs text-slate-100 w-20 focus:outline-none"
+                  autoFocus
+                />
+                <button onClick={handleSaveEdit} className="text-[10px] text-green-400 px-1">OK</button>
+              </div>
+            ) : (
+              <button
+                onClick={() => applyView(view)}
+                onDoubleClick={() => handleEditView(view)}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all border ${
+                  activeView === view.name
+                    ? "bg-crimson-900/30 border-crimson-700 text-crimson-300"
+                    : "bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-300 hover:border-slate-700"
+                }`}
+              >
+                <span>{view.icon}</span>
+                {view.name}
+                {!view.isDefault && onDeleteView && (
+                  <span
+                    onClick={(e) => { e.stopPropagation(); onDeleteView(view.name); }}
+                    className="hidden group-hover:inline ml-1 text-slate-600 hover:text-red-400 cursor-pointer"
+                  >
+                    ×
+                  </span>
+                )}
+              </button>
+            )}
+          </div>
         ))}
 
-        {/* Save current filter as view */}
         <button
           onClick={() => setShowSaveDialog(!showSaveDialog)}
-          className="px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap border border-dashed border-slate-700 text-slate-600 hover:text-slate-400 hover:border-slate-600 transition-all"
+          className="px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap border border-dashed border-slate-700 text-slate-600 hover:text-slate-400 hover:border-slate-600 transition-all flex-shrink-0"
         >
           + Save View
         </button>
       </div>
 
-      {/* Save dialog */}
+      {/* Save dialog with emoji picker */}
       {showSaveDialog && (
         <div className="flex gap-2 items-center">
+          <div className="flex items-center gap-1 bg-slate-900 border border-slate-700 rounded px-2 py-1">
+            {EMOJI_PICKS.slice(0, 8).map((emoji) => (
+              <button
+                key={emoji}
+                onClick={() => setSaveIcon(emoji)}
+                className={`text-sm p-0.5 rounded ${saveIcon === emoji ? "bg-slate-700" : "hover:bg-slate-800"}`}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
           <input
             type="text"
             value={saveName}
@@ -141,10 +248,9 @@ export default function ActivityFilterBar({ filters, onFilterChange, savedViews,
         </div>
       )}
 
-      {/* Compact filter row: search + mine/all + expand toggle */}
+      {/* Compact filter row */}
       <div className="flex items-center gap-2">
         <input
-          ref={searchRef}
           type="text"
           defaultValue={filters.search || ""}
           onChange={(e) => handleSearch(e.target.value)}
@@ -184,21 +290,32 @@ export default function ActivityFilterBar({ filters, onFilterChange, savedViews,
 
       {/* Expanded filters */}
       {expanded && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          <FilterSelect label="Status" value={filters.status || "All"} options={STATUS_OPTIONS} onChange={(v) => update("status", v)} />
-          <FilterSelect label="Priority" value={filters.priority || "All"} options={PRIORITY_OPTIONS} onChange={(v) => update("priority", v)} />
-          <FilterSelect label="Due" value={filters.due || "All"} options={DUE_OPTIONS} onChange={(v) => update("due", v)} />
-          <div className="flex gap-1">
-            <div className="flex-1">
-              <FilterSelect label="Sort" value={filters.sort || "due_date"} options={SORT_OPTIONS} onChange={(v) => update("sort", v)} />
+        <div className="space-y-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <FilterSelect label="Status" value={filters.status || "All"} options={statusOptions} onChange={(v) => update("status", v)} />
+            <FilterSelect label="Priority" value={filters.priority || "All"} options={priorityOptions} onChange={(v) => update("priority", v)} />
+            <FilterSelect label="Due" value={filters.due || "All"} options={DUE_OPTIONS} onChange={(v) => update("due", v)} />
+            <div className="flex gap-1">
+              <div className="flex-1">
+                <FilterSelect label="Sort" value={filters.sort || "due_date"} options={SORT_OPTIONS} onChange={(v) => update("sort", v)} />
+              </div>
+              <button
+                onClick={() => update("direction", filters.direction === "asc" ? "desc" : "asc")}
+                className="self-end px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded text-xs text-slate-400 hover:text-slate-200"
+                title={`Sort ${filters.direction === "asc" ? "ascending" : "descending"}`}
+              >
+                {filters.direction === "asc" ? "↑" : "↓"}
+              </button>
             </div>
-            <button
-              onClick={() => update("direction", filters.direction === "asc" ? "desc" : "asc")}
-              className="self-end px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded text-xs text-slate-400 hover:text-slate-200"
-              title={`Sort ${filters.direction === "asc" ? "ascending" : "descending"}`}
-            >
-              {filters.direction === "asc" ? "↑" : "↓"}
-            </button>
+          </div>
+          {/* Group by */}
+          <div className="flex items-center gap-2">
+            <FilterSelect
+              label="Group By"
+              value={filters.groupBy || "none"}
+              options={GROUP_BY_OPTIONS}
+              onChange={(v) => update("groupBy", v)}
+            />
           </div>
         </div>
       )}

@@ -142,23 +142,35 @@ export default function TaskDetail({
     fetchTask();
   }, [taskId]);
 
+  // Optimistic update: merge patch into local state immediately, then PATCH in background
+  const handleOptimisticUpdate = async (patch: Record<string, unknown>) => {
+    if (!task) return;
+    // Save snapshot for rollback
+    const snapshot = { ...task };
+    // Merge patch into local state immediately (no flash)
+    setTask((prev) => prev ? { ...prev, ...patch } as Task : prev);
+    try {
+      const response = await fetch(`/api/tasks/${task.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      if (!response.ok) throw new Error("Update failed");
+      // Notify parent for list refresh, but don't refetch this task
+      onTaskUpdated?.();
+    } catch {
+      // Revert on error
+      setTask(snapshot);
+    }
+  };
+
   const handleUpdateTitle = async (newTitle: string) => {
     if (!newTitle.trim() || !task) {
       setEditingTitle(false);
       return;
     }
-    try {
-      const response = await fetch(`/api/tasks/${task.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: newTitle.trim() }),
-      });
-      if (!response.ok) throw new Error("Failed to update task title");
-      const data = await response.json();
-      setTask(data.task);
-      setEditingTitle(false);
-      onTaskUpdated?.();
-    } catch { /* silent */ }
+    setEditingTitle(false);
+    await handleOptimisticUpdate({ title: newTitle.trim() });
   };
 
   const handleUpdateDescription = async (newDescription: string) => {
@@ -166,23 +178,19 @@ export default function TaskDetail({
       setEditingDescription(false);
       return;
     }
-    try {
-      const response = await fetch(`/api/tasks/${task.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ description: newDescription.trim() || null }),
-      });
-      if (!response.ok) throw new Error("Failed to update task description");
-      const data = await response.json();
-      setTask(data.task);
-      setEditingDescription(false);
-      onTaskUpdated?.();
-    } catch { /* silent */ }
+    setEditingDescription(false);
+    await handleOptimisticUpdate({ description: newDescription.trim() || null });
   };
 
-  const handleFieldUpdated = () => {
-    fetchTask();
+  // Silent refetch — no loading spinner flash
+  const handleFieldUpdated = async () => {
     onTaskUpdated?.();
+    try {
+      const response = await fetch(`/api/tasks/${taskId}`);
+      if (!response.ok) return;
+      const data = await response.json();
+      setTask(data.task);
+    } catch { /* silent */ }
   };
 
   const handleConfigAdded = () => {

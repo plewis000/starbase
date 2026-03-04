@@ -29,7 +29,7 @@ interface AppShellProps {
 
 const navItems: NavItem[] = [
   { href: "/dashboard", label: "Command Deck", icon: "🏠" },
-  { href: "/chat", label: "Talk to Zev", icon: "💬" },
+  { href: "/comms", label: "Comms", icon: "💬" },
   { href: "/crawl", label: "The Crawl", icon: "🗡️" },
   { href: "/tasks", label: "Task Board", icon: "📋" },
   { href: "/budget", label: "The Vault", icon: "💰" },

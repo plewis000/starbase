@@ -406,7 +406,7 @@ export function InlineTagEditor({
           {tagAssoc.tag.icon && <span>{tagAssoc.tag.icon}</span>}
           {tagAssoc.tag.name}
           <button
-            onClick={() => handleRemoveTag(tagAssoc.id)}
+            onClick={() => handleRemoveTag(tagAssoc.tag_id)}
             className="ml-0.5 text-slate-400 hover:text-red-400 transition-colors"
           >
             ×

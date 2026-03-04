@@ -4,11 +4,70 @@ import React, { useState, useEffect } from "react";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { useToast } from "@/components/ui/Toast";
 import { ChecklistItem } from "@/lib/types";
+import { useTaskConfig, type HouseholdMember } from "@/hooks/useTaskConfig";
 
 interface ChecklistWidgetProps {
   taskId: string;
   items: ChecklistItem[];
   onUpdate: () => void;
+}
+
+function getInitials(name?: string): string {
+  if (!name) return "?";
+  return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+}
+
+function AssigneeButton({ item, members, onAssign }: {
+  item: ChecklistItem;
+  members: HouseholdMember[];
+  onAssign: (itemId: string, userId: string | null) => void;
+}) {
+  const [showDropdown, setShowDropdown] = useState(false);
+
+  return (
+    <div className="relative">
+      <button
+        onClick={(e) => { e.stopPropagation(); setShowDropdown(!showDropdown); }}
+        className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold border transition-all flex-shrink-0"
+        title={item.assignee?.full_name || "Assign"}
+      >
+        {item.assignee ? (
+          item.assignee.avatar_url ? (
+            <img src={item.assignee.avatar_url} alt="" className="w-full h-full rounded-full object-cover" />
+          ) : (
+            <span className="bg-slate-700 text-slate-300 border-slate-600 w-full h-full rounded-full flex items-center justify-center">
+              {getInitials(item.assignee.full_name)}
+            </span>
+          )
+        ) : (
+          <span className="bg-slate-800 text-slate-600 border-slate-700 border-dashed w-full h-full rounded-full flex items-center justify-center hover:text-slate-400">
+            +
+          </span>
+        )}
+      </button>
+      {showDropdown && (
+        <div className="absolute right-0 top-full mt-1 z-20 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 min-w-[140px]">
+          <button
+            onClick={() => { onAssign(item.id, null); setShowDropdown(false); }}
+            className="w-full text-left px-3 py-1.5 text-xs text-slate-400 hover:bg-slate-700 transition-colors"
+          >
+            Unassigned
+          </button>
+          {members.map((m) => (
+            <button
+              key={m.user_id}
+              onClick={() => { onAssign(item.id, m.user_id); setShowDropdown(false); }}
+              className={`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-700 transition-colors ${
+                item.assigned_to === m.user_id ? "text-red-400 font-medium" : "text-slate-200"
+              }`}
+            >
+              {m.user?.full_name || m.display_name || m.user_id}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function ChecklistWidget({
@@ -23,6 +82,7 @@ export default function ChecklistWidget({
   const [addingItem, setAddingItem] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
+  const { config } = useTaskConfig();
 
   useEffect(() => { setItemsState(items); }, [items]);
 
@@ -82,6 +142,39 @@ export default function ChecklistWidget({
       toast.error("Failed to update item");
     } finally {
       setEditingId(null);
+    }
+  };
+
+  const handleAssignItem = async (itemId: string, userId: string | null) => {
+    try {
+      const response = await fetch(
+        `/api/tasks/${taskId}/checklist/${itemId}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ assigned_to: userId }),
+        }
+      );
+      if (!response.ok) throw new Error("Failed to assign checklist item");
+
+      // Find member info for optimistic update
+      const member = config?.members.find((m) => m.user_id === userId);
+      setItemsState((prev) =>
+        prev.map((item) =>
+          item.id === itemId
+            ? {
+                ...item,
+                assigned_to: userId || undefined,
+                assignee: member?.user
+                  ? { id: member.user.id, full_name: member.user.full_name, avatar_url: member.user.avatar_url }
+                  : undefined,
+              }
+            : item
+        )
+      );
+      onUpdate();
+    } catch {
+      toast.error("Failed to assign item");
     }
   };
 
@@ -183,6 +276,16 @@ export default function ChecklistWidget({
                   {item.title}
                 </span>
               )}
+
+              {/* Assignee avatar */}
+              {config && (
+                <AssigneeButton
+                  item={item}
+                  members={config.members}
+                  onAssign={handleAssignItem}
+                />
+              )}
+
               <button
                 onClick={() => handleDeleteItem(item.id)}
                 className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 transition-all p-1"
