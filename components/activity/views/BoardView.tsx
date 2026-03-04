@@ -18,6 +18,7 @@ interface Props {
   onQuickComplete: (id: string) => void;
   completedTaskId: string | null;
   config: any;
+  onSelect?: (id: string) => void;
 }
 
 // Kanban columns — map status names to columns
@@ -64,7 +65,7 @@ function dateColor(d?: string): string {
   return "text-slate-500";
 }
 
-export default function BoardView({ tasks, onQuickComplete, completedTaskId }: Props) {
+export default function BoardView({ tasks, onQuickComplete, completedTaskId, onSelect }: Props) {
   // Group tasks by status
   const grouped: Record<string, Task[]> = {};
   for (const col of COLUMNS) {
@@ -108,7 +109,8 @@ export default function BoardView({ tasks, onQuickComplete, completedTaskId }: P
                 return (
                   <div
                     key={task.id}
-                    className={`p-2.5 rounded-lg bg-slate-950/60 border border-slate-800/50 hover:border-slate-700 transition-all cursor-default ${
+                    onClick={() => onSelect?.(task.id)}
+                    className={`p-2.5 rounded-lg bg-slate-950/60 border border-slate-800/50 hover:border-slate-700 transition-all cursor-pointer ${
                       justCompleted ? "ring-1 ring-green-500/30" : ""
                     }`}
                   >
@@ -152,7 +154,7 @@ export default function BoardView({ tasks, onQuickComplete, completedTaskId }: P
                         )}
                         {col.name !== "Done" && (
                           <button
-                            onClick={() => onQuickComplete(task.id)}
+                            onClick={(e) => { e.stopPropagation(); onQuickComplete(task.id); }}
                             className="w-5 h-5 rounded-full border border-slate-700 hover:border-green-500 hover:bg-green-500/10 transition-all flex items-center justify-center"
                             title="Mark complete"
                           >

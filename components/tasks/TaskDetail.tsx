@@ -1,22 +1,22 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import StatusBadge from "@/components/ui/StatusBadge";
-import PriorityBadge from "@/components/ui/PriorityBadge";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import Modal from "@/components/ui/Modal";
 import ChecklistWidget from "./ChecklistWidget";
 import CommentThread from "@/components/ui/CommentThread";
 import EntityLinksSection from "@/components/ui/EntityLinksSection";
-import TaskForm from "./TaskForm";
+import {
+  InlineStatusPicker,
+  InlinePriorityPicker,
+  InlineTypePicker,
+  InlineDatePicker,
+  InlineAssigneePicker,
+  InlineTagEditor,
+} from "./InlineFieldEditors";
+import { useTaskConfig } from "@/hooks/useTaskConfig";
 import {
   Task,
-  Tag,
-  ChecklistItem,
   ActivityEntry,
-  Dependency,
-  Subtask,
-  RecurrenceContext,
 } from "@/lib/types";
 
 interface TaskDetailProps {
@@ -27,34 +27,27 @@ interface TaskDetailProps {
 
 const formatRelativeDate = (dateString?: string): string => {
   if (!dateString) return "No date";
-
   const date = new Date(dateString);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   date.setHours(0, 0, 0, 0);
-
   const diffTime = date.getTime() - today.getTime();
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
   if (diffDays < 0) return `Overdue (${Math.abs(diffDays)}d ago)`;
   if (diffDays === 0) return "Today";
   if (diffDays === 1) return "Tomorrow";
   if (diffDays <= 7) return `In ${diffDays}d`;
-
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 };
 
 const getDateColor = (dateString?: string): string => {
   if (!dateString) return "text-slate-400";
-
   const date = new Date(dateString);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   date.setHours(0, 0, 0, 0);
-
   const diffTime = date.getTime() - today.getTime();
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
   if (diffDays < 0) return "text-red-400";
   if (diffDays === 0 || diffDays === 1) return "text-amber-400";
   return "text-slate-400";
@@ -68,23 +61,16 @@ const formatRelativeTime = (dateString: string): string => {
   const diffMins = Math.floor(diffSecs / 60);
   const diffHours = Math.floor(diffMins / 60);
   const diffDays = Math.floor(diffHours / 24);
-
   if (diffSecs < 60) return "just now";
   if (diffMins < 60) return `${diffMins}m ago`;
   if (diffHours < 24) return `${diffHours}h ago`;
   if (diffDays < 7) return `${diffDays}d ago`;
-
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 };
 
 const getInitials = (fullName?: string): string => {
   if (!fullName) return "?";
-  return fullName
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
+  return fullName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
 };
 
 function describeRRule(rule: string): string {
@@ -101,9 +87,27 @@ function describeRRule(rule: string): string {
   const parts = Object.fromEntries(rule.split(";").map((p) => p.split("=")));
   const freq = parts.FREQ?.toLowerCase() || "custom";
   const interval = parts.INTERVAL ? parseInt(parts.INTERVAL) : 1;
+  const byDay = parts.BYDAY;
+  if (byDay) {
+    const dayMap: Record<string, string> = { MO: "Mon", TU: "Tue", WE: "Wed", TH: "Thu", FR: "Fri", SA: "Sat", SU: "Sun" };
+    const days = byDay.split(",").map((d: string) => dayMap[d] || d).join(", ");
+    return interval > 1 ? `Every ${interval} weeks on ${days}` : `Weekly on ${days}`;
+  }
   if (interval === 1) return `Every ${freq.replace("ly", "")}`;
   return `Every ${interval} ${freq.replace("ly", "")}s`;
 }
+
+const FIELD_LABELS: Record<string, string> = {
+  status_id: "status",
+  priority_id: "priority",
+  assigned_to: "assignee",
+  due_date: "due date",
+  title: "title",
+  description: "description",
+  task_type_id: "type",
+  recurrence_rule: "recurrence",
+  effort_level_id: "effort",
+};
 
 export default function TaskDetail({
   taskId,
@@ -115,20 +119,15 @@ export default function TaskDetail({
   const [error, setError] = useState("");
   const [editingTitle, setEditingTitle] = useState(false);
   const [editingDescription, setEditingDescription] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
   const [showActivityLog, setShowActivityLog] = useState(false);
-  const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
-  const [addingSubtask, setAddingSubtask] = useState(false);
+
+  const { config, refresh: refreshConfig, resolveStatusName, resolvePriorityName, resolveMemberName } = useTaskConfig();
 
   const fetchTask = async () => {
     try {
       setLoading(true);
       const response = await fetch(`/api/tasks/${taskId}`);
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch task");
-      }
-
+      if (!response.ok) throw new Error("Failed to fetch task");
       const data = await response.json();
       setTask(data.task);
       setError("");
@@ -148,25 +147,18 @@ export default function TaskDetail({
       setEditingTitle(false);
       return;
     }
-
     try {
       const response = await fetch(`/api/tasks/${task.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: newTitle.trim() }),
       });
-
-      if (!response.ok) {
-        throw new Error("Failed to update task title");
-      }
-
+      if (!response.ok) throw new Error("Failed to update task title");
       const data = await response.json();
       setTask(data.task);
       setEditingTitle(false);
       onTaskUpdated?.();
-    } catch {
-      // Title update failed — user will see stale title
-    }
+    } catch { /* silent */ }
   };
 
   const handleUpdateDescription = async (newDescription: string) => {
@@ -174,88 +166,27 @@ export default function TaskDetail({
       setEditingDescription(false);
       return;
     }
-
     try {
       const response = await fetch(`/api/tasks/${task.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          description: newDescription.trim() || null,
-        }),
+        body: JSON.stringify({ description: newDescription.trim() || null }),
       });
-
-      if (!response.ok) {
-        throw new Error("Failed to update task description");
-      }
-
+      if (!response.ok) throw new Error("Failed to update task description");
       const data = await response.json();
       setTask(data.task);
       setEditingDescription(false);
       onTaskUpdated?.();
-    } catch {
-      // Description update failed — user will see stale description
-    }
+    } catch { /* silent */ }
   };
 
-  const handleAddSubtask = async () => {
-    if (!newSubtaskTitle.trim() || !task) return;
-
-    setAddingSubtask(true);
-    try {
-      const response = await fetch("/api/tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: newSubtaskTitle.trim(),
-          parent_task_id: task.id,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to create subtask");
-      }
-
-      setNewSubtaskTitle("");
-      fetchTask();
-      onTaskUpdated?.();
-    } catch {
-      // Subtask creation failed
-    } finally {
-      setAddingSubtask(false);
-    }
-  };
-
-  const handleToggleSubtask = async (subtask: Subtask) => {
-    const isDone = subtask.status?.name === "Done" || subtask.status?.name === "Completed";
-
-    try {
-      // Fetch config to get status IDs
-      const configRes = await fetch("/api/config");
-      const configData = await configRes.json();
-      const statuses = configData.statuses || [];
-      const targetStatus = isDone
-        ? statuses.find((s: { name: string }) => s.name === "To Do")
-        : statuses.find((s: { name: string }) => s.name === "Done");
-
-      if (!targetStatus) return;
-
-      await fetch(`/api/tasks/${subtask.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status_id: targetStatus.id }),
-      });
-
-      fetchTask();
-      onTaskUpdated?.();
-    } catch {
-      // Toggle failed
-    }
-  };
-
-  const handleSaveForm = (updatedTask: Task) => {
-    setTask(updatedTask);
-    setShowEditModal(false);
+  const handleFieldUpdated = () => {
+    fetchTask();
     onTaskUpdated?.();
+  };
+
+  const handleConfigAdded = () => {
+    refreshConfig();
   };
 
   if (loading) {
@@ -271,19 +202,13 @@ export default function TaskDetail({
       <div className="bg-slate-900 border-l border-slate-800 w-full h-full overflow-y-auto p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-semibold text-slate-100">Task Details</h2>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-100 transition-colors"
-          >
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-100 transition-colors">
             ✕
           </button>
         </div>
         <div className="text-center py-12">
           <p className="text-red-400">{error || "Task not found"}</p>
-          <button
-            onClick={onClose}
-            className="mt-4 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-100 rounded transition-colors"
-          >
+          <button onClick={onClose} className="mt-4 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-100 rounded transition-colors">
             Close
           </button>
         </div>
@@ -308,12 +233,8 @@ export default function TaskDetail({
                 defaultValue={task.title}
                 onBlur={(e) => handleUpdateTitle(e.currentTarget.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    handleUpdateTitle(e.currentTarget.value);
-                  }
-                  if (e.key === "Escape") {
-                    setEditingTitle(false);
-                  }
+                  if (e.key === "Enter") handleUpdateTitle(e.currentTarget.value);
+                  if (e.key === "Escape") setEditingTitle(false);
                 }}
                 autoFocus
                 className="w-full bg-slate-800 border border-red-400 rounded px-3 py-2 text-xl font-semibold text-slate-100 focus:outline-none"
@@ -327,65 +248,104 @@ export default function TaskDetail({
               </h1>
             )}
           </div>
-          <button
-            onClick={onClose}
-            className="flex-shrink-0 text-slate-400 hover:text-slate-100 transition-colors p-1"
-          >
+          <button onClick={onClose} className="flex-shrink-0 text-slate-400 hover:text-slate-100 transition-colors p-1">
             ✕
           </button>
         </div>
 
-        {/* Status and Priority badges */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <StatusBadge status={task.status} />
-          <PriorityBadge priority={task.priority} />
-          {task.recurrence_rule && (
-            <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/30">
-              {describeRRule(task.recurrence_rule)}
-            </span>
-          )}
-        </div>
+        {/* Inline Status Picker */}
+        {config && (
+          <div>
+            <p className="text-xs text-slate-400 mb-2 font-semibold uppercase tracking-wider">Status</p>
+            <InlineStatusPicker
+              taskId={task.id}
+              currentValue={task.status_id}
+              options={config.statuses}
+              onUpdated={handleFieldUpdated}
+              onConfigAdded={handleConfigAdded}
+            />
+          </div>
+        )}
+
+        {/* Inline Priority Picker */}
+        {config && (
+          <div>
+            <p className="text-xs text-slate-400 mb-2 font-semibold uppercase tracking-wider">Priority</p>
+            <InlinePriorityPicker
+              taskId={task.id}
+              currentValue={task.priority_id}
+              options={config.priorities}
+              onUpdated={handleFieldUpdated}
+              onConfigAdded={handleConfigAdded}
+            />
+          </div>
+        )}
+
+        {/* Inline Type Picker */}
+        {config && config.task_types.length > 0 && (
+          <div>
+            <p className="text-xs text-slate-400 mb-2 font-semibold uppercase tracking-wider">Type</p>
+            <InlineTypePicker
+              taskId={task.id}
+              currentValue={(task as any).task_type_id}
+              options={config.task_types}
+              onUpdated={handleFieldUpdated}
+              onConfigAdded={handleConfigAdded}
+            />
+          </div>
+        )}
 
         {/* Meta information card */}
-        <div className="bg-slate-800 border border-slate-700 rounded-lg p-4 space-y-3">
-          {/* Due date */}
-          {task.due_date && (
+        <div className="bg-slate-800 border border-slate-700 rounded-lg p-4 space-y-4">
+          {/* Due date — inline editable */}
+          <div className="flex items-center gap-3">
+            <span className="text-slate-500 text-sm">📅</span>
+            <div className="flex-1">
+              <p className="text-xs text-slate-400 mb-1">Due date</p>
+              <div className="flex items-center gap-3">
+                <InlineDatePicker
+                  taskId={task.id}
+                  currentValue={task.due_date}
+                  onUpdated={handleFieldUpdated}
+                />
+                {task.due_date && (
+                  <span className={`text-xs font-medium ${getDateColor(task.due_date)}`}>
+                    {formatRelativeDate(task.due_date)}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Assignee — inline editable */}
+          {config && (
             <div className="flex items-center gap-3">
-              <span className="text-slate-500 text-sm">📅</span>
-              <div>
-                <p className="text-xs text-slate-400">Due date</p>
-                <p className={`text-sm font-medium ${getDateColor(task.due_date)}`}>
-                  {formatRelativeDate(task.due_date)}
-                </p>
+              <span className="text-slate-500 text-sm">👤</span>
+              <div className="flex-1">
+                <p className="text-xs text-slate-400 mb-1">Assigned to</p>
+                <InlineAssigneePicker
+                  taskId={task.id}
+                  currentValue={task.assignee?.id}
+                  members={config.members}
+                  onUpdated={handleFieldUpdated}
+                />
               </div>
             </div>
           )}
 
-          {/* Owners */}
-          {allOwners.length > 0 && (
+          {/* Additional owners (read-only display) */}
+          {task.additional_owners && task.additional_owners.length > 0 && (
             <div className="flex items-center gap-3">
               <span className="text-slate-500 text-sm">👥</span>
               <div className="flex-1">
-                <p className="text-xs text-slate-400">
-                  {allOwners.length === 1 ? "Assigned to" : "Owners"}
-                </p>
-                <div className="flex flex-wrap gap-2 mt-1">
-                  {allOwners.map((owner, i) => (
-                    <span
-                      key={owner.id}
-                      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-sm ${
-                        i === 0 && task.assignee
-                          ? "bg-red-400/10 text-red-300 border border-red-400/30"
-                          : "bg-slate-700 text-slate-200"
-                      }`}
-                    >
+                <p className="text-xs text-slate-400 mb-1">Co-owners</p>
+                <div className="flex flex-wrap gap-2">
+                  {task.additional_owners.map((owner) => (
+                    <span key={owner.id} className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-sm bg-slate-700 text-slate-200">
                       <span className="w-5 h-5 rounded-full bg-slate-600 flex items-center justify-center text-[10px] font-semibold flex-shrink-0">
                         {getInitials(owner.full_name)}
                       </span>
                       {owner.full_name}
-                      {i === 0 && task.assignee && allOwners.length > 1 && (
-                        <span className="text-[10px] text-slate-400 ml-0.5">lead</span>
-                      )}
                     </span>
                   ))}
                 </div>
@@ -399,28 +359,26 @@ export default function TaskDetail({
               <span className="text-slate-500 text-sm">✏️</span>
               <div>
                 <p className="text-xs text-slate-400">Created by</p>
-                <p className="text-sm font-medium text-slate-100">
-                  {task.creator.full_name}
-                </p>
+                <p className="text-sm font-medium text-slate-100">{task.creator.full_name}</p>
               </div>
             </div>
           )}
 
           {/* Recurrence info */}
-          {task.recurrence_rule && task.recurrence_context && (
+          {task.recurrence_rule && (
             <div className="flex items-center gap-3">
               <span className="text-slate-500 text-sm">🔄</span>
               <div>
                 <p className="text-xs text-slate-400">Recurrence</p>
                 <p className="text-sm font-medium text-slate-100">
                   {describeRRule(task.recurrence_rule)}
-                  {task.recurrence_context.occurrence_count && (
+                  {task.recurrence_context?.occurrence_count && (
                     <span className="text-xs text-slate-400 ml-2">
                       (occurrence #{task.recurrence_context.occurrence_count})
                     </span>
                   )}
                 </p>
-                {task.recurrence_context.next_due_date && (
+                {task.recurrence_context?.next_due_date && (
                   <p className="text-xs text-slate-400 mt-0.5">
                     Next: {formatRelativeDate(task.recurrence_context.next_due_date)}
                   </p>
@@ -429,33 +387,19 @@ export default function TaskDetail({
             </div>
           )}
 
-          {/* Tags */}
-          {task.tags.length > 0 && (
-            <div className="flex items-start gap-3">
-              <span className="text-slate-500 text-sm mt-1">🏷️</span>
-              <div className="flex-1">
-                <p className="text-xs text-slate-400 mb-2">Tags</p>
-                <div className="flex flex-wrap gap-2">
-                  {task.tags.map((tagAssoc) => (
-                    <span
-                      key={tagAssoc.id}
-                      className="px-2 py-1 rounded-full text-xs font-medium bg-slate-700"
-                      style={{
-                        color: tagAssoc.tag.display_color || undefined,
-                        borderColor: tagAssoc.tag.display_color || undefined,
-                        borderWidth: tagAssoc.tag.display_color ? "1px" : "0",
-                      }}
-                    >
-                      {tagAssoc.tag.icon && (
-                        <span className="mr-1">{tagAssoc.tag.icon}</span>
-                      )}
-                      {tagAssoc.tag.name}
-                    </span>
-                  ))}
-                </div>
-              </div>
+          {/* Tags — inline editable */}
+          <div className="flex items-start gap-3">
+            <span className="text-slate-500 text-sm mt-1">🏷️</span>
+            <div className="flex-1">
+              <p className="text-xs text-slate-400 mb-2">Tags</p>
+              <InlineTagEditor
+                taskId={task.id}
+                currentTags={task.tags}
+                availableTags={config?.tags || []}
+                onUpdated={handleFieldUpdated}
+              />
             </div>
-          )}
+          </div>
         </div>
 
         {/* Description */}
@@ -471,12 +415,10 @@ export default function TaskDetail({
           </div>
           {editingDescription ? (
             <textarea
-              defaultValue={task.description || ""}
+              defaultValue={task.description ?? ""}
               onBlur={(e) => handleUpdateDescription(e.currentTarget.value)}
               onKeyDown={(e) => {
-                if (e.key === "Escape") {
-                  setEditingDescription(false);
-                }
+                if (e.key === "Escape") setEditingDescription(false);
               }}
               autoFocus
               rows={4}
@@ -491,118 +433,17 @@ export default function TaskDetail({
           )}
         </div>
 
-        {/* Subtasks */}
-        {(task.subtasks.length > 0 || true) && (
-          <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-slate-100">
-                Subtasks
-                {task.subtask_progress && (
-                  <span className="text-xs text-slate-400 font-normal ml-2">
-                    {task.subtask_progress.done}/{task.subtask_progress.total} done
-                  </span>
-                )}
-              </h3>
-            </div>
-
-            {/* Subtask progress bar */}
-            {task.subtask_progress && task.subtask_progress.total > 0 && (
-              <div className="mb-3">
-                <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-red-400 transition-all duration-300"
-                    style={{
-                      width: `${(task.subtask_progress.done / task.subtask_progress.total) * 100}%`,
-                    }}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Subtask list */}
-            {task.subtasks.length > 0 && (
-              <div className="space-y-2 mb-3">
-                {task.subtasks.map((subtask) => {
-                  const isDone = subtask.status?.name === "Done" || subtask.status?.name === "Completed";
-                  return (
-                    <div key={subtask.id} className="flex items-center gap-3">
-                      <button
-                        onClick={() => handleToggleSubtask(subtask)}
-                        className={`flex-shrink-0 w-4 h-4 rounded border-2 transition-colors flex items-center justify-center ${
-                          isDone
-                            ? "bg-red-500 border-red-500 text-white"
-                            : "border-slate-600 hover:border-red-400"
-                        }`}
-                      >
-                        {isDone && (
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="20 6 9 17 4 12" />
-                          </svg>
-                        )}
-                      </button>
-                      <span
-                        className={`flex-1 text-sm ${
-                          isDone ? "text-slate-500 line-through" : "text-slate-100"
-                        }`}
-                      >
-                        {subtask.title}
-                      </span>
-                      {subtask.assignee && (
-                        <span className="text-xs text-slate-400">
-                          {subtask.assignee.full_name}
-                        </span>
-                      )}
-                      {subtask.due_date && (
-                        <span className={`text-xs ${getDateColor(subtask.due_date)}`}>
-                          {formatRelativeDate(subtask.due_date)}
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Add subtask */}
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newSubtaskTitle}
-                onChange={(e) => setNewSubtaskTitle(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleAddSubtask();
-                  }
-                }}
-                placeholder="Add subtask..."
-                disabled={addingSubtask}
-                className="flex-1 bg-slate-700 border border-slate-600 rounded px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50"
-              />
-              <button
-                onClick={handleAddSubtask}
-                disabled={addingSubtask || !newSubtaskTitle.trim()}
-                className="px-3 py-2 bg-red-400 hover:bg-red-500 disabled:bg-slate-700 disabled:cursor-not-allowed text-slate-950 text-sm font-medium rounded transition-colors"
-              >
-                {addingSubtask ? <LoadingSpinner size="sm" /> : "Add"}
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* Checklist */}
-        {task.checklist_items.length > 0 && (
-          <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
-            <h3 className="text-sm font-semibold text-slate-100 mb-3">
-              Checklist
-            </h3>
-            <ChecklistWidget
-              taskId={task.id}
-              items={task.checklist_items}
-              onUpdate={fetchTask}
-            />
-          </div>
-        )}
+        <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
+          <h3 className="text-sm font-semibold text-slate-100 mb-3">
+            Checklist
+          </h3>
+          <ChecklistWidget
+            taskId={task.id}
+            items={task.checklist_items}
+            onUpdate={fetchTask}
+          />
+        </div>
 
         {/* Linked Items */}
         <EntityLinksSection entityType="task" entityId={task.id} />
@@ -610,10 +451,7 @@ export default function TaskDetail({
         {/* Comments */}
         <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
           <h3 className="text-sm font-semibold text-slate-100 mb-3">Comments</h3>
-          <CommentThread
-            entityType="task"
-            entityId={task.id}
-          />
+          <CommentThread entityType="task" entityId={task.id} />
         </div>
 
         {/* Activity Log */}
@@ -623,55 +461,70 @@ export default function TaskDetail({
               onClick={() => setShowActivityLog(!showActivityLog)}
               className="flex items-center justify-between w-full mb-3"
             >
-              <h3 className="text-sm font-semibold text-slate-100">
-                Activity
-              </h3>
-              <span className="text-slate-400 text-xs">
-                {showActivityLog ? "▼" : "▶"}
-              </span>
+              <h3 className="text-sm font-semibold text-slate-100">Activity</h3>
+              <span className="text-slate-400 text-xs">{showActivityLog ? "▼" : "▶"}</span>
             </button>
             {showActivityLog && (
               <div className="space-y-2 text-sm">
-                {task.activity.map((entry, idx) => (
-                  <div key={idx} className="flex items-center gap-3">
-                    <span className="text-slate-500">→</span>
-                    <div className="flex-1">
-                      <p className="text-slate-300 capitalize">
-                        {entry.action}
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        {formatRelativeTime(entry.performed_at)}
-                      </p>
+                {task.activity.map((entry: ActivityEntry, idx: number) => {
+                  const fieldLabel = FIELD_LABELS[(entry as any).field_name] || (entry as any).field_name;
+                  const performerName = resolveMemberName((entry as any).performed_by);
+                  const hasFieldChange = (entry as any).field_name && (entry as any).old_value !== undefined;
+
+                  // Resolve UUID values to human-readable names
+                  let oldVal = (entry as any).old_value;
+                  let newVal = (entry as any).new_value;
+                  if ((entry as any).field_name === "status_id") {
+                    oldVal = resolveStatusName(oldVal) || oldVal;
+                    newVal = resolveStatusName(newVal) || newVal;
+                  } else if ((entry as any).field_name === "priority_id") {
+                    oldVal = resolvePriorityName(oldVal) || oldVal;
+                    newVal = resolvePriorityName(newVal) || newVal;
+                  } else if ((entry as any).field_name === "assigned_to") {
+                    oldVal = resolveMemberName(oldVal) || oldVal;
+                    newVal = resolveMemberName(newVal) || newVal;
+                  }
+
+                  return (
+                    <div key={idx} className="flex items-start gap-3">
+                      <span className="text-slate-500 mt-0.5">→</span>
+                      <div className="flex-1">
+                        {hasFieldChange ? (
+                          <p className="text-slate-300">
+                            <span className="text-slate-100 font-medium">{performerName || "Someone"}</span>
+                            {" changed "}
+                            <span className="text-slate-200">{fieldLabel}</span>
+                            {oldVal && (
+                              <>
+                                {" from "}
+                                <span className="text-slate-400">{oldVal}</span>
+                              </>
+                            )}
+                            {newVal && (
+                              <>
+                                {" to "}
+                                <span className="text-slate-200 font-medium">{newVal}</span>
+                              </>
+                            )}
+                          </p>
+                        ) : (
+                          <p className="text-slate-300 capitalize">
+                            {performerName && <span className="text-slate-100 font-medium">{performerName} </span>}
+                            {entry.action}
+                          </p>
+                        )}
+                        <p className="text-xs text-slate-500">
+                          {formatRelativeTime(entry.performed_at)}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
         )}
-
-        {/* Edit button */}
-        <button
-          onClick={() => setShowEditModal(true)}
-          className="w-full px-4 py-2 bg-red-400 hover:bg-red-500 text-slate-950 font-medium rounded transition-colors"
-        >
-          Edit Task
-        </button>
       </div>
-
-      {/* Edit modal */}
-      <Modal
-        isOpen={showEditModal}
-        onClose={() => setShowEditModal(false)}
-        title="Edit Task"
-        size="lg"
-      >
-        <TaskForm
-          task={task}
-          onSave={handleSaveForm}
-          onCancel={() => setShowEditModal(false)}
-        />
-      </Modal>
     </div>
   );
 }

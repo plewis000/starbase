@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { useToast } from "@/components/ui/Toast";
 import { ChecklistItem } from "@/lib/types";
@@ -21,6 +21,10 @@ export default function ChecklistWidget({
   const toast = useToast();
   const [newItemTitle, setNewItemTitle] = useState("");
   const [addingItem, setAddingItem] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
+
+  useEffect(() => { setItemsState(items); }, [items]);
 
   const checkedCount = itemsState.filter((item) => item.checked).length;
   const progressPercent =
@@ -37,23 +41,62 @@ export default function ChecklistWidget({
           body: JSON.stringify({ checked: !currentChecked }),
         }
       );
+      if (!response.ok) throw new Error("Failed to update checklist item");
 
-      if (!response.ok) {
-        throw new Error("Failed to update checklist item");
-      }
-
-      // Optimistic update
       setItemsState((prev) =>
         prev.map((item) =>
           item.id === itemId ? { ...item, checked: !currentChecked } : item
         )
       );
-
       onUpdate();
     } catch {
       toast.error("Failed to update checklist item");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEditItem = async (itemId: string, newTitle: string) => {
+    if (!newTitle.trim()) {
+      setEditingId(null);
+      return;
+    }
+    try {
+      const response = await fetch(
+        `/api/tasks/${taskId}/checklist/${itemId}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: newTitle.trim() }),
+        }
+      );
+      if (!response.ok) throw new Error("Failed to update checklist item");
+
+      setItemsState((prev) =>
+        prev.map((item) =>
+          item.id === itemId ? { ...item, title: newTitle.trim() } : item
+        )
+      );
+      onUpdate();
+    } catch {
+      toast.error("Failed to update item");
+    } finally {
+      setEditingId(null);
+    }
+  };
+
+  const handleDeleteItem = async (itemId: string) => {
+    try {
+      const response = await fetch(
+        `/api/tasks/${taskId}/checklist/${itemId}`,
+        { method: "DELETE" }
+      );
+      if (!response.ok) throw new Error("Failed to delete checklist item");
+
+      setItemsState((prev) => prev.filter((item) => item.id !== itemId));
+      onUpdate();
+    } catch {
+      toast.error("Failed to delete item");
     }
   };
 
@@ -67,10 +110,7 @@ export default function ChecklistWidget({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: newItemTitle.trim() }),
       });
-
-      if (!response.ok) {
-        throw new Error("Failed to add checklist item");
-      }
+      if (!response.ok) throw new Error("Failed to add checklist item");
 
       const data = await response.json();
       setItemsState((prev) => [...prev, data.item]);
@@ -107,7 +147,7 @@ export default function ChecklistWidget({
       {itemsState.length > 0 && (
         <div className="space-y-2">
           {itemsState.map((item) => (
-            <div key={item.id} className="flex items-center gap-3">
+            <div key={item.id} className="flex items-center gap-3 group">
               <input
                 type="checkbox"
                 checked={item.checked}
@@ -115,15 +155,41 @@ export default function ChecklistWidget({
                 disabled={loading}
                 className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-red-400 cursor-pointer disabled:opacity-50"
               />
-              <span
-                className={`flex-1 text-sm ${
-                  item.checked
-                    ? "text-slate-500 line-through"
-                    : "text-slate-100"
-                }`}
+              {editingId === item.id ? (
+                <input
+                  type="text"
+                  value={editingTitle}
+                  onChange={(e) => setEditingTitle(e.target.value)}
+                  onBlur={() => handleEditItem(item.id, editingTitle)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleEditItem(item.id, editingTitle);
+                    if (e.key === "Escape") setEditingId(null);
+                  }}
+                  autoFocus
+                  className="flex-1 bg-slate-700 border border-red-400 rounded px-2 py-1 text-sm text-slate-100 focus:outline-none"
+                />
+              ) : (
+                <span
+                  onClick={() => {
+                    setEditingId(item.id);
+                    setEditingTitle(item.title);
+                  }}
+                  className={`flex-1 text-sm cursor-pointer hover:text-red-300 transition-colors ${
+                    item.checked
+                      ? "text-slate-500 line-through"
+                      : "text-slate-100"
+                  }`}
+                >
+                  {item.title}
+                </span>
+              )}
+              <button
+                onClick={() => handleDeleteItem(item.id)}
+                className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 transition-all p-1"
+                title="Delete item"
               >
-                {item.title}
-              </span>
+                ✕
+              </button>
             </div>
           ))}
         </div>
@@ -135,10 +201,8 @@ export default function ChecklistWidget({
           type="text"
           value={newItemTitle}
           onChange={(e) => setNewItemTitle(e.target.value)}
-          onKeyPress={(e) => {
-            if (e.key === "Enter") {
-              handleAddItem();
-            }
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleAddItem();
           }}
           placeholder="Add item..."
           disabled={addingItem}

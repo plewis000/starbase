@@ -11,6 +11,12 @@ interface CommentThreadProps {
   onCommentCountChange?: (count: number) => void;
 }
 
+interface MentionSuggestion {
+  id: string;
+  display_name: string;
+  full_name: string;
+}
+
 const QUICK_REACTIONS = ["👍", "❤️", "😄", "🎯", "🔥", "👀"];
 
 const formatRelativeTime = (dateString: string): string => {
@@ -38,6 +44,35 @@ const getInitials = (name?: string): string => {
     .join("")
     .toUpperCase()
     .slice(0, 2);
+};
+
+// Render comment text with @mention highlighting
+const renderCommentWithMentions = (text: string): React.ReactNode => {
+  const mentionRegex = /@([\w][\w.@-]{0,100})/g;
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = mentionRegex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+    parts.push(
+      <span
+        key={match.index}
+        className="bg-red-400/20 text-red-300 px-1 rounded font-medium"
+      >
+        @{match[1]}
+      </span>
+    );
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+
+  return parts.length > 1 ? <>{parts}</> : text;
 };
 
 function Avatar({ name, url, size = "sm" }: { name?: string; url?: string | null; size?: "sm" | "md" }) {
@@ -80,7 +115,7 @@ function ReactionBar({
       });
       onReactionToggle();
     } catch {
-      // Reaction toggle failed silently — non-critical UI action
+      // Reaction toggle failed silently
     }
     setShowPicker(false);
   };
@@ -225,7 +260,9 @@ function SingleComment({
           </div>
         ) : (
           <>
-            <p className="text-sm text-slate-300 break-words whitespace-pre-wrap">{comment.body}</p>
+            <p className="text-sm text-slate-300 break-words whitespace-pre-wrap">
+              {renderCommentWithMentions(comment.body)}
+            </p>
 
             {/* Reactions */}
             {(comment.reactions && Object.keys(comment.reactions).length > 0) && (
@@ -315,11 +352,35 @@ export default function CommentThread({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const toast = useToast();
 
+  // @mention state
+  const [householdMembers, setHouseholdMembers] = useState<MentionSuggestion[]>([]);
+  const [showMentionSuggestions, setShowMentionSuggestions] = useState(false);
+  const [mentionSuggestions, setMentionSuggestions] = useState<MentionSuggestion[]>([]);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(0);
+
   // Fetch current user ID for ownership checks
   useEffect(() => {
     fetch("/api/user")
       .then((res) => res.ok ? res.json() : null)
       .then((data) => { if (data?.user?.id) setCurrentUserId(data.user.id); })
+      .catch(() => {});
+  }, []);
+
+  // Fetch household members for @mention autocomplete
+  useEffect(() => {
+    fetch("/api/household/members")
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (data?.members) {
+          setHouseholdMembers(
+            data.members.map((m: any) => ({
+              id: m.user_id,
+              display_name: m.display_name || m.user?.full_name || "Member",
+              full_name: m.user?.full_name || m.display_name || "Member",
+            }))
+          );
+        }
+      })
       .catch(() => {});
   }, []);
 
@@ -330,7 +391,6 @@ export default function CommentThread({
       const data = await res.json();
       const fetched = data.comments || [];
       setComments(fetched);
-      // Count: top-level + all replies
       const total = fetched.reduce((sum: number, c: CommentV2) => sum + 1 + (c.replies?.length || 0), 0);
       onCommentCountChange?.(total);
     } catch {
@@ -344,6 +404,52 @@ export default function CommentThread({
   useEffect(() => {
     fetchComments();
   }, [fetchComments]);
+
+  // Handle @mention detection in input
+  const handleInputChange = (value: string) => {
+    setNewComment(value);
+
+    const cursorPos = inputRef.current?.selectionStart || 0;
+    const textBeforeCursor = value.slice(0, cursorPos);
+    const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
+
+    if (mentionMatch) {
+      const query = mentionMatch[1].toLowerCase();
+      const filtered = householdMembers.filter(
+        (m) =>
+          m.display_name.toLowerCase().includes(query) ||
+          m.full_name.toLowerCase().includes(query)
+      );
+      setMentionSuggestions(filtered);
+      setShowMentionSuggestions(filtered.length > 0);
+      setSelectedSuggestionIndex(0);
+    } else {
+      setShowMentionSuggestions(false);
+    }
+  };
+
+  const insertMention = (member: MentionSuggestion) => {
+    const cursorPos = inputRef.current?.selectionStart || 0;
+    const textBeforeCursor = newComment.slice(0, cursorPos);
+    const textAfterCursor = newComment.slice(cursorPos);
+
+    const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
+    if (mentionMatch) {
+      const beforeMention = textBeforeCursor.slice(0, mentionMatch.index);
+      const newText = `${beforeMention}@${member.display_name} ${textAfterCursor}`;
+      setNewComment(newText);
+
+      setTimeout(() => {
+        if (inputRef.current) {
+          const newPos = beforeMention.length + member.display_name.length + 2;
+          inputRef.current.focus();
+          inputRef.current.setSelectionRange(newPos, newPos);
+        }
+      }, 0);
+    }
+
+    setShowMentionSuggestions(false);
+  };
 
   const handleSubmit = async () => {
     if (!newComment.trim()) return;
@@ -429,20 +535,69 @@ export default function CommentThread({
 
       {/* Add comment form */}
       <div className="pt-3 border-t border-slate-800 space-y-2">
-        <textarea
-          ref={inputRef}
-          value={newComment}
-          onChange={(e) => setNewComment(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
-              handleSubmit();
+        <div className="relative">
+          <textarea
+            ref={inputRef}
+            value={newComment}
+            onChange={(e) => handleInputChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (showMentionSuggestions) {
+                if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  setSelectedSuggestionIndex((prev) =>
+                    prev < mentionSuggestions.length - 1 ? prev + 1 : 0
+                  );
+                } else if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setSelectedSuggestionIndex((prev) =>
+                    prev > 0 ? prev - 1 : mentionSuggestions.length - 1
+                  );
+                } else if (e.key === "Enter" || e.key === "Tab") {
+                  e.preventDefault();
+                  insertMention(mentionSuggestions[selectedSuggestionIndex]);
+                } else if (e.key === "Escape") {
+                  setShowMentionSuggestions(false);
+                }
+              } else if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                handleSubmit();
+              }
+            }}
+            placeholder={
+              replyingTo
+                ? "Write a reply... Use @name to mention"
+                : "Add a comment... Use @name to mention (Ctrl+Enter to submit)"
             }
-          }}
-          placeholder={replyingTo ? "Write a reply..." : "Add a comment... (Ctrl+Enter to submit)"}
-          disabled={submitting}
-          rows={2}
-          className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50 resize-none"
-        />
+            disabled={submitting}
+            rows={2}
+            className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50 resize-none"
+          />
+
+          {/* @mention autocomplete dropdown */}
+          {showMentionSuggestions && mentionSuggestions.length > 0 && (
+            <div className="absolute bottom-full left-0 mb-1 w-64 bg-slate-800 border border-slate-700 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
+              {mentionSuggestions.map((member, index) => (
+                <button
+                  key={member.id}
+                  type="button"
+                  onClick={() => insertMention(member)}
+                  className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-slate-700 transition-colors ${
+                    index === selectedSuggestionIndex ? "bg-slate-700" : ""
+                  }`}
+                >
+                  <div className="w-6 h-6 rounded-full bg-slate-600 flex items-center justify-center text-[10px] font-semibold text-slate-200">
+                    {getInitials(member.full_name)}
+                  </div>
+                  <div>
+                    <div className="text-slate-100 font-medium">{member.display_name}</div>
+                    {member.display_name !== member.full_name && (
+                      <div className="text-slate-400 text-xs">{member.full_name}</div>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         <div className="flex gap-2 justify-end">
           <button
             onClick={handleSubmit}

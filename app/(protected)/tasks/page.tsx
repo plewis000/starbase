@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import TaskList from "@/components/tasks/TaskList";
+import ActivityTaskBoard from "@/components/activity/ActivityTaskBoard";
 import TaskDetail from "@/components/tasks/TaskDetail";
 import Modal from "@/components/ui/Modal";
 import TaskForm from "@/components/tasks/TaskForm";
@@ -14,10 +14,6 @@ export default function TasksPage() {
 
   const handleSelectTask = (id: string) => {
     setSelectedTaskId(id);
-  };
-
-  const handleCreateTask = () => {
-    setShowCreateModal(true);
   };
 
   const handleCloseTaskDetail = () => {
@@ -36,26 +32,18 @@ export default function TasksPage() {
 
   return (
     <div>
-      {/* Desktop layout: List on left, detail on right */}
+      {/* Desktop layout: Board + detail sidebar */}
       <div className="hidden lg:flex h-[calc(100vh-4rem)]">
-        {/* Task list */}
-        <div className="flex-1 overflow-hidden border-r border-dungeon-700">
-          <div className="h-full overflow-y-auto p-6">
-            <div className="max-w-4xl mx-auto">
-              <TaskList
-                onSelectTask={handleSelectTask}
-                onCreateTask={handleCreateTask}
-                onTaskUpdated={handleTaskUpdated}
-                selectedTaskId={selectedTaskId}
-                key={refreshTrigger}
-              />
-            </div>
-          </div>
+        <div className="flex-1 overflow-hidden">
+          <ActivityTaskBoard
+            onSelectTask={handleSelectTask}
+            refreshTrigger={refreshTrigger}
+          />
         </div>
 
-        {/* Task detail panel */}
+        {/* Task detail slide-over panel */}
         {selectedTaskId && (
-          <div className="w-[480px] overflow-y-auto">
+          <div className="w-[480px] flex-shrink-0 overflow-y-auto border-l border-slate-800 animate-in slide-in-from-right duration-200">
             <TaskDetail
               taskId={selectedTaskId}
               onClose={handleCloseTaskDetail}
@@ -65,16 +53,12 @@ export default function TasksPage() {
         )}
       </div>
 
-      {/* Mobile layout: Full screen list with modal detail */}
-      <div className="lg:hidden min-h-screen p-6">
-        <div className="max-w-6xl mx-auto">
-          <TaskList
-            onSelectTask={handleSelectTask}
-            onCreateTask={handleCreateTask}
-            selectedTaskId={selectedTaskId}
-            key={refreshTrigger}
-          />
-        </div>
+      {/* Mobile layout: Full screen board with modal detail */}
+      <div className="lg:hidden h-[calc(100vh-4rem)]">
+        <ActivityTaskBoard
+          onSelectTask={handleSelectTask}
+          refreshTrigger={refreshTrigger}
+        />
 
         {/* Mobile task detail modal */}
         {selectedTaskId && (
@@ -93,7 +77,7 @@ export default function TasksPage() {
         )}
       </div>
 
-      {/* Create task modal */}
+      {/* Create task modal (kept for standalone creation) */}
       <Modal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}

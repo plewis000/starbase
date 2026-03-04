@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { useToast } from "@/components/ui/Toast";
 import { Task, ChecklistItem, UserSummary } from "@/lib/types";
+import RecurrenceEditor from "./RecurrenceEditor";
 
 interface TaskFormProps {
   task?: Task;
@@ -306,24 +307,10 @@ export default function TaskForm({
           <label className="block text-sm font-medium text-slate-100 mb-2">
             Repeat
           </label>
-          <select
-            name="recurrenceRule"
+          <RecurrenceEditor
             value={formData.recurrenceRule}
-            onChange={handleInputChange}
-            disabled={submitting}
-            className="w-full bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50"
-          >
-            {RECURRENCE_PRESETS.map((preset) => (
-              <option key={preset.value} value={preset.value}>
-                {preset.label}
-              </option>
-            ))}
-          </select>
-          {formData.recurrenceRule && !RECURRENCE_PRESETS.find((p) => p.value === formData.recurrenceRule) && (
-            <p className="text-xs text-slate-400 mt-1">
-              Custom: {describeRRule(formData.recurrenceRule)}
-            </p>
-          )}
+            onChange={(rule) => setFormData((prev) => ({ ...prev, recurrenceRule: rule }))}
+          />
         </div>
       </div>
 

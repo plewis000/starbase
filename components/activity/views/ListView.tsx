@@ -22,6 +22,7 @@ interface Props {
   onQuickComplete: (id: string) => void;
   completedTaskId: string | null;
   config: any;
+  onSelect?: (id: string) => void;
 }
 
 function formatRelDate(d?: string): string {
@@ -75,7 +76,7 @@ function initials(name?: string): string {
   return name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
 }
 
-export default function ListView({ tasks, onQuickComplete, completedTaskId }: Props) {
+export default function ListView({ tasks, onQuickComplete, completedTaskId, onSelect }: Props) {
   return (
     <div className="space-y-1">
       {tasks.map((task) => {
@@ -87,13 +88,14 @@ export default function ListView({ tasks, onQuickComplete, completedTaskId }: Pr
         return (
           <div
             key={task.id}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all hover:bg-slate-900/80 group ${
+            onClick={() => onSelect?.(task.id)}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all hover:bg-slate-900/80 group cursor-pointer ${
               justCompleted ? "bg-green-900/10 ring-1 ring-green-500/20" : ""
             } ${isCompleted ? "opacity-50" : ""}`}
           >
             {/* Check circle */}
             <button
-              onClick={() => onQuickComplete(task.id)}
+              onClick={(e) => { e.stopPropagation(); onQuickComplete(task.id); }}
               className={`flex-shrink-0 w-5 h-5 rounded-full border-2 transition-all flex items-center justify-center ${
                 isCompleted
                   ? "bg-green-500 border-green-500 text-white"

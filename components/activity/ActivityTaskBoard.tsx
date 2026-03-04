@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { useActivity } from "./ActivityProvider";
 import ListView from "./views/ListView";
 import BoardView from "./views/BoardView";
 import TimelineView from "./views/TimelineView";
@@ -34,10 +33,37 @@ interface ConfigData {
   members: { user_id: string; display_name?: string; user?: { id: string; full_name: string; email: string; avatar_url?: string | null } | null }[];
 }
 
+interface ActivityTaskBoardProps {
+  /** Optional custom fetch function (e.g. for Discord activity auth). Defaults to standard fetch. */
+  customFetch?: (url: string, init?: RequestInit) => Promise<Response>;
+  /** API base paths. Defaults to standard /api/tasks and /api/config */
+  apiBasePath?: string;
+  configPath?: string;
+  /** Called when a task is selected */
+  onSelectTask?: (taskId: string) => void;
+  /** External refresh trigger — increment to refetch */
+  refreshTrigger?: number;
+}
+
 const SAVED_VIEWS_KEY = "activity_saved_views";
 
-export default function ActivityTaskBoard() {
-  const { activityFetch } = useActivity();
+export default function ActivityTaskBoard({
+  customFetch,
+  apiBasePath = "/api/tasks",
+  configPath = "/api/config",
+  onSelectTask,
+  refreshTrigger = 0,
+}: ActivityTaskBoardProps) {
+  const apiFetch = customFetch || ((url: string, init?: RequestInit) =>
+    fetch(url, {
+      ...init,
+      headers: {
+        ...init?.headers,
+        "Content-Type": "application/json",
+      },
+    })
+  );
+
   const [tasks, setTasks] = useState<Task[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -56,9 +82,6 @@ export default function ActivityTaskBoard() {
   const [completedTaskId, setCompletedTaskId] = useState<string | null>(null);
   const fetchRef = useRef(0);
 
-  // Load saved views from memory (Activity can't use localStorage in Discord iframe)
-  // We'll store them via the config API in a future iteration
-  // For now, use default presets
   const defaultViews: SavedView[] = [
     { name: "All Tasks", icon: "📋", filters: { status: "All", priority: "All", due: "All", owner: "", sort: "due_date", direction: "asc" } },
     { name: "My Overdue", icon: "🔴", filters: { owner: "me", due: "overdue", status: "All", priority: "All", sort: "due_date", direction: "asc" } },
@@ -69,11 +92,25 @@ export default function ActivityTaskBoard() {
 
   // Fetch config on mount
   useEffect(() => {
-    activityFetch("/api/activity/config")
-      .then((res) => res.json())
-      .then((data) => setConfig(data))
-      .catch((err) => console.error("Config fetch failed:", err));
-  }, [activityFetch]);
+    const fetchConfig = async () => {
+      try {
+        const [configRes, membersRes] = await Promise.all([
+          apiFetch(configPath),
+          apiFetch("/api/household/members"),
+        ]);
+        const configData = await configRes.json();
+        const membersData = await membersRes.json();
+        setConfig({
+          statuses: configData.statuses || [],
+          priorities: configData.priorities || [],
+          members: membersData.members || [],
+        });
+      } catch (err) {
+        console.error("Config fetch failed:", err);
+      }
+    };
+    fetchConfig();
+  }, []);
 
   // Build query string
   const buildQueryString = useCallback((f: ActivityFilters) => {
@@ -95,7 +132,7 @@ export default function ActivityTaskBoard() {
     setLoading(true);
     try {
       const qs = buildQueryString(f);
-      const res = await activityFetch(`/api/activity/tasks?${qs}`);
+      const res = await apiFetch(`${apiBasePath}?${qs}`);
       if (!res.ok) throw new Error("Failed to fetch tasks");
       const data = await res.json();
       if (fetchId === fetchRef.current) {
@@ -107,12 +144,12 @@ export default function ActivityTaskBoard() {
     } finally {
       if (fetchId === fetchRef.current) setLoading(false);
     }
-  }, [activityFetch, buildQueryString]);
+  }, [buildQueryString, apiBasePath]);
 
-  // Fetch on filter change
+  // Fetch on filter change or external refresh
   useEffect(() => {
     fetchTasks(filters);
-  }, [filters, fetchTasks]);
+  }, [filters, fetchTasks, refreshTrigger]);
 
   // Quick complete handler
   const handleQuickComplete = useCallback(async (taskId: string) => {
@@ -145,15 +182,23 @@ export default function ActivityTaskBoard() {
 
     try {
       const newStatusId = isCompleted ? todoStatus?.id : doneStatus?.id;
-      await activityFetch(`/api/activity/tasks/${taskId}`, {
+      await apiFetch(`${apiBasePath}/${taskId}`, {
         method: "PATCH",
         body: JSON.stringify({ status_id: newStatusId }),
       });
+      // Fire-and-forget entity link sync
+      if (!isCompleted) {
+        fetch("/api/entity-links/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ entity_type: "task", entity_id: taskId }),
+        }).catch(() => {});
+      }
     } catch {
       // Revert on error
       fetchTasks(filters);
     }
-  }, [tasks, config, activityFetch, filters, fetchTasks]);
+  }, [tasks, config, filters, fetchTasks, apiBasePath]);
 
   // Quick create handler
   const handleQuickCreate = useCallback(async (title: string, dueDate?: string) => {
@@ -161,7 +206,7 @@ export default function ActivityTaskBoard() {
       const payload: Record<string, unknown> = { title };
       if (dueDate) payload.due_date = dueDate;
 
-      const res = await activityFetch("/api/activity/tasks", {
+      const res = await apiFetch(apiBasePath, {
         method: "POST",
         body: JSON.stringify(payload),
       });
@@ -174,7 +219,7 @@ export default function ActivityTaskBoard() {
     } catch {
       return false;
     }
-  }, [activityFetch, filters, fetchTasks]);
+  }, [filters, fetchTasks, apiBasePath]);
 
   const handleFilterChange = useCallback((newFilters: ActivityFilters) => {
     setFilters(newFilters);
@@ -192,10 +237,14 @@ export default function ActivityTaskBoard() {
     });
   }, []);
 
+  const handleSelectTask = useCallback((taskId: string) => {
+    onSelectTask?.(taskId);
+  }, [onSelectTask]);
+
   const allViews = [...defaultViews, ...savedViews];
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden">
       {/* Header bar */}
       <div className="flex-shrink-0 px-4 py-3 border-b border-slate-800 bg-slate-950/80 backdrop-blur-sm">
         <div className="flex items-center justify-between gap-3">
@@ -217,7 +266,7 @@ export default function ActivityTaskBoard() {
                 title={label}
                 className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
                   viewMode === key
-                    ? "bg-crimson-600 text-white shadow-sm"
+                    ? "bg-red-500 text-white shadow-sm"
                     : "text-slate-500 hover:text-slate-300"
                 }`}
               >
@@ -248,7 +297,7 @@ export default function ActivityTaskBoard() {
       <div className="flex-1 overflow-auto px-4 py-3">
         {loading && tasks.length === 0 ? (
           <div className="flex items-center justify-center h-48">
-            <div className="animate-spin w-8 h-8 border-2 border-slate-700 border-t-crimson-500 rounded-full" />
+            <div className="animate-spin w-8 h-8 border-2 border-slate-700 border-t-red-500 rounded-full" />
           </div>
         ) : tasks.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 text-center">
@@ -262,6 +311,7 @@ export default function ActivityTaskBoard() {
             onQuickComplete={handleQuickComplete}
             completedTaskId={completedTaskId}
             config={config}
+            onSelect={handleSelectTask}
           />
         ) : viewMode === "board" ? (
           <BoardView
@@ -269,12 +319,14 @@ export default function ActivityTaskBoard() {
             onQuickComplete={handleQuickComplete}
             completedTaskId={completedTaskId}
             config={config}
+            onSelect={handleSelectTask}
           />
         ) : (
           <TimelineView
             tasks={tasks}
             onQuickComplete={handleQuickComplete}
             completedTaskId={completedTaskId}
+            onSelect={handleSelectTask}
           />
         )}
       </div>

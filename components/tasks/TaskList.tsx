@@ -230,7 +230,7 @@ export default function TaskList({
       // Fetch config to get the target status ID
       const configRes = await fetch("/api/config");
       const configData = await configRes.json();
-      const statuses = configData.task_statuses || [];
+      const statuses = configData.statuses || [];
       const targetStatus = isCompleted
         ? statuses.find((s: { name: string }) => s.name === "To Do")
         : statuses.find((s: { name: string }) => s.name === "Done");
@@ -285,7 +285,7 @@ export default function TaskList({
     try {
       const configRes = await fetch("/api/config");
       const configData = await configRes.json();
-      const defaultStatus = configData.task_statuses?.[0]?.id;
+      const defaultStatus = configData.statuses?.[0]?.id;
 
       const payload: Record<string, unknown> = { title, status_id: defaultStatus };
       if (dueDate) payload.due_date = dueDate;

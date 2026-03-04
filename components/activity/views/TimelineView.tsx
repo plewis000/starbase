@@ -16,6 +16,7 @@ interface Props {
   tasks: Task[];
   onQuickComplete: (id: string) => void;
   completedTaskId: string | null;
+  onSelect?: (id: string) => void;
 }
 
 function priorityBarColor(name?: string): string {
@@ -34,7 +35,7 @@ function statusBarOpacity(name?: string): string {
   return "";
 }
 
-export default function TimelineView({ tasks, onQuickComplete, completedTaskId }: Props) {
+export default function TimelineView({ tasks, onQuickComplete, completedTaskId, onSelect }: Props) {
   // Group tasks by date buckets
   const groups = useMemo(() => {
     const today = new Date();
@@ -124,11 +125,12 @@ export default function TimelineView({ tasks, onQuickComplete, completedTaskId }
               return (
                 <div
                   key={task.id}
-                  className={`flex items-center gap-2 py-1 group ${statusBarOpacity(task.status?.name)}`}
+                  onClick={() => onSelect?.(task.id)}
+                  className={`flex items-center gap-2 py-1 group cursor-pointer ${statusBarOpacity(task.status?.name)}`}
                 >
                   {/* Complete button */}
                   <button
-                    onClick={() => onQuickComplete(task.id)}
+                    onClick={(e) => { e.stopPropagation(); onQuickComplete(task.id); }}
                     className={`flex-shrink-0 w-4 h-4 rounded-full border transition-all flex items-center justify-center ${
                       isCompleted
                         ? "bg-green-500 border-green-500 text-white"

@@ -19,10 +19,19 @@ export async function GET() {
   const today = new Date().toISOString().split("T")[0];
 
   // Parallel fetch all data — scoped to household
+  // Calculate end of week (Sunday)
+  const todayDate = new Date(today);
+  const endOfWeek = new Date(todayDate);
+  endOfWeek.setDate(endOfWeek.getDate() + (7 - endOfWeek.getDay()));
+  const endOfWeekStr = endOfWeek.toISOString().split("T")[0];
+
   const [
     overdueTasksRes,
     dueTodayTasksRes,
     activeTasksRes,
+    completedTodayRes,
+    dueThisWeekRes,
+    inProgressRes,
     activeGoalsRes,
     goalHabitsRes,
     activeHabitsRes,
@@ -46,10 +55,34 @@ export async function GET() {
       .eq("due_date", today)
       .is("completed_at", null),
 
-    // Active tasks: status != 'completed' (assuming there's a status or just check for null completed_at)
+    // Active tasks
     platform(supabase)
       .from("tasks")
       .select("id", { count: "exact", head: true })
+      .eq("assigned_to", user.id)
+      .is("completed_at", null),
+
+    // Completed today
+    platform(supabase)
+      .from("tasks")
+      .select("id", { count: "exact", head: true })
+      .eq("assigned_to", user.id)
+      .gte("completed_at", `${today}T00:00:00`)
+      .lt("completed_at", `${today}T23:59:59.999`),
+
+    // Due this week
+    platform(supabase)
+      .from("tasks")
+      .select("id", { count: "exact", head: true })
+      .eq("assigned_to", user.id)
+      .gte("due_date", today)
+      .lte("due_date", endOfWeekStr)
+      .is("completed_at", null),
+
+    // In Progress (tasks with "In Progress" status)
+    platform(supabase)
+      .from("tasks")
+      .select("id, status_id", { count: "exact", head: false })
       .eq("assigned_to", user.id)
       .is("completed_at", null),
 
@@ -101,6 +134,19 @@ export async function GET() {
   const overdueCount = overdueTasksRes.count || 0;
   const dueTodayCount = dueTodayTasksRes.count || 0;
   const activeCount = activeTasksRes.count || 0;
+  const completedTodayCount = completedTodayRes.count || 0;
+  const dueThisWeekCount = dueThisWeekRes.count || 0;
+
+  // Count in-progress tasks by looking up the status name
+  const statusLookupRes = await platform(supabase)
+    .from("task_statuses")
+    .select("id")
+    .eq("name", "In Progress")
+    .single();
+  const inProgressStatusId = statusLookupRes.data?.id;
+  const inProgressCount = inProgressStatusId
+    ? (inProgressRes.data || []).filter((t: any) => t.status_id === inProgressStatusId).length
+    : 0;
 
   // Build goal-habit mapping
   const goalHabitMap: Record<string, string[]> = {};
@@ -165,6 +211,9 @@ export async function GET() {
       overdue: overdueCount,
       due_today: dueTodayCount,
       active: activeCount,
+      completed_today: completedTodayCount,
+      due_this_week: dueThisWeekCount,
+      in_progress: inProgressCount,
     },
     goals_summary: {
       active_count: goalsList.length,
