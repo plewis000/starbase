@@ -80,7 +80,8 @@ export default function ActivityTaskBoard({
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [config, setConfig] = useState<ConfigData | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const { value: persistedViewMode, setValue: setPersistedViewMode } = useUserPreference<ViewMode>("activity_view_mode", "list");
+  const [viewMode, setViewModeLocal] = useState<ViewMode>(persistedViewMode || "list");
   const [filters, setFilters] = useState<ActivityFilters>({
     status: "All",
     priority: "All",
@@ -92,16 +93,46 @@ export default function ActivityTaskBoard({
   });
   const { value: savedViews, setValue: setSavedViews } = useUserPreference<SavedView[]>("activity_saved_views", []);
   const { value: viewOverrides, setValue: setViewOverrides } = useUserPreference<Record<string, Partial<ActivityFilters>>>("activity_view_overrides", {});
+  const { value: hiddenDefaults, setValue: setHiddenDefaults } = useUserPreference<string[]>("activity_hidden_defaults", []);
+  const { value: modeFilters, setValue: setModeFilters } = useUserPreference<Record<string, Partial<ActivityFilters>>>("activity_mode_filters", {});
   const appliedOverridesRef = useRef(false);
 
-  // Apply saved overrides to initial "All Tasks" view once they load
+  // Sync persisted view mode on first load
+  useEffect(() => {
+    if (persistedViewMode && persistedViewMode !== viewMode) {
+      setViewModeLocal(persistedViewMode);
+    }
+  }, [persistedViewMode]);
+
+  // Apply saved overrides / per-mode filters to initial view once they load
   useEffect(() => {
     if (appliedOverridesRef.current) return;
-    if (viewOverrides && Object.keys(viewOverrides).length > 0 && viewOverrides["All Tasks"]) {
-      appliedOverridesRef.current = true;
-      setFilters(prev => ({ ...prev, ...viewOverrides["All Tasks"], search: prev.search }));
+    appliedOverridesRef.current = true;
+    const modeF = modeFilters?.[viewMode];
+    const viewOverride = viewOverrides?.["All Tasks"];
+    if (modeF) {
+      setFilters(prev => ({ ...prev, ...modeF, search: prev.search }));
+    } else if (viewOverride) {
+      setFilters(prev => ({ ...prev, ...viewOverride, search: prev.search }));
     }
-  }, [viewOverrides]);
+  }, [viewOverrides, modeFilters, viewMode]);
+
+  // Mode switch handler — saves current mode's filters, restores target mode's
+  const handleViewModeChange = useCallback((newMode: ViewMode) => {
+    // Save current mode's filters (without search)
+    const { search, ...filtersWithoutSearch } = filters;
+    setModeFilters({ ...modeFilters, [viewMode]: filtersWithoutSearch });
+    // Switch mode
+    setViewModeLocal(newMode);
+    setPersistedViewMode(newMode);
+    // Restore target mode's filters or defaults
+    const restored = modeFilters?.[newMode];
+    if (restored) {
+      setFilters(prev => ({ ...restored, search: prev.search }));
+    } else {
+      setFilters(prev => ({ status: "All", priority: "All", due: "All", owner: "", sort: "due_date", direction: "asc", search: prev.search }));
+    }
+  }, [viewMode, filters, modeFilters, setModeFilters, setPersistedViewMode]);
 
   const [completedTaskId, setCompletedTaskId] = useState<string | null>(null);
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
@@ -275,16 +306,17 @@ export default function ActivityTaskBoard({
   }, []);
 
   const handleSaveView = useCallback((view: SavedView) => {
-    const existing = savedViews.findIndex((v) => v.name === view.name);
+    const viewWithMode = { ...view, mode: viewMode };
+    const existing = savedViews.findIndex((v) => v.name === view.name && (!v.mode || v.mode === viewMode));
     let next: SavedView[];
     if (existing >= 0) {
       next = [...savedViews];
-      next[existing] = view;
+      next[existing] = viewWithMode;
     } else {
-      next = [...savedViews, view];
+      next = [...savedViews, viewWithMode];
     }
     setSavedViews(next);
-  }, [savedViews, setSavedViews]);
+  }, [viewMode, savedViews, setSavedViews]);
 
   const handleDeleteView = useCallback((viewName: string) => {
     // Archive instead of delete (no deletion principle)
@@ -425,13 +457,16 @@ export default function ActivityTaskBoard({
     return !!viewOverrides[viewName];
   }, [viewOverrides]);
 
-  const allViews = [
-    ...defaultViews.map(v => ({
+  const visibleDefaults = defaultViews
+    .filter(v => !hiddenDefaults?.includes(v.name))
+    .map(v => ({
       ...v,
       filters: viewOverrides[v.name] ? { ...v.filters, ...viewOverrides[v.name] } : v.filters,
-    })),
-    ...savedViews.filter((v: any) => !v.archived),
-  ];
+    }));
+
+  const modeCustomViews = savedViews.filter((v: any) => !v.archived && (!v.mode || v.mode === viewMode));
+
+  const allViews = [...visibleDefaults, ...modeCustomViews];
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -451,7 +486,7 @@ export default function ActivityTaskBoard({
             ]).map(({ key, icon, label }) => (
               <button
                 key={key}
-                onClick={() => setViewMode(key)}
+                onClick={() => handleViewModeChange(key)}
                 title={label}
                 className={`px-2 py-1.5 rounded-md text-sm font-medium transition-all whitespace-nowrap ${
                   viewMode === key
@@ -497,6 +532,10 @@ export default function ActivityTaskBoard({
           onUpdateDefaultView={handleUpdateDefaultView}
           onResetDefaultView={handleResetDefaultView}
           hasViewOverride={hasViewOverride}
+          hiddenDefaults={hiddenDefaults || []}
+          onHideDefault={(name) => setHiddenDefaults([...(hiddenDefaults || []), name])}
+          onRestoreDefault={(name) => setHiddenDefaults((hiddenDefaults || []).filter(n => n !== name))}
+          allDefaultViews={defaultViews}
         />
       </div>
 

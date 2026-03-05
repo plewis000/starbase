@@ -330,11 +330,12 @@ async function evaluateTrigger(
 
   switch (achievement.trigger_type) {
     case "task_count": {
+      // Count tasks the user is credited for (completed_by, credited_to, or legacy fallback)
       const { count } = await supabase
         .schema("platform")
         .from("tasks")
         .select("*", { count: "exact", head: true })
-        .eq("created_by", userId)
+        .or(`completed_by.eq.${userId},credited_to.cs.{${userId}},and(completed_by.is.null,assigned_to.eq.${userId})`)
         .not("completed_at", "is", null);
       return (count || 0) >= threshold;
     }
@@ -578,6 +579,30 @@ export async function ensureProfile(
       current_level: 1,
       xp_to_next_level: 100,
     });
+}
+
+// =============================================================
+// XP DEDUP & COOP HELPERS
+// =============================================================
+
+/**
+ * Check if XP has already been awarded for a specific task + user combo.
+ * Prevents double-XP from Done→InProgress→Done cycling.
+ */
+export async function hasXpBeenAwarded(
+  supabase: SupabaseClient,
+  userId: string,
+  taskId: string,
+): Promise<boolean> {
+  const { count } = await supabase
+    .schema("platform")
+    .from("xp_ledger")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("source_entity_type", "task")
+    .eq("source_entity_id", taskId)
+    .eq("action_type", "task_complete");
+  return (count || 0) > 0;
 }
 
 export async function updateLoginStreak(

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import MultiSelect from "@/components/ui/MultiSelect";
 
 export type GroupBy = "none" | "assignee" | "priority" | "status";
@@ -22,6 +22,7 @@ export interface SavedView {
   icon: string;
   filters: Partial<ActivityFilters>;
   isDefault?: boolean;
+  mode?: string;  // scopes view to a mode. undefined = all modes
 }
 
 interface ConfigData {
@@ -43,6 +44,10 @@ interface Props {
   hasViewOverride?: (viewName: string) => boolean;
   activeViewName?: string | null;
   filtersModified?: boolean;
+  hiddenDefaults?: string[];
+  onHideDefault?: (name: string) => void;
+  onRestoreDefault?: (name: string) => void;
+  allDefaultViews?: SavedView[];
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -136,6 +141,10 @@ export default function ActivityFilterBar({
   hasViewOverride,
   activeViewName,
   filtersModified,
+  hiddenDefaults,
+  onHideDefault,
+  onRestoreDefault,
+  allDefaultViews,
 }: Props) {
   const statusOptions = buildStatusMultiOptions(config);
   const priorityOptions = buildPriorityMultiOptions(config);
@@ -147,7 +156,24 @@ export default function ActivityFilterBar({
   const [editingView, setEditingView] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editIcon, setEditIcon] = useState("");
+  const [showRestoreMenu, setShowRestoreMenu] = useState(false);
+  const restoreMenuRef = useRef<HTMLDivElement>(null);
   const searchTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  // Hidden defaults for restore menu
+  const hiddenDefaultViews = (allDefaultViews || []).filter(v => hiddenDefaults?.includes(v.name));
+
+  // Outside-click handler for restore menu
+  useEffect(() => {
+    if (!showRestoreMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (restoreMenuRef.current && !restoreMenuRef.current.contains(e.target as Node)) {
+        setShowRestoreMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showRestoreMenu]);
 
   const update = useCallback((key: keyof ActivityFilters, value: string | number | undefined) => {
     const next = { ...filters, [key]: value };
@@ -273,6 +299,14 @@ export default function ActivityFilterBar({
                 {view.isDefault && hasViewOverride?.(view.name) && (
                   <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-crimson-500 rounded-full" />
                 )}
+                {view.isDefault && onHideDefault && (
+                  <span
+                    onClick={(e) => { e.stopPropagation(); onHideDefault(view.name); if (activeView === view.name) setActiveView(null); }}
+                    className="hidden group-hover:inline ml-1 text-slate-600 hover:text-red-400 cursor-pointer"
+                  >
+                    ×
+                  </span>
+                )}
                 {!view.isDefault && onDeleteView && (
                   <span
                     onClick={(e) => { e.stopPropagation(); onDeleteView(view.name); }}
@@ -292,6 +326,31 @@ export default function ActivityFilterBar({
         >
           + Save View
         </button>
+
+        {hiddenDefaultViews.length > 0 && onRestoreDefault && (
+          <div className="relative flex-shrink-0" ref={restoreMenuRef}>
+            <button
+              onClick={() => setShowRestoreMenu(!showRestoreMenu)}
+              className="px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap border border-dashed border-slate-700 text-slate-600 hover:text-slate-400 hover:border-slate-600 transition-all"
+            >
+              + Restore ({hiddenDefaultViews.length})
+            </button>
+            {showRestoreMenu && (
+              <div className="absolute top-full left-0 mt-1 bg-slate-900 border border-slate-700 rounded-lg shadow-xl z-50 py-1 min-w-[140px]">
+                {hiddenDefaultViews.map((view) => (
+                  <button
+                    key={view.name}
+                    onClick={() => { onRestoreDefault(view.name); if (hiddenDefaultViews.length <= 1) setShowRestoreMenu(false); }}
+                    className="w-full text-left px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800 transition-colors flex items-center gap-1.5"
+                  >
+                    <span>{view.icon}</span>
+                    {view.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* View override notification bar */}

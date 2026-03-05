@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import FilterBar, { TaskFilters } from "./FilterBar";
 import TaskCard from "./TaskCard";
+import CompletionCreditModal, { needsCreditModal } from "./CompletionCreditModal";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import EmptyState from "@/components/ui/EmptyState";
 import CompletionCelebration from "@/components/ui/CompletionCelebration";
 import { useToast } from "@/components/ui/Toast";
+import { UserSummary } from "@/lib/types";
 
 // Simple NLP for quick-add: extracts date keywords and returns clean title + due date
 function parseQuickAddDate(input: string): { title: string; dueDate: string | null } {
@@ -84,6 +86,7 @@ interface Task {
     email: string;
     avatar_url?: string | null;
   };
+  additional_owners?: UserSummary[];
   tags?: Tag[];
   checklist_items?: ChecklistItem[];
 }
@@ -105,6 +108,19 @@ export default function TaskList({
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
+  const [currentUserId, setCurrentUserId] = useState<string>("");
+  const [members, setMembers] = useState<{ user_id: string; user?: UserSummary | null; display_name?: string }[]>([]);
+  const [creditModal, setCreditModal] = useState<{ open: boolean; task: Task | null }>({ open: false, task: null });
+
+  // Fetch current user ID and household members on mount
+  useEffect(() => {
+    fetch("/api/user").then(r => r.json()).then(d => {
+      if (d.user?.id) setCurrentUserId(d.user.id);
+    }).catch(() => {});
+    fetch("/api/household/members").then(r => r.json()).then(d => {
+      if (d.members) setMembers(d.members);
+    }).catch(() => {});
+  }, []);
   const [filters, setFilters] = useState<TaskFilters>({
     status: "All",
     priority: "All",
@@ -211,7 +227,8 @@ export default function TaskList({
     fetchTasks(filters, false);
   };
 
-  const handleQuickComplete = async (taskId: string) => {
+  // Core completion logic — called directly or after credit modal
+  const executeComplete = async (taskId: string, creditedTo?: string[]) => {
     const task = tasks.find((t) => t.id === taskId);
     if (!task) return;
 
@@ -227,7 +244,6 @@ export default function TaskList({
     );
 
     try {
-      // Fetch config to get the target status ID
       const configRes = await fetch("/api/config");
       const configData = await configRes.json();
       const statuses = configData.statuses || [];
@@ -240,17 +256,19 @@ export default function TaskList({
         return;
       }
 
+      const patchBody: Record<string, unknown> = { status_id: targetStatus.id };
+      if (!isCompleted && creditedTo) {
+        patchBody.credited_to = creditedTo;
+      }
+
       const res = await fetch(`/api/tasks/${taskId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status_id: targetStatus.id }),
+        body: JSON.stringify(patchBody),
       });
 
-      if (!res.ok) {
-        throw new Error("Failed to update task");
-      }
+      if (!res.ok) throw new Error("Failed to update task");
 
-      // Trigger completion sync for linked entities (fire-and-forget)
       if (!isCompleted) {
         setShowCelebration(true);
         toast.success("Task complete!", {
@@ -272,6 +290,28 @@ export default function TaskList({
         )
       );
     }
+  };
+
+  const handleQuickComplete = async (taskId: string) => {
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task) return;
+
+    const isCompleted = task.status?.name === "Done" || !!task.completed_at;
+
+    // If un-completing, just do it directly
+    if (isCompleted) {
+      return executeComplete(taskId);
+    }
+
+    // Check if we need the credit modal
+    const additionalOwnerIds = (task.additional_owners || []).map((o) => o.id);
+    if (needsCreditModal(task.assignee?.id, additionalOwnerIds)) {
+      setCreditModal({ open: true, task });
+      return;
+    }
+
+    // Solo owner — auto-credit completer
+    return executeComplete(taskId);
   };
 
   const handleQuickAdd = async () => {
@@ -318,6 +358,26 @@ export default function TaskList({
         show={showCelebration}
         onComplete={() => setShowCelebration(false)}
       />
+
+      {/* Completion credit modal */}
+      {creditModal.task && (
+        <CompletionCreditModal
+          open={creditModal.open}
+          taskTitle={creditModal.task.title}
+          assigneeId={creditModal.task.assignee?.id}
+          additionalOwnerIds={(creditModal.task.additional_owners || []).map((o) => o.id)}
+          currentUserId={currentUserId}
+          members={members}
+          onConfirm={(creditedTo) => {
+            const taskId = creditModal.task!.id;
+            setCreditModal({ open: false, task: null });
+            executeComplete(taskId, creditedTo);
+          }}
+          onCancel={() => {
+            setCreditModal({ open: false, task: null });
+          }}
+        />
+      )}
 
       {/* Header with New Task button */}
       <div className="flex items-center justify-between gap-4">

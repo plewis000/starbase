@@ -1,7 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { platform } from "@/lib/supabase/schemas";
+import { createServiceClient } from "@/lib/supabase/service";
+import { platform, config } from "@/lib/supabase/schemas";
 import { getHouseholdContext, getHouseholdMemberIds, verifyTaskHouseholdAccess } from "@/lib/household";
+import { awardXp, checkAchievements, hasXpBeenAwarded } from "@/lib/gamification";
 
 // =============================================================
 // PATCH /api/tasks/bulk — Bulk update tasks
@@ -48,6 +50,101 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "No valid fields in patch" }, { status: 400 });
   }
 
+  // Check if this is a completion (status changing to Done)
+  let isCompletingTasks = false;
+  if (updateData.status_id) {
+    const { data: newStatus } = await config(supabase)
+      .from("task_statuses")
+      .select("name")
+      .eq("id", updateData.status_id as string)
+      .single();
+
+    if (newStatus?.name === "Done") {
+      isCompletingTasks = true;
+      updateData.completed_at = new Date().toISOString();
+      updateData.completed_by = user.id;
+      updateData.credited_to = [user.id];
+    }
+  }
+
+  // If completing, only apply completion fields to tasks not already completed
+  if (isCompletingTasks) {
+    // Get tasks that are already completed (to exclude from completion side effects)
+    const { data: existingTasks } = await platform(supabase)
+      .from("tasks")
+      .select("id, completed_at, priority_id")
+      .in("id", task_ids);
+
+    const alreadyCompleted = new Set(
+      (existingTasks || []).filter(t => t.completed_at).map(t => t.id)
+    );
+    const newlyCompleting = task_ids.filter((tid: string) => !alreadyCompleted.has(tid));
+
+    // Update all tasks
+    const { error } = await platform(supabase)
+      .from("tasks")
+      .update(updateData)
+      .in("id", task_ids);
+
+    if (error) {
+      console.error("Bulk update error:", error.message);
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    }
+
+    // Award XP for newly completed tasks (after response)
+    if (newlyCompleting.length > 0) {
+      const taskPriorityMap = new Map<string, string>();
+      for (const t of existingTasks || []) {
+        taskPriorityMap.set(t.id, t.priority_id);
+      }
+
+      after(async () => {
+        try {
+          const svc = createServiceClient();
+
+          // Fetch priority names
+          const { data: priorities } = await config(supabase)
+            .from("task_priorities")
+            .select("id, name");
+          const priorityNameMap = new Map<string, string>();
+          for (const p of priorities || []) priorityNameMap.set(p.id, p.name);
+
+          const priorityXp: Record<string, number> = {
+            Critical: 100, High: 50, Medium: 25, Low: 10,
+          };
+
+          for (const taskId of newlyCompleting) {
+            const alreadyAwarded = await hasXpBeenAwarded(svc, user.id, taskId);
+            if (alreadyAwarded) continue;
+
+            const priorityName = priorityNameMap.get(taskPriorityMap.get(taskId) || "") || "Medium";
+            const xpAmount = priorityXp[priorityName] || 25;
+
+            await awardXp(
+              svc,
+              user.id,
+              xpAmount,
+              "task_complete",
+              `Completed (bulk): task`,
+              "task",
+              taskId
+            );
+
+            await checkAchievements(svc, user.id, "task_complete", {
+              taskId,
+              priority: priorityName,
+            });
+          }
+        } catch (err) {
+          console.error("Bulk gamification error:", err);
+        }
+      });
+    }
+
+    return NextResponse.json({ success: true, updated: task_ids.length });
+  }
+
+  // Non-completion bulk update (original path)
   const { error } = await platform(supabase)
     .from("tasks")
     .update(updateData)

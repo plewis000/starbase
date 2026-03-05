@@ -5,6 +5,7 @@ import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import ChecklistWidget from "./ChecklistWidget";
 import CommentThread from "@/components/ui/CommentThread";
 import EntityLinksSection from "@/components/ui/EntityLinksSection";
+import CompletionCreditModal, { needsCreditModal } from "./CompletionCreditModal";
 import {
   InlineStatusPicker,
   InlinePriorityPicker,
@@ -122,8 +123,17 @@ export default function TaskDetail({
   const [editingDescription, setEditingDescription] = useState(false);
   const [editingRecurrence, setEditingRecurrence] = useState(false);
   const [showActivityLog, setShowActivityLog] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string>("");
+  const [creditModal, setCreditModal] = useState<{ open: boolean; doneStatusId: string }>({ open: false, doneStatusId: "" });
 
   const { config, refresh: refreshConfig, resolveStatusName, resolvePriorityName, resolveMemberName } = useTaskConfig();
+
+  // Fetch current user ID
+  useEffect(() => {
+    fetch("/api/user").then(r => r.json()).then(d => {
+      if (d.user?.id) setCurrentUserId(d.user.id);
+    }).catch(() => {});
+  }, []);
 
   const fetchTask = async () => {
     try {
@@ -263,6 +273,36 @@ export default function TaskDetail({
           </button>
         </div>
 
+        {/* Completion credit modal */}
+        {creditModal.open && task && config && (
+          <CompletionCreditModal
+            open={creditModal.open}
+            taskTitle={task.title}
+            assigneeId={task.assignee?.id}
+            additionalOwnerIds={(task.additional_owners || []).map((o: any) => typeof o === "string" ? o : o.id)}
+            currentUserId={currentUserId}
+            members={config.members}
+            onConfirm={async (creditedTo) => {
+              setCreditModal({ open: false, doneStatusId: "" });
+              // Now do the actual PATCH with credited_to
+              const snapshot = { ...task };
+              setTask((prev) => prev ? { ...prev, status_id: creditModal.doneStatusId, completed_at: new Date().toISOString() } as Task : prev);
+              try {
+                const response = await fetch(`/api/tasks/${task.id}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ status_id: creditModal.doneStatusId, credited_to: creditedTo }),
+                });
+                if (!response.ok) throw new Error("Update failed");
+                handleFieldUpdated();
+              } catch {
+                setTask(snapshot);
+              }
+            }}
+            onCancel={() => setCreditModal({ open: false, doneStatusId: "" })}
+          />
+        )}
+
         {/* Inline Status Picker */}
         {config && (
           <div>
@@ -273,6 +313,16 @@ export default function TaskDetail({
               options={config.statuses}
               onUpdated={handleFieldUpdated}
               onConfigAdded={handleConfigAdded}
+              onBeforeUpdate={(statusId, statusName) => {
+                if (statusName === "Done" && task) {
+                  const additionalOwnerIds = (task.additional_owners || []).map((o: any) => typeof o === "string" ? o : o.id);
+                  if (needsCreditModal(task.assignee?.id, additionalOwnerIds)) {
+                    setCreditModal({ open: true, doneStatusId: statusId });
+                    return false; // Cancel default PATCH — modal will handle it
+                  }
+                }
+                return true;
+              }}
             />
           </div>
         )}

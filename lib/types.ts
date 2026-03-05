@@ -91,6 +91,8 @@ export interface Task {
     full_name: string;
   };
   additional_owners?: UserSummary[];
+  completed_by?: string;
+  credited_to?: string[];
   creator?: {
     id: string;
     full_name: string;

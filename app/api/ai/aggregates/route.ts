@@ -102,11 +102,11 @@ async function computeAggregateInApp(
     .gte("created_at", date)
     .lt("created_at", nextDateStr);
 
-  // Tasks completed today
+  // Tasks completed today (uses completed_by with legacy fallback)
   const { count: tasksCompleted } = await platform(supabase)
     .from("tasks")
     .select("id", { count: "exact", head: true })
-    .eq("assigned_to", userId)
+    .or(`completed_by.eq.${userId},credited_to.cs.{${userId}},and(completed_by.is.null,assigned_to.eq.${userId})`)
     .gte("completed_at", date)
     .lt("completed_at", nextDateStr);
 

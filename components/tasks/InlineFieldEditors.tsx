@@ -42,12 +42,15 @@ export function InlineStatusPicker({
   options,
   onUpdated,
   onConfigAdded,
+  onBeforeUpdate,
 }: {
   taskId: string;
   currentValue: string;
   options: ConfigOption[];
   onUpdated: () => void;
   onConfigAdded?: () => void;
+  /** Return false to cancel the update (e.g., to show a credit modal first). The callback receives the status id and name. */
+  onBeforeUpdate?: (statusId: string, statusName: string) => boolean;
 }) {
   const [saving, setSaving] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
@@ -55,6 +58,12 @@ export function InlineStatusPicker({
 
   const handleSelect = async (id: string) => {
     if (id === currentValue || saving) return;
+    // Allow caller to intercept (e.g., for credit modal)
+    if (onBeforeUpdate) {
+      const opt = options.find((o) => o.id === id);
+      const shouldProceed = onBeforeUpdate(id, opt?.name || "");
+      if (!shouldProceed) return;
+    }
     setSaving(true);
     try {
       await patchTask(taskId, { status_id: id });

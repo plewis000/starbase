@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { logActivity, logFieldChanges } from "@/lib/activity-log";
 import { createNextRecurrence } from "@/lib/recurrence-engine";
-import { notifyTaskAssigned, notifyTaskCompleted } from "@/lib/notify";
+import { notifyTaskAssigned, notifyTaskCompleted, notifyCreditedUsers } from "@/lib/notify";
 import { platform, config } from "@/lib/supabase/schemas";
 import { getConfigLookups, enrichTasks } from "@/lib/task-enrichment";
 import { isValidUUID } from "@/lib/validation";
-import { awardXp, checkAchievements } from "@/lib/gamification";
+import { awardXp, checkAchievements, hasXpBeenAwarded } from "@/lib/gamification";
 import { getHouseholdContext, getHouseholdMemberIds, verifyTaskHouseholdAccess } from "@/lib/household";
 
 // =============================================================
@@ -289,6 +290,21 @@ export async function PATCH(
     }
   }
 
+  // Handle credited_to — validated when completing (sent with status_id → Done)
+  // Also accepted as a standalone PATCH for editing credit after the fact
+  if ("credited_to" in body && Array.isArray(body.credited_to)) {
+    const creditedTo: string[] = body.credited_to;
+    for (const cid of creditedTo) {
+      if (!isValidUUID(cid)) {
+        return NextResponse.json({ error: "credited_to must be valid UUIDs" }, { status: 400 });
+      }
+      if (!memberIds.includes(cid)) {
+        return NextResponse.json({ error: `credited_to user ${cid} is not a household member` }, { status: 400 });
+      }
+    }
+    updateFields.credited_to = creditedTo;
+  }
+
   // Always update last_touched_at
   updateFields.last_touched_at = new Date().toISOString();
 
@@ -303,10 +319,17 @@ export async function PATCH(
 
     if (newStatus?.name === "Done") {
       updateFields.completed_at = new Date().toISOString();
+      updateFields.completed_by = user.id;
+      // If credited_to wasn't explicitly provided, default to [completer]
+      if (!updateFields.credited_to) {
+        updateFields.credited_to = [user.id];
+      }
       isCompletingTask = true;
     } else if (currentTask.completed_at) {
-      // If moving away from Done, clear completed_at
+      // If moving away from Done, clear completion fields
       updateFields.completed_at = null;
+      updateFields.completed_by = null;
+      updateFields.credited_to = [];
     }
   }
 
@@ -362,9 +385,12 @@ export async function PATCH(
       (err) => console.error("Completion notification error:", err)
     );
 
-    // Award XP for completing the task, split across all owners (P024 — runs after response)
+    // Award XP to all credited users (runs after response, uses service client for cross-user RLS bypass)
     after(async () => {
       try {
+        const svc = createServiceClient();
+        const creditedTo: string[] = (updatedTask.credited_to as string[]) || [user.id];
+
         // Map priority to XP — higher priority = more XP
         const { data: priority } = await config(supabase)
           .from("task_priorities")
@@ -380,41 +406,47 @@ export async function PATCH(
         };
         const xpAmount = priorityXp[priority?.name || "Medium"] || 25;
 
-        // Check for speed completion bonus (done within 1 hour of creation)
+        // Check for speed completion bonus (done within 1 hour of creation) — only for completer
         const createdAt = new Date(currentTask.created_at).getTime();
         const completedAt = Date.now();
         const isSpeedComplete = (completedAt - createdAt) < 3600000; // 1 hour
-        const bonusXp = isSpeedComplete ? 15 : 0;
-        const totalXp = xpAmount + bonusXp;
 
-        // Collect all owners: primary assignee + additional owners
-        const allOwners = new Set<string>();
-        if (currentTask.assigned_to) allOwners.add(currentTask.assigned_to);
-        const additionalOwners: string[] = (currentTask.metadata as any)?.additional_owners || [];
-        for (const oid of additionalOwners) allOwners.add(oid);
-        // If no owners assigned, award to the user who completed it
-        if (allOwners.size === 0) allOwners.add(user.id);
+        // Award full XP to each credited user
+        for (const creditedUserId of creditedTo) {
+          const alreadyAwarded = await hasXpBeenAwarded(svc, creditedUserId, id);
+          if (alreadyAwarded) continue;
 
-        // Split XP across all owners (each gets full share, minimum 1)
-        const xpPerOwner = Math.max(1, Math.round(totalXp / allOwners.size));
+          // Speed bonus only for the person who clicked Done
+          const bonusXp = (creditedUserId === user.id && isSpeedComplete) ? 15 : 0;
+          const totalXp = xpAmount + bonusXp;
 
-        for (const ownerId of allOwners) {
           await awardXp(
-            supabase,
-            ownerId,
-            xpPerOwner,
+            svc,
+            creditedUserId,
+            totalXp,
             "task_complete",
-            `Completed: ${updatedTask.title}${isSpeedComplete ? " (speed bonus!)" : ""}${allOwners.size > 1 ? ` (split ${allOwners.size}-way)` : ""}`,
+            `Completed: ${updatedTask.title}${creditedUserId === user.id && isSpeedComplete ? " (speed bonus!)" : ""}`,
             "task",
             id
           );
 
-          // Check for task-related achievements
-          await checkAchievements(supabase, ownerId, "task_complete", {
+          await checkAchievements(svc, creditedUserId, "task_complete", {
             taskId: id,
             priority: priority?.name,
-            isSpeedComplete,
+            isSpeedComplete: creditedUserId === user.id && isSpeedComplete,
           });
+        }
+
+        // Notify credited users who aren't the completer
+        if (creditedTo.length > 1) {
+          await notifyCreditedUsers(
+            svc,
+            id,
+            updatedTask.title,
+            user.id,
+            creditedTo,
+            xpAmount
+          );
         }
       } catch (err) {
         console.error("Gamification error:", err);
