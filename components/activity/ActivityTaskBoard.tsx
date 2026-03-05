@@ -425,31 +425,6 @@ export default function ActivityTaskBoard({
           <h1 className="text-lg font-bold text-slate-100 tracking-wide flex-shrink-0">Tasks</h1>
           <span className="text-xs text-slate-500 font-mono flex-shrink-0">{total} total</span>
 
-          {/* New task + select + view switcher — left-aligned after title */}
-          {onCreateTask && (
-            <button
-              onClick={onCreateTask}
-              className="px-2.5 py-1.5 bg-red-600 hover:bg-red-500 text-white text-sm font-medium rounded-lg transition-all flex items-center gap-1 flex-shrink-0"
-            >
-              <span>+</span>
-              <span className="hidden sm:inline">New Task</span>
-            </button>
-          )}
-          <button
-            onClick={() => bulkMode ? exitBulkMode() : setBulkMode(true)}
-            className={`px-2.5 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1 flex-shrink-0 ${
-              bulkMode
-                ? "bg-amber-600 hover:bg-amber-500 text-white"
-                : "border border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600"
-            }`}
-          >
-            {bulkMode ? "Exit" : (
-              <>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2" /><polyline points="9 11 12 14 22 4" /></svg>
-                <span className="hidden lg:inline">Select</span>
-              </>
-            )}
-          </button>
           <div className="flex items-center gap-0.5 bg-slate-900 border border-slate-800 rounded-lg p-0.5 overflow-x-auto flex-shrink-0">
             {([
               { key: "list" as ViewMode, icon: "☰", label: "List" },
@@ -476,9 +451,22 @@ export default function ActivityTaskBoard({
         </div>
       </div>
 
-      {/* Quick add bar */}
+      {/* Quick add bar with + button */}
       <div className="flex-shrink-0 px-4 py-2 border-b border-slate-800/50">
-        <QuickAddBar onAdd={handleQuickCreate} config={config} />
+        <div className="flex items-center gap-2">
+          {onCreateTask && (
+            <button
+              onClick={onCreateTask}
+              className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-red-600 hover:bg-red-500 text-white text-lg font-bold transition-all"
+              title="New task (full form)"
+            >
+              +
+            </button>
+          )}
+          <div className="flex-1 min-w-0">
+            <QuickAddBar onAdd={handleQuickCreate} config={config} />
+          </div>
+        </div>
       </div>
 
       {/* Filters */}
@@ -520,6 +508,8 @@ export default function ActivityTaskBoard({
             totalCount={bulkMode ? tasks.length : undefined}
             onSelectAll={bulkMode ? handleSelectAll : undefined}
             groupBy={filters.groupBy}
+            bulkMode={bulkMode}
+            onToggleBulkMode={() => bulkMode ? exitBulkMode() : setBulkMode(true)}
           />
         ) : viewMode === "board" ? (
           <BoardView

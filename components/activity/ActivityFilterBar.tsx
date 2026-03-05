@@ -152,21 +152,7 @@ export default function ActivityFilterBar({
   const [editingView, setEditingView] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editIcon, setEditIcon] = useState("");
-  const [viewMenuOpen, setViewMenuOpen] = useState<string | null>(null);
-  const viewMenuRef = useRef<HTMLDivElement>(null);
   const searchTimeout = useRef<NodeJS.Timeout | null>(null);
-
-  // Close view menu on outside click
-  React.useEffect(() => {
-    if (!viewMenuOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (viewMenuRef.current && !viewMenuRef.current.contains(e.target as Node)) {
-        setViewMenuOpen(null);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [viewMenuOpen]);
 
   const update = useCallback((key: keyof ActivityFilters, value: string | number | undefined) => {
     const next = { ...filters, [key]: value };
@@ -240,6 +226,11 @@ export default function ActivityFilterBar({
     update("priority", value);
   }, [update]);
 
+  // Active default view for the modification bar
+  const activeDefaultView = activeView ? savedViews.find(v => v.name === activeView && v.isDefault) : null;
+  const showModifiedBar = !!(activeDefaultView && isModified && onUpdateDefaultView);
+  const showResetOption = !!(activeDefaultView && hasViewOverride?.(activeDefaultView.name) && onResetDefaultView);
+
   return (
     <div className="space-y-2">
       {/* Saved views — horizontal scroll */}
@@ -266,92 +257,30 @@ export default function ActivityFilterBar({
                 <button onClick={handleSaveEdit} className="text-[10px] text-green-400 px-1">OK</button>
               </div>
             ) : (
-              <div className="flex items-center">
-                <button
-                  onClick={() => applyView(view)}
-                  onDoubleClick={() => handleEditView(view)}
-                  className={`relative flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all border ${
-                    activeView === view.name
-                      ? "bg-crimson-900/30 border-crimson-700 text-crimson-300"
-                      : "bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-300 hover:border-slate-700"
-                  }`}
-                >
-                  <span>{view.icon}</span>
-                  {view.name}
-                  {/* Dot indicator for customized default views */}
-                  {view.isDefault && hasViewOverride?.(view.name) && (
-                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-crimson-500 rounded-full" />
-                  )}
-                  {!view.isDefault && onDeleteView && (
-                    <span
-                      onClick={(e) => { e.stopPropagation(); onDeleteView(view.name); }}
-                      className="hidden group-hover:inline ml-1 text-slate-600 hover:text-red-400 cursor-pointer"
-                    >
-                      ×
-                    </span>
-                  )}
-                </button>
-
-                {/* Inline Save/Reset for active default view with modified filters */}
-                {view.isDefault && activeView === view.name && isModified && onUpdateDefaultView && (
-                  <>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onUpdateDefaultView(view.name, { ...filters, search: undefined }); }}
-                      className="px-1.5 py-0.5 text-[10px] font-medium text-green-400 hover:text-green-300 bg-green-900/20 border border-green-800/40 rounded-full transition-colors"
-                    >
-                      Save
-                    </button>
-                    {hasViewOverride?.(view.name) && onResetDefaultView && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); onResetDefaultView(view.name); }}
-                        className="px-1.5 py-0.5 text-[10px] font-medium text-slate-500 hover:text-slate-300 bg-slate-800/40 border border-slate-700/40 rounded-full transition-colors"
-                      >
-                        Reset
-                      </button>
-                    )}
-                  </>
+              <button
+                onClick={() => applyView(view)}
+                onDoubleClick={() => handleEditView(view)}
+                className={`relative flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all border ${
+                  activeView === view.name
+                    ? "bg-crimson-900/30 border-crimson-700 text-crimson-300"
+                    : "bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-300 hover:border-slate-700"
+                }`}
+              >
+                <span>{view.icon}</span>
+                {view.name}
+                {/* Dot indicator for customized default views */}
+                {view.isDefault && hasViewOverride?.(view.name) && (
+                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-crimson-500 rounded-full" />
                 )}
-
-                {/* Default view context menu trigger — always visible */}
-                {view.isDefault && onUpdateDefaultView && (
-                  <div className="relative">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setViewMenuOpen(viewMenuOpen === view.name ? null : view.name); }}
-                      className="flex items-center justify-center w-4 h-4 -ml-1 text-[10px] text-slate-600 hover:text-slate-300 transition-colors"
-                      title="Customize view"
-                    >
-                      ⋯
-                    </button>
-                    {viewMenuOpen === view.name && (
-                      <div
-                        ref={viewMenuRef}
-                        className="absolute z-50 top-full right-0 mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 min-w-[180px]"
-                      >
-                        <button
-                          onClick={() => {
-                            onUpdateDefaultView(view.name, { ...filters, search: undefined });
-                            setViewMenuOpen(null);
-                          }}
-                          className="w-full text-left px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-700 transition-colors"
-                        >
-                          Save current filters to this view
-                        </button>
-                        {hasViewOverride?.(view.name) && onResetDefaultView && (
-                          <button
-                            onClick={() => {
-                              onResetDefaultView(view.name);
-                              setViewMenuOpen(null);
-                            }}
-                            className="w-full text-left px-3 py-1.5 text-xs text-slate-400 hover:bg-slate-700 transition-colors"
-                          >
-                            Reset to default
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                {!view.isDefault && onDeleteView && (
+                  <span
+                    onClick={(e) => { e.stopPropagation(); onDeleteView(view.name); }}
+                    className="hidden group-hover:inline ml-1 text-slate-600 hover:text-red-400 cursor-pointer"
+                  >
+                    ×
+                  </span>
                 )}
-              </div>
+              </button>
             )}
           </div>
         ))}
@@ -363,6 +292,32 @@ export default function ActivityFilterBar({
           + Save View
         </button>
       </div>
+
+      {/* View modified notification bar */}
+      {showModifiedBar && activeDefaultView && (
+        <div className="flex items-center gap-2 px-2.5 py-1.5 bg-slate-900/60 border border-slate-800 rounded-lg text-xs">
+          <span className="text-slate-400">
+            <span className="font-medium text-slate-300">{activeDefaultView.name}</span> filters modified
+          </span>
+          <button
+            onClick={() => onUpdateDefaultView!(activeDefaultView.name, { ...filters, search: undefined })}
+            className="text-green-400 hover:text-green-300 font-medium transition-colors"
+          >
+            Save
+          </button>
+          {showResetOption && (
+            <>
+              <span className="text-slate-700">|</span>
+              <button
+                onClick={() => onResetDefaultView!(activeDefaultView.name)}
+                className="text-slate-500 hover:text-slate-300 transition-colors"
+              >
+                Reset
+              </button>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Save dialog with emoji picker */}
       {showSaveDialog && (

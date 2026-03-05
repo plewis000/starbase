@@ -38,6 +38,8 @@ interface Props {
   groupBy?: GroupBy;
   totalCount?: number;
   onSelectAll?: () => void;
+  bulkMode?: boolean;
+  onToggleBulkMode?: () => void;
 }
 
 type ColumnKey = "status" | "priority" | "assignee" | "due_date" | "type" | "effort" | "tags" | "created_at" | "recurrence";
@@ -472,7 +474,7 @@ function groupTasks(tasks: Task[], groupBy: GroupBy): { label: string; tasks: Ta
   return Object.entries(groups).map(([label, tasks]) => ({ label, tasks }));
 }
 
-export default function ListView({ tasks, onQuickComplete, completedTaskId, config, onSelect, selectedTaskIds, onToggleSelect, groupBy, totalCount, onSelectAll }: Props) {
+export default function ListView({ tasks, onQuickComplete, completedTaskId, config, onSelect, selectedTaskIds, onToggleSelect, groupBy, totalCount, onSelectAll, bulkMode, onToggleBulkMode }: Props) {
   const { value: visibleColumns, setValue: setVisibleColumns } = useUserPreference<ColumnKey[]>("task_list_columns", DEFAULT_COLUMNS);
   const { value: columnOrder, setValue: setColumnOrder } = useUserPreference<ColumnKey[]>("task_list_column_order", DEFAULT_COLUMN_ORDER);
   const [showColumnPicker, setShowColumnPicker] = useState(false);
@@ -710,8 +712,21 @@ export default function ListView({ tasks, onQuickComplete, completedTaskId, conf
   // --- Desktop layout ---
   return (
     <div>
-      {/* Column picker */}
-      <div className="flex items-center justify-end mb-2">
+      {/* List toolbar — bulk select + column picker */}
+      <div className="flex items-center justify-end gap-1 mb-2">
+        {onToggleBulkMode && (
+          <button
+            onClick={onToggleBulkMode}
+            className={`p-1 transition-colors rounded ${
+              bulkMode
+                ? "text-amber-400 hover:text-amber-300 bg-amber-900/20"
+                : "text-slate-500 hover:text-slate-300"
+            }`}
+            title={bulkMode ? "Exit select mode" : "Select tasks"}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2" /><polyline points="9 11 12 14 22 4" /></svg>
+          </button>
+        )}
         <div className="relative">
           <button
             onClick={() => setShowColumnPicker(!showColumnPicker)}
