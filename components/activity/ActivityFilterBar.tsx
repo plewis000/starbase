@@ -159,6 +159,8 @@ export default function ActivityFilterBar({
   const [showRestoreMenu, setShowRestoreMenu] = useState(false);
   const restoreMenuRef = useRef<HTMLDivElement>(null);
   const searchTimeout = useRef<NodeJS.Timeout | null>(null);
+  const filtersRef = useRef(filters);
+  filtersRef.current = filters;
 
   // Hidden defaults for restore menu
   const hiddenDefaultViews = (allDefaultViews || []).filter(v => hiddenDefaults?.includes(v.name));
@@ -205,9 +207,10 @@ export default function ActivityFilterBar({
   const handleSearch = useCallback((value: string) => {
     if (searchTimeout.current) clearTimeout(searchTimeout.current);
     searchTimeout.current = setTimeout(() => {
-      onFilterChange({ ...filters, search: value });
+      // Use functional-style update via onFilterChange to avoid stale filters capture
+      onFilterChange({ ...filtersRef.current, search: value });
     }, 300);
-  }, [filters, onFilterChange]);
+  }, [onFilterChange]);
 
   const handleSaveView = useCallback(() => {
     if (!saveName.trim()) return;
@@ -230,10 +233,14 @@ export default function ActivityFilterBar({
 
   const handleSaveEdit = useCallback(() => {
     if (!editName.trim() || !editingView) return;
-    onDeleteView?.(editingView);
     const view = savedViews.find((v) => v.name === editingView);
     if (view) {
+      // Archive old name, then save with new name — onDeleteView archives, onSaveView adds
+      // Do save first so the view exists before archive removes the old one
       onSaveView({ ...view, name: editName.trim(), icon: editIcon });
+      if (editName.trim() !== editingView) {
+        onDeleteView?.(editingView);
+      }
     }
     setEditingView(null);
   }, [editName, editIcon, editingView, savedViews, onDeleteView, onSaveView]);

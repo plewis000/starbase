@@ -91,11 +91,23 @@ export default function ActivityTaskBoard({
     direction: "asc",
     owner: "",
   });
-  const { value: savedViews, setValue: setSavedViews } = useUserPreference<SavedView[]>("activity_saved_views", []);
-  const { value: viewOverrides, setValue: setViewOverrides } = useUserPreference<Record<string, Partial<ActivityFilters>>>("activity_view_overrides", {});
+  const { value: savedViews, setValue: setSavedViews, loading: savedViewsLoading } = useUserPreference<SavedView[]>("activity_saved_views", []);
+  const { value: viewOverrides, setValue: setViewOverrides, loading: viewOverridesLoading } = useUserPreference<Record<string, Partial<ActivityFilters>>>("activity_view_overrides", {});
   const { value: hiddenDefaults, setValue: setHiddenDefaults } = useUserPreference<string[]>("activity_hidden_defaults", []);
-  const { value: modeFilters, setValue: setModeFilters } = useUserPreference<Record<string, Partial<ActivityFilters>>>("activity_mode_filters", {});
+  const { value: modeFilters, setValue: setModeFilters, loading: modeFiltersLoading } = useUserPreference<Record<string, Partial<ActivityFilters>>>("activity_mode_filters", {});
   const appliedOverridesRef = useRef(false);
+
+  // Refs to avoid stale closures in callbacks
+  const savedViewsRef = useRef(savedViews);
+  savedViewsRef.current = savedViews;
+  const viewOverridesRef = useRef(viewOverrides);
+  viewOverridesRef.current = viewOverrides;
+  const modeFiltersRef = useRef(modeFilters);
+  modeFiltersRef.current = modeFilters;
+  const filtersRef = useRef(filters);
+  filtersRef.current = filters;
+  const viewModeRef = useRef(viewMode);
+  viewModeRef.current = viewMode;
 
   // Sync persisted view mode on first load
   useEffect(() => {
@@ -104,8 +116,9 @@ export default function ActivityTaskBoard({
     }
   }, [persistedViewMode]);
 
-  // Apply saved overrides / per-mode filters to initial view once they load
+  // Apply saved overrides / per-mode filters once preferences finish loading
   useEffect(() => {
+    if (modeFiltersLoading || viewOverridesLoading) return;
     if (appliedOverridesRef.current) return;
     appliedOverridesRef.current = true;
     const modeF = modeFilters?.[viewMode];
@@ -115,24 +128,27 @@ export default function ActivityTaskBoard({
     } else if (viewOverride) {
       setFilters(prev => ({ ...prev, ...viewOverride, search: prev.search }));
     }
-  }, [viewOverrides, modeFilters, viewMode]);
+  }, [modeFiltersLoading, viewOverridesLoading, modeFilters, viewOverrides, viewMode]);
 
   // Mode switch handler — saves current mode's filters, restores target mode's
   const handleViewModeChange = useCallback((newMode: ViewMode) => {
+    const currentFilters = filtersRef.current;
+    const currentModeFilters = modeFiltersRef.current;
+    const currentViewMode = viewModeRef.current;
     // Save current mode's filters (without search)
-    const { search, ...filtersWithoutSearch } = filters;
-    setModeFilters({ ...modeFilters, [viewMode]: filtersWithoutSearch });
+    const { search, ...filtersWithoutSearch } = currentFilters;
+    setModeFilters({ ...currentModeFilters, [currentViewMode]: filtersWithoutSearch });
     // Switch mode
     setViewModeLocal(newMode);
     setPersistedViewMode(newMode);
     // Restore target mode's filters or defaults
-    const restored = modeFilters?.[newMode];
+    const restored = currentModeFilters?.[newMode];
     if (restored) {
       setFilters(prev => ({ ...restored, search: prev.search }));
     } else {
       setFilters(prev => ({ status: "All", priority: "All", due: "All", owner: "", sort: "due_date", direction: "asc", search: prev.search }));
     }
-  }, [viewMode, filters, modeFilters, setModeFilters, setPersistedViewMode]);
+  }, [setModeFilters, setPersistedViewMode]);
 
   const [completedTaskId, setCompletedTaskId] = useState<string | null>(null);
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
@@ -269,9 +285,9 @@ export default function ActivityTaskBoard({
       }
     } catch {
       // Revert on error
-      fetchTasks(filters);
+      fetchTasks(filtersRef.current);
     }
-  }, [tasks, config, filters, fetchTasks, apiBasePath]);
+  }, [tasks, config, fetchTasks, apiBasePath]);
 
   // Quick create handler (extended with priority, assignee, tags)
   const handleQuickCreate = useCallback(async (
@@ -292,38 +308,41 @@ export default function ActivityTaskBoard({
       });
 
       if (res.ok) {
-        fetchTasks(filters);
+        fetchTasks(filtersRef.current);
         return true;
       }
       return false;
     } catch {
       return false;
     }
-  }, [filters, fetchTasks, apiBasePath]);
+  }, [fetchTasks, apiBasePath]);
 
   const handleFilterChange = useCallback((newFilters: ActivityFilters) => {
     setFilters(newFilters);
   }, []);
 
   const handleSaveView = useCallback((view: SavedView) => {
-    const viewWithMode = { ...view, mode: viewMode };
-    const existing = savedViews.findIndex((v) => v.name === view.name && (!v.mode || v.mode === viewMode));
+    const currentViewMode = viewModeRef.current;
+    const viewWithMode = { ...view, mode: currentViewMode };
+    const current = savedViewsRef.current;
+    const existing = current.findIndex((v) => v.name === view.name && (!v.mode || v.mode === currentViewMode));
     let next: SavedView[];
     if (existing >= 0) {
-      next = [...savedViews];
+      next = [...current];
       next[existing] = viewWithMode;
     } else {
-      next = [...savedViews, viewWithMode];
+      next = [...current, viewWithMode];
     }
     setSavedViews(next);
-  }, [viewMode, savedViews, setSavedViews]);
+  }, [setSavedViews]);
 
   const handleDeleteView = useCallback((viewName: string) => {
     // Archive instead of delete (no deletion principle)
-    setSavedViews(savedViews.map((v) =>
+    const current = savedViewsRef.current;
+    setSavedViews(current.map((v) =>
       v.name === viewName ? { ...v, archived: true } as any : v
     ));
-  }, [savedViews, setSavedViews]);
+  }, [setSavedViews]);
 
   // Drag-and-drop status change handler (optimistic)
   const handleStatusChange = useCallback(async (taskId: string, newStatusId: string) => {
@@ -348,9 +367,9 @@ export default function ActivityTaskBoard({
         body: JSON.stringify({ status_id: newStatusId }),
       });
     } catch {
-      fetchTasks(filters);
+      fetchTasks(filtersRef.current);
     }
-  }, [config, filters, fetchTasks, apiBasePath]);
+  }, [config, fetchTasks, apiBasePath]);
 
   // Bulk selection toggle (with shift+click range)
   const handleToggleSelect = useCallback((taskId: string, shiftKey: boolean) => {
@@ -384,9 +403,9 @@ export default function ActivityTaskBoard({
         body: JSON.stringify({ task_ids: ids, patch }),
       });
       setSelectedTaskIds(new Set());
-      fetchTasks(filters);
+      fetchTasks(filtersRef.current);
     } catch { /* silent */ }
-  }, [selectedTaskIds, filters, fetchTasks]);
+  }, [selectedTaskIds, fetchTasks]);
 
   const exitBulkMode = useCallback(() => {
     setBulkMode(false);
@@ -416,9 +435,9 @@ export default function ActivityTaskBoard({
         method: "POST",
         body: JSON.stringify({ task_ids: ids, action, tag_id: tagId }),
       });
-      fetchTasks(filters);
+      fetchTasks(filtersRef.current);
     } catch { /* silent */ }
-  }, [selectedTaskIds, filters, fetchTasks]);
+  }, [selectedTaskIds, fetchTasks]);
 
   // Auto-exit bulk mode on view change
   useEffect(() => {
@@ -438,24 +457,25 @@ export default function ActivityTaskBoard({
     onSelectTask?.(taskId);
   }, [onSelectTask]);
 
-  const handleUpdateDefaultView = useCallback((viewName: string, filters: Partial<ActivityFilters>) => {
-    setViewOverrides({ ...viewOverrides, [viewName]: filters });
-  }, [viewOverrides, setViewOverrides]);
+  const handleUpdateDefaultView = useCallback((viewName: string, newFilters: Partial<ActivityFilters>) => {
+    const current = viewOverridesRef.current;
+    setViewOverrides({ ...current, [viewName]: newFilters });
+  }, [setViewOverrides]);
 
   const handleResetDefaultView = useCallback((viewName: string) => {
-    const next = { ...viewOverrides };
-    delete next[viewName];
-    setViewOverrides(next);
+    const current = { ...viewOverridesRef.current };
+    delete current[viewName];
+    setViewOverrides(current);
     // Also reset current filters to the original default view
     const originalView = defaultViews.find(v => v.name === viewName);
     if (originalView) {
       setFilters(prev => ({ ...prev, ...originalView.filters, search: prev.search }));
     }
-  }, [viewOverrides, setViewOverrides]);
+  }, [setViewOverrides]);
 
   const hasViewOverride = useCallback((viewName: string) => {
-    return !!viewOverrides[viewName];
-  }, [viewOverrides]);
+    return !!viewOverridesRef.current[viewName];
+  }, []);
 
   const visibleDefaults = defaultViews
     .filter(v => !hiddenDefaults?.includes(v.name))

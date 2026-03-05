@@ -5,6 +5,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 // In-memory cache shared across all hook instances
 const prefCache = new Map<string, unknown>();
 const inflight = new Map<string, Promise<unknown>>();
+// Tracks write versions per key — incremented by setValue, checked by fetch callbacks
+const writeVersions = new Map<string, number>();
 
 async function fetchPreference(key: string): Promise<unknown> {
   if (prefCache.has(key)) return prefCache.get(key);
@@ -17,7 +19,10 @@ async function fetchPreference(key: string): Promise<unknown> {
       if (!res.ok) return undefined;
       const data = await res.json();
       const value = data.preferences?.[key];
-      if (value !== undefined) prefCache.set(key, value);
+      // Only populate cache if no setValue call happened during fetch
+      if (value !== undefined && !prefCache.has(key)) {
+        prefCache.set(key, value);
+      }
       return value;
     } catch {
       return undefined;
@@ -63,8 +68,16 @@ export function useUserPreference<T>(key: string, defaultValue: T): {
     }
 
     let cancelled = false;
+    const versionAtStart = writeVersions.get(key) || 0;
+
     fetchPreference(key).then((fetched) => {
       if (cancelled) return;
+      // If setValue was called during fetch, don't overwrite with stale API data
+      const currentVersion = writeVersions.get(key) || 0;
+      if (currentVersion > versionAtStart) {
+        setLoading(false);
+        return;
+      }
       if (fetched !== undefined) {
         setValueState(fetched as T);
       }
@@ -77,6 +90,7 @@ export function useUserPreference<T>(key: string, defaultValue: T): {
   const setValue = useCallback((v: T) => {
     setValueState(v);
     prefCache.set(key, v);
+    writeVersions.set(key, (writeVersions.get(key) || 0) + 1);
 
     // Debounce save to avoid rapid-fire API calls
     if (saveTimer.current) clearTimeout(saveTimer.current);

@@ -182,13 +182,13 @@ export default function TaskList({
 
   // Fetch tasks from API
   const fetchTasks = useCallback(
-    async (currentFilters: TaskFilters, reset: boolean = false) => {
+    async (currentFilters: TaskFilters, reset: boolean = false, pageOverride?: number) => {
       try {
         setLoading(true);
 
         const queryString = buildQueryString(
           currentFilters,
-          reset ? 0 : offset
+          reset ? 0 : (pageOverride ?? 0)
         );
         const response = await fetch(`/api/tasks?${queryString}`);
 
@@ -197,7 +197,7 @@ export default function TaskList({
         }
 
         const data = await response.json();
-        setTasks(reset ? data.tasks : [...tasks, ...data.tasks]);
+        setTasks(prev => reset ? data.tasks : [...prev, ...data.tasks]);
         setTotal(data.total);
         if (reset) setOffset(0);
       } catch {
@@ -206,7 +206,7 @@ export default function TaskList({
         setLoading(false);
       }
     },
-    [offset, buildQueryString, tasks]
+    [buildQueryString]
   );
 
   // Fetch on filter change
@@ -223,8 +223,11 @@ export default function TaskList({
   const [showCelebration, setShowCelebration] = useState(false);
 
   const handleLoadMore = () => {
-    setOffset((prev) => prev + 1);
-    fetchTasks(filters, false);
+    setOffset((prev) => {
+      const nextPage = prev + 1;
+      fetchTasks(filters, false, nextPage);
+      return nextPage;
+    });
   };
 
   // Core completion logic — called directly or after credit modal
