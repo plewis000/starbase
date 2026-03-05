@@ -41,6 +41,8 @@ interface Props {
   onUpdateDefaultView?: (viewName: string, filters: Partial<ActivityFilters>) => void;
   onResetDefaultView?: (viewName: string) => void;
   hasViewOverride?: (viewName: string) => boolean;
+  activeViewName?: string | null;
+  filtersModified?: boolean;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -112,6 +114,9 @@ const GROUP_BY_OPTIONS = [
 
 const HIDE_DONE_OPTIONS = [
   { label: "Show All", value: "0" },
+  { label: "Hide All", value: "-1" },
+  { label: "> 1 day", value: "1" },
+  { label: "> 3 days", value: "3" },
   { label: "> 7 days", value: "7" },
   { label: "> 14 days", value: "14" },
   { label: "> 30 days", value: "30" },
@@ -129,11 +134,18 @@ export default function ActivityFilterBar({
   onUpdateDefaultView,
   onResetDefaultView,
   hasViewOverride,
+  activeViewName,
+  filtersModified,
 }: Props) {
   const statusOptions = buildStatusMultiOptions(config);
   const priorityOptions = buildPriorityMultiOptions(config);
-  const [activeView, setActiveView] = useState<string | null>("All Tasks");
+  const [activeView, setActiveView] = useState<string | null>(activeViewName ?? "All Tasks");
   const [expanded, setExpanded] = useState(false);
+
+  // Sync activeView with external prop when provided
+  React.useEffect(() => {
+    if (activeViewName !== undefined) setActiveView(activeViewName);
+  }, [activeViewName]);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [saveName, setSaveName] = useState("");
   const [saveIcon, setSaveIcon] = useState("⭐");
@@ -158,9 +170,19 @@ export default function ActivityFilterBar({
 
   const update = useCallback((key: keyof ActivityFilters, value: string | number | undefined) => {
     const next = { ...filters, [key]: value };
-    setActiveView(null);
     onFilterChange(next);
   }, [filters, onFilterChange]);
+
+  // Detect if current filters differ from active view's filters
+  const activeViewData = activeView ? savedViews.find(v => v.name === activeView) : null;
+  const computedFiltersModified = (() => {
+    if (!activeViewData) return false;
+    const viewF = activeViewData.filters;
+    const cur = { ...filters, search: undefined };
+    const base = { ...viewF, search: undefined };
+    return JSON.stringify(cur) !== JSON.stringify({ ...{ status: "All", priority: "All", due: "All", owner: "", sort: "due_date", direction: "asc" }, ...base });
+  })();
+  const isModified = filtersModified ?? computedFiltersModified;
 
   const applyView = useCallback((view: SavedView) => {
     const next: ActivityFilters = { ...filters, ...view.filters, search: "" };
@@ -248,7 +270,7 @@ export default function ActivityFilterBar({
                 <button
                   onClick={() => applyView(view)}
                   onDoubleClick={() => handleEditView(view)}
-                  className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all border ${
+                  className={`relative flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all border ${
                     activeView === view.name
                       ? "bg-crimson-900/30 border-crimson-700 text-crimson-300"
                       : "bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-300 hover:border-slate-700"
@@ -256,6 +278,10 @@ export default function ActivityFilterBar({
                 >
                   <span>{view.icon}</span>
                   {view.name}
+                  {/* Dot indicator for customized default views */}
+                  {view.isDefault && hasViewOverride?.(view.name) && (
+                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-crimson-500 rounded-full" />
+                  )}
                   {!view.isDefault && onDeleteView && (
                     <span
                       onClick={(e) => { e.stopPropagation(); onDeleteView(view.name); }}
@@ -266,12 +292,32 @@ export default function ActivityFilterBar({
                   )}
                 </button>
 
-                {/* Default view context menu trigger */}
+                {/* Inline Save/Reset for active default view with modified filters */}
+                {view.isDefault && activeView === view.name && isModified && onUpdateDefaultView && (
+                  <>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onUpdateDefaultView(view.name, { ...filters, search: undefined }); }}
+                      className="px-1.5 py-0.5 text-[10px] font-medium text-green-400 hover:text-green-300 bg-green-900/20 border border-green-800/40 rounded-full transition-colors"
+                    >
+                      Save
+                    </button>
+                    {hasViewOverride?.(view.name) && onResetDefaultView && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onResetDefaultView(view.name); }}
+                        className="px-1.5 py-0.5 text-[10px] font-medium text-slate-500 hover:text-slate-300 bg-slate-800/40 border border-slate-700/40 rounded-full transition-colors"
+                      >
+                        Reset
+                      </button>
+                    )}
+                  </>
+                )}
+
+                {/* Default view context menu trigger — always visible */}
                 {view.isDefault && onUpdateDefaultView && (
                   <div className="relative">
                     <button
                       onClick={(e) => { e.stopPropagation(); setViewMenuOpen(viewMenuOpen === view.name ? null : view.name); }}
-                      className="hidden group-hover:flex items-center justify-center w-4 h-4 -ml-1 text-[10px] text-slate-600 hover:text-slate-300 transition-colors"
+                      className="flex items-center justify-center w-4 h-4 -ml-1 text-[10px] text-slate-600 hover:text-slate-300 transition-colors"
                       title="Customize view"
                     >
                       ⋯

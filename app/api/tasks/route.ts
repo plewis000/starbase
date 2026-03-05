@@ -100,7 +100,10 @@ export async function GET(request: NextRequest) {
   const hideDoneDays = params.get("hide_done_days");
   if (hideDoneDays) {
     const days = parseInt(hideDoneDays, 10);
-    if (!isNaN(days) && days > 0) {
+    if (!isNaN(days) && days === -1) {
+      // Hide ALL completed tasks
+      query = query.is("completed_at", null);
+    } else if (!isNaN(days) && days > 0) {
       const cutoff = new Date();
       cutoff.setDate(cutoff.getDate() - days);
       query = query.or(`completed_at.is.null,completed_at.gte.${cutoff.toISOString()}`);

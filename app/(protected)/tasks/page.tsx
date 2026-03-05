@@ -78,7 +78,7 @@ export default function TasksPage() {
         )}
       </div>
 
-      {/* Mobile layout: Full screen board with modal detail */}
+      {/* Mobile layout: Full screen board with full-screen task detail */}
       <div className="md:hidden h-[calc(100vh-4rem)]">
         <ActivityTaskBoard
           onSelectTask={handleSelectTask}
@@ -86,20 +86,38 @@ export default function TasksPage() {
           onCreateTask={() => setShowCreateModal(true)}
         />
 
-        {/* Mobile task detail modal */}
+        {/* Mobile task detail — full-screen slide-up panel */}
         {selectedTaskId && (
-          <Modal
-            isOpen={true}
-            onClose={handleCloseTaskDetail}
-            title=""
-            size="lg"
+          <div
+            className="fixed inset-0 z-50 bg-slate-950 flex flex-col"
+            style={{ animation: "mobileSlideUp 0.3s ease-out" }}
           >
-            <TaskDetail
-              taskId={selectedTaskId}
-              onClose={handleCloseTaskDetail}
-              onTaskUpdated={handleTaskUpdated}
-            />
-          </Modal>
+            <div className="flex-shrink-0 flex items-center gap-3 px-4 py-3 bg-slate-950/95 backdrop-blur-sm border-b border-slate-800">
+              <button
+                onClick={handleCloseTaskDetail}
+                className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
+                <span className="text-sm ml-1">Back</span>
+              </button>
+              <span className="text-sm font-medium text-slate-400">Task Details</span>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <TaskDetail
+                taskId={selectedTaskId}
+                onClose={handleCloseTaskDetail}
+                onTaskUpdated={handleTaskUpdated}
+              />
+            </div>
+            <style jsx>{`
+              @keyframes mobileSlideUp {
+                from { transform: translateY(100%); }
+                to { transform: translateY(0); }
+              }
+            `}</style>
+          </div>
         )}
       </div>
 
