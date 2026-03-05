@@ -234,13 +234,13 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
         />
       </div>
 
-      {/* 7. Co-owners toggle pills */}
+      {/* 7. Additional owners toggle pills */}
       {members.length > 1 && (
         <div>
           <label className={SECTION_LABEL}>
-            Co-owners
+            Additional owners
             <span className="text-xs text-slate-500 ml-2 font-normal normal-case tracking-normal">
-              XP splits across all owners
+              Everyone credited gets full XP
             </span>
           </label>
           <div className="flex flex-wrap gap-1.5">
@@ -269,7 +269,7 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
           </div>
           {selectedOwners.length > 0 && (
             <p className="text-xs text-slate-500 mt-1">
-              {selectedOwners.length} co-owner{selectedOwners.length !== 1 ? "s" : ""} selected
+              {selectedOwners.length} additional owner{selectedOwners.length !== 1 ? "s" : ""} selected
             </p>
           )}
         </div>

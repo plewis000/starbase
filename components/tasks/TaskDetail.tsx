@@ -393,19 +393,19 @@ export default function TaskDetail({
             </div>
           )}
 
-          {/* Co-owners — editable toggle picker */}
+          {/* Additional owners — editable toggle picker */}
           {config && config.members.length > 1 && (
             <div className="flex items-start gap-3">
               <span className="text-slate-500 text-sm mt-1">👥</span>
               <div className="flex-1">
-                <p className="text-xs text-slate-400 mb-1.5">Co-owners</p>
+                <p className="text-xs text-slate-400 mb-1.5">Additional owners</p>
                 <div className="flex flex-wrap gap-1.5">
                   {config.members
                     .filter((m: any) => m.user_id !== task.assignee?.id)
                     .map((m: any) => {
                       const name = m.user?.full_name || m.display_name || m.user_id;
                       const currentOwners = task.additional_owners || [];
-                      const isCoOwner = currentOwners.some((o: any) =>
+                      const isAdditionalOwner = currentOwners.some((o: any) =>
                         typeof o === "string" ? o === m.user_id : o.id === m.user_id
                       );
                       return (
@@ -415,7 +415,7 @@ export default function TaskDetail({
                             const currentIds = currentOwners.map((o: any) =>
                               typeof o === "string" ? o : o.id
                             );
-                            const nextIds = isCoOwner
+                            const nextIds = isAdditionalOwner
                               ? currentIds.filter((id: string) => id !== m.user_id)
                               : [...currentIds, m.user_id];
                             // Build UserSummary[] for optimistic local state
@@ -446,7 +446,7 @@ export default function TaskDetail({
                             }
                           }}
                           className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium border transition-all ${
-                            isCoOwner
+                            isAdditionalOwner
                               ? "bg-crimson-900/30 border-crimson-700 text-crimson-300"
                               : "bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600"
                           }`}
@@ -454,7 +454,7 @@ export default function TaskDetail({
                           <span className="w-4 h-4 rounded-full bg-slate-600 flex items-center justify-center text-[8px] font-semibold flex-shrink-0">
                             {getInitials(name)}
                           </span>
-                          {isCoOwner ? "- " : "+ "}{name.split(" ")[0]}
+                          {isAdditionalOwner ? "- " : "+ "}{name.split(" ")[0]}
                         </button>
                       );
                     })}

@@ -444,6 +444,34 @@ export default function TaskList({
               onSelect={onSelectTask}
               onQuickComplete={handleQuickComplete}
               isSelected={selectedTaskId === task.id}
+              members={members}
+              onOwnersChanged={async (taskId, ownerIds) => {
+                // Optimistic update
+                setTasks((prev) =>
+                  prev.map((t) => {
+                    if (t.id !== taskId) return t;
+                    const nextOwners = ownerIds
+                      .map((id) => {
+                        const m = members.find((mm) => mm.user_id === id);
+                        if (!m) return null;
+                        return { id, full_name: m.user?.full_name || m.display_name || id, avatar_url: m.user?.avatar_url || null };
+                      })
+                      .filter(Boolean) as UserSummary[];
+                    return { ...t, additional_owners: nextOwners };
+                  })
+                );
+                try {
+                  const res = await fetch(`/api/tasks/${taskId}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ additional_owners: ownerIds }),
+                  });
+                  if (!res.ok) throw new Error("Update failed");
+                  onTaskUpdated?.();
+                } catch {
+                  fetchTasks(filters, true);
+                }
+              }}
             />
           ))}
 
