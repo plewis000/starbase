@@ -353,7 +353,7 @@ export default function TaskList({
     setQuickAdding(false);
   };
 
-  const hasMore = offset * pageSize + tasks.length < total;
+  const hasMore = tasks.length < total;
 
   return (
     <div className="space-y-6">

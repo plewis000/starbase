@@ -286,13 +286,24 @@ export async function PATCH(
           );
         }
       }
-      // Merge metadata instead of overwriting if additional_owners already set it
-      if (field === "metadata" && updateFields.metadata) {
-        updateFields.metadata = { ...(updateFields.metadata as Record<string, unknown>), ...body.metadata };
+      // Merge metadata, but strip additional_owners (must go through validated path)
+      if (field === "metadata") {
+        const rawMeta = { ...body.metadata };
+        delete rawMeta.additional_owners;
+        if (updateFields.metadata) {
+          updateFields.metadata = { ...(updateFields.metadata as Record<string, unknown>), ...rawMeta };
+        } else {
+          updateFields.metadata = rawMeta;
+        }
         continue;
       }
       updateFields[field] = body[field];
     }
+  }
+
+  // Validate assigned_to is a household member
+  if (updateFields.assigned_to && typeof updateFields.assigned_to === "string" && !memberIds.includes(updateFields.assigned_to)) {
+    return NextResponse.json({ error: "Cannot assign to user outside your household" }, { status: 403 });
   }
 
   // Handle credited_to — validated when completing (sent with status_id → Done)
@@ -397,7 +408,7 @@ export async function PATCH(
         const creditedTo: string[] = (updatedTask.credited_to as string[]) || [user.id];
 
         // Map priority to XP — higher priority = more XP
-        const { data: priority } = await config(supabase)
+        const { data: priority } = await config(svc)
           .from("task_priorities")
           .select("name")
           .eq("id", currentTask.priority_id)
@@ -439,6 +450,8 @@ export async function PATCH(
             taskId: id,
             priority: priority?.name,
             isSpeedComplete: creditedUserId === user.id && isSpeedComplete,
+            created_at: currentTask.created_at,
+            completed_at: new Date().toISOString(),
           });
         }
 

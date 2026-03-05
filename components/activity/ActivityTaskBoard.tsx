@@ -585,6 +585,7 @@ export default function ActivityTaskBoard({
             groupBy={filters.groupBy}
             bulkMode={bulkMode}
             onToggleBulkMode={() => bulkMode ? exitBulkMode() : setBulkMode(true)}
+            onTaskUpdated={() => fetchTasks(filtersRef.current)}
           />
         ) : viewMode === "board" ? (
           <BoardView

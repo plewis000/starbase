@@ -283,20 +283,23 @@ export default function TaskDetail({
             currentUserId={currentUserId}
             members={config.members}
             onConfirm={async (creditedTo) => {
+              // Capture values before clearing modal state
+              const doneStatusId = creditModal.doneStatusId;
+              const taskId = task.id;
+              const snapshotTask = structuredClone(task);
               setCreditModal({ open: false, doneStatusId: "" });
               // Now do the actual PATCH with credited_to
-              const snapshot = { ...task };
-              setTask((prev) => prev ? { ...prev, status_id: creditModal.doneStatusId, completed_at: new Date().toISOString() } as Task : prev);
+              setTask((prev) => prev ? { ...prev, status_id: doneStatusId, completed_at: new Date().toISOString() } as Task : prev);
               try {
-                const response = await fetch(`/api/tasks/${task.id}`, {
+                const response = await fetch(`/api/tasks/${taskId}`, {
                   method: "PATCH",
                   headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ status_id: creditModal.doneStatusId, credited_to: creditedTo }),
+                  body: JSON.stringify({ status_id: doneStatusId, credited_to: creditedTo }),
                 });
                 if (!response.ok) throw new Error("Update failed");
                 handleFieldUpdated();
               } catch {
-                setTask(snapshot);
+                setTask(snapshotTask);
               }
             }}
             onCancel={() => setCreditModal({ open: false, doneStatusId: "" })}

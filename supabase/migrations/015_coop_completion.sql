@@ -154,7 +154,7 @@ BEGIN
 
   -- Achievements unlocked today
   SELECT count(*) INTO v_achievements
-  FROM platform.user_achievements
+  FROM platform.achievement_unlocks
   WHERE user_id = p_user_id
     AND unlocked_at::date = p_date;
 

@@ -242,6 +242,7 @@ export async function safeParseBody(
 export function sanitizeSearchInput(input: string, maxLength = 200): string {
   return input
     .replace(/[%_\\]/g, (c) => `\\${c}`)  // Escape LIKE wildcards
+    .replace(/[,.()"']/g, "")              // Strip chars that could break PostgREST .or() filters
     .slice(0, maxLength)
     .trim();
 }

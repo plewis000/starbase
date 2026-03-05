@@ -96,6 +96,7 @@ export async function awardXp(
   sourceEntityType?: string,
   sourceEntityId?: string,
   multiplier: number = 1.0,
+  _retried: boolean = false,
 ): Promise<XpAwardResult> {
   const effectiveAmount = Math.round(amount * multiplier);
 
@@ -108,9 +109,10 @@ export async function awardXp(
     .single();
 
   if (!profile) {
+    if (_retried) throw new Error(`Failed to create crawler profile for user ${userId}`);
     // Auto-create profile if missing
     await ensureProfile(supabase, userId);
-    return awardXp(supabase, userId, amount, actionType, description, sourceEntityType, sourceEntityId, multiplier);
+    return awardXp(supabase, userId, amount, actionType, description, sourceEntityType, sourceEntityId, multiplier, true);
   }
 
   const oldTotal = profile.total_xp;

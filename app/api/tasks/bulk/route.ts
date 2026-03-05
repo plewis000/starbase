@@ -54,11 +54,16 @@ export async function PATCH(request: NextRequest) {
       updateData[field] = patch[field];
     }
   }
-  updateData.last_touched_at = new Date().toISOString();
-
   if (Object.keys(updateData).length === 0) {
     return NextResponse.json({ error: "No valid fields in patch" }, { status: 400 });
   }
+
+  // Validate assigned_to is a household member
+  if (updateData.assigned_to && typeof updateData.assigned_to === "string" && !memberIds.includes(updateData.assigned_to)) {
+    return NextResponse.json({ error: "Cannot assign to user outside your household" }, { status: 403 });
+  }
+
+  updateData.last_touched_at = new Date().toISOString();
 
   // Check if this is a completion (status changing to Done)
   let isCompletingTasks = false;

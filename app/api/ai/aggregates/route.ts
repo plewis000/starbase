@@ -114,7 +114,7 @@ async function computeAggregateInApp(
   const { count: habitsChecked } = await platform(supabase)
     .from("habit_check_ins")
     .select("id", { count: "exact", head: true })
-    .eq("user_id", userId)
+    .eq("checked_by", userId)
     .eq("check_date", date);
 
   // Session count

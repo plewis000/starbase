@@ -40,6 +40,7 @@ interface Props {
   onSelectAll?: () => void;
   bulkMode?: boolean;
   onToggleBulkMode?: () => void;
+  onTaskUpdated?: () => void;
 }
 
 type ColumnKey = "status" | "priority" | "assignee" | "due_date" | "type" | "effort" | "tags" | "created_at" | "recurrence";
@@ -474,7 +475,7 @@ function groupTasks(tasks: Task[], groupBy: GroupBy): { label: string; tasks: Ta
   return Object.entries(groups).map(([label, tasks]) => ({ label, tasks }));
 }
 
-export default function ListView({ tasks, onQuickComplete, completedTaskId, config, onSelect, selectedTaskIds, onToggleSelect, groupBy, totalCount, onSelectAll, bulkMode, onToggleBulkMode }: Props) {
+export default function ListView({ tasks, onQuickComplete, completedTaskId, config, onSelect, selectedTaskIds, onToggleSelect, groupBy, totalCount, onSelectAll, bulkMode, onToggleBulkMode, onTaskUpdated }: Props) {
   const { value: visibleColumns, setValue: setVisibleColumns } = useUserPreference<ColumnKey[]>("task_list_columns", DEFAULT_COLUMNS);
   const { value: columnOrder, setValue: setColumnOrder } = useUserPreference<ColumnKey[]>("task_list_column_order", DEFAULT_COLUMN_ORDER);
   const [showColumnPicker, setShowColumnPicker] = useState(false);
@@ -506,27 +507,30 @@ export default function ListView({ tasks, onQuickComplete, completedTaskId, conf
 
   const handleInlineUpdate = useCallback(async (taskId: string, patch: Record<string, unknown>) => {
     try {
-      await fetch(`/api/tasks/${taskId}`, {
+      const res = await fetch(`/api/tasks/${taskId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(patch),
       });
+      if (res.ok) onTaskUpdated?.();
     } catch {}
-  }, []);
+  }, [onTaskUpdated]);
 
   const handleTagUpdate = useCallback(async (taskId: string, action: { type: "addTag" | "removeTag"; tagId: string; assocId?: string }) => {
     try {
+      let res;
       if (action.type === "addTag") {
-        await fetch(`/api/tasks/${taskId}/tags`, {
+        res = await fetch(`/api/tasks/${taskId}/tags`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tag_id: action.tagId }),
+          body: JSON.stringify({ tag_ids: [action.tagId] }),
         });
       } else {
-        await fetch(`/api/tasks/${taskId}/tags/${action.assocId}`, { method: "DELETE" });
+        res = await fetch(`/api/tasks/${taskId}/tags/${action.assocId}`, { method: "DELETE" });
       }
+      if (res?.ok) onTaskUpdated?.();
     } catch {}
-  }, []);
+  }, [onTaskUpdated]);
 
   const activeColumns = columnOrder
     .filter((key) => visibleColumns.includes(key))

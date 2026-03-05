@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 
 export interface TaskFilters {
   status?: string;
@@ -70,22 +70,29 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
   const [activeView, setActiveView] = useState<string | null>("All Tasks");
 
   const [showMobileFilters, setShowMobileFilters] = useState(false);
-  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const filtersRef = useRef(filters);
+  filtersRef.current = filters;
+
+  // Cleanup search timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    };
+  }, []);
 
   // Debounced search handler
   const handleSearchChange = useCallback(
     (value: string) => {
       setFilters((prev) => ({ ...prev, search: value }));
 
-      if (searchTimeout) clearTimeout(searchTimeout);
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
 
-      const timeout = setTimeout(() => {
-        onFilterChange({ ...filters, search: value });
+      searchTimeoutRef.current = setTimeout(() => {
+        onFilterChange({ ...filtersRef.current, search: value });
       }, 300);
-
-      setSearchTimeout(timeout);
     },
-    [filters, searchTimeout, onFilterChange]
+    [onFilterChange]
   );
 
   // Apply a saved view

@@ -107,9 +107,11 @@ function BulkDatePicker({
   }, [open]);
 
   const getDateStr = (days: number) => {
-    const d = new Date(new Date().toLocaleString("en-US", { timeZone: timezone }));
-    d.setDate(d.getDate() + days);
-    return d.toISOString().split("T")[0];
+    // Use Intl.DateTimeFormat for reliable timezone-aware date formatting
+    const now = new Date();
+    const target = new Date(now.getTime() + days * 86400000);
+    const formatter = new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" });
+    return formatter.format(target); // Returns YYYY-MM-DD
   };
 
   const presets = [
