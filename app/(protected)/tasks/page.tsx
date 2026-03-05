@@ -57,8 +57,8 @@ export default function TasksPage() {
   return (
     <div>
       {/* Desktop layout: Board + detail sidebar */}
-      <div className="hidden lg:flex h-[calc(100vh-4rem)]">
-        <div className="flex-1 overflow-hidden">
+      <div className="hidden md:flex h-[calc(100vh-4rem)]">
+        <div className="flex-1 min-w-0 overflow-hidden">
           <ActivityTaskBoard
             onSelectTask={handleSelectTask}
             refreshTrigger={refreshTrigger}
@@ -66,9 +66,9 @@ export default function TasksPage() {
           />
         </div>
 
-        {/* Task detail slide-over panel */}
+        {/* Task detail slide-over panel — shrinks on smaller desktops */}
         {selectedTaskId && (
-          <div className="w-[480px] flex-shrink-0 overflow-y-auto border-l border-slate-800 animate-in slide-in-from-right duration-200">
+          <div className="w-[360px] xl:w-[480px] flex-shrink-0 overflow-y-auto border-l border-slate-800 animate-in slide-in-from-right duration-200">
             <TaskDetail
               taskId={selectedTaskId}
               onClose={handleCloseTaskDetail}
@@ -79,7 +79,7 @@ export default function TasksPage() {
       </div>
 
       {/* Mobile layout: Full screen board with modal detail */}
-      <div className="lg:hidden h-[calc(100vh-4rem)]">
+      <div className="md:hidden h-[calc(100vh-4rem)]">
         <ActivityTaskBoard
           onSelectTask={handleSelectTask}
           refreshTrigger={refreshTrigger}

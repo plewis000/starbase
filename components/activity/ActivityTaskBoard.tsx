@@ -91,6 +91,7 @@ export default function ActivityTaskBoard({
     owner: "",
   });
   const { value: savedViews, setValue: setSavedViews } = useUserPreference<SavedView[]>("activity_saved_views", []);
+  const { value: viewOverrides, setValue: setViewOverrides } = useUserPreference<Record<string, Partial<ActivityFilters>>>("activity_view_overrides", {});
   const [completedTaskId, setCompletedTaskId] = useState<string | null>(null);
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
   const [bulkMode, setBulkMode] = useState(false);
@@ -142,9 +143,11 @@ export default function ActivityTaskBoard({
     if (f.search) params.append("search", f.search);
     if (f.sort) params.append("sort", f.sort);
     if (f.direction) params.append("direction", f.direction);
+    if (f.hideDoneDays) params.append("hide_done_days", f.hideDoneDays.toString());
+    if (timezone) params.append("tz", timezone);
     params.append("limit", "100");
     return params.toString();
-  }, []);
+  }, [timezone]);
 
   // Fetch tasks
   const fetchTasks = useCallback(async (f: ActivityFilters) => {
@@ -156,7 +159,15 @@ export default function ActivityTaskBoard({
       if (!res.ok) throw new Error("Failed to fetch tasks");
       const data = await res.json();
       if (fetchId === fetchRef.current) {
-        setTasks(data.tasks || []);
+        // Sort done tasks to bottom while preserving server order within groups
+        const sorted = [...(data.tasks || [])];
+        sorted.sort((a: Task, b: Task) => {
+          const aDone = !!a.completed_at;
+          const bDone = !!b.completed_at;
+          if (aDone !== bDone) return aDone ? 1 : -1;
+          return 0;
+        });
+        setTasks(sorted);
         setTotal(data.total || 0);
       }
     } catch (err) {
@@ -384,24 +395,44 @@ export default function ActivityTaskBoard({
     onSelectTask?.(taskId);
   }, [onSelectTask]);
 
-  const allViews = [...defaultViews, ...savedViews.filter((v: any) => !v.archived)];
+  const handleUpdateDefaultView = useCallback((viewName: string, filters: Partial<ActivityFilters>) => {
+    setViewOverrides({ ...viewOverrides, [viewName]: filters });
+  }, [viewOverrides, setViewOverrides]);
+
+  const handleResetDefaultView = useCallback((viewName: string) => {
+    const next = { ...viewOverrides };
+    delete next[viewName];
+    setViewOverrides(next);
+  }, [viewOverrides, setViewOverrides]);
+
+  const hasViewOverride = useCallback((viewName: string) => {
+    return !!viewOverrides[viewName];
+  }, [viewOverrides]);
+
+  const allViews = [
+    ...defaultViews.map(v => ({
+      ...v,
+      filters: viewOverrides[v.name] ? { ...v.filters, ...viewOverrides[v.name] } : v.filters,
+    })),
+    ...savedViews.filter((v: any) => !v.archived),
+  ];
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header bar */}
       <div className="flex-shrink-0 px-4 py-3 border-b border-slate-800 bg-slate-950/80 backdrop-blur-sm">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-3">
             <h1 className="text-lg font-bold text-slate-100 tracking-wide">Tasks</h1>
             <span className="text-xs text-slate-500 font-mono">{total} total</span>
           </div>
 
           {/* View switcher + new task */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 flex-wrap">
           {onCreateTask && (
             <button
               onClick={onCreateTask}
-              className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white text-sm font-medium rounded-lg transition-all flex items-center gap-1"
+              className="px-2.5 py-1.5 bg-red-600 hover:bg-red-500 text-white text-sm font-medium rounded-lg transition-all flex items-center gap-1"
             >
               <span>+</span>
               <span className="hidden sm:inline">New Task</span>
@@ -409,20 +440,20 @@ export default function ActivityTaskBoard({
           )}
           <button
               onClick={() => bulkMode ? exitBulkMode() : setBulkMode(true)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1 ${
+              className={`px-2.5 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1 ${
                 bulkMode
                   ? "bg-amber-600 hover:bg-amber-500 text-white"
                   : "border border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600"
               }`}
             >
-              {bulkMode ? "Exit Select" : (
+              {bulkMode ? "Exit" : (
                 <>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2" /><polyline points="9 11 12 14 22 4" /></svg>
-                  <span className="hidden sm:inline">Select</span>
+                  <span className="hidden lg:inline">Select</span>
                 </>
               )}
             </button>
-          <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded-lg p-0.5">
+          <div className="flex items-center gap-0.5 bg-slate-900 border border-slate-800 rounded-lg p-0.5 overflow-x-auto">
             {([
               { key: "list" as ViewMode, icon: "☰", label: "List" },
               { key: "board" as ViewMode, icon: "▦", label: "Board" },
@@ -434,14 +465,14 @@ export default function ActivityTaskBoard({
                 key={key}
                 onClick={() => setViewMode(key)}
                 title={label}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                className={`px-2 py-1.5 rounded-md text-sm font-medium transition-all whitespace-nowrap ${
                   viewMode === key
                     ? "bg-red-500 text-white shadow-sm"
                     : "text-slate-500 hover:text-slate-300"
                 }`}
               >
-                <span className="mr-1">{icon}</span>
-                <span className="hidden sm:inline">{label}</span>
+                <span className="mr-0.5">{icon}</span>
+                <span className="hidden xl:inline">{label}</span>
               </button>
             ))}
           </div>
@@ -463,6 +494,9 @@ export default function ActivityTaskBoard({
           onSaveView={handleSaveView}
           onDeleteView={handleDeleteView}
           config={config}
+          onUpdateDefaultView={handleUpdateDefaultView}
+          onResetDefaultView={handleResetDefaultView}
+          hasViewOverride={hasViewOverride}
         />
       </div>
 

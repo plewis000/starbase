@@ -96,13 +96,30 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Due date filter
+  // Hide old done tasks filter
+  const hideDoneDays = params.get("hide_done_days");
+  if (hideDoneDays) {
+    const days = parseInt(hideDoneDays, 10);
+    if (!isNaN(days) && days > 0) {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - days);
+      query = query.or(`completed_at.is.null,completed_at.gte.${cutoff.toISOString()}`);
+    }
+  }
+
+  // Due date filter (timezone-aware)
   const due = params.get("due");
   if (due) {
-    const now = new Date();
-    const todayStr = now.toISOString().split("T")[0];
-    const endOfWeek = new Date(now);
-    endOfWeek.setDate(now.getDate() + (7 - now.getDay()));
+    const tz = params.get("tz");
+    let todayStr: string;
+    if (tz) {
+      todayStr = new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+    } else {
+      todayStr = new Date().toISOString().split("T")[0];
+    }
+    const todayDate = new Date(todayStr + "T00:00:00");
+    const endOfWeek = new Date(todayDate);
+    endOfWeek.setDate(todayDate.getDate() + (7 - todayDate.getDay()));
     const endOfWeekStr = endOfWeek.toISOString().split("T")[0];
 
     switch (due) {

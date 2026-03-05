@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useRef } from "react";
+import MultiSelect from "@/components/ui/MultiSelect";
 
 export type GroupBy = "none" | "assignee" | "priority" | "status";
 
@@ -13,6 +14,7 @@ export interface ActivityFilters {
   direction?: "asc" | "desc";
   owner?: string;
   groupBy?: GroupBy;
+  hideDoneDays?: number;
 }
 
 export interface SavedView {
@@ -23,8 +25,8 @@ export interface SavedView {
 }
 
 interface ConfigData {
-  statuses?: { id: string; name: string; sort_order: number }[];
-  priorities?: { id: string; name: string; sort_order: number }[];
+  statuses?: { id: string; name: string; color?: string; sort_order: number }[];
+  priorities?: { id: string; name: string; color?: string; sort_order: number }[];
   members?: { user_id: string; display_name?: string; user?: { full_name: string } | null }[];
   [key: string]: any;
 }
@@ -36,43 +38,53 @@ interface Props {
   onSaveView: (view: SavedView) => void;
   onDeleteView?: (viewName: string) => void;
   config?: ConfigData | null;
+  onUpdateDefaultView?: (viewName: string, filters: Partial<ActivityFilters>) => void;
+  onResetDefaultView?: (viewName: string) => void;
+  hasViewOverride?: (viewName: string) => boolean;
 }
 
-const FALLBACK_STATUS_OPTIONS = [
-  { label: "All", value: "All" },
-  { label: "To Do", value: "To Do" },
-  { label: "In Progress", value: "In Progress" },
-  { label: "Blocked", value: "Blocked" },
-  { label: "Done", value: "Done" },
-  { label: "Someday", value: "Someday" },
-];
+const STATUS_COLORS: Record<string, string> = {
+  "To Do": "#64748b",
+  "In Progress": "#3b82f6",
+  "Blocked": "#ef4444",
+  "Done": "#22c55e",
+  "Someday": "#a855f7",
+};
 
-const FALLBACK_PRIORITY_OPTIONS = [
-  { label: "All", value: "All" },
-  { label: "Urgent", value: "Urgent" },
-  { label: "High", value: "High" },
-  { label: "Medium", value: "Medium" },
-  { label: "Low", value: "Low" },
-];
+const PRIORITY_COLORS: Record<string, string> = {
+  "Urgent": "#ef4444",
+  "High": "#f97316",
+  "Medium": "#eab308",
+  "Low": "#64748b",
+};
 
-function buildStatusOptions(config?: ConfigData | null) {
-  if (!config?.statuses?.length) return FALLBACK_STATUS_OPTIONS;
-  return [
-    { label: "All", value: "All" },
-    ...[...config.statuses]
-      .sort((a, b) => a.sort_order - b.sort_order)
-      .map((s) => ({ label: s.name, value: s.name })),
-  ];
+function buildStatusMultiOptions(config?: ConfigData | null) {
+  if (!config?.statuses?.length) {
+    return [
+      { label: "To Do", value: "To Do", color: STATUS_COLORS["To Do"] },
+      { label: "In Progress", value: "In Progress", color: STATUS_COLORS["In Progress"] },
+      { label: "Blocked", value: "Blocked", color: STATUS_COLORS["Blocked"] },
+      { label: "Done", value: "Done", color: STATUS_COLORS["Done"] },
+      { label: "Someday", value: "Someday", color: STATUS_COLORS["Someday"] },
+    ];
+  }
+  return [...config.statuses]
+    .sort((a, b) => a.sort_order - b.sort_order)
+    .map((s) => ({ label: s.name, value: s.name, color: s.color || STATUS_COLORS[s.name] }));
 }
 
-function buildPriorityOptions(config?: ConfigData | null) {
-  if (!config?.priorities?.length) return FALLBACK_PRIORITY_OPTIONS;
-  return [
-    { label: "All", value: "All" },
-    ...[...config.priorities]
-      .sort((a, b) => a.sort_order - b.sort_order)
-      .map((p) => ({ label: p.name, value: p.name })),
-  ];
+function buildPriorityMultiOptions(config?: ConfigData | null) {
+  if (!config?.priorities?.length) {
+    return [
+      { label: "Urgent", value: "Urgent", color: PRIORITY_COLORS["Urgent"] },
+      { label: "High", value: "High", color: PRIORITY_COLORS["High"] },
+      { label: "Medium", value: "Medium", color: PRIORITY_COLORS["Medium"] },
+      { label: "Low", value: "Low", color: PRIORITY_COLORS["Low"] },
+    ];
+  }
+  return [...config.priorities]
+    .sort((a, b) => a.sort_order - b.sort_order)
+    .map((p) => ({ label: p.name, value: p.name, color: p.color || PRIORITY_COLORS[p.name] }));
 }
 
 const DUE_OPTIONS = [
@@ -98,11 +110,28 @@ const GROUP_BY_OPTIONS = [
   { label: "Assignee", value: "assignee" },
 ];
 
+const HIDE_DONE_OPTIONS = [
+  { label: "Show All", value: "0" },
+  { label: "> 7 days", value: "7" },
+  { label: "> 14 days", value: "14" },
+  { label: "> 30 days", value: "30" },
+];
+
 const EMOJI_PICKS = ["📋", "🔴", "📅", "📆", "🔥", "⭐", "🎯", "🏷️", "👤", "🚀", "💡", "🐛", "📌", "⚡", "🎨", "🔧"];
 
-export default function ActivityFilterBar({ filters, onFilterChange, savedViews, onSaveView, onDeleteView, config }: Props) {
-  const statusOptions = buildStatusOptions(config);
-  const priorityOptions = buildPriorityOptions(config);
+export default function ActivityFilterBar({
+  filters,
+  onFilterChange,
+  savedViews,
+  onSaveView,
+  onDeleteView,
+  config,
+  onUpdateDefaultView,
+  onResetDefaultView,
+  hasViewOverride,
+}: Props) {
+  const statusOptions = buildStatusMultiOptions(config);
+  const priorityOptions = buildPriorityMultiOptions(config);
   const [activeView, setActiveView] = useState<string | null>("All Tasks");
   const [expanded, setExpanded] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
@@ -111,9 +140,23 @@ export default function ActivityFilterBar({ filters, onFilterChange, savedViews,
   const [editingView, setEditingView] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editIcon, setEditIcon] = useState("");
+  const [viewMenuOpen, setViewMenuOpen] = useState<string | null>(null);
+  const viewMenuRef = useRef<HTMLDivElement>(null);
   const searchTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  const update = useCallback((key: keyof ActivityFilters, value: string) => {
+  // Close view menu on outside click
+  React.useEffect(() => {
+    if (!viewMenuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (viewMenuRef.current && !viewMenuRef.current.contains(e.target as Node)) {
+        setViewMenuOpen(null);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [viewMenuOpen]);
+
+  const update = useCallback((key: keyof ActivityFilters, value: string | number | undefined) => {
     const next = { ...filters, [key]: value };
     setActiveView(null);
     onFilterChange(next);
@@ -153,7 +196,6 @@ export default function ActivityFilterBar({ filters, onFilterChange, savedViews,
 
   const handleSaveEdit = useCallback(() => {
     if (!editName.trim() || !editingView) return;
-    // Delete old view and save renamed one
     onDeleteView?.(editingView);
     const view = savedViews.find((v) => v.name === editingView);
     if (view) {
@@ -161,6 +203,20 @@ export default function ActivityFilterBar({ filters, onFilterChange, savedViews,
     }
     setEditingView(null);
   }, [editName, editIcon, editingView, savedViews, onDeleteView, onSaveView]);
+
+  // Parse comma-separated filter string to array
+  const statusSelected = filters.status && filters.status !== "All" ? filters.status.split(",") : [];
+  const prioritySelected = filters.priority && filters.priority !== "All" ? filters.priority.split(",") : [];
+
+  const handleStatusChange = useCallback((selected: string[]) => {
+    const value = selected.length === 0 ? "All" : selected.join(",");
+    update("status", value);
+  }, [update]);
+
+  const handlePriorityChange = useCallback((selected: string[]) => {
+    const value = selected.length === 0 ? "All" : selected.join(",");
+    update("priority", value);
+  }, [update]);
 
   return (
     <div className="space-y-2">
@@ -188,26 +244,68 @@ export default function ActivityFilterBar({ filters, onFilterChange, savedViews,
                 <button onClick={handleSaveEdit} className="text-[10px] text-green-400 px-1">OK</button>
               </div>
             ) : (
-              <button
-                onClick={() => applyView(view)}
-                onDoubleClick={() => handleEditView(view)}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all border ${
-                  activeView === view.name
-                    ? "bg-crimson-900/30 border-crimson-700 text-crimson-300"
-                    : "bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-300 hover:border-slate-700"
-                }`}
-              >
-                <span>{view.icon}</span>
-                {view.name}
-                {!view.isDefault && onDeleteView && (
-                  <span
-                    onClick={(e) => { e.stopPropagation(); onDeleteView(view.name); }}
-                    className="hidden group-hover:inline ml-1 text-slate-600 hover:text-red-400 cursor-pointer"
-                  >
-                    ×
-                  </span>
+              <div className="flex items-center">
+                <button
+                  onClick={() => applyView(view)}
+                  onDoubleClick={() => handleEditView(view)}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all border ${
+                    activeView === view.name
+                      ? "bg-crimson-900/30 border-crimson-700 text-crimson-300"
+                      : "bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-300 hover:border-slate-700"
+                  }`}
+                >
+                  <span>{view.icon}</span>
+                  {view.name}
+                  {!view.isDefault && onDeleteView && (
+                    <span
+                      onClick={(e) => { e.stopPropagation(); onDeleteView(view.name); }}
+                      className="hidden group-hover:inline ml-1 text-slate-600 hover:text-red-400 cursor-pointer"
+                    >
+                      ×
+                    </span>
+                  )}
+                </button>
+
+                {/* Default view context menu trigger */}
+                {view.isDefault && onUpdateDefaultView && (
+                  <div className="relative">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setViewMenuOpen(viewMenuOpen === view.name ? null : view.name); }}
+                      className="hidden group-hover:flex items-center justify-center w-4 h-4 -ml-1 text-[10px] text-slate-600 hover:text-slate-300 transition-colors"
+                      title="Customize view"
+                    >
+                      ⋯
+                    </button>
+                    {viewMenuOpen === view.name && (
+                      <div
+                        ref={viewMenuRef}
+                        className="absolute z-50 top-full right-0 mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 min-w-[180px]"
+                      >
+                        <button
+                          onClick={() => {
+                            onUpdateDefaultView(view.name, { ...filters, search: undefined });
+                            setViewMenuOpen(null);
+                          }}
+                          className="w-full text-left px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-700 transition-colors"
+                        >
+                          Save current filters to this view
+                        </button>
+                        {hasViewOverride?.(view.name) && onResetDefaultView && (
+                          <button
+                            onClick={() => {
+                              onResetDefaultView(view.name);
+                              setViewMenuOpen(null);
+                            }}
+                            className="w-full text-left px-3 py-1.5 text-xs text-slate-400 hover:bg-slate-700 transition-colors"
+                          >
+                            Reset to default
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 )}
-              </button>
+              </div>
             )}
           </div>
         ))}
@@ -291,10 +389,21 @@ export default function ActivityFilterBar({ filters, onFilterChange, savedViews,
       {/* Expanded filters */}
       {expanded && (
         <div className="space-y-2">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <FilterSelect label="Status" value={filters.status || "All"} options={statusOptions} onChange={(v) => update("status", v)} />
-            <FilterSelect label="Priority" value={filters.priority || "All"} options={priorityOptions} onChange={(v) => update("priority", v)} />
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+            <MultiSelect
+              label="Status"
+              options={statusOptions}
+              selected={statusSelected}
+              onChange={handleStatusChange}
+            />
+            <MultiSelect
+              label="Priority"
+              options={priorityOptions}
+              selected={prioritySelected}
+              onChange={handlePriorityChange}
+            />
             <FilterSelect label="Due" value={filters.due || "All"} options={DUE_OPTIONS} onChange={(v) => update("due", v)} />
+            <FilterSelect label="Hide Done" value={String(filters.hideDoneDays || 0)} options={HIDE_DONE_OPTIONS} onChange={(v) => update("hideDoneDays", parseInt(v, 10) || undefined)} />
             <div className="flex gap-1">
               <div className="flex-1">
                 <FilterSelect label="Sort" value={filters.sort || "due_date"} options={SORT_OPTIONS} onChange={(v) => update("sort", v)} />

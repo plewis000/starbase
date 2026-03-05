@@ -13,8 +13,9 @@ export function todayInTimezone(tz: string): Date {
     day: "2-digit",
   });
   const parts = formatter.format(new Date()); // "2026-03-04"
-  // Parse as UTC midnight to avoid local timezone shifts
-  return new Date(parts + "T00:00:00Z");
+  // Parse as local midnight so dateKey() (which uses local getters) stays consistent
+  const [y, m, d] = parts.split("-").map(Number);
+  return new Date(y, m - 1, d);
 }
 
 /** Format a date string for display in a specific timezone. */
