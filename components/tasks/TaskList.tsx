@@ -80,13 +80,9 @@ interface Task {
     icon?: string;
     sort_order: number;
   };
-  assignee?: {
-    id: string;
-    full_name: string;
-    email: string;
-    avatar_url?: string | null;
-  };
-  additional_owners?: UserSummary[];
+  assignee?: UserSummary;
+  owner_ids?: string[];
+  owners?: UserSummary[];
   tags?: Tag[];
   checklist_items?: ChecklistItem[];
 }
@@ -307,8 +303,7 @@ export default function TaskList({
     }
 
     // Check if we need the credit modal
-    const additionalOwnerIds = (task.additional_owners || []).map((o) => o.id);
-    if (needsCreditModal(task.assignee?.id, additionalOwnerIds)) {
+    if (needsCreditModal(task.owner_ids || [])) {
       setCreditModal({ open: true, task });
       return;
     }
@@ -367,8 +362,7 @@ export default function TaskList({
         <CompletionCreditModal
           open={creditModal.open}
           taskTitle={creditModal.task.title}
-          assigneeId={creditModal.task.assignee?.id}
-          additionalOwnerIds={(creditModal.task.additional_owners || []).map((o) => o.id)}
+          ownerIds={creditModal.task.owner_ids || []}
           currentUserId={currentUserId}
           members={members}
           onConfirm={(creditedTo) => {
@@ -448,26 +442,26 @@ export default function TaskList({
               onQuickComplete={handleQuickComplete}
               isSelected={selectedTaskId === task.id}
               members={members}
-              onOwnersChanged={async (taskId, ownerIds) => {
+              onOwnersChanged={async (taskId, newOwnerIds) => {
                 // Optimistic update
                 setTasks((prev) =>
                   prev.map((t) => {
                     if (t.id !== taskId) return t;
-                    const nextOwners = ownerIds
+                    const nextOwners = newOwnerIds
                       .map((id) => {
                         const m = members.find((mm) => mm.user_id === id);
                         if (!m) return null;
                         return { id, full_name: m.user?.full_name || m.display_name || id, avatar_url: m.user?.avatar_url || null };
                       })
                       .filter(Boolean) as UserSummary[];
-                    return { ...t, additional_owners: nextOwners };
+                    return { ...t, owner_ids: newOwnerIds, owners: nextOwners, assignee: nextOwners[0] || undefined };
                   })
                 );
                 try {
                   const res = await fetch(`/api/tasks/${taskId}`, {
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ additional_owners: ownerIds }),
+                    body: JSON.stringify({ owner_ids: newOwnerIds }),
                   });
                   if (!res.ok) throw new Error("Update failed");
                   onTaskUpdated?.();

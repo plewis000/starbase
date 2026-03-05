@@ -86,11 +86,12 @@ export interface Task {
     name: string;
     icon?: string;
   };
+  owner_ids?: string[];
+  owners?: UserSummary[];
   assignee?: {
     id: string;
     full_name: string;
   };
-  additional_owners?: UserSummary[];
   completed_by?: string;
   credited_to?: string[];
   creator?: {
@@ -116,8 +117,8 @@ export interface TaskFormData {
   due_date?: string;
   status_id?: string;
   priority_id?: string;
+  owner_ids?: string[];
   assigned_to?: string;
-  additional_owners?: string[];
   recurrence_rule?: string;
   checklist_items?: ChecklistItem[];
 }

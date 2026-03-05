@@ -333,12 +333,12 @@ async function evaluateTrigger(
   switch (achievement.trigger_type) {
     case "task_complete":
     case "task_count": {
-      // Count tasks the user is credited for (completed_by, credited_to, or legacy fallback)
+      // Count tasks the user is credited for (completed_by, credited_to, or owner_ids fallback)
       const { count } = await supabase
         .schema("platform")
         .from("tasks")
         .select("*", { count: "exact", head: true })
-        .or(`completed_by.eq.${userId},credited_to.cs.{${userId}},and(completed_by.is.null,assigned_to.eq.${userId})`)
+        .or(`completed_by.eq.${userId},credited_to.cs.{${userId}},and(completed_by.is.null,owner_ids.cs.{${userId}})`)
         .not("completed_at", "is", null);
       return (count || 0) >= threshold;
     }

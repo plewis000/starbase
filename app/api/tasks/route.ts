@@ -86,13 +86,12 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Owner filter: includes primary assignee AND additional owners from metadata
+  // Owner filter: uses owner_ids array contains
   const owner = params.get("owner");
   if (owner) {
     const ownerId = owner === "me" ? user.id : owner;
     if (isValidUUID(ownerId)) {
-      const metaFilter = JSON.stringify({ additional_owners: [ownerId] });
-      query = query.or(`assigned_to.eq.${ownerId},metadata.cs.${metaFilter}`);
+      query = query.contains("owner_ids", [ownerId]);
     }
   }
 
@@ -279,7 +278,7 @@ export async function POST(request: NextRequest) {
     priority_id,
     task_type_id,
     assigned_to,
-    additional_owners,
+    owner_ids: rawOwnerIds,
     due_date,
     schedule_date,
     effort_level_id,
@@ -291,21 +290,18 @@ export async function POST(request: NextRequest) {
     checklist_items,
   } = body;
 
-  // Verify all assignees are in the same household
+  // Verify all owners are in the same household
   const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
-  if (assigned_to && assigned_to !== user.id) {
+
+  // Build owner_ids: prefer owner_ids, fall back to assigned_to, default to [current_user]
+  let ownerIds: string[] = [];
+  if (rawOwnerIds && Array.isArray(rawOwnerIds) && rawOwnerIds.length > 0) {
+    ownerIds = rawOwnerIds.filter((id: unknown) => typeof id === "string" && memberIds.includes(id as string));
+  } else if (assigned_to) {
     if (!memberIds.includes(assigned_to)) {
       return NextResponse.json({ error: "Cannot assign to user outside your household" }, { status: 403 });
     }
-  }
-  // Validate additional owners
-  const validAdditionalOwners: string[] = [];
-  if (additional_owners && Array.isArray(additional_owners)) {
-    for (const ownerId of additional_owners) {
-      if (typeof ownerId === "string" && memberIds.includes(ownerId)) {
-        validAdditionalOwners.push(ownerId);
-      }
-    }
+    ownerIds = [assigned_to];
   }
 
   // Validate title
@@ -342,7 +338,8 @@ export async function POST(request: NextRequest) {
       status_id: effectiveStatusId,
       priority_id: priority_id || null,
       task_type_id: task_type_id || null,
-      assigned_to: assigned_to || null,
+      assigned_to: ownerIds[0] || null,
+      owner_ids: ownerIds,
       created_by: user.id,
       due_date: due_date || null,
       schedule_date: schedule_date || null,
@@ -351,9 +348,6 @@ export async function POST(request: NextRequest) {
       recurrence_rule: recurrence_rule || null,
       parent_task_id: parent_task_id || null,
       source: "manual",
-      metadata: validAdditionalOwners.length > 0
-        ? { additional_owners: validAdditionalOwners }
-        : null,
     })
     .select("*")
     .single();

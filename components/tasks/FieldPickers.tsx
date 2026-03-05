@@ -191,6 +191,58 @@ export function AssigneePicker({
   );
 }
 
+// ─── Owner Picker (multi-select pill toggles) ────────────────────────────
+
+export function OwnerPicker({
+  members,
+  selectedIds,
+  onChange,
+  disabled,
+}: {
+  members: HouseholdMember[];
+  selectedIds: string[];
+  onChange: (ids: string[]) => void;
+  disabled?: boolean;
+}) {
+  const toggle = (userId: string) => {
+    if (disabled) return;
+    if (selectedIds.includes(userId)) {
+      onChange(selectedIds.filter((id) => id !== userId));
+    } else {
+      onChange([...selectedIds, userId]);
+    }
+  };
+
+  return (
+    <div className={`flex flex-wrap gap-1.5 ${disabled ? "opacity-60 pointer-events-none" : ""}`}>
+      {members.map((m) => {
+        const name = m.user?.full_name || m.display_name || "Member";
+        const isSelected = selectedIds.includes(m.user_id);
+        return (
+          <button
+            key={m.user_id}
+            type="button"
+            onClick={() => toggle(m.user_id)}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+              isSelected
+                ? "bg-red-400/20 text-red-300 ring-2 ring-red-400/60 border-transparent"
+                : "bg-slate-700 text-slate-300 border-slate-600 hover:ring-1 hover:ring-slate-500"
+            }`}
+          >
+            <span className="w-5 h-5 rounded-full bg-slate-600 text-[9px] font-bold flex items-center justify-center text-slate-300">
+              {getInitials(name)}
+            </span>
+            {isSelected ? "- " : "+ "}{name}
+          </button>
+        );
+      })}
+      {members.length === 0 && (
+        <span className="text-xs text-slate-500 italic">No members available</span>
+      )}
+    </div>
+  );
+}
+
 // ─── Tag Picker (multi-select toggle) ────────────────────────────────────
 
 export function TagPicker({

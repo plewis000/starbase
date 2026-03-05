@@ -6,8 +6,11 @@ import { UserSummary } from "@/lib/types";
 interface CompletionCreditModalProps {
   open: boolean;
   taskTitle: string;
+  ownerIds: string[];
+  /** @deprecated Use ownerIds instead */
   assigneeId?: string;
-  additionalOwnerIds: string[];
+  /** @deprecated Use ownerIds instead */
+  additionalOwnerIds?: string[];
   currentUserId: string;
   members: { user_id: string; user?: UserSummary | null; display_name?: string }[];
   onConfirm: (creditedTo: string[]) => void;
@@ -22,6 +25,7 @@ const getInitials = (name?: string): string => {
 export default function CompletionCreditModal({
   open,
   taskTitle,
+  ownerIds,
   assigneeId,
   additionalOwnerIds,
   currentUserId,
@@ -38,10 +42,12 @@ export default function CompletionCreditModal({
 
   if (!open) return null;
 
-  // Build candidate list: assignee + additional_owners + current user (deduplicated)
+  // Build candidate list from ownerIds (with legacy fallback) + current user
   const candidateIds = new Set<string>();
-  if (assigneeId) candidateIds.add(assigneeId);
-  for (const id of additionalOwnerIds) candidateIds.add(id);
+  const effectiveOwnerIds = ownerIds && ownerIds.length > 0
+    ? ownerIds
+    : [...(assigneeId ? [assigneeId] : []), ...(additionalOwnerIds || [])];
+  for (const id of effectiveOwnerIds) candidateIds.add(id);
   candidateIds.add(currentUserId);
 
   const candidates = Array.from(candidateIds).map((id) => {
@@ -53,8 +59,7 @@ export default function CompletionCreditModal({
     };
   });
 
-  const completerIsOwner = candidateIds.has(currentUserId) &&
-    (currentUserId === assigneeId || additionalOwnerIds.includes(currentUserId));
+  const completerIsOwner = effectiveOwnerIds.includes(currentUserId);
 
   // Case 1: Solo owner or unassigned — shouldn't show modal (caller handles this)
   // Case 2: 2 candidates, completer IS an owner → 3 quick buttons
@@ -184,12 +189,7 @@ export default function CompletionCreditModal({
  * Returns false for solo-owner/unassigned tasks (auto-credit completer).
  */
 export function needsCreditModal(
-  assigneeId: string | undefined,
-  additionalOwnerIds: string[],
+  ownerIds: string[],
 ): boolean {
-  const allOwnerIds = new Set<string>();
-  if (assigneeId) allOwnerIds.add(assigneeId);
-  for (const id of additionalOwnerIds) allOwnerIds.add(id);
-  // Need modal if there are 2+ distinct owners
-  return allOwnerIds.size >= 2;
+  return ownerIds.length >= 2;
 }

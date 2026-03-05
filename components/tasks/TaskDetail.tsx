@@ -11,7 +11,6 @@ import {
   InlinePriorityPicker,
   InlineTypePicker,
   InlineDatePicker,
-  InlineAssigneePicker,
   InlineTagEditor,
 } from "./InlineFieldEditors";
 import RecurrenceEditor from "./RecurrenceEditor";
@@ -236,10 +235,7 @@ export default function TaskDetail({
     );
   }
 
-  const allOwners = [
-    ...(task.assignee ? [task.assignee] : []),
-    ...(task.additional_owners || []),
-  ];
+  const allOwners = task.owners || (task.assignee ? [task.assignee] : []);
 
   return (
     <div className="bg-slate-900 border-l border-slate-800 w-full h-full overflow-y-auto">
@@ -278,8 +274,7 @@ export default function TaskDetail({
           <CompletionCreditModal
             open={creditModal.open}
             taskTitle={task.title}
-            assigneeId={task.assignee?.id}
-            additionalOwnerIds={(task.additional_owners || []).map((o: any) => typeof o === "string" ? o : o.id)}
+            ownerIds={task.owner_ids || []}
             currentUserId={currentUserId}
             members={config.members}
             onConfirm={async (creditedTo) => {
@@ -318,8 +313,7 @@ export default function TaskDetail({
               onConfigAdded={handleConfigAdded}
               onBeforeUpdate={(statusId, statusName) => {
                 if (statusName === "Done" && task) {
-                  const additionalOwnerIds = (task.additional_owners || []).map((o: any) => typeof o === "string" ? o : o.id);
-                  if (needsCreditModal(task.assignee?.id, additionalOwnerIds)) {
+                  if (needsCreditModal(task.owner_ids || [])) {
                     setCreditModal({ open: true, doneStatusId: statusId });
                     return false; // Cancel default PATCH — modal will handle it
                   }
@@ -380,87 +374,64 @@ export default function TaskDetail({
             </div>
           </div>
 
-          {/* Assignee — inline editable */}
+          {/* Owners — multi-select toggle picker */}
           {config && (
-            <div className="flex items-center gap-3">
-              <span className="text-slate-500 text-sm">👤</span>
-              <div className="flex-1">
-                <p className="text-xs text-slate-400 mb-1">Assigned to</p>
-                <InlineAssigneePicker
-                  taskId={task.id}
-                  currentValue={task.assignee?.id}
-                  members={config.members}
-                  onUpdated={handleFieldUpdated}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Additional owners — editable toggle picker */}
-          {config && config.members.length > 1 && (
             <div className="flex items-start gap-3">
               <span className="text-slate-500 text-sm mt-1">👥</span>
               <div className="flex-1">
-                <p className="text-xs text-slate-400 mb-1.5">Additional owners</p>
+                <p className="text-xs text-slate-400 mb-1.5">Owners</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {config.members
-                    .filter((m: any) => m.user_id !== task.assignee?.id)
-                    .map((m: any) => {
-                      const name = m.user?.full_name || m.display_name || m.user_id;
-                      const currentOwners = task.additional_owners || [];
-                      const isAdditionalOwner = currentOwners.some((o: any) =>
-                        typeof o === "string" ? o === m.user_id : o.id === m.user_id
-                      );
-                      return (
-                        <button
-                          key={m.user_id}
-                          onClick={async () => {
-                            const currentIds = currentOwners.map((o: any) =>
-                              typeof o === "string" ? o : o.id
-                            );
-                            const nextIds = isAdditionalOwner
-                              ? currentIds.filter((id: string) => id !== m.user_id)
-                              : [...currentIds, m.user_id];
-                            // Build UserSummary[] for optimistic local state
-                            const nextOwners = nextIds
-                              .map((id: string) => {
-                                const member = config.members.find((cm: any) => cm.user_id === id);
-                                if (!member) return null;
-                                return {
-                                  id,
-                                  full_name: member.user?.full_name || member.display_name || id,
-                                  email: member.user?.email,
-                                  avatar_url: member.user?.avatar_url || null,
-                                };
-                              })
-                              .filter(Boolean);
-                            const snapshot = { ...task };
-                            setTask((prev) => prev ? { ...prev, additional_owners: nextOwners } as Task : prev);
-                            try {
-                              const response = await fetch(`/api/tasks/${task.id}`, {
-                                method: "PATCH",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ additional_owners: nextIds }),
-                              });
-                              if (!response.ok) throw new Error("Update failed");
-                              onTaskUpdated?.();
-                            } catch {
-                              setTask(snapshot);
-                            }
-                          }}
-                          className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium border transition-all ${
-                            isAdditionalOwner
-                              ? "bg-crimson-900/30 border-crimson-700 text-crimson-300"
-                              : "bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600"
-                          }`}
-                        >
-                          <span className="w-4 h-4 rounded-full bg-slate-600 flex items-center justify-center text-[8px] font-semibold flex-shrink-0">
-                            {getInitials(name)}
-                          </span>
-                          {isAdditionalOwner ? "- " : "+ "}{name.split(" ")[0]}
-                        </button>
-                      );
-                    })}
+                  {config.members.map((m: any) => {
+                    const name = m.user?.full_name || m.display_name || m.user_id;
+                    const currentOwnerIds: string[] = task.owner_ids || [];
+                    const isOwner = currentOwnerIds.includes(m.user_id);
+                    return (
+                      <button
+                        key={m.user_id}
+                        onClick={async () => {
+                          const nextIds = isOwner
+                            ? currentOwnerIds.filter((id: string) => id !== m.user_id)
+                            : [...currentOwnerIds, m.user_id];
+                          // Build UserSummary[] for optimistic local state
+                          const nextOwners = nextIds
+                            .map((id: string) => {
+                              const member = config.members.find((cm: any) => cm.user_id === id);
+                              if (!member) return null;
+                              return {
+                                id,
+                                full_name: member.user?.full_name || member.display_name || id,
+                                email: member.user?.email,
+                                avatar_url: member.user?.avatar_url || null,
+                              };
+                            })
+                            .filter(Boolean);
+                          const snapshot = { ...task };
+                          setTask((prev) => prev ? { ...prev, owner_ids: nextIds, owners: nextOwners, assignee: nextOwners[0] || null } as Task : prev);
+                          try {
+                            const response = await fetch(`/api/tasks/${task.id}`, {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ owner_ids: nextIds }),
+                            });
+                            if (!response.ok) throw new Error("Update failed");
+                            onTaskUpdated?.();
+                          } catch {
+                            setTask(snapshot);
+                          }
+                        }}
+                        className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium border transition-all ${
+                          isOwner
+                            ? "bg-crimson-900/30 border-crimson-700 text-crimson-300"
+                            : "bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600"
+                        }`}
+                      >
+                        <span className="w-4 h-4 rounded-full bg-slate-600 flex items-center justify-center text-[8px] font-semibold flex-shrink-0">
+                          {getInitials(name)}
+                        </span>
+                        {isOwner ? "- " : "+ "}{name.split(" ")[0]}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>

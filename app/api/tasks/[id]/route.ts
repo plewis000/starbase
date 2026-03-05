@@ -214,16 +214,20 @@ export async function PATCH(
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
   const updateFields: Record<string, unknown> = {};
 
-  // Handle additional_owners update via metadata
-  if ("additional_owners" in body && Array.isArray(body.additional_owners)) {
-    const validOwners = body.additional_owners.filter(
+  // Handle owner_ids update
+  if ("owner_ids" in body && Array.isArray(body.owner_ids)) {
+    const validOwners = body.owner_ids.filter(
       (id: unknown) => typeof id === "string" && memberIds.includes(id as string)
     );
+    updateFields.owner_ids = validOwners;
+    // Sync assigned_to for backward compat (trigger also handles this, but be explicit)
+    updateFields.assigned_to = validOwners[0] || null;
+    // Strip additional_owners from metadata if present
     const existingMetadata = (currentTask.metadata as Record<string, unknown>) || {};
-    updateFields.metadata = {
-      ...existingMetadata,
-      additional_owners: validOwners,
-    };
+    if (existingMetadata.additional_owners) {
+      const { additional_owners: _, ...cleanMeta } = existingMetadata;
+      updateFields.metadata = cleanMeta;
+    }
   }
 
   // Only include fields that were actually sent
@@ -286,7 +290,7 @@ export async function PATCH(
           );
         }
       }
-      // Merge metadata, but strip additional_owners (must go through validated path)
+      // Merge metadata, strip additional_owners (migrated to owner_ids)
       if (field === "metadata") {
         const rawMeta = { ...body.metadata };
         delete rawMeta.additional_owners;
@@ -336,9 +340,10 @@ export async function PATCH(
     if (newStatus?.name === "Done") {
       updateFields.completed_at = new Date().toISOString();
       updateFields.completed_by = user.id;
-      // If credited_to wasn't explicitly provided, default to [completer]
+      // If credited_to wasn't explicitly provided, default to owner_ids (or [completer])
       if (!updateFields.credited_to) {
-        updateFields.credited_to = [user.id];
+        const taskOwnerIds: string[] = (updateFields.owner_ids as string[]) || currentTask.owner_ids || [];
+        updateFields.credited_to = taskOwnerIds.length > 0 ? taskOwnerIds : [user.id];
       }
       isCompletingTask = true;
     } else if (currentTask.completed_at) {
@@ -381,8 +386,18 @@ export async function PATCH(
     );
   }
 
-  // Notify on assignment change (non-blocking)
-  if (
+  // Notify on owner change (non-blocking)
+  if (updateFields.owner_ids && Array.isArray(updateFields.owner_ids)) {
+    const oldOwnerIds: string[] = currentTask.owner_ids || [];
+    const newOwnerIds = updateFields.owner_ids as string[];
+    // Notify newly added owners
+    for (const ownerId of newOwnerIds) {
+      if (!oldOwnerIds.includes(ownerId) && ownerId !== user.id) {
+        notifyTaskAssigned(supabase, updatedTask.title, ownerId, user.id, id)
+          .catch((err) => console.error("Assignment notification error:", err));
+      }
+    }
+  } else if (
     updateFields.assigned_to &&
     updateFields.assigned_to !== currentTask.assigned_to
   ) {

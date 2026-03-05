@@ -42,7 +42,7 @@ export async function PATCH(request: NextRequest) {
   }
 
   // Build the update object from allowed fields
-  const allowedFields = ["status_id", "priority_id", "assigned_to", "due_date", "task_type_id", "effort_level_id"];
+  const allowedFields = ["status_id", "priority_id", "assigned_to", "owner_ids", "due_date", "task_type_id", "effort_level_id"];
   const uuidFields = ["status_id", "priority_id", "assigned_to", "task_type_id", "effort_level_id"];
   const updateData: Record<string, unknown> = {};
   for (const field of allowedFields) {
@@ -61,6 +61,13 @@ export async function PATCH(request: NextRequest) {
   // Validate assigned_to is a household member
   if (updateData.assigned_to && typeof updateData.assigned_to === "string" && !memberIds.includes(updateData.assigned_to)) {
     return NextResponse.json({ error: "Cannot assign to user outside your household" }, { status: 403 });
+  }
+
+  // Validate owner_ids are all household members
+  if (updateData.owner_ids && Array.isArray(updateData.owner_ids)) {
+    const validOwners = (updateData.owner_ids as string[]).filter((id) => memberIds.includes(id));
+    updateData.owner_ids = validOwners;
+    updateData.assigned_to = validOwners[0] || null;
   }
 
   updateData.last_touched_at = new Date().toISOString();

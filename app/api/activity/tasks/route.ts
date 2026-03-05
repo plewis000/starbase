@@ -65,13 +65,12 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Owner filter
+  // Owner filter: uses owner_ids array contains
   const owner = params.get("owner");
   if (owner) {
     const ownerId = owner === "me" ? auth.userId : owner;
     if (isValidUUID(ownerId)) {
-      const metaFilter = JSON.stringify({ additional_owners: [ownerId] });
-      query = query.or(`assigned_to.eq.${ownerId},metadata.cs.${metaFilter}`);
+      query = query.contains("owner_ids", [ownerId]);
     }
   }
 

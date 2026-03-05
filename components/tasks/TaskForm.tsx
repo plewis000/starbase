@@ -6,7 +6,7 @@ import DatePicker from "@/components/ui/DatePicker";
 import { useToast } from "@/components/ui/Toast";
 import { useTaskConfig } from "@/hooks/useTaskConfig";
 import { Task, ChecklistItem } from "@/lib/types";
-import { StatusPicker, PriorityPicker, TypePicker, EffortPicker, AssigneePicker, TagPicker } from "./FieldPickers";
+import { StatusPicker, PriorityPicker, TypePicker, EffortPicker, OwnerPicker, TagPicker } from "./FieldPickers";
 import RecurrenceEditor from "./RecurrenceEditor";
 
 interface TaskFormProps {
@@ -28,7 +28,6 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
     statusId: task?.status?.id || task?.status_id || "",
     priorityId: task?.priority?.id || task?.priority_id || "",
     dueDate: task?.due_date || new Date().toISOString().split("T")[0],
-    assignedTo: task?.assignee?.id || "",
     recurrenceRule: task?.recurrence_rule || "",
     taskTypeId: (task as unknown as Record<string, unknown>)?.task_type_id as string || "",
     effortLevelId: (task as unknown as Record<string, unknown>)?.effort_level_id as string || "",
@@ -38,8 +37,8 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
     task?.tags?.map((t) => t.tag_id) || []
   );
 
-  const [selectedOwners, setSelectedOwners] = useState<string[]>(
-    task?.additional_owners?.map((o) => o.id) || []
+  const [selectedOwnerIds, setSelectedOwnerIds] = useState<string[]>(
+    task?.owner_ids || (task?.assignee?.id ? [task.assignee.id] : [])
   );
 
   const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>(
@@ -51,12 +50,6 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
 
   const setField = (field: string, value: string) =>
     setFormData((prev) => ({ ...prev, [field]: value }));
-
-  const handleToggleOwner = (userId: string) => {
-    setSelectedOwners((prev) =>
-      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
-    );
-  };
 
   const handleAddChecklistItem = () => {
     if (!newChecklistItem.trim()) return;
@@ -92,11 +85,10 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
         status_id: formData.statusId || null,
         priority_id: formData.priorityId || null,
         due_date: formData.dueDate || null,
-        assigned_to: formData.assignedTo || null,
+        owner_ids: selectedOwnerIds,
         recurrence_rule: formData.recurrenceRule || null,
         task_type_id: formData.taskTypeId || null,
         effort_level_id: formData.effortLevelId || null,
-        additional_owners: selectedOwners,
         tag_ids: selectedTagIds,
         checklist_items: checklistItems.filter((item) => item.title.trim()).map((item) => item.title.trim()),
       };
@@ -223,57 +215,28 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
         </div>
       </div>
 
-      {/* 6. Assignee pills */}
+      {/* 6. Owners (multi-select) */}
       <div>
-        <label className={SECTION_LABEL}>Assigned To</label>
-        <AssigneePicker
+        <label className={SECTION_LABEL}>
+          Owners
+          {members.length > 1 && (
+            <span className="text-xs text-slate-500 ml-2 font-normal normal-case tracking-normal">
+              Everyone selected gets full XP on completion
+            </span>
+          )}
+        </label>
+        <OwnerPicker
           members={members}
-          value={formData.assignedTo}
-          onChange={(id) => setField("assignedTo", id)}
+          selectedIds={selectedOwnerIds}
+          onChange={setSelectedOwnerIds}
           disabled={submitting}
         />
+        {selectedOwnerIds.length === 0 && (
+          <p className="text-xs text-slate-500 mt-1 italic">
+            No owner — will be unassigned
+          </p>
+        )}
       </div>
-
-      {/* 7. Additional owners toggle pills */}
-      {members.length > 1 && (
-        <div>
-          <label className={SECTION_LABEL}>
-            Additional owners
-            <span className="text-xs text-slate-500 ml-2 font-normal normal-case tracking-normal">
-              Everyone credited gets full XP
-            </span>
-          </label>
-          <div className="flex flex-wrap gap-1.5">
-            {members
-              .filter((m) => m.user_id !== formData.assignedTo)
-              .map((m) => {
-                const name = m.display_name || m.user?.full_name || "Member";
-                const isSelected = selectedOwners.includes(m.user_id);
-                return (
-                  <button
-                    key={m.user_id}
-                    type="button"
-                    onClick={() => handleToggleOwner(m.user_id)}
-                    disabled={submitting}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all disabled:opacity-50 ${
-                      isSelected
-                        ? "bg-red-400/20 text-red-300 ring-2 ring-red-400/60 border-transparent"
-                        : "bg-slate-700 text-slate-300 border-slate-600 hover:ring-1 hover:ring-slate-500"
-                    }`}
-                  >
-                    {isSelected ? "- " : "+ "}
-                    {name}
-                  </button>
-                );
-              })}
-          </div>
-          {selectedOwners.length > 0 && (
-            <p className="text-xs text-slate-500 mt-1">
-              {selectedOwners.length} additional owner{selectedOwners.length !== 1 ? "s" : ""} selected
-            </p>
-          )}
-        </div>
-      )}
 
       {/* 8. Tags toggle pills */}
       {tags.length > 0 && (

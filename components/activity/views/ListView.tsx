@@ -15,6 +15,8 @@ interface Task {
   status_id?: string;
   priority_id?: string;
   assigned_to?: string;
+  owner_ids?: string[];
+  owners?: { id: string; full_name: string; email?: string; avatar_url?: string | null }[];
   task_type_id?: string;
   effort_level_id?: string;
   status?: { id: string; name: string; color?: string; icon?: string; sort_order: number };
@@ -225,9 +227,9 @@ function InlineCellAssignee({
       {open && (
         <div className="absolute top-full left-0 mt-1 z-30 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 min-w-[120px]">
           <button
-            onClick={(e) => { e.stopPropagation(); onUpdate(task.id, { assigned_to: null }); setOpen(false); }}
+            onClick={(e) => { e.stopPropagation(); onUpdate(task.id, { owner_ids: [] }); setOpen(false); }}
             className={`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-700 transition-colors ${
-              !task.assigned_to ? "text-red-400 font-medium" : "text-slate-400 italic"
+              !task.assigned_to && (!task.owner_ids || task.owner_ids.length === 0) ? "text-red-400 font-medium" : "text-slate-400 italic"
             }`}
           >
             Unassigned
@@ -235,12 +237,21 @@ function InlineCellAssignee({
           {members.map((m: any) => {
             const name = m.user?.full_name || m.display_name || m.user_id;
             const userId = m.user_id;
+            const isOwner = (task.owner_ids || []).includes(userId) || userId === task.assigned_to;
             return (
               <button
                 key={userId}
-                onClick={(e) => { e.stopPropagation(); onUpdate(task.id, { assigned_to: userId }); setOpen(false); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const currentIds = task.owner_ids || (task.assigned_to ? [task.assigned_to] : []);
+                  const nextIds = isOwner
+                    ? currentIds.filter((id: string) => id !== userId)
+                    : [...currentIds, userId];
+                  onUpdate(task.id, { owner_ids: nextIds });
+                  setOpen(false);
+                }}
                 className={`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-700 transition-colors flex items-center gap-2 ${
-                  userId === task.assigned_to ? "text-red-400 font-medium" : "text-slate-200"
+                  isOwner ? "text-red-400 font-medium" : "text-slate-200"
                 }`}
               >
                 <div className="w-4 h-4 rounded-full bg-slate-700 flex items-center justify-center text-[7px] font-bold text-slate-300">

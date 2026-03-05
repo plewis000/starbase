@@ -479,7 +479,7 @@ export async function notifyTaskCommented(
 
   const { data: task } = await platform(supabase)
     .from("tasks")
-    .select("created_by, assigned_to")
+    .select("created_by, assigned_to, owner_ids")
     .eq("id", taskId)
     .single();
 
@@ -490,7 +490,11 @@ export async function notifyTaskCommented(
 
   const involvedIds = new Set<string>();
   if (task?.created_by) involvedIds.add(task.created_by);
-  if (task?.assigned_to) involvedIds.add(task.assigned_to);
+  // Add all owners
+  const ownerIds: string[] = task?.owner_ids || [];
+  for (const oid of ownerIds) involvedIds.add(oid);
+  // Fallback to assigned_to if no owner_ids
+  if (ownerIds.length === 0 && task?.assigned_to) involvedIds.add(task.assigned_to);
   if (commenters) {
     for (const c of commenters) {
       involvedIds.add(c.user_id);
@@ -525,13 +529,17 @@ export async function notifyTaskCompleted(
 
   const { data: task } = await platform(supabase)
     .from("tasks")
-    .select("created_by, assigned_to")
+    .select("created_by, assigned_to, owner_ids")
     .eq("id", taskId)
     .single();
 
   const recipients = new Set<string>();
   if (task?.created_by) recipients.add(task.created_by);
-  if (task?.assigned_to) recipients.add(task.assigned_to);
+  // Add all owners
+  const ownerIds: string[] = task?.owner_ids || [];
+  for (const oid of ownerIds) recipients.add(oid);
+  // Fallback to assigned_to if no owner_ids
+  if (ownerIds.length === 0 && task?.assigned_to) recipients.add(task.assigned_to);
   recipients.delete(completerId);
 
   const promises = Array.from(recipients).map((userId) =>

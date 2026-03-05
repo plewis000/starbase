@@ -53,10 +53,11 @@ interface TaskCardProps {
     assignee?: {
       id: string;
       full_name: string;
-      email: string;
+      email?: string;
       avatar_url?: string | null;
     };
-    additional_owners?: UserSummary[];
+    owner_ids?: string[];
+    owners?: UserSummary[];
     tags?: Tag[];
     checklist_items?: ChecklistItem[];
     subtask_progress?: { done: number; total: number };
@@ -130,11 +131,7 @@ export default function TaskCard({
   const displayTags = (task.tags || []).slice(0, 2);
   const hiddenTagsCount = Math.max(0, (task.tags || []).length - 2);
   const isCompleted = !!task.completed_at;
-  const additionalOwners = task.additional_owners || [];
-  const allOwners = [
-    ...(task.assignee ? [task.assignee] : []),
-    ...additionalOwners,
-  ];
+  const allOwners = task.owners || (task.assignee ? [task.assignee] : []);
 
   const [showOwnerPopover, setShowOwnerPopover] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -165,7 +162,7 @@ export default function TaskCard({
 
   const toggleOwner = async (memberId: string) => {
     if (!onOwnersChanged) return;
-    const currentIds = additionalOwners.map((o) => o.id);
+    const currentIds = task.owner_ids || allOwners.map((o) => o.id);
     const nextIds = currentIds.includes(memberId)
       ? currentIds.filter((id) => id !== memberId)
       : [...currentIds, memberId];
@@ -307,29 +304,28 @@ export default function TaskCard({
           {showOwnerPopover && members && members.length > 1 && (
             <div className="absolute right-0 top-full mt-2 bg-slate-900 border border-slate-700 rounded-lg shadow-xl z-50 py-1.5 min-w-[160px]">
               <p className="px-3 py-1 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Owners</p>
-              {members
-                .filter((m) => m.user_id !== task.assignee?.id)
-                .map((m) => {
-                  const name = m.user?.full_name || m.display_name || m.user_id;
-                  const isOwner = additionalOwners.some((o) => o.id === m.user_id);
-                  return (
-                    <button
-                      key={m.user_id}
-                      onClick={(e) => { e.stopPropagation(); toggleOwner(m.user_id); }}
-                      className={`w-full text-left px-3 py-1.5 text-xs flex items-center gap-2 transition-colors ${
-                        isOwner
-                          ? "text-red-300 bg-red-900/20 hover:bg-red-900/30"
-                          : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
-                      }`}
-                    >
-                      <span className="w-4 h-4 rounded-full bg-slate-700 flex items-center justify-center text-[8px] font-semibold flex-shrink-0">
-                        {getInitials(name)}
-                      </span>
-                      <span className="flex-1 truncate">{name.split(" ")[0]}</span>
-                      {isOwner && <span className="text-red-400">✓</span>}
-                    </button>
-                  );
-                })}
+              {members.map((m) => {
+                const name = m.user?.full_name || m.display_name || m.user_id;
+                const currentIds = task.owner_ids || allOwners.map((o) => o.id);
+                const isOwner = currentIds.includes(m.user_id);
+                return (
+                  <button
+                    key={m.user_id}
+                    onClick={(e) => { e.stopPropagation(); toggleOwner(m.user_id); }}
+                    className={`w-full text-left px-3 py-1.5 text-xs flex items-center gap-2 transition-colors ${
+                      isOwner
+                        ? "text-red-300 bg-red-900/20 hover:bg-red-900/30"
+                        : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+                    }`}
+                  >
+                    <span className="w-4 h-4 rounded-full bg-slate-700 flex items-center justify-center text-[8px] font-semibold flex-shrink-0">
+                      {getInitials(name)}
+                    </span>
+                    <span className="flex-1 truncate">{name.split(" ")[0]}</span>
+                    {isOwner && <span className="text-red-400">✓</span>}
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
