@@ -13,6 +13,7 @@ import {
   InlineAssigneePicker,
   InlineTagEditor,
 } from "./InlineFieldEditors";
+import RecurrenceEditor from "./RecurrenceEditor";
 import { useTaskConfig } from "@/hooks/useTaskConfig";
 import {
   Task,
@@ -119,6 +120,7 @@ export default function TaskDetail({
   const [error, setError] = useState("");
   const [editingTitle, setEditingTitle] = useState(false);
   const [editingDescription, setEditingDescription] = useState(false);
+  const [editingRecurrence, setEditingRecurrence] = useState(false);
   const [showActivityLog, setShowActivityLog] = useState(false);
 
   const { config, refresh: refreshConfig, resolveStatusName, resolvePriorityName, resolveMemberName } = useTaskConfig();
@@ -372,28 +374,55 @@ export default function TaskDetail({
             </div>
           )}
 
-          {/* Recurrence info */}
-          {task.recurrence_rule && (
-            <div className="flex items-center gap-3">
-              <span className="text-slate-500 text-sm">🔄</span>
-              <div>
-                <p className="text-xs text-slate-400">Recurrence</p>
-                <p className="text-sm font-medium text-slate-100">
-                  {describeRRule(task.recurrence_rule)}
-                  {task.recurrence_context?.occurrence_count && (
-                    <span className="text-xs text-slate-400 ml-2">
-                      (occurrence #{task.recurrence_context.occurrence_count})
-                    </span>
-                  )}
-                </p>
-                {task.recurrence_context?.next_due_date && (
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Next: {formatRelativeDate(task.recurrence_context.next_due_date)}
+          {/* Recurrence — inline editable */}
+          <div className="flex items-start gap-3">
+            <span className="text-slate-500 text-sm mt-0.5">🔄</span>
+            <div className="flex-1">
+              <p className="text-xs text-slate-400 mb-1">Recurrence</p>
+              {editingRecurrence ? (
+                <div className="space-y-3">
+                  <RecurrenceEditor
+                    value={task.recurrence_rule}
+                    onChange={(rule) => {
+                      handleOptimisticUpdate({ recurrence_rule: rule || null });
+                    }}
+                  />
+                  <button
+                    onClick={() => setEditingRecurrence(false)}
+                    className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+                  >
+                    Done
+                  </button>
+                </div>
+              ) : task.recurrence_rule ? (
+                <div
+                  onClick={() => setEditingRecurrence(true)}
+                  className="cursor-pointer hover:bg-slate-700/50 rounded px-2 py-1 -mx-2 -my-1 transition-colors"
+                >
+                  <p className="text-sm font-medium text-slate-100">
+                    {describeRRule(task.recurrence_rule)}
+                    {task.recurrence_context?.occurrence_count && (
+                      <span className="text-xs text-slate-400 ml-2">
+                        (occurrence #{task.recurrence_context.occurrence_count})
+                      </span>
+                    )}
                   </p>
-                )}
-              </div>
+                  {task.recurrence_context?.next_due_date && (
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Next: {formatRelativeDate(task.recurrence_context.next_due_date)}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <button
+                  onClick={() => setEditingRecurrence(true)}
+                  className="text-sm text-slate-500 hover:text-red-400 transition-colors italic"
+                >
+                  Add recurrence...
+                </button>
+              )}
             </div>
-          )}
+          </div>
 
           {/* Tags — inline editable */}
           <div className="flex items-start gap-3">

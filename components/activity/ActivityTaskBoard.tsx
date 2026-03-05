@@ -421,39 +421,36 @@ export default function ActivityTaskBoard({
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header bar */}
       <div className="flex-shrink-0 px-4 py-3 border-b border-slate-800 bg-slate-950/80 backdrop-blur-sm">
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex items-center gap-3">
-            <h1 className="text-lg font-bold text-slate-100 tracking-wide">Tasks</h1>
-            <span className="text-xs text-slate-500 font-mono">{total} total</span>
-          </div>
+        <div className="flex items-center gap-2 min-w-0 flex-wrap">
+          <h1 className="text-lg font-bold text-slate-100 tracking-wide flex-shrink-0">Tasks</h1>
+          <span className="text-xs text-slate-500 font-mono flex-shrink-0">{total} total</span>
 
-          {/* View switcher + new task */}
-          <div className="flex items-center gap-1.5 flex-wrap">
+          {/* New task + select + view switcher — left-aligned after title */}
           {onCreateTask && (
             <button
               onClick={onCreateTask}
-              className="px-2.5 py-1.5 bg-red-600 hover:bg-red-500 text-white text-sm font-medium rounded-lg transition-all flex items-center gap-1"
+              className="px-2.5 py-1.5 bg-red-600 hover:bg-red-500 text-white text-sm font-medium rounded-lg transition-all flex items-center gap-1 flex-shrink-0"
             >
               <span>+</span>
               <span className="hidden sm:inline">New Task</span>
             </button>
           )}
           <button
-              onClick={() => bulkMode ? exitBulkMode() : setBulkMode(true)}
-              className={`px-2.5 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1 ${
-                bulkMode
-                  ? "bg-amber-600 hover:bg-amber-500 text-white"
-                  : "border border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600"
-              }`}
-            >
-              {bulkMode ? "Exit" : (
-                <>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2" /><polyline points="9 11 12 14 22 4" /></svg>
-                  <span className="hidden lg:inline">Select</span>
-                </>
-              )}
-            </button>
-          <div className="flex items-center gap-0.5 bg-slate-900 border border-slate-800 rounded-lg p-0.5 overflow-x-auto">
+            onClick={() => bulkMode ? exitBulkMode() : setBulkMode(true)}
+            className={`px-2.5 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1 flex-shrink-0 ${
+              bulkMode
+                ? "bg-amber-600 hover:bg-amber-500 text-white"
+                : "border border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600"
+            }`}
+          >
+            {bulkMode ? "Exit" : (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2" /><polyline points="9 11 12 14 22 4" /></svg>
+                <span className="hidden lg:inline">Select</span>
+              </>
+            )}
+          </button>
+          <div className="flex items-center gap-0.5 bg-slate-900 border border-slate-800 rounded-lg p-0.5 overflow-x-auto flex-shrink-0">
             {([
               { key: "list" as ViewMode, icon: "☰", label: "List" },
               { key: "board" as ViewMode, icon: "▦", label: "Board" },
@@ -475,7 +472,6 @@ export default function ActivityTaskBoard({
                 <span className="hidden xl:inline">{label}</span>
               </button>
             ))}
-          </div>
           </div>
         </div>
       </div>

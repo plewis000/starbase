@@ -346,18 +346,10 @@ export default function ActivityFilterBar({
         </div>
       )}
 
-      {/* Compact filter row */}
+      {/* Compact filter row — Mine/All + Filters left, search right */}
       <div className="flex items-center gap-2">
-        <input
-          type="text"
-          defaultValue={filters.search || ""}
-          onChange={(e) => handleSearch(e.target.value)}
-          placeholder="Search..."
-          className="flex-1 bg-slate-900/80 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-crimson-500/50"
-        />
-
         {/* Mine / All toggle */}
-        <div className="flex items-center gap-0.5 bg-slate-900 border border-slate-800 rounded-lg p-0.5">
+        <div className="flex items-center gap-0.5 bg-slate-900 border border-slate-800 rounded-lg p-0.5 flex-shrink-0">
           <button
             onClick={() => update("owner", "me")}
             className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${
@@ -378,12 +370,20 @@ export default function ActivityFilterBar({
 
         <button
           onClick={() => setExpanded(!expanded)}
-          className={`px-2.5 py-1.5 rounded-lg text-xs border transition-all ${
+          className={`px-2.5 py-1.5 rounded-lg text-xs border transition-all flex-shrink-0 ${
             expanded ? "bg-crimson-900/20 border-crimson-700 text-crimson-400" : "bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-300"
           }`}
         >
           {expanded ? "Less" : "Filters"}
         </button>
+
+        <input
+          type="text"
+          defaultValue={filters.search || ""}
+          onChange={(e) => handleSearch(e.target.value)}
+          placeholder="Search..."
+          className="flex-1 min-w-0 bg-slate-900/80 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-crimson-500/50"
+        />
       </div>
 
       {/* Expanded filters */}
