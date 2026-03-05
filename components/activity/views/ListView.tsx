@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useUserPreference } from "@/hooks/useUserPreferences";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 interface Task {
   id: string;
@@ -476,6 +477,7 @@ export default function ListView({ tasks, onQuickComplete, completedTaskId, conf
   const { value: columnOrder, setValue: setColumnOrder } = useUserPreference<ColumnKey[]>("task_list_column_order", DEFAULT_COLUMN_ORDER);
   const [showColumnPicker, setShowColumnPicker] = useState(false);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const isMobile = useIsMobile();
 
   const toggleColumn = useCallback((key: ColumnKey) => {
     const next = visibleColumns.includes(key) ? visibleColumns.filter((k) => k !== key) : [...visibleColumns, key];
@@ -628,6 +630,84 @@ export default function ListView({ tasks, onQuickComplete, completedTaskId, conf
     }
   };
 
+  // --- Mobile card row ---
+  const renderMobileCard = (task: Task) => {
+    const isCompleted = !!task.completed_at;
+    const justCompleted = task.id === completedTaskId;
+
+    return (
+      <div
+        key={task.id}
+        onClick={() => onSelect?.(task.id)}
+        className={`flex items-center gap-3 px-3 py-3 rounded-lg transition-all hover:bg-slate-900/80 cursor-pointer active:bg-slate-800/60 ${
+          justCompleted ? "bg-green-900/10 ring-1 ring-green-500/20" : ""
+        } ${isCompleted ? "opacity-50" : ""}`}
+      >
+        {/* Complete button — 44px touch target */}
+        <button
+          onClick={(e) => { e.stopPropagation(); onQuickComplete(task.id); }}
+          className={`flex-shrink-0 w-[44px] h-[44px] rounded-full border-2 transition-all flex items-center justify-center ${
+            isCompleted
+              ? "bg-green-500 border-green-500 text-white"
+              : `${statusIndicator(task.status?.name)} hover:border-green-400`
+          }`}
+        >
+          {isCompleted && (
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          )}
+        </button>
+
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          <div className={`text-sm font-medium truncate ${isCompleted ? "line-through text-slate-500" : "text-slate-100"}`}>
+            {task.title}
+          </div>
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
+            {task.priority && (
+              <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold border ${priorityColor(task.priority.name)}`}>
+                {task.priority.name}
+              </span>
+            )}
+            {task.due_date && (
+              <span className={`text-[10px] font-mono ${dateColor(task.due_date)}`}>{formatRelDate(task.due_date)}</span>
+            )}
+            {task.assignee && (
+              <span className="text-[10px] text-slate-400">{task.assignee.full_name?.split(" ")[0]}</span>
+            )}
+          </div>
+        </div>
+
+        {/* Chevron */}
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-600 flex-shrink-0">
+          <polyline points="9 18 15 12 9 6" />
+        </svg>
+      </div>
+    );
+  };
+
+  // --- Mobile layout ---
+  if (isMobile) {
+    return (
+      <div className="space-y-0.5">
+        {groups.map((group, gi) => (
+          <div key={gi}>
+            {group.label && (
+              <div className="flex items-center gap-2 px-3 py-2 mt-3 first:mt-0">
+                <div className="w-1 h-4 bg-red-500/60 rounded-full" />
+                <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">{group.label}</span>
+                <span className="text-[10px] text-slate-600 font-mono">{group.tasks.length}</span>
+              </div>
+            )}
+            {group.tasks.map(renderMobileCard)}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // --- Desktop layout ---
   return (
     <div>
       {/* Column picker */}

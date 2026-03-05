@@ -302,7 +302,7 @@ export default function DashboardPage() {
             <div className="dcc-card p-5">
               <div className="flex gap-6 items-center">
                 {/* Metrics grid */}
-                <div className="flex-1 grid grid-cols-3 sm:grid-cols-5 gap-3">
+                <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
                   <Link href="/tasks?due=today" className="block">
                     <MetricCell label="Due Today" value={ts.due_today} />
                   </Link>

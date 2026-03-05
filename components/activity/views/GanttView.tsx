@@ -4,6 +4,7 @@ import React, { useState, useMemo, useRef } from "react";
 import GanttBar from "./GanttBar";
 import GanttDependencyLines from "./GanttDependencyLines";
 import { todayInTimezone } from "@/lib/dateUtils";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 interface Task {
   id: string;
@@ -63,6 +64,17 @@ export default function GanttView({ tasks, onSelect, timezone }: Props) {
   const [zoom, setZoom] = useState<ZoomLevel>("day");
   const scrollRef = useRef<HTMLDivElement>(null);
   const config = ZOOM_CONFIG[zoom];
+  const isMobile = useIsMobile();
+
+  if (isMobile) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
+        <span className="text-3xl mb-3">📊</span>
+        <p className="text-slate-300 font-medium mb-1">Gantt view works best on larger screens</p>
+        <p className="text-sm text-slate-500">Try the <span className="text-crimson-400">List</span> or <span className="text-crimson-400">Board</span> view on mobile.</p>
+      </div>
+    );
+  }
 
   // Calculate date range
   const { startDate, endDate, totalDays, sortedTasks } = useMemo(() => {

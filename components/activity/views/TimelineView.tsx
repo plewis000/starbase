@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo } from "react";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 interface Task {
   id: string;
@@ -36,6 +37,8 @@ function statusBarOpacity(name?: string): string {
 }
 
 export default function TimelineView({ tasks, onQuickComplete, completedTaskId, onSelect }: Props) {
+  const isMobile = useIsMobile();
+
   // Group tasks by date buckets
   const groups = useMemo(() => {
     const today = new Date();
@@ -84,6 +87,16 @@ export default function TimelineView({ tasks, onQuickComplete, completedTaskId, 
     // Only return non-empty buckets
     return buckets.filter((b) => b.tasks.length > 0);
   }, [tasks]);
+
+  if (isMobile) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
+        <span className="text-3xl mb-3">📅</span>
+        <p className="text-slate-300 font-medium mb-1">Timeline view works best on larger screens</p>
+        <p className="text-sm text-slate-500">Try the <span className="text-crimson-400">List</span> or <span className="text-crimson-400">Board</span> view on mobile.</p>
+      </div>
+    );
+  }
 
   if (groups.length === 0) {
     return (

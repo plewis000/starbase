@@ -52,7 +52,7 @@ export default function BottomNav() {
                     key={item.href}
                     href={item.href}
                     onClick={() => setShowMore(false)}
-                    className={`flex flex-col items-center justify-center py-2.5 px-1 rounded-lg text-sm font-medium transition-colors ${
+                    className={`flex flex-col items-center justify-center py-3 px-2 min-h-[48px] rounded-lg text-sm font-medium transition-colors ${
                       isActive
                         ? "text-crimson-400 bg-crimson-900/20"
                         : "text-dungeon-500 hover:text-slate-100 hover:bg-dungeon-800"

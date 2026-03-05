@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
-import { DndContext, DragEndEvent, DragStartEvent, DragOverlay, useDroppable, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { DndContext, DragEndEvent, DragStartEvent, DragOverlay, useDroppable, PointerSensor, TouchSensor, useSensor, useSensors } from "@dnd-kit/core";
 import BoardCard from "./BoardCard";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 interface Task {
   id: string;
@@ -60,6 +61,7 @@ function getColumnStyle(status: ConfigStatus) {
   };
 }
 
+// Desktop droppable column
 function DroppableColumn({
   columnId,
   children,
@@ -103,11 +105,81 @@ function DroppableColumn({
   );
 }
 
+// Mobile collapsible section
+function MobileSection({
+  columnId,
+  colStyle,
+  name,
+  count,
+  defaultOpen,
+  children,
+}: {
+  columnId: string;
+  colStyle: ReturnType<typeof getColumnStyle>;
+  name: string;
+  count: number;
+  defaultOpen: boolean;
+  children: React.ReactNode;
+}) {
+  const [expanded, setExpanded] = useState(defaultOpen);
+  const { isOver, setNodeRef } = useDroppable({ id: columnId });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`rounded-xl border ${colStyle.borderClass || ""} ${colStyle.bgClass} transition-all ${
+        isOver ? "ring-2 ring-red-400/40 bg-red-950/10" : ""
+      }`}
+      style={colStyle.borderColor ? { borderColor: colStyle.borderColor } : undefined}
+    >
+      {/* Tap-to-expand header */}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between px-4 min-h-[48px] border-b border-slate-800/50 active:bg-slate-800/30"
+      >
+        <div className="flex items-center gap-2">
+          <div
+            className={`w-2.5 h-2.5 rounded-full ${colStyle.dotClass || ""}`}
+            style={colStyle.dotColor ? { backgroundColor: colStyle.dotColor } : undefined}
+          />
+          <span className="text-sm font-semibold text-slate-300 uppercase tracking-wider">{name}</span>
+          <span className="text-xs text-slate-600 font-mono">{count}</span>
+        </div>
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className={`text-slate-600 transition-transform ${expanded ? "rotate-180" : ""}`}
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+
+      {/* Cards */}
+      {expanded && (
+        <div className="p-2 space-y-2">
+          {children}
+          {count === 0 && (
+            <p className="text-[10px] text-slate-700 text-center py-4">Empty</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function BoardView({ tasks, onQuickComplete, completedTaskId, config, onSelect, onStatusChange }: Props) {
   const [activeId, setActiveId] = useState<string | null>(null);
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
-  );
+  const isMobile = useIsMobile();
+
+  const pointerSensor = useSensor(PointerSensor, { activationConstraint: { distance: 8 } });
+  const touchSensor = useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } });
+  const sensors = useSensors(pointerSensor, touchSensor);
 
   // Build columns dynamically from config statuses
   const columns = config?.statuses
@@ -161,38 +233,75 @@ export default function BoardView({ tasks, onQuickComplete, completedTaskId, con
 
   return (
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-      <div className="flex gap-3 overflow-x-auto h-full pb-2">
-        {columns.map((col) => {
-          const colTasks = grouped[col.id] || [];
-          const style = getColumnStyle(col);
-          const isDone = col.name.toLowerCase() === "done";
+      {isMobile ? (
+        /* Mobile: vertical collapsible sections */
+        <div className="space-y-2 pb-2">
+          {columns.map((col) => {
+            const colTasks = grouped[col.id] || [];
+            const style = getColumnStyle(col);
+            const isDone = col.name.toLowerCase() === "done";
+            // Auto-collapse Done if >3 tasks
+            const defaultOpen = !(isDone && colTasks.length > 3);
 
-          return (
-            <DroppableColumn
-              key={col.id}
-              columnId={col.id}
-              style={style}
-              name={col.name}
-              count={colTasks.length}
-            >
-              {colTasks.map((task) => (
-                <BoardCard
-                  key={task.id}
-                  task={task}
-                  isDone={isDone}
-                  isCompleted={task.id === completedTaskId}
-                  isGhost={task.id === activeId}
-                  onSelect={onSelect}
-                  onQuickComplete={onQuickComplete}
-                />
-              ))}
-              {colTasks.length === 0 && (
-                <p className="text-[10px] text-slate-700 text-center py-4">Empty</p>
-              )}
-            </DroppableColumn>
-          );
-        })}
-      </div>
+            return (
+              <MobileSection
+                key={col.id}
+                columnId={col.id}
+                colStyle={style}
+                name={col.name}
+                count={colTasks.length}
+                defaultOpen={defaultOpen}
+              >
+                {colTasks.map((task) => (
+                  <BoardCard
+                    key={task.id}
+                    task={task}
+                    isDone={isDone}
+                    isCompleted={task.id === completedTaskId}
+                    isGhost={task.id === activeId}
+                    onSelect={onSelect}
+                    onQuickComplete={onQuickComplete}
+                  />
+                ))}
+              </MobileSection>
+            );
+          })}
+        </div>
+      ) : (
+        /* Desktop: horizontal column flex */
+        <div className="flex gap-3 overflow-x-auto h-full pb-2">
+          {columns.map((col) => {
+            const colTasks = grouped[col.id] || [];
+            const style = getColumnStyle(col);
+            const isDone = col.name.toLowerCase() === "done";
+
+            return (
+              <DroppableColumn
+                key={col.id}
+                columnId={col.id}
+                style={style}
+                name={col.name}
+                count={colTasks.length}
+              >
+                {colTasks.map((task) => (
+                  <BoardCard
+                    key={task.id}
+                    task={task}
+                    isDone={isDone}
+                    isCompleted={task.id === completedTaskId}
+                    isGhost={task.id === activeId}
+                    onSelect={onSelect}
+                    onQuickComplete={onQuickComplete}
+                  />
+                ))}
+                {colTasks.length === 0 && (
+                  <p className="text-[10px] text-slate-700 text-center py-4">Empty</p>
+                )}
+              </DroppableColumn>
+            );
+          })}
+        </div>
+      )}
 
       {/* Drag overlay — renders above everything, no clipping */}
       <DragOverlay dropAnimation={{ duration: 200, easing: "ease" }}>
