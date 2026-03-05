@@ -4,6 +4,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { platform, config } from "@/lib/supabase/schemas";
 import { getHouseholdContext, getHouseholdMemberIds, verifyTaskHouseholdAccess } from "@/lib/household";
 import { awardXp, checkAchievements, hasXpBeenAwarded } from "@/lib/gamification";
+import { isValidUUID } from "@/lib/validation";
 
 // =============================================================
 // PATCH /api/tasks/bulk — Bulk update tasks
@@ -21,7 +22,8 @@ export async function PATCH(request: NextRequest) {
   if (!ctx) return NextResponse.json({ error: "No household found" }, { status: 404 });
   const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
 
-  const body = await request.json();
+  let body;
+  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
   const { task_ids, patch } = body;
 
   if (!Array.isArray(task_ids) || task_ids.length === 0) {
@@ -41,10 +43,18 @@ export async function PATCH(request: NextRequest) {
 
   // Build the update object from allowed fields
   const allowedFields = ["status_id", "priority_id", "assigned_to", "due_date", "task_type_id", "effort_level_id"];
+  const uuidFields = ["status_id", "priority_id", "assigned_to", "task_type_id", "effort_level_id"];
   const updateData: Record<string, unknown> = {};
   for (const field of allowedFields) {
-    if (patch[field] !== undefined) updateData[field] = patch[field];
+    if (patch[field] !== undefined) {
+      // Validate UUID fields
+      if (uuidFields.includes(field) && patch[field] !== null && !isValidUUID(patch[field])) {
+        return NextResponse.json({ error: `${field} must be a valid UUID` }, { status: 400 });
+      }
+      updateData[field] = patch[field];
+    }
   }
+  updateData.last_touched_at = new Date().toISOString();
 
   if (Object.keys(updateData).length === 0) {
     return NextResponse.json({ error: "No valid fields in patch" }, { status: 400 });

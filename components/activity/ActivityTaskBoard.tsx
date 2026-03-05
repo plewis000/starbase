@@ -69,7 +69,7 @@ export default function ActivityTaskBoard({
       ...init,
       headers: {
         ...init?.headers,
-        "Content-Type": "application/json",
+        ...(init?.body ? { "Content-Type": "application/json" } : {}),
       },
     })
   );

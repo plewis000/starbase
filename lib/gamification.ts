@@ -329,6 +329,7 @@ async function evaluateTrigger(
   const threshold = (config.threshold as number) || 0;
 
   switch (achievement.trigger_type) {
+    case "task_complete":
     case "task_count": {
       // Count tasks the user is credited for (completed_by, credited_to, or legacy fallback)
       const { count } = await supabase

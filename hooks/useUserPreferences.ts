@@ -87,6 +87,13 @@ export function useUserPreference<T>(key: string, defaultValue: T): {
     return () => { cancelled = true; };
   }, [key]);
 
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
+  }, []);
+
   const setValue = useCallback((v: T) => {
     setValueState(v);
     prefCache.set(key, v);

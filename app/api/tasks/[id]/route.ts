@@ -286,6 +286,11 @@ export async function PATCH(
           );
         }
       }
+      // Merge metadata instead of overwriting if additional_owners already set it
+      if (field === "metadata" && updateFields.metadata) {
+        updateFields.metadata = { ...(updateFields.metadata as Record<string, unknown>), ...body.metadata };
+        continue;
+      }
       updateFields[field] = body[field];
     }
   }

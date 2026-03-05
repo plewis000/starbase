@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { UserSummary } from "@/lib/types";
 
 interface CompletionCreditModalProps {
@@ -30,6 +30,11 @@ export default function CompletionCreditModal({
   onCancel,
 }: CompletionCreditModalProps) {
   const [selected, setSelected] = useState<Set<string>>(new Set([currentUserId]));
+
+  // Reset selection when modal opens for a new task
+  useEffect(() => {
+    if (open) setSelected(new Set([currentUserId]));
+  }, [open, currentUserId]);
 
   if (!open) return null;
 
