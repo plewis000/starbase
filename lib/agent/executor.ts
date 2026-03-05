@@ -170,6 +170,14 @@ async function createTask(supabase: Supabase, userId: string, input: Record<stri
     priorityId = pri?.id;
   }
 
+  // Look up default status ("To Do" — lowest sort_order)
+  const { data: defaultStatus } = await config(supabase)
+    .from("task_statuses")
+    .select("id")
+    .order("sort_order", { ascending: true })
+    .limit(1)
+    .single();
+
   const { data, error } = await platform(supabase)
     .from("tasks")
     .insert({
@@ -177,6 +185,8 @@ async function createTask(supabase: Supabase, userId: string, input: Record<stri
       description: (input.description as string) || null,
       due_date: (input.due_date as string) || null,
       priority_id: priorityId || null,
+      status_id: defaultStatus?.id || null,
+      owner_ids: [userId],
       assigned_to: userId,
       created_by: userId,
     })

@@ -15,8 +15,46 @@ export default function ZevPanel() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [resumedConversation, setResumedConversation] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Load most recent web conversation on mount (within 2 hours)
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/agent")
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
+        const recent = (data.conversations || []).find(
+          (c: { channel: string; last_message_at: string }) =>
+            c.channel === "web" &&
+            new Date(c.last_message_at).getTime() > twoHoursAgo,
+        );
+        if (recent) {
+          setConversationId(recent.id);
+          setResumedConversation(true);
+          fetch(`/api/agent?conversation_id=${recent.id}`)
+            .then((r) => r.json())
+            .then((d) => {
+              if (cancelled) return;
+              const loaded = (d.messages || [])
+                .filter((m: { role: string }) => m.role === "user" || m.role === "assistant")
+                .map((m: { role: string; content: string; created_at: string; cost_cents?: number }, i: number) => ({
+                  id: `history-${i}`,
+                  role: m.role as "user" | "assistant",
+                  content: m.content,
+                  timestamp: new Date(m.created_at),
+                  cost_cents: m.cost_cents,
+                }));
+              setMessages(loaded);
+            });
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -28,6 +66,12 @@ export default function ZevPanel() {
       inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 100) + "px";
     }
   }, [input]);
+
+  const startNewChat = useCallback(() => {
+    setMessages([]);
+    setConversationId(null);
+    setResumedConversation(false);
+  }, []);
 
   const sendMessage = useCallback(async () => {
     const text = input.trim();
@@ -88,10 +132,18 @@ export default function ZevPanel() {
         <div className="w-7 h-7 rounded-full bg-amber-600/20 flex items-center justify-center text-xs font-bold text-amber-400">
           Z
         </div>
-        <div>
+        <div className="flex-1">
           <p className="text-sm font-semibold text-slate-100">Zev</p>
           <p className="text-[10px] text-slate-500">AI Assistant</p>
         </div>
+        {(messages.length > 0 || resumedConversation) && (
+          <button
+            onClick={startNewChat}
+            className="text-[10px] text-slate-500 hover:text-slate-300 px-2 py-1 rounded border border-slate-700 hover:border-slate-600 transition-colors"
+          >
+            New Chat
+          </button>
+        )}
       </div>
 
       {/* Messages */}
