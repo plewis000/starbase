@@ -5,5 +5,19 @@
       "Bash(do echo:*)",
       "Bash(unzip:*)"
     ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/post-stop.sh",
+            "timeout": 120
+          }
+        ]
+      }
+    ]
   }
 }
