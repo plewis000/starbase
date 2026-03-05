@@ -141,11 +141,6 @@ export default function ActivityFilterBar({
   const priorityOptions = buildPriorityMultiOptions(config);
   const [activeView, setActiveView] = useState<string | null>(activeViewName ?? "All Tasks");
   const [expanded, setExpanded] = useState(false);
-
-  // Sync activeView with external prop when provided
-  React.useEffect(() => {
-    if (activeViewName !== undefined) setActiveView(activeViewName);
-  }, [activeViewName]);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [saveName, setSaveName] = useState("");
   const [saveIcon, setSaveIcon] = useState("⭐");
@@ -163,18 +158,23 @@ export default function ActivityFilterBar({
   const activeViewData = activeView ? savedViews.find(v => v.name === activeView) : null;
   const computedFiltersModified = (() => {
     if (!activeViewData) return false;
-    const viewF = activeViewData.filters;
-    const cur = { ...filters, search: undefined };
-    const base = { ...viewF, search: undefined };
-    return JSON.stringify(cur) !== JSON.stringify({ ...{ status: "All", priority: "All", due: "All", owner: "", sort: "due_date", direction: "asc" }, ...base });
+    const defaults: ActivityFilters = { status: "All", priority: "All", due: "All", owner: "", sort: "due_date", direction: "asc" };
+    // Normalize both to the same shape: defaults + view overrides vs current (both without search)
+    const normalize = (f: Partial<ActivityFilters>) => {
+      const { search, ...rest } = { ...defaults, ...f };
+      return JSON.stringify(rest, Object.keys(rest).sort());
+    };
+    return normalize(filters) !== normalize(activeViewData.filters);
   })();
   const isModified = filtersModified ?? computedFiltersModified;
 
   const applyView = useCallback((view: SavedView) => {
-    const next: ActivityFilters = { ...filters, ...view.filters, search: "" };
+    // Start from clean defaults, then apply view filters — don't carry over stale filter state
+    const defaults: ActivityFilters = { status: "All", priority: "All", due: "All", owner: "", sort: "due_date", direction: "asc", search: "" };
+    const next: ActivityFilters = { ...defaults, ...view.filters, search: "" };
     setActiveView(view.name);
     onFilterChange(next);
-  }, [filters, onFilterChange]);
+  }, [onFilterChange]);
 
   const handleSearch = useCallback((value: string) => {
     if (searchTimeout.current) clearTimeout(searchTimeout.current);

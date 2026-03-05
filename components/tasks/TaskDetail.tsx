@@ -354,16 +354,46 @@ export default function TaskDetail({
                     .filter((m: any) => m.user_id !== task.assignee?.id)
                     .map((m: any) => {
                       const name = m.user?.full_name || m.display_name || m.user_id;
-                      const isCoOwner = (task.additional_owners || []).some((o: any) => o.id === m.user_id);
+                      const currentOwners = task.additional_owners || [];
+                      const isCoOwner = currentOwners.some((o: any) =>
+                        typeof o === "string" ? o === m.user_id : o.id === m.user_id
+                      );
                       return (
                         <button
                           key={m.user_id}
-                          onClick={() => {
-                            const currentIds = (task.additional_owners || []).map((o: any) => o.id);
+                          onClick={async () => {
+                            const currentIds = currentOwners.map((o: any) =>
+                              typeof o === "string" ? o : o.id
+                            );
                             const nextIds = isCoOwner
                               ? currentIds.filter((id: string) => id !== m.user_id)
                               : [...currentIds, m.user_id];
-                            handleOptimisticUpdate({ additional_owners: nextIds });
+                            // Build UserSummary[] for optimistic local state
+                            const nextOwners = nextIds
+                              .map((id: string) => {
+                                const member = config.members.find((cm: any) => cm.user_id === id);
+                                if (!member) return null;
+                                return {
+                                  id,
+                                  full_name: member.user?.full_name || member.display_name || id,
+                                  email: member.user?.email,
+                                  avatar_url: member.user?.avatar_url || null,
+                                };
+                              })
+                              .filter(Boolean);
+                            const snapshot = { ...task };
+                            setTask((prev) => prev ? { ...prev, additional_owners: nextOwners } as Task : prev);
+                            try {
+                              const response = await fetch(`/api/tasks/${task.id}`, {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ additional_owners: nextIds }),
+                              });
+                              if (!response.ok) throw new Error("Update failed");
+                              onTaskUpdated?.();
+                            } catch {
+                              setTask(snapshot);
+                            }
                           }}
                           className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium border transition-all ${
                             isCoOwner
