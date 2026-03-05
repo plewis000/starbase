@@ -343,21 +343,41 @@ export default function TaskDetail({
             </div>
           )}
 
-          {/* Additional owners (read-only display) */}
-          {task.additional_owners && task.additional_owners.length > 0 && (
-            <div className="flex items-center gap-3">
-              <span className="text-slate-500 text-sm">👥</span>
+          {/* Co-owners — editable toggle picker */}
+          {config && config.members.length > 1 && (
+            <div className="flex items-start gap-3">
+              <span className="text-slate-500 text-sm mt-1">👥</span>
               <div className="flex-1">
-                <p className="text-xs text-slate-400 mb-1">Co-owners</p>
-                <div className="flex flex-wrap gap-2">
-                  {task.additional_owners.map((owner) => (
-                    <span key={owner.id} className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-sm bg-slate-700 text-slate-200">
-                      <span className="w-5 h-5 rounded-full bg-slate-600 flex items-center justify-center text-[10px] font-semibold flex-shrink-0">
-                        {getInitials(owner.full_name)}
-                      </span>
-                      {owner.full_name}
-                    </span>
-                  ))}
+                <p className="text-xs text-slate-400 mb-1.5">Co-owners</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {config.members
+                    .filter((m: any) => m.user_id !== task.assignee?.id)
+                    .map((m: any) => {
+                      const name = m.user?.full_name || m.display_name || m.user_id;
+                      const isCoOwner = (task.additional_owners || []).some((o: any) => o.id === m.user_id);
+                      return (
+                        <button
+                          key={m.user_id}
+                          onClick={() => {
+                            const currentIds = (task.additional_owners || []).map((o: any) => o.id);
+                            const nextIds = isCoOwner
+                              ? currentIds.filter((id: string) => id !== m.user_id)
+                              : [...currentIds, m.user_id];
+                            handleOptimisticUpdate({ additional_owners: nextIds });
+                          }}
+                          className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium border transition-all ${
+                            isCoOwner
+                              ? "bg-crimson-900/30 border-crimson-700 text-crimson-300"
+                              : "bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600"
+                          }`}
+                        >
+                          <span className="w-4 h-4 rounded-full bg-slate-600 flex items-center justify-center text-[8px] font-semibold flex-shrink-0">
+                            {getInitials(name)}
+                          </span>
+                          {isCoOwner ? "- " : "+ "}{name.split(" ")[0]}
+                        </button>
+                      );
+                    })}
                 </div>
               </div>
             </div>

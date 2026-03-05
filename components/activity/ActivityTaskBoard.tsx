@@ -92,6 +92,17 @@ export default function ActivityTaskBoard({
   });
   const { value: savedViews, setValue: setSavedViews } = useUserPreference<SavedView[]>("activity_saved_views", []);
   const { value: viewOverrides, setValue: setViewOverrides } = useUserPreference<Record<string, Partial<ActivityFilters>>>("activity_view_overrides", {});
+  const appliedOverridesRef = useRef(false);
+
+  // Apply saved overrides to initial "All Tasks" view once they load
+  useEffect(() => {
+    if (appliedOverridesRef.current) return;
+    if (viewOverrides && Object.keys(viewOverrides).length > 0 && viewOverrides["All Tasks"]) {
+      appliedOverridesRef.current = true;
+      setFilters(prev => ({ ...prev, ...viewOverrides["All Tasks"], search: prev.search }));
+    }
+  }, [viewOverrides]);
+
   const [completedTaskId, setCompletedTaskId] = useState<string | null>(null);
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
   const [bulkMode, setBulkMode] = useState(false);
@@ -403,6 +414,11 @@ export default function ActivityTaskBoard({
     const next = { ...viewOverrides };
     delete next[viewName];
     setViewOverrides(next);
+    // Also reset current filters to the original default view
+    const originalView = defaultViews.find(v => v.name === viewName);
+    if (originalView) {
+      setFilters(prev => ({ ...prev, ...originalView.filters, search: prev.search }));
+    }
   }, [viewOverrides, setViewOverrides]);
 
   const hasViewOverride = useCallback((viewName: string) => {

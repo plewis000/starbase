@@ -228,8 +228,9 @@ export default function ActivityFilterBar({
 
   // Active default view for the modification bar
   const activeDefaultView = activeView ? savedViews.find(v => v.name === activeView && v.isDefault) : null;
-  const showModifiedBar = !!(activeDefaultView && isModified && onUpdateDefaultView);
-  const showResetOption = !!(activeDefaultView && hasViewOverride?.(activeDefaultView.name) && onResetDefaultView);
+  const hasOverride = !!(activeDefaultView && hasViewOverride?.(activeDefaultView.name));
+  // Show bar when: filters are modified (unsaved changes) OR view has a saved override (show Edit/Reset)
+  const showModifiedBar = !!(activeDefaultView && onUpdateDefaultView && (isModified || hasOverride));
 
   return (
     <div className="space-y-2">
@@ -293,27 +294,54 @@ export default function ActivityFilterBar({
         </button>
       </div>
 
-      {/* View modified notification bar */}
+      {/* View override notification bar */}
       {showModifiedBar && activeDefaultView && (
         <div className="flex items-center gap-2 px-2.5 py-1.5 bg-slate-900/60 border border-slate-800 rounded-lg text-xs">
-          <span className="text-slate-400">
-            <span className="font-medium text-slate-300">{activeDefaultView.name}</span> filters modified
-          </span>
-          <button
-            onClick={() => onUpdateDefaultView!(activeDefaultView.name, { ...filters, search: undefined })}
-            className="text-green-400 hover:text-green-300 font-medium transition-colors"
-          >
-            Save
-          </button>
-          {showResetOption && (
+          {isModified ? (
             <>
-              <span className="text-slate-700">|</span>
+              <span className="text-slate-400">
+                <span className="font-medium text-slate-300">{activeDefaultView.name}</span> filters modified
+              </span>
               <button
-                onClick={() => onResetDefaultView!(activeDefaultView.name)}
-                className="text-slate-500 hover:text-slate-300 transition-colors"
+                onClick={() => onUpdateDefaultView!(activeDefaultView.name, { ...filters, search: undefined })}
+                className="text-green-400 hover:text-green-300 font-medium transition-colors"
               >
-                Reset
+                Save
               </button>
+              {hasOverride && onResetDefaultView && (
+                <>
+                  <span className="text-slate-700">|</span>
+                  <button
+                    onClick={() => onResetDefaultView(activeDefaultView.name)}
+                    className="text-slate-500 hover:text-slate-300 transition-colors"
+                  >
+                    Reset
+                  </button>
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              <span className="text-slate-400">
+                <span className="font-medium text-slate-300">{activeDefaultView.name}</span> customized
+              </span>
+              <button
+                onClick={() => setExpanded(true)}
+                className="text-crimson-400 hover:text-crimson-300 font-medium transition-colors"
+              >
+                Edit
+              </button>
+              {onResetDefaultView && (
+                <>
+                  <span className="text-slate-700">|</span>
+                  <button
+                    onClick={() => onResetDefaultView(activeDefaultView.name)}
+                    className="text-slate-500 hover:text-slate-300 transition-colors"
+                  >
+                    Reset
+                  </button>
+                </>
+              )}
             </>
           )}
         </div>
