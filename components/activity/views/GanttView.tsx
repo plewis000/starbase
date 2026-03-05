@@ -66,17 +66,7 @@ export default function GanttView({ tasks, onSelect, timezone }: Props) {
   const config = ZOOM_CONFIG[zoom];
   const isMobile = useIsMobile();
 
-  if (isMobile) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
-        <span className="text-3xl mb-3">📊</span>
-        <p className="text-slate-300 font-medium mb-1">Gantt view works best on larger screens</p>
-        <p className="text-sm text-slate-500">Try the <span className="text-crimson-400">List</span> or <span className="text-crimson-400">Board</span> view on mobile.</p>
-      </div>
-    );
-  }
-
-  // Calculate date range
+  // Calculate date range (must stay before early return — hooks can't be conditional)
   const { startDate, endDate, totalDays, sortedTasks } = useMemo(() => {
     const now = timezone ? todayInTimezone(timezone) : new Date();
     if (!timezone) now.setHours(0, 0, 0, 0);
@@ -196,6 +186,16 @@ export default function GanttView({ tasks, onSelect, timezone }: Props) {
 
   const chartWidth = totalDays * config.dayWidth;
   const chartHeight = sortedTasks.length * ROW_HEIGHT;
+
+  if (isMobile) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
+        <span className="text-3xl mb-3">📊</span>
+        <p className="text-slate-300 font-medium mb-1">Gantt view works best on larger screens</p>
+        <p className="text-sm text-slate-500">Try the <span className="text-crimson-400">List</span> or <span className="text-crimson-400">Board</span> view on mobile.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full">
