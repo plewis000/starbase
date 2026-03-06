@@ -32,10 +32,11 @@ export async function generateSuggestionsForUser(
   const errors: string[] = [];
 
   // Gather context
-  const [observations, aggregates, existingSuggestions] = await Promise.all([
+  const [observations, aggregates, existingSuggestions, patterns] = await Promise.all([
     getRecentObservations(supabase, userId),
     getRecentAggregates(supabase, userId),
     getPendingSuggestions(supabase, userId),
+    getDetectedPatterns(supabase, userId),
   ]);
 
   if (observations.length === 0 && aggregates.length === 0) {
@@ -75,7 +76,7 @@ Rules:
 - Keep titles under 60 chars, descriptions under 200 chars`,
       messages: [{
         role: "user",
-        content: `User observations:\n${observationText}\n\nBehavioral data (last 7 days):\n${aggregateText}\n\nAlready pending suggestions:\n${existingText}\n\nGenerate 1-3 new suggestions. Return valid JSON array only.`,
+        content: `User observations:\n${observationText}\n\nBehavioral data (last 7 days):\n${aggregateText}\n\nDetected behavioral patterns:\n${patterns.length > 0 ? patterns.map((p) => `[${p.pattern_type}] ${p.description} → ${p.action} (conf: ${p.confidence}, seen ${p.times_observed}x)`).join("\n") : "None detected yet."}\n\nAlready pending suggestions:\n${existingText}\n\nGenerate 1-3 new suggestions. Leverage detected patterns where possible. Return valid JSON array only.`,
       }],
     });
 
@@ -172,5 +173,17 @@ async function getPendingSuggestions(supabase: SupabaseClient, userId: string) {
     .select("id, category, title")
     .eq("user_id", userId)
     .eq("status", "pending");
+  return data || [];
+}
+
+async function getDetectedPatterns(supabase: SupabaseClient, userId: string) {
+  const { data } = await platform(supabase)
+    .from("detected_patterns")
+    .select("pattern_type, description, action, confidence, times_observed")
+    .eq("user_id", userId)
+    .eq("is_active", true)
+    .gt("confidence", 0.4)
+    .order("confidence", { ascending: false })
+    .limit(10);
   return data || [];
 }

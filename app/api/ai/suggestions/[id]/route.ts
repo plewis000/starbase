@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { platform } from "@/lib/supabase/schemas";
 import { isValidUUID, validateEnum, validateOptionalString } from "@/lib/validation";
+import { recordSuggestionFeedback } from "@/lib/agent/proactivity";
 import type { SuggestionStatus } from "@/lib/types";
 
 const RESPONSE_ACTIONS: readonly SuggestionStatus[] = [
@@ -75,6 +76,11 @@ export async function PATCH(
 
   if (error) {
     console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+
+  // Track suggestion feedback for proactivity graduation (non-blocking)
+  if (actionCheck.value === "accepted" || actionCheck.value === "dismissed") {
+    recordSuggestionFeedback(supabase, user.id, actionCheck.value === "accepted").catch(() => {});
   }
 
   return NextResponse.json({ suggestion: updated });

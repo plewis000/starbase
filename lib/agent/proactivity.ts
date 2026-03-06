@@ -59,35 +59,12 @@ export async function recordInteraction(
   supabase: SupabaseClient,
   userId: string,
 ): Promise<{ graduated: boolean; newLevel?: ProactivityLevel }> {
-  // Increment interaction count
-  const { data: updated } = await platform(supabase)
-    .from("proactivity_state")
-    .update({
-      interaction_count: undefined, // Will use raw SQL below
-      updated_at: new Date().toISOString(),
-    })
-    .eq("user_id", userId)
-    .select("*")
-    .single();
+  // Atomic increment via RPC
+  const { data: stateRow } = await platform(supabase)
+    .rpc("increment_interaction_count", { p_user_id: userId });
 
-  // Use raw increment since Supabase doesn't support increment directly
-  await supabase.rpc("ensure_proactivity_state", { p_user_id: userId });
-  const { data: state } = await platform(supabase)
-    .from("proactivity_state")
-    .select("*")
-    .eq("user_id", userId)
-    .single();
-
+  const state = Array.isArray(stateRow) ? stateRow[0] : stateRow;
   if (!state) return { graduated: false };
-
-  // Increment
-  await platform(supabase)
-    .from("proactivity_state")
-    .update({
-      interaction_count: (state.interaction_count || 0) + 1,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("user_id", userId);
 
   // Check graduation
   const currentLevel = state.level as ProactivityLevel;
@@ -95,8 +72,7 @@ export async function recordInteraction(
 
   if (!rules.nextLevel) return { graduated: false };
 
-  const newCount = (state.interaction_count || 0) + 1;
-  if (newCount < rules.minInteractions) return { graduated: false };
+  if (state.interaction_count < rules.minInteractions) return { graduated: false };
 
   // Check acceptance rate if required
   if (rules.minAcceptanceRate) {
@@ -127,24 +103,8 @@ export async function recordSuggestionFeedback(
   userId: string,
   accepted: boolean,
 ): Promise<void> {
-  await supabase.rpc("ensure_proactivity_state", { p_user_id: userId });
-
-  const { data: state } = await platform(supabase)
-    .from("proactivity_state")
-    .select("suggestions_accepted, suggestions_dismissed")
-    .eq("user_id", userId)
-    .single();
-
-  if (!state) return;
-
-  const updates = accepted
-    ? { suggestions_accepted: (state.suggestions_accepted || 0) + 1 }
-    : { suggestions_dismissed: (state.suggestions_dismissed || 0) + 1 };
-
   await platform(supabase)
-    .from("proactivity_state")
-    .update({ ...updates, updated_at: new Date().toISOString() })
-    .eq("user_id", userId);
+    .rpc("record_suggestion_feedback", { p_user_id: userId, p_accepted: accepted });
 }
 
 /**
