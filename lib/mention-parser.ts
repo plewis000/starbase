@@ -69,11 +69,17 @@ export async function resolveMentions(
   const resolved = new Map<string, string>();
 
   // Batch lookup: try display_name match first, then email
+  // Sanitize identifiers to prevent PostgREST filter injection
+  const sanitized = identifiers.map((id) =>
+    id.replace(/[%_\\,.()"']/g, "").slice(0, 100).trim()
+  ).filter(Boolean);
+  if (sanitized.length === 0) return resolved;
+
   const { data: users } = await platform(supabase)
     .from("users")
     .select("id, display_name, email")
     .or(
-      identifiers
+      sanitized
         .map((id) => `display_name.ilike.${id},email.ilike.${id}`)
         .join(",")
     );

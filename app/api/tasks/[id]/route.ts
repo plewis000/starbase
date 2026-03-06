@@ -363,7 +363,7 @@ export async function PATCH(
     .single();
 
   if (updateError) {
-    return NextResponse.json({ error: updateError.message }, { status: 500 });
+    console.error(updateError.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   // Log field changes

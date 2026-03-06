@@ -211,7 +211,7 @@ export async function PATCH(
     .single();
 
   if (updateErr) {
-    return NextResponse.json({ error: updateErr.message }, { status: 500 });
+    console.error(updateErr.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   return NextResponse.json({ responsibility: updated });

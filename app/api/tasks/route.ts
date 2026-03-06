@@ -353,7 +353,7 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (taskError) {
-    return NextResponse.json({ error: taskError.message }, { status: 500 });
+    console.error(taskError.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   // 2. Insert domain memberships

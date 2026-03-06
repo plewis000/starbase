@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (saveErr) {
-    return NextResponse.json({ error: saveErr.message }, { status: 500 });
+    console.error(saveErr.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   // Advance to next question

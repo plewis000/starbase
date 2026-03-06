@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { platform, config } from "@/lib/supabase/schemas";
+import { sanitizeSearchInput } from "@/lib/validation";
 
 interface CommandResult {
   response: string;
@@ -122,8 +123,9 @@ async function executeCommand(
 
   // --- /task done ---
   if (lower.startsWith("task done ")) {
-    const search = input.replace(/^task done\s+/i, "").trim();
-    if (!search) return { response: "Which task? Usage: `/task done Buy groceries`" };
+    const rawSearch = input.replace(/^task done\s+/i, "").trim();
+    if (!rawSearch) return { response: "Which task? Usage: `/task done Buy groceries`" };
+    const search = sanitizeSearchInput(rawSearch);
 
     const { data: tasks } = await platform(supabase)
       .from("tasks")
@@ -189,18 +191,19 @@ async function executeCommand(
 
   // --- /habit check ---
   if (lower.startsWith("habit check ")) {
-    const search = input.replace(/^habit check\s+/i, "").trim();
-    if (!search) return { response: "Which habit? Usage: `/habit check Morning workout`" };
+    const rawHabitSearch = input.replace(/^habit check\s+/i, "").trim();
+    if (!rawHabitSearch) return { response: "Which habit? Usage: `/habit check Morning workout`" };
+    const habitSearch = sanitizeSearchInput(rawHabitSearch);
 
     const { data: habits } = await platform(supabase)
       .from("habits")
       .select("id, title, current_streak")
       .eq("owner_id", userId)
       .eq("status", "active")
-      .ilike("title", `%${search}%`)
+      .ilike("title", `%${habitSearch}%`)
       .limit(5);
 
-    if (!habits || habits.length === 0) return { response: `No active habit matching "${search}".` };
+    if (!habits || habits.length === 0) return { response: `No active habit matching "${rawHabitSearch}".` };
     if (habits.length > 1) {
       const matches = habits.map((h) => `• ${h.title}`).join("\n");
       return { response: `Multiple matches — be more specific:\n${matches}` };

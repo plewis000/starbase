@@ -70,7 +70,7 @@ export async function POST(
     .insert(inserts)
     .select("*");
 
-  if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 });
+  if (insertError) { console.error(insertError.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
   // Mark parent as split
   await finance(supabase)
@@ -113,7 +113,7 @@ export async function DELETE(
     .delete()
     .eq("parent_transaction_id", id);
 
-  if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 });
+  if (deleteError) { console.error(deleteError.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
   // Unmark parent
   await finance(supabase)

@@ -172,7 +172,7 @@ export async function PATCH(request: NextRequest) {
           enabled: true,
           ...updates,
         });
-      if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 });
+      if (insertErr) { console.error(insertErr.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
     } else {
       return NextResponse.json({ error: "Cannot update quiet hours: no notification channel configured" }, { status: 500 });
     }

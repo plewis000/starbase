@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (hhErr || !household) {
-    return NextResponse.json({ error: hhErr?.message || "Failed to create household" }, { status: 500 });
+    console.error(hhErr?.message); return NextResponse.json({ error: "Failed to create household" }, { status: 500 });
   }
 
   // Add creator as admin member
@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
   if (memErr) {
     // Rollback household creation
     await platform(supabase).from("households").delete().eq("id", household.id);
-    return NextResponse.json({ error: memErr.message }, { status: 500 });
+    console.error(memErr.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   return NextResponse.json({ household }, { status: 201 });
