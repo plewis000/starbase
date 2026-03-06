@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import HabitCard from "./HabitCard";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import EmptyState from "@/components/ui/EmptyState";
+import CompletionCelebration from "@/components/ui/CompletionCelebration";
 import { useToast } from "@/components/ui/Toast";
 
 interface Habit {
@@ -55,17 +56,72 @@ function QuickAddHabit({ onCreated }: { onCreated: () => void }) {
       value={title}
       onChange={(e) => setTitle(e.target.value)}
       onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
-      placeholder="Quick add habit... (press Enter, defaults to daily)"
+      placeholder="Quick add habit... (e.g., 'drink water', 'exercise')"
       disabled={adding}
       className="w-full bg-slate-900 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-500/50 disabled:opacity-50 transition-colors"
     />
   );
 }
 
+const HABIT_SUGGESTIONS = [
+  { title: "Drink 8 glasses of water", icon: "💧" },
+  { title: "Exercise for 30 minutes", icon: "🏋️" },
+  { title: "Read for 15 minutes", icon: "📖" },
+  { title: "Take a walk outside", icon: "🚶" },
+  { title: "Tidy up for 10 minutes", icon: "🧹" },
+  { title: "Meditate for 5 minutes", icon: "🧘" },
+  { title: "No phone before bed", icon: "📱" },
+  { title: "Cook a meal at home", icon: "🍳" },
+];
+
+function HabitSuggestions({ onCreated }: { onCreated: () => void }) {
+  const toast = useToast();
+  const [creating, setCreating] = useState<string | null>(null);
+
+  const handleCreate = async (title: string) => {
+    setCreating(title);
+    try {
+      const configRes = await fetch("/api/config");
+      const configData = await configRes.json();
+      const dailyFreq = configData.habit_frequencies?.find((f: { name: string }) => f.name.toLowerCase() === "daily");
+
+      const res = await fetch("/api/habits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, frequency_id: dailyFreq?.id }),
+      });
+      if (res.ok) { onCreated(); toast.success(`Added "${title}"`); }
+      else { toast.error("Failed to create habit"); }
+    } catch { toast.error("Failed to create habit"); }
+    setCreating(null);
+  };
+
+  return (
+    <div className="bg-dungeon-850 border border-dungeon-700 rounded-xl p-5">
+      <h3 className="text-sm font-semibold text-slate-300 mb-3">Quick start — tap to add</h3>
+      <div className="flex flex-wrap gap-2">
+        {HABIT_SUGGESTIONS.map((s) => (
+          <button
+            key={s.title}
+            onClick={() => handleCreate(s.title)}
+            disabled={creating === s.title}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-dungeon-900 border border-dungeon-700 text-slate-400 hover:text-slate-200 hover:border-crimson-700 disabled:opacity-50 transition-all"
+          >
+            <span>{s.icon}</span>
+            {s.title}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function HabitList({ onSelectHabit, onCreateHabit, selectedHabitId }: HabitListProps) {
+  const toast = useToast();
   const [habits, setHabits] = useState<Habit[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "active" | "paused">("active");
+  const [showCelebration, setShowCelebration] = useState(false);
 
   const fetchHabits = useCallback(async () => {
     try {
@@ -98,6 +154,7 @@ export default function HabitList({ onSelectHabit, onCreateHabit, selectedHabitI
     if (habit.checked_today) {
       // Undo check-in
       await fetch(`/api/habits/${habitId}/check-in?date=${today}`, { method: "DELETE" });
+      toast.success("Check-in removed");
     } else {
       // Create check-in
       await fetch(`/api/habits/${habitId}/check-in`, {
@@ -105,6 +162,26 @@ export default function HabitList({ onSelectHabit, onCreateHabit, selectedHabitI
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ check_date: today }),
       });
+      // Trigger completion sync for linked entities (fire-and-forget)
+      fetch("/api/entity-links/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entity_type: "habit", entity_id: habitId }),
+      }).catch(() => {});
+
+      // Check if all habits are now done → celebrate
+      const willBeAllDone = habits.filter((h) => h.status === "active").every(
+        (h) => h.checked_today || h.id === habitId
+      );
+      if (willBeAllDone && activeCount > 0) {
+        setShowCelebration(true);
+        toast.success("All habits done today!");
+      } else {
+        const newStreak = (habit.current_streak || 0) + 1;
+        if (newStreak === 7) toast.success(`${habit.title} — 7-day streak!`);
+        else if (newStreak === 30) toast.success(`${habit.title} — 30-day streak!`);
+        else toast.success(`${habit.title} checked in`);
+      }
     }
     fetchHabits();
   };
@@ -115,6 +192,10 @@ export default function HabitList({ onSelectHabit, onCreateHabit, selectedHabitI
 
   return (
     <div className="space-y-6">
+      <CompletionCelebration
+        show={showCelebration}
+        onComplete={() => setShowCelebration(false)}
+      />
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div>
@@ -143,15 +224,22 @@ export default function HabitList({ onSelectHabit, onCreateHabit, selectedHabitI
       {activeCount > 0 && (
         <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-slate-100">Today&apos;s Progress</span>
-            <span className="text-sm text-red-400 font-bold">{completionRate}%</span>
+            <span className="text-sm font-medium text-slate-100">
+              {completionRate === 100 ? "All done today!" : completionRate >= 50 ? "Keep it up!" : "Today\u2019s Progress"}
+            </span>
+            <span className={`text-sm font-bold ${completionRate === 100 ? "text-emerald-400" : "text-red-400"}`}>{completionRate}%</span>
           </div>
           <div className="w-full bg-slate-800 rounded-full h-2">
             <div
-              className="bg-red-400 h-2 rounded-full transition-all"
+              className={`h-2 rounded-full transition-all ${completionRate === 100 ? "bg-emerald-400" : "bg-red-400"}`}
               style={{ width: `${completionRate}%` }}
             />
           </div>
+          <p className="text-xs text-dungeon-500 mt-2">
+            {checkedCount === 0 ? "Start your day — check in on your first habit" :
+             completionRate === 100 ? `${activeCount} habits done. You\u2019re on fire!` :
+             `${activeCount - checkedCount} habit${activeCount - checkedCount > 1 ? "s" : ""} remaining today`}
+          </p>
         </div>
       )}
 
@@ -174,12 +262,16 @@ export default function HabitList({ onSelectHabit, onCreateHabit, selectedHabitI
       {loading ? (
         <div className="flex justify-center py-12"><LoadingSpinner size="lg" /></div>
       ) : habits.length === 0 ? (
-        <EmptyState
-          icon="🔄"
-          title="No habits found"
-          description="Build consistency by tracking your daily habits."
-          action={{ label: "New Habit", onClick: onCreateHabit }}
-        />
+        <div className="space-y-6">
+          <EmptyState
+            icon="🔄"
+            title="Start building your routine"
+            description="Track daily habits like 'drink water', 'exercise', or 'read for 15 minutes'. Small habits compound into big changes — start with just one."
+            tip="Tip: Use habits for things you do regularly (daily/weekly). Use tasks for one-time to-dos with a due date."
+            action={{ label: "Create Your First Habit", onClick: onCreateHabit }}
+          />
+          <HabitSuggestions onCreated={fetchHabits} />
+        </div>
       ) : (
         <div className="space-y-2">
           {habits.map((habit) => (

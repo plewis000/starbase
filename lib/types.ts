@@ -13,6 +13,8 @@ export interface ChecklistItem {
   title: string;
   checked: boolean;
   sort_order: number;
+  assigned_to?: string;
+  assignee?: { id: string; full_name: string; avatar_url?: string | null };
 }
 
 export interface Comment {
@@ -35,6 +37,10 @@ export interface Comment {
 export interface ActivityEntry {
   action: string;
   performed_at: string;
+  performed_by?: string;
+  field_name?: string;
+  old_value?: string;
+  new_value?: string;
   metadata?: Record<string, unknown>;
 }
 
@@ -80,11 +86,14 @@ export interface Task {
     name: string;
     icon?: string;
   };
+  owner_ids?: string[];
+  owners?: UserSummary[];
   assignee?: {
     id: string;
     full_name: string;
   };
-  additional_owners?: UserSummary[];
+  completed_by?: string;
+  credited_to?: string[];
   creator?: {
     id: string;
     full_name: string;
@@ -108,8 +117,8 @@ export interface TaskFormData {
   due_date?: string;
   status_id?: string;
   priority_id?: string;
+  owner_ids?: string[];
   assigned_to?: string;
-  additional_owners?: string[];
   recurrence_rule?: string;
   checklist_items?: ChecklistItem[];
 }
@@ -256,6 +265,24 @@ export interface CheckInFormData {
   mood?: HabitMood;
 }
 
+// ---- ENTITY LINKS (cross-module) ----
+
+export type EntityLinkType = "derived_from" | "tracks" | "syncs_with";
+export type LinkableEntityType = "task" | "habit" | "goal" | "shopping_item";
+
+export interface EntityLink {
+  id: string;
+  source_type: LinkableEntityType;
+  source_id: string;
+  target_type: LinkableEntityType;
+  target_id: string;
+  link_type: EntityLinkType;
+  sync_completion: boolean;
+  created_by?: string;
+  created_at?: string;
+  metadata?: Record<string, unknown>;
+}
+
 // ---- LINKING ----
 
 export interface LinkedHabit {
@@ -328,7 +355,7 @@ export interface DashboardSummary {
 
 // ---- COMMENTS (Polymorphic, v2) ----
 
-export type CommentEntityType = "task" | "goal" | "habit";
+export type CommentEntityType = "task" | "goal" | "habit" | "thread";
 
 export interface CommentV2 {
   id: string;

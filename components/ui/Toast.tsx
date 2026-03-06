@@ -9,13 +9,19 @@ interface Toast {
   message: string;
   type: ToastType;
   duration: number;
+  action?: ToastAction;
 }
 
 interface ToastContextValue {
-  toast: (message: string, type?: ToastType, duration?: number) => void;
-  success: (message: string) => void;
+  toast: (message: string, type?: ToastType, duration?: number, action?: ToastAction) => void;
+  success: (message: string, action?: ToastAction) => void;
   error: (message: string) => void;
   warning: (message: string) => void;
+}
+
+interface ToastAction {
+  label: string;
+  onClick: () => void;
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null);
@@ -34,14 +40,14 @@ const ICONS: Record<ToastType, string> = {
 };
 
 const COLORS: Record<ToastType, string> = {
-  success: "bg-red-500/20 border-red-500/40 text-green-300",
+  success: "bg-green-500/20 border-green-500/40 text-green-300",
   error: "bg-red-500/20 border-red-500/40 text-red-300",
   warning: "bg-amber-500/20 border-amber-500/40 text-amber-300",
   info: "bg-blue-500/20 border-blue-500/40 text-blue-300",
 };
 
 const ICON_COLORS: Record<ToastType, string> = {
-  success: "bg-red-500/30 text-red-400",
+  success: "bg-green-500/30 text-green-400",
   error: "bg-red-500/30 text-red-400",
   warning: "bg-amber-500/30 text-amber-400",
   info: "bg-blue-500/30 text-blue-400",
@@ -69,6 +75,14 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number)
         {ICONS[toast.type]}
       </span>
       <p className="text-sm font-medium flex-1">{toast.message}</p>
+      {toast.action && (
+        <button
+          onClick={() => { toast.action!.onClick(); setExiting(true); setTimeout(() => onDismiss(toast.id), 200); }}
+          className="text-xs font-bold text-slate-100 hover:text-white underline underline-offset-2 shrink-0 mr-1"
+        >
+          {toast.action.label}
+        </button>
+      )}
       <button
         onClick={() => { setExiting(true); setTimeout(() => onDismiss(toast.id), 200); }}
         className="text-slate-400 hover:text-slate-200 transition-colors shrink-0"
@@ -90,14 +104,14 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const addToast = useCallback((message: string, type: ToastType = "info", duration = 4000) => {
+  const addToast = useCallback((message: string, type: ToastType = "info", duration = 4000, action?: ToastAction) => {
     const id = nextId.current++;
-    setToasts((prev) => [...prev.slice(-4), { id, message, type, duration }]);
+    setToasts((prev) => [...prev.slice(-4), { id, message, type, duration, action }]);
   }, []);
 
   const value: ToastContextValue = {
     toast: addToast,
-    success: useCallback((msg: string) => addToast(msg, "success", 3000), [addToast]),
+    success: useCallback((msg: string, action?: ToastAction) => addToast(msg, "success", action ? 5000 : 3000, action), [addToast]),
     error: useCallback((msg: string) => addToast(msg, "error", 5000), [addToast]),
     warning: useCallback((msg: string) => addToast(msg, "warning", 4000), [addToast]),
   };

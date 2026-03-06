@@ -231,7 +231,7 @@ export default function ChatBubble() {
     <>
       {/* Panel */}
       {isOpen && (
-        <div className="fixed bottom-20 right-4 w-[380px] max-h-[520px] bg-dungeon-850 border border-dungeon-700 rounded-2xl shadow-dungeon-lg z-50 flex flex-col overflow-hidden md:bottom-6 md:right-6 md:w-[420px] md:max-h-[600px]">
+        <div className="fixed bottom-20 left-2 right-2 max-h-[70vh] bg-dungeon-850 border border-dungeon-700 rounded-2xl shadow-dungeon-lg z-50 flex flex-col overflow-hidden md:bottom-6 md:left-auto md:right-6 md:w-[420px] md:max-h-[600px]">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-dungeon-700 bg-dungeon-900/95">
             <div className="flex items-center gap-2">

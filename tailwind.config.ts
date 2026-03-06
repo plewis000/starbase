@@ -71,11 +71,21 @@ const config: Config = {
       animation: {
         "pulse-slow": "pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite",
         "flicker": "flicker 3s ease-in-out infinite alternate",
+        "confetti-burst": "confetti-burst 0.8s ease-out forwards",
+        "celebrate-pop": "celebrate-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards",
       },
       keyframes: {
         flicker: {
           "0%, 100%": { opacity: "1" },
           "50%": { opacity: "0.8" },
+        },
+        "confetti-burst": {
+          "0%": { transform: "translate(0, 0) rotate(0deg) scale(1)", opacity: "1" },
+          "100%": { transform: "translate(var(--vx), var(--vy)) rotate(720deg) scale(0)", opacity: "0" },
+        },
+        "celebrate-pop": {
+          "0%": { transform: "scale(0)", opacity: "0" },
+          "100%": { transform: "scale(1)", opacity: "1" },
         },
       },
     },

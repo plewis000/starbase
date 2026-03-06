@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
   const { data: overrides, error, count } = await query;
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   return NextResponse.json({ overrides: overrides || [], total: count || 0 });
@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 
     // Log the change
@@ -175,7 +175,7 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   // Log creation
@@ -235,7 +235,7 @@ export async function DELETE(request: NextRequest) {
     .eq("id", overrideId);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   // Log deactivation

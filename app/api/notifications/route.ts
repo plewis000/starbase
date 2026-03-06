@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
   const { data: notifications, error, count } = await query;
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   // Unread count
@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
         .eq("user_id", user.id)
         .is("read_at", null);
 
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
       return NextResponse.json({ success: true });
     }
 
@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
         .in("id", notification_ids as string[])
         .is("read_at", null);
 
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
       return NextResponse.json({ success: true });
     }
 
@@ -163,7 +163,7 @@ export async function POST(request: NextRequest) {
         .eq("group_key", groupKey)
         .is("read_at", null);
 
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
       return NextResponse.json({ success: true });
     }
 

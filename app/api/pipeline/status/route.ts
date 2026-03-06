@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
     if (error.code === "PGRST116") {
       return NextResponse.json({ error: "Feedback not found" }, { status: 404 });
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   // Discord notifications (using after() for serverless safety)

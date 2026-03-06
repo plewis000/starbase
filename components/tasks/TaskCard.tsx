@@ -1,9 +1,15 @@
 "use client";
 
-import React from "react";
+import React, { useState, useRef, useEffect } from "react";
 import StatusBadge from "@/components/ui/StatusBadge";
 import PriorityBadge from "@/components/ui/PriorityBadge";
 import { UserSummary } from "@/lib/types";
+
+interface HouseholdMember {
+  user_id: string;
+  user?: UserSummary | null;
+  display_name?: string;
+}
 
 interface Tag {
   id: string;
@@ -47,10 +53,11 @@ interface TaskCardProps {
     assignee?: {
       id: string;
       full_name: string;
-      email: string;
+      email?: string;
       avatar_url?: string | null;
     };
-    additional_owners?: UserSummary[];
+    owner_ids?: string[];
+    owners?: UserSummary[];
     tags?: Tag[];
     checklist_items?: ChecklistItem[];
     subtask_progress?: { done: number; total: number };
@@ -58,6 +65,8 @@ interface TaskCardProps {
   onSelect: (id: string) => void;
   onQuickComplete?: (id: string) => void;
   isSelected?: boolean;
+  members?: HouseholdMember[];
+  onOwnersChanged?: (taskId: string, ownerIds: string[]) => void;
 }
 
 // Format relative date
@@ -113,6 +122,8 @@ export default function TaskCard({
   onSelect,
   onQuickComplete,
   isSelected = false,
+  members,
+  onOwnersChanged,
 }: TaskCardProps) {
   const checklist = task.checklist_items || [];
   const completedChecklist = checklist.filter((item) => item.checked).length;
@@ -120,15 +131,42 @@ export default function TaskCard({
   const displayTags = (task.tags || []).slice(0, 2);
   const hiddenTagsCount = Math.max(0, (task.tags || []).length - 2);
   const isCompleted = !!task.completed_at;
-  const additionalOwners = task.additional_owners || [];
-  const allOwners = [
-    ...(task.assignee ? [task.assignee] : []),
-    ...additionalOwners,
-  ];
+  const allOwners = task.owners || (task.assignee ? [task.assignee] : []);
+
+  const [showOwnerPopover, setShowOwnerPopover] = useState(false);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  // Close popover on outside click
+  useEffect(() => {
+    if (!showOwnerPopover) return;
+    const handler = (e: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+        setShowOwnerPopover(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showOwnerPopover]);
 
   const handleCheckbox = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (onQuickComplete) onQuickComplete(task.id);
+  };
+
+  const handleAvatarClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (members && members.length > 1 && onOwnersChanged) {
+      setShowOwnerPopover(!showOwnerPopover);
+    }
+  };
+
+  const toggleOwner = async (memberId: string) => {
+    if (!onOwnersChanged) return;
+    const currentIds = task.owner_ids || allOwners.map((o) => o.id);
+    const nextIds = currentIds.includes(memberId)
+      ? currentIds.filter((id) => id !== memberId)
+      : [...currentIds, memberId];
+    onOwnersChanged(task.id, nextIds);
   };
 
   return (
@@ -160,7 +198,9 @@ export default function TaskCard({
       {/* Task content */}
       <div className="flex-1 min-w-0">
         {/* Title */}
-        <h3 className="text-slate-100 font-medium truncate mb-1">
+        <h3 className={`font-medium truncate mb-1 transition-all duration-300 ${
+          isCompleted ? "text-slate-500 line-through" : "text-slate-100"
+        }`}>
           {task.recurrence_rule && (
             <span className="text-blue-400 mr-1.5" title="Recurring task">🔄</span>
           )}
@@ -225,35 +265,70 @@ export default function TaskCard({
 
       {/* Right side: Owner avatars + Chevron */}
       <div className="flex items-center gap-3 flex-shrink-0">
-        {/* Owner avatars (stacked) */}
-        {allOwners.length > 0 && (
-          <div className="flex -space-x-2">
-            {allOwners.slice(0, 3).map((owner) => (
-              <div key={owner.id} className="flex-shrink-0">
-                {owner.avatar_url ? (
-                  <img
-                    src={owner.avatar_url}
-                    alt={owner.full_name}
-                    className="w-7 h-7 rounded-full bg-slate-800 object-cover border-2 border-slate-900"
-                    title={owner.full_name}
-                  />
-                ) : (
-                  <div
-                    className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-semibold text-slate-200 border-2 border-slate-900"
-                    title={owner.full_name}
+        {/* Owner avatars (stacked, clickable) */}
+        <div className="relative" ref={popoverRef}>
+          {allOwners.length > 0 && (
+            <div
+              className="flex -space-x-2 cursor-pointer"
+              onClick={handleAvatarClick}
+              title={members && members.length > 1 ? "Click to edit owners" : undefined}
+            >
+              {allOwners.slice(0, 3).map((owner) => (
+                <div key={owner.id} className="flex-shrink-0">
+                  {owner.avatar_url ? (
+                    <img
+                      src={owner.avatar_url}
+                      alt={owner.full_name}
+                      className="w-7 h-7 rounded-full bg-slate-800 object-cover border-2 border-slate-900"
+                      title={owner.full_name}
+                    />
+                  ) : (
+                    <div
+                      className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-semibold text-slate-200 border-2 border-slate-900"
+                      title={owner.full_name}
+                    >
+                      {getInitials(owner.full_name)}
+                    </div>
+                  )}
+                </div>
+              ))}
+              {allOwners.length > 3 && (
+                <div className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-semibold text-slate-300 border-2 border-slate-900">
+                  +{allOwners.length - 3}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Owner popover */}
+          {showOwnerPopover && members && members.length > 1 && (
+            <div className="absolute right-0 top-full mt-2 bg-slate-900 border border-slate-700 rounded-lg shadow-xl z-50 py-1.5 min-w-[160px]">
+              <p className="px-3 py-1 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Owners</p>
+              {members.map((m) => {
+                const name = m.user?.full_name || m.display_name || m.user_id;
+                const currentIds = task.owner_ids || allOwners.map((o) => o.id);
+                const isOwner = currentIds.includes(m.user_id);
+                return (
+                  <button
+                    key={m.user_id}
+                    onClick={(e) => { e.stopPropagation(); toggleOwner(m.user_id); }}
+                    className={`w-full text-left px-3 py-1.5 text-xs flex items-center gap-2 transition-colors ${
+                      isOwner
+                        ? "text-red-300 bg-red-900/20 hover:bg-red-900/30"
+                        : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+                    }`}
                   >
-                    {getInitials(owner.full_name)}
-                  </div>
-                )}
-              </div>
-            ))}
-            {allOwners.length > 3 && (
-              <div className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-semibold text-slate-300 border-2 border-slate-900">
-                +{allOwners.length - 3}
-              </div>
-            )}
-          </div>
-        )}
+                    <span className="w-4 h-4 rounded-full bg-slate-700 flex items-center justify-center text-[8px] font-semibold flex-shrink-0">
+                      {getInitials(name)}
+                    </span>
+                    <span className="flex-1 truncate">{name.split(" ")[0]}</span>
+                    {isOwner && <span className="text-red-400">✓</span>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
         {/* Chevron */}
         <svg

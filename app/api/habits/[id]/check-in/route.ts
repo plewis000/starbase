@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { platform, config } from "@/lib/supabase/schemas";
 import { logActivity } from "@/lib/activity-log";
@@ -105,7 +105,7 @@ export async function POST(
         { status: 409 }
       );
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   // Get frequency details for streak calculation
@@ -153,8 +153,8 @@ export async function POST(
     }
   }
 
-  // Award XP for habit check-in (non-blocking)
-  (async () => {
+  // Award XP for habit check-in (runs after response is sent — P024)
+  after(async () => {
     try {
       let xpAmount = 15; // Base XP for check-in
 
@@ -182,7 +182,7 @@ export async function POST(
     } catch (err) {
       console.error("Gamification error:", err);
     }
-  })();
+  });
 
   return NextResponse.json({
     check_in: checkIn,
@@ -223,7 +223,7 @@ export async function DELETE(
     .eq("check_date", date);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   // Verify habit for streak recalc

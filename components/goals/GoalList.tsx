@@ -157,9 +157,10 @@ export default function GoalList({ onSelectGoal, onCreateGoal, selectedGoalId }:
       ) : goals.length === 0 ? (
         <EmptyState
           icon="🎯"
-          title="No goals found"
-          description="Set a goal to track your progress toward something meaningful."
-          action={{ label: "New Goal", onClick: onCreateGoal }}
+          title="Set your first goal"
+          description="Goals give your habits and tasks direction. Try something like 'Keep the house clean this month' or 'Establish a morning routine' — then link habits and tasks to track progress automatically."
+          tip="Tip: Link habits and tasks to goals for automatic progress tracking. Goals are the 'why' behind your daily actions."
+          action={{ label: "Create Your First Goal", onClick: onCreateGoal }}
         />
       ) : (
         <div className="space-y-2">

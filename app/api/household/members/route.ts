@@ -38,10 +38,22 @@ export async function GET() {
     .order("joined_at");
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
-  return NextResponse.json({ members: members || [] });
+  // Enrich with user data (cross-schema FK can't be joined by PostgREST)
+  const userIds = (members || []).map((m) => m.user_id);
+  const { data: users } = userIds.length > 0
+    ? await platform(supabase).from("users").select("id, full_name, email, avatar_url").in("id", userIds)
+    : { data: [] };
+
+  const usersMap = new Map((users || []).map((u) => [u.id, u]));
+  const enriched = (members || []).map((m) => ({
+    ...m,
+    user: usersMap.get(m.user_id) || null,
+  }));
+
+  return NextResponse.json({ members: enriched });
 }
 
 // POST /api/household/members — add a member to the household (admin only)
@@ -104,7 +116,7 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   return NextResponse.json({ member }, { status: 201 });
@@ -146,7 +158,7 @@ export async function DELETE(request: NextRequest) {
     .eq("user_id", targetUserId);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   return NextResponse.json({ success: true });

@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
   const { data: feedback, error, count } = await query;
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   // Fetch vote counts for returned feedback
@@ -164,7 +164,7 @@ export async function POST(request: NextRequest) {
 
   if (error) {
     console.error("[feedback] insert failed:", JSON.stringify({ message: error.message, details: error.details, hint: error.hint, code: error.code, payload: insertPayload }));
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   // Background work — auto-upvote, notifications, pipeline posting

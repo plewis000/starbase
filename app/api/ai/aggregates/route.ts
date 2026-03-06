@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     .range(offset, offset + limit - 1);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   return NextResponse.json({ aggregates: aggregates || [], total: count || 0 });
@@ -102,11 +102,11 @@ async function computeAggregateInApp(
     .gte("created_at", date)
     .lt("created_at", nextDateStr);
 
-  // Tasks completed today
+  // Tasks completed today (uses credited_to, completed_by, or owner_ids fallback)
   const { count: tasksCompleted } = await platform(supabase)
     .from("tasks")
     .select("id", { count: "exact", head: true })
-    .eq("assigned_to", userId)
+    .or(`completed_by.eq.${userId},credited_to.cs.{${userId}},and(completed_by.is.null,owner_ids.cs.{${userId}})`)
     .gte("completed_at", date)
     .lt("completed_at", nextDateStr);
 
@@ -114,7 +114,7 @@ async function computeAggregateInApp(
   const { count: habitsChecked } = await platform(supabase)
     .from("habit_check_ins")
     .select("id", { count: "exact", head: true })
-    .eq("user_id", userId)
+    .eq("checked_by", userId)
     .eq("check_date", date);
 
   // Session count
@@ -154,7 +154,7 @@ async function computeAggregateInApp(
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   return NextResponse.json({

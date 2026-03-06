@@ -190,6 +190,13 @@ export async function registerSlashCommands() {
       name: "pipeline",
       description: "Show active pipeline jobs",
     },
+    {
+      name: "link",
+      description: "Link your Discord account to the app (required for slash commands)",
+      options: [
+        { name: "email", description: "The email you signed up with", type: 3, required: true },
+      ],
+    },
   ];
 
   const res = await fetch(`${DISCORD_API}/applications/${APP_ID}/guilds/${GUILD_ID}/commands`, {

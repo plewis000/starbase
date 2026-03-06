@@ -1,14 +1,73 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { useToast } from "@/components/ui/Toast";
 import { ChecklistItem } from "@/lib/types";
+import { useTaskConfig, type HouseholdMember } from "@/hooks/useTaskConfig";
 
 interface ChecklistWidgetProps {
   taskId: string;
   items: ChecklistItem[];
   onUpdate: () => void;
+}
+
+function getInitials(name?: string): string {
+  if (!name) return "?";
+  return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+}
+
+function AssigneeButton({ item, members, onAssign }: {
+  item: ChecklistItem;
+  members: HouseholdMember[];
+  onAssign: (itemId: string, userId: string | null) => void;
+}) {
+  const [showDropdown, setShowDropdown] = useState(false);
+
+  return (
+    <div className="relative">
+      <button
+        onClick={(e) => { e.stopPropagation(); setShowDropdown(!showDropdown); }}
+        className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold border transition-all flex-shrink-0"
+        title={item.assignee?.full_name || "Assign"}
+      >
+        {item.assignee ? (
+          item.assignee.avatar_url ? (
+            <img src={item.assignee.avatar_url} alt="" className="w-full h-full rounded-full object-cover" />
+          ) : (
+            <span className="bg-slate-700 text-slate-300 border-slate-600 w-full h-full rounded-full flex items-center justify-center">
+              {getInitials(item.assignee.full_name)}
+            </span>
+          )
+        ) : (
+          <span className="bg-slate-800 text-slate-600 border-slate-700 border-dashed w-full h-full rounded-full flex items-center justify-center hover:text-slate-400">
+            +
+          </span>
+        )}
+      </button>
+      {showDropdown && (
+        <div className="absolute right-0 top-full mt-1 z-20 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 min-w-[140px]">
+          <button
+            onClick={() => { onAssign(item.id, null); setShowDropdown(false); }}
+            className="w-full text-left px-3 py-1.5 text-xs text-slate-400 hover:bg-slate-700 transition-colors"
+          >
+            Unassigned
+          </button>
+          {members.map((m) => (
+            <button
+              key={m.user_id}
+              onClick={() => { onAssign(item.id, m.user_id); setShowDropdown(false); }}
+              className={`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-700 transition-colors ${
+                item.assigned_to === m.user_id ? "text-red-400 font-medium" : "text-slate-200"
+              }`}
+            >
+              {m.user?.full_name || m.display_name || m.user_id}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function ChecklistWidget({
@@ -21,6 +80,11 @@ export default function ChecklistWidget({
   const toast = useToast();
   const [newItemTitle, setNewItemTitle] = useState("");
   const [addingItem, setAddingItem] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
+  const { config } = useTaskConfig();
+
+  useEffect(() => { setItemsState(items); }, [items]);
 
   const checkedCount = itemsState.filter((item) => item.checked).length;
   const progressPercent =
@@ -37,23 +101,95 @@ export default function ChecklistWidget({
           body: JSON.stringify({ checked: !currentChecked }),
         }
       );
+      if (!response.ok) throw new Error("Failed to update checklist item");
 
-      if (!response.ok) {
-        throw new Error("Failed to update checklist item");
-      }
-
-      // Optimistic update
       setItemsState((prev) =>
         prev.map((item) =>
           item.id === itemId ? { ...item, checked: !currentChecked } : item
         )
       );
-
       onUpdate();
     } catch {
       toast.error("Failed to update checklist item");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEditItem = async (itemId: string, newTitle: string) => {
+    if (!newTitle.trim()) {
+      setEditingId(null);
+      return;
+    }
+    try {
+      const response = await fetch(
+        `/api/tasks/${taskId}/checklist/${itemId}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: newTitle.trim() }),
+        }
+      );
+      if (!response.ok) throw new Error("Failed to update checklist item");
+
+      setItemsState((prev) =>
+        prev.map((item) =>
+          item.id === itemId ? { ...item, title: newTitle.trim() } : item
+        )
+      );
+      onUpdate();
+    } catch {
+      toast.error("Failed to update item");
+    } finally {
+      setEditingId(null);
+    }
+  };
+
+  const handleAssignItem = async (itemId: string, userId: string | null) => {
+    try {
+      const response = await fetch(
+        `/api/tasks/${taskId}/checklist/${itemId}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ assigned_to: userId }),
+        }
+      );
+      if (!response.ok) throw new Error("Failed to assign checklist item");
+
+      // Find member info for optimistic update
+      const member = config?.members.find((m) => m.user_id === userId);
+      setItemsState((prev) =>
+        prev.map((item) =>
+          item.id === itemId
+            ? {
+                ...item,
+                assigned_to: userId || undefined,
+                assignee: member?.user
+                  ? { id: member.user.id, full_name: member.user.full_name, avatar_url: member.user.avatar_url }
+                  : undefined,
+              }
+            : item
+        )
+      );
+      onUpdate();
+    } catch {
+      toast.error("Failed to assign item");
+    }
+  };
+
+  const handleDeleteItem = async (itemId: string) => {
+    try {
+      const response = await fetch(
+        `/api/tasks/${taskId}/checklist/${itemId}`,
+        { method: "DELETE" }
+      );
+      if (!response.ok) throw new Error("Failed to delete checklist item");
+
+      setItemsState((prev) => prev.filter((item) => item.id !== itemId));
+      onUpdate();
+    } catch {
+      toast.error("Failed to delete item");
     }
   };
 
@@ -67,10 +203,7 @@ export default function ChecklistWidget({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: newItemTitle.trim() }),
       });
-
-      if (!response.ok) {
-        throw new Error("Failed to add checklist item");
-      }
+      if (!response.ok) throw new Error("Failed to add checklist item");
 
       const data = await response.json();
       setItemsState((prev) => [...prev, data.item]);
@@ -107,7 +240,7 @@ export default function ChecklistWidget({
       {itemsState.length > 0 && (
         <div className="space-y-2">
           {itemsState.map((item) => (
-            <div key={item.id} className="flex items-center gap-3">
+            <div key={item.id} className="flex items-center gap-3 group">
               <input
                 type="checkbox"
                 checked={item.checked}
@@ -115,15 +248,51 @@ export default function ChecklistWidget({
                 disabled={loading}
                 className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-red-400 cursor-pointer disabled:opacity-50"
               />
-              <span
-                className={`flex-1 text-sm ${
-                  item.checked
-                    ? "text-slate-500 line-through"
-                    : "text-slate-100"
-                }`}
+              {editingId === item.id ? (
+                <input
+                  type="text"
+                  value={editingTitle}
+                  onChange={(e) => setEditingTitle(e.target.value)}
+                  onBlur={() => handleEditItem(item.id, editingTitle)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleEditItem(item.id, editingTitle);
+                    if (e.key === "Escape") setEditingId(null);
+                  }}
+                  autoFocus
+                  className="flex-1 bg-slate-700 border border-red-400 rounded px-2 py-1 text-sm text-slate-100 focus:outline-none"
+                />
+              ) : (
+                <span
+                  onClick={() => {
+                    setEditingId(item.id);
+                    setEditingTitle(item.title);
+                  }}
+                  className={`flex-1 text-sm cursor-pointer hover:text-red-300 transition-colors ${
+                    item.checked
+                      ? "text-slate-500 line-through"
+                      : "text-slate-100"
+                  }`}
+                >
+                  {item.title}
+                </span>
+              )}
+
+              {/* Assignee avatar */}
+              {config && (
+                <AssigneeButton
+                  item={item}
+                  members={config.members}
+                  onAssign={handleAssignItem}
+                />
+              )}
+
+              <button
+                onClick={() => handleDeleteItem(item.id)}
+                className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 transition-all p-1"
+                title="Delete item"
               >
-                {item.title}
-              </span>
+                ✕
+              </button>
             </div>
           ))}
         </div>
@@ -135,10 +304,8 @@ export default function ChecklistWidget({
           type="text"
           value={newItemTitle}
           onChange={(e) => setNewItemTitle(e.target.value)}
-          onKeyPress={(e) => {
-            if (e.key === "Enter") {
-              handleAddItem();
-            }
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleAddItem();
           }}
           placeholder="Add item..."
           disabled={addingItem}

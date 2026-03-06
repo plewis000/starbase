@@ -42,11 +42,16 @@ export async function getConfigLookups(supabase: SupabaseClient) {
  * Matches the shape that PostgREST would return with cross-schema joins
  */
 export function enrichTask(task: any, lookups: ConfigLookups) {
-  // Resolve additional owners from metadata
-  const additionalOwnerIds: string[] = task.metadata?.additional_owners || [];
-  const additionalOwners = additionalOwnerIds
+  // Build owners array from owner_ids
+  const ownerIds: string[] = task.owner_ids || [];
+  const owners = ownerIds
     .map((id: string) => lookups.users.get(id))
     .filter(Boolean);
+
+  // assignee = first owner (backward compat)
+  const assignee = ownerIds.length > 0
+    ? lookups.users.get(ownerIds[0]) || null
+    : (task.assigned_to ? lookups.users.get(task.assigned_to) || null : null);
 
   return {
     ...task,
@@ -57,8 +62,8 @@ export function enrichTask(task: any, lookups: ConfigLookups) {
     location_context: task.location_context_id
       ? lookups.locations.get(task.location_context_id) || null
       : null,
-    assignee: task.assigned_to ? lookups.users.get(task.assigned_to) || null : null,
-    additional_owners: additionalOwners,
+    owners,
+    assignee,
     creator: task.created_by ? lookups.users.get(task.created_by) || null : null,
     // Enrich tags array: each tag_tags entry gets its config.tags data
     tags: task.tags

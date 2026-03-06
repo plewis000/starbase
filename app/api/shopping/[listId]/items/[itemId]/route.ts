@@ -50,7 +50,7 @@ export async function PATCH(
     .select("*")
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
   if (!item) return NextResponse.json({ error: "Item not found in this list" }, { status: 404 });
 
   return NextResponse.json({ item });
@@ -85,7 +85,7 @@ export async function DELETE(
     .eq("id", itemId)
     .eq("list_id", listId);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
   return NextResponse.json({ success: true });
 }

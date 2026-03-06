@@ -29,9 +29,10 @@ interface AppShellProps {
 
 const navItems: NavItem[] = [
   { href: "/dashboard", label: "Command Deck", icon: "🏠" },
-  { href: "/chat", label: "Talk to Zev", icon: "💬" },
+  { href: "/comms", label: "Comms", icon: "💬" },
   { href: "/crawl", label: "The Crawl", icon: "🗡️" },
   { href: "/tasks", label: "Task Board", icon: "📋" },
+  { href: "/calendar", label: "Calendar", icon: "📅" },
   { href: "/budget", label: "The Vault", icon: "💰" },
   { href: "/goals", label: "War Room", icon: "🎯" },
   { href: "/habits", label: "Training Grounds", icon: "🔄" },
@@ -54,7 +55,7 @@ export default function AppShell({ user, children }: AppShellProps) {
             {/* Mobile menu button */}
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden text-dungeon-500 hover:text-slate-100 transition-colors p-2"
+              className="lg:hidden text-dungeon-500 hover:text-slate-100 transition-colors p-2.5"
               aria-label="Toggle sidebar"
             >
               <svg
@@ -119,7 +120,7 @@ export default function AppShell({ user, children }: AppShellProps) {
             </span>
             <button
               onClick={() => setSidebarOpen(false)}
-              className="text-dungeon-500 hover:text-slate-100 transition-colors p-1"
+              className="text-dungeon-500 hover:text-slate-100 transition-colors p-2"
               aria-label="Close sidebar"
             >
               <svg
@@ -147,7 +148,7 @@ export default function AppShell({ user, children }: AppShellProps) {
                   key={item.href}
                   href={item.href}
                   onClick={() => setSidebarOpen(false)}
-                  className={`flex items-center gap-3 px-4 py-2.5 rounded-lg font-medium transition-all relative group text-sm ${
+                  className={`flex items-center gap-3 px-4 py-3 min-h-[44px] rounded-lg font-medium transition-all relative group text-sm ${
                     isActive
                       ? "bg-crimson-900/30 text-crimson-400 border-l-2 border-crimson-500 shadow-crimson-glow"
                       : "text-dungeon-500 hover:text-slate-100 hover:bg-dungeon-800"

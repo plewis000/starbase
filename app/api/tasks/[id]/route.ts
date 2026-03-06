@@ -1,12 +1,13 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { logActivity, logFieldChanges } from "@/lib/activity-log";
 import { createNextRecurrence } from "@/lib/recurrence-engine";
-import { notifyTaskAssigned, notifyTaskCompleted } from "@/lib/notify";
+import { notifyTaskAssigned, notifyTaskCompleted, notifyCreditedUsers } from "@/lib/notify";
 import { platform, config } from "@/lib/supabase/schemas";
 import { getConfigLookups, enrichTasks } from "@/lib/task-enrichment";
 import { isValidUUID } from "@/lib/validation";
-import { awardXp, checkAchievements } from "@/lib/gamification";
+import { awardXp, checkAchievements, hasXpBeenAwarded } from "@/lib/gamification";
 import { getHouseholdContext, getHouseholdMemberIds, verifyTaskHouseholdAccess } from "@/lib/household";
 
 // =============================================================
@@ -55,7 +56,7 @@ export async function GET(
     if (error.code === "PGRST116") {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   // Get config lookups for enrichment
@@ -213,16 +214,20 @@ export async function PATCH(
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
   const updateFields: Record<string, unknown> = {};
 
-  // Handle additional_owners update via metadata
-  if ("additional_owners" in body && Array.isArray(body.additional_owners)) {
-    const validOwners = body.additional_owners.filter(
+  // Handle owner_ids update
+  if ("owner_ids" in body && Array.isArray(body.owner_ids)) {
+    const validOwners = body.owner_ids.filter(
       (id: unknown) => typeof id === "string" && memberIds.includes(id as string)
     );
+    updateFields.owner_ids = validOwners;
+    // Sync assigned_to for backward compat (trigger also handles this, but be explicit)
+    updateFields.assigned_to = validOwners[0] || null;
+    // Strip additional_owners from metadata if present
     const existingMetadata = (currentTask.metadata as Record<string, unknown>) || {};
-    updateFields.metadata = {
-      ...existingMetadata,
-      additional_owners: validOwners,
-    };
+    if (existingMetadata.additional_owners) {
+      const { additional_owners: _, ...cleanMeta } = existingMetadata;
+      updateFields.metadata = cleanMeta;
+    }
   }
 
   // Only include fields that were actually sent
@@ -285,8 +290,39 @@ export async function PATCH(
           );
         }
       }
+      // Merge metadata, strip additional_owners (migrated to owner_ids)
+      if (field === "metadata") {
+        const rawMeta = { ...body.metadata };
+        delete rawMeta.additional_owners;
+        if (updateFields.metadata) {
+          updateFields.metadata = { ...(updateFields.metadata as Record<string, unknown>), ...rawMeta };
+        } else {
+          updateFields.metadata = rawMeta;
+        }
+        continue;
+      }
       updateFields[field] = body[field];
     }
+  }
+
+  // Validate assigned_to is a household member
+  if (updateFields.assigned_to && typeof updateFields.assigned_to === "string" && !memberIds.includes(updateFields.assigned_to)) {
+    return NextResponse.json({ error: "Cannot assign to user outside your household" }, { status: 403 });
+  }
+
+  // Handle credited_to — validated when completing (sent with status_id → Done)
+  // Also accepted as a standalone PATCH for editing credit after the fact
+  if ("credited_to" in body && Array.isArray(body.credited_to)) {
+    const creditedTo: string[] = body.credited_to;
+    for (const cid of creditedTo) {
+      if (!isValidUUID(cid)) {
+        return NextResponse.json({ error: "credited_to must be valid UUIDs" }, { status: 400 });
+      }
+      if (!memberIds.includes(cid)) {
+        return NextResponse.json({ error: `credited_to user ${cid} is not a household member` }, { status: 400 });
+      }
+    }
+    updateFields.credited_to = creditedTo;
   }
 
   // Always update last_touched_at
@@ -303,10 +339,18 @@ export async function PATCH(
 
     if (newStatus?.name === "Done") {
       updateFields.completed_at = new Date().toISOString();
+      updateFields.completed_by = user.id;
+      // If credited_to wasn't explicitly provided, default to owner_ids (or [completer])
+      if (!updateFields.credited_to) {
+        const taskOwnerIds: string[] = (updateFields.owner_ids as string[]) || currentTask.owner_ids || [];
+        updateFields.credited_to = taskOwnerIds.length > 0 ? taskOwnerIds : [user.id];
+      }
       isCompletingTask = true;
     } else if (currentTask.completed_at) {
-      // If moving away from Done, clear completed_at
+      // If moving away from Done, clear completion fields
       updateFields.completed_at = null;
+      updateFields.completed_by = null;
+      updateFields.credited_to = [];
     }
   }
 
@@ -342,8 +386,18 @@ export async function PATCH(
     );
   }
 
-  // Notify on assignment change (non-blocking)
-  if (
+  // Notify on owner change (non-blocking)
+  if (updateFields.owner_ids && Array.isArray(updateFields.owner_ids)) {
+    const oldOwnerIds: string[] = currentTask.owner_ids || [];
+    const newOwnerIds = updateFields.owner_ids as string[];
+    // Notify newly added owners
+    for (const ownerId of newOwnerIds) {
+      if (!oldOwnerIds.includes(ownerId) && ownerId !== user.id) {
+        notifyTaskAssigned(supabase, updatedTask.title, ownerId, user.id, id)
+          .catch((err) => console.error("Assignment notification error:", err));
+      }
+    }
+  } else if (
     updateFields.assigned_to &&
     updateFields.assigned_to !== currentTask.assigned_to
   ) {
@@ -362,11 +416,14 @@ export async function PATCH(
       (err) => console.error("Completion notification error:", err)
     );
 
-    // Award XP for completing the task, split across all owners (non-blocking)
-    (async () => {
+    // Award XP to all credited users (runs after response, uses service client for cross-user RLS bypass)
+    after(async () => {
       try {
+        const svc = createServiceClient();
+        const creditedTo: string[] = (updatedTask.credited_to as string[]) || [user.id];
+
         // Map priority to XP — higher priority = more XP
-        const { data: priority } = await config(supabase)
+        const { data: priority } = await config(svc)
           .from("task_priorities")
           .select("name")
           .eq("id", currentTask.priority_id)
@@ -380,46 +437,54 @@ export async function PATCH(
         };
         const xpAmount = priorityXp[priority?.name || "Medium"] || 25;
 
-        // Check for speed completion bonus (done within 1 hour of creation)
+        // Check for speed completion bonus (done within 1 hour of creation) — only for completer
         const createdAt = new Date(currentTask.created_at).getTime();
         const completedAt = Date.now();
         const isSpeedComplete = (completedAt - createdAt) < 3600000; // 1 hour
-        const bonusXp = isSpeedComplete ? 15 : 0;
-        const totalXp = xpAmount + bonusXp;
 
-        // Collect all owners: primary assignee + additional owners
-        const allOwners = new Set<string>();
-        if (currentTask.assigned_to) allOwners.add(currentTask.assigned_to);
-        const additionalOwners: string[] = (currentTask.metadata as any)?.additional_owners || [];
-        for (const oid of additionalOwners) allOwners.add(oid);
-        // If no owners assigned, award to the user who completed it
-        if (allOwners.size === 0) allOwners.add(user.id);
+        // Award full XP to each credited user
+        for (const creditedUserId of creditedTo) {
+          const alreadyAwarded = await hasXpBeenAwarded(svc, creditedUserId, id);
+          if (alreadyAwarded) continue;
 
-        // Split XP across all owners (each gets full share, minimum 1)
-        const xpPerOwner = Math.max(1, Math.round(totalXp / allOwners.size));
+          // Speed bonus only for the person who clicked Done
+          const bonusXp = (creditedUserId === user.id && isSpeedComplete) ? 15 : 0;
+          const totalXp = xpAmount + bonusXp;
 
-        for (const ownerId of allOwners) {
           await awardXp(
-            supabase,
-            ownerId,
-            xpPerOwner,
+            svc,
+            creditedUserId,
+            totalXp,
             "task_complete",
-            `Completed: ${updatedTask.title}${isSpeedComplete ? " (speed bonus!)" : ""}${allOwners.size > 1 ? ` (split ${allOwners.size}-way)` : ""}`,
+            `Completed: ${updatedTask.title}${creditedUserId === user.id && isSpeedComplete ? " (speed bonus!)" : ""}`,
             "task",
             id
           );
 
-          // Check for task-related achievements
-          await checkAchievements(supabase, ownerId, "task_complete", {
+          await checkAchievements(svc, creditedUserId, "task_complete", {
             taskId: id,
             priority: priority?.name,
-            isSpeedComplete,
+            isSpeedComplete: creditedUserId === user.id && isSpeedComplete,
+            created_at: currentTask.created_at,
+            completed_at: new Date().toISOString(),
           });
+        }
+
+        // Notify credited users who aren't the completer
+        if (creditedTo.length > 1) {
+          await notifyCreditedUsers(
+            svc,
+            id,
+            updatedTask.title,
+            user.id,
+            creditedTo,
+            xpAmount
+          );
         }
       } catch (err) {
         console.error("Gamification error:", err);
       }
-    })();
+    });
   }
 
   // Fetch full updated task
@@ -479,7 +544,7 @@ export async function DELETE(
   if (hard) {
     const { error } = await platform(supabase).from("tasks").delete().eq("id", id);
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 
     await logActivity(supabase, {
@@ -509,7 +574,7 @@ export async function DELETE(
       .eq("id", id);
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 
     await logActivity(supabase, {

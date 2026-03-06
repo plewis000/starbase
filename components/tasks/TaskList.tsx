@@ -1,11 +1,47 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import FilterBar, { TaskFilters } from "./FilterBar";
 import TaskCard from "./TaskCard";
+import CompletionCreditModal, { needsCreditModal } from "./CompletionCreditModal";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import EmptyState from "@/components/ui/EmptyState";
+import CompletionCelebration from "@/components/ui/CompletionCelebration";
 import { useToast } from "@/components/ui/Toast";
+import { UserSummary } from "@/lib/types";
+
+// Simple NLP for quick-add: extracts date keywords and returns clean title + due date
+function parseQuickAddDate(input: string): { title: string; dueDate: string | null } {
+  const today = new Date();
+  const dayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+
+  // Patterns: "today", "tomorrow", "monday", "tuesday", etc.
+  const patterns: [RegExp, () => Date][] = [
+    [/\b(today)\b/i, () => today],
+    [/\b(tonight)\b/i, () => today],
+    [/\b(tomorrow)\b/i, () => { const d = new Date(today); d.setDate(d.getDate() + 1); return d; }],
+    ...dayNames.map((day, i) => [
+      new RegExp(`\\b(${day})\\b`, "i"),
+      () => {
+        const d = new Date(today);
+        const diff = (i - today.getDay() + 7) % 7 || 7;
+        d.setDate(d.getDate() + diff);
+        return d;
+      },
+    ] as [RegExp, () => Date]),
+  ];
+
+  for (const [pattern, getDate] of patterns) {
+    if (pattern.test(input)) {
+      const title = input.replace(pattern, "").replace(/\s+/g, " ").trim();
+      const date = getDate();
+      const dueDate = date.toISOString().split("T")[0];
+      return { title: title || input, dueDate };
+    }
+  }
+
+  return { title: input, dueDate: null };
+}
 
 interface Tag {
   id: string;
@@ -44,12 +80,9 @@ interface Task {
     icon?: string;
     sort_order: number;
   };
-  assignee?: {
-    id: string;
-    full_name: string;
-    email: string;
-    avatar_url?: string | null;
-  };
+  assignee?: UserSummary;
+  owner_ids?: string[];
+  owners?: UserSummary[];
   tags?: Tag[];
   checklist_items?: ChecklistItem[];
 }
@@ -71,6 +104,19 @@ export default function TaskList({
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
+  const [currentUserId, setCurrentUserId] = useState<string>("");
+  const [members, setMembers] = useState<{ user_id: string; user?: UserSummary | null; display_name?: string }[]>([]);
+  const [creditModal, setCreditModal] = useState<{ open: boolean; task: Task | null }>({ open: false, task: null });
+
+  // Fetch current user ID and household members on mount
+  useEffect(() => {
+    fetch("/api/user").then(r => r.json()).then(d => {
+      if (d.user?.id) setCurrentUserId(d.user.id);
+    }).catch(() => {});
+    fetch("/api/household/members").then(r => r.json()).then(d => {
+      if (d.members) setMembers(d.members);
+    }).catch(() => {});
+  }, []);
   const [filters, setFilters] = useState<TaskFilters>({
     status: "All",
     priority: "All",
@@ -102,6 +148,10 @@ export default function TaskList({
         params.append("priority", currentFilters.priority);
       }
 
+      if (currentFilters.owner && currentFilters.owner === "me") {
+        params.append("owner", "me");
+      }
+
       if (currentFilters.due && currentFilters.due !== "All") {
         params.append("due", currentFilters.due);
       }
@@ -128,13 +178,13 @@ export default function TaskList({
 
   // Fetch tasks from API
   const fetchTasks = useCallback(
-    async (currentFilters: TaskFilters, reset: boolean = false) => {
+    async (currentFilters: TaskFilters, reset: boolean = false, pageOverride?: number) => {
       try {
         setLoading(true);
 
         const queryString = buildQueryString(
           currentFilters,
-          reset ? 0 : offset
+          reset ? 0 : (pageOverride ?? 0)
         );
         const response = await fetch(`/api/tasks?${queryString}`);
 
@@ -143,7 +193,7 @@ export default function TaskList({
         }
 
         const data = await response.json();
-        setTasks(reset ? data.tasks : [...tasks, ...data.tasks]);
+        setTasks(prev => reset ? data.tasks : [...prev, ...data.tasks]);
         setTotal(data.total);
         if (reset) setOffset(0);
       } catch {
@@ -152,7 +202,7 @@ export default function TaskList({
         setLoading(false);
       }
     },
-    [offset, buildQueryString, tasks]
+    [buildQueryString]
   );
 
   // Fetch on filter change
@@ -166,17 +216,22 @@ export default function TaskList({
 
   const [quickAddTitle, setQuickAddTitle] = useState("");
   const [quickAdding, setQuickAdding] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
 
   const handleLoadMore = () => {
-    setOffset((prev) => prev + 1);
-    fetchTasks(filters, false);
+    setOffset((prev) => {
+      const nextPage = prev + 1;
+      fetchTasks(filters, false, nextPage);
+      return nextPage;
+    });
   };
 
-  const handleQuickComplete = async (taskId: string) => {
+  // Core completion logic — called directly or after credit modal
+  const executeComplete = async (taskId: string, creditedTo?: string[]) => {
     const task = tasks.find((t) => t.id === taskId);
     if (!task) return;
 
-    const isCompleted = !!task.completed_at;
+    const isCompleted = task.status?.name === "Done" || !!task.completed_at;
 
     // Optimistic update
     setTasks((prev) =>
@@ -188,13 +243,43 @@ export default function TaskList({
     );
 
     try {
-      await fetch(`/api/tasks/${taskId}`, {
+      const configRes = await fetch("/api/config");
+      const configData = await configRes.json();
+      const statuses = configData.statuses || [];
+      const targetStatus = isCompleted
+        ? statuses.find((s: { name: string }) => s.name === "To Do")
+        : statuses.find((s: { name: string }) => s.name === "Done");
+
+      if (!targetStatus) {
+        toast.error("Could not find target status");
+        return;
+      }
+
+      const patchBody: Record<string, unknown> = { status_id: targetStatus.id };
+      if (!isCompleted && creditedTo) {
+        patchBody.credited_to = creditedTo;
+      }
+
+      const res = await fetch(`/api/tasks/${taskId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          completed_at: isCompleted ? null : new Date().toISOString(),
-        }),
+        body: JSON.stringify(patchBody),
       });
+
+      if (!res.ok) throw new Error("Failed to update task");
+
+      if (!isCompleted) {
+        setShowCelebration(true);
+        toast.success("Task complete!", {
+          label: "Undo",
+          onClick: () => handleQuickComplete(taskId),
+        });
+        fetch("/api/entity-links/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ entity_type: "task", entity_id: taskId }),
+        }).catch(() => {});
+      }
       onTaskUpdated?.();
     } catch {
       toast.error("Failed to update task");
@@ -206,20 +291,47 @@ export default function TaskList({
     }
   };
 
+  const handleQuickComplete = async (taskId: string) => {
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task) return;
+
+    const isCompleted = task.status?.name === "Done" || !!task.completed_at;
+
+    // If un-completing, just do it directly
+    if (isCompleted) {
+      return executeComplete(taskId);
+    }
+
+    // Check if we need the credit modal
+    if (needsCreditModal(task.owner_ids || [])) {
+      setCreditModal({ open: true, task });
+      return;
+    }
+
+    // Solo owner — auto-credit completer
+    return executeComplete(taskId);
+  };
+
   const handleQuickAdd = async () => {
-    const title = quickAddTitle.trim();
-    if (!title || quickAdding) return;
+    const rawTitle = quickAddTitle.trim();
+    if (!rawTitle || quickAdding) return;
+
+    // Simple NLP: extract date keywords from title
+    const { title, dueDate } = parseQuickAddDate(rawTitle);
 
     setQuickAdding(true);
     try {
       const configRes = await fetch("/api/config");
       const configData = await configRes.json();
-      const defaultStatus = configData.task_statuses?.[0]?.id;
+      const defaultStatus = configData.statuses?.[0]?.id;
+
+      const payload: Record<string, unknown> = { title, status_id: defaultStatus };
+      if (dueDate) payload.due_date = dueDate;
 
       const res = await fetch("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, status_id: defaultStatus }),
+        body: JSON.stringify(payload),
       });
 
       if (res.ok) {
@@ -236,10 +348,34 @@ export default function TaskList({
     setQuickAdding(false);
   };
 
-  const hasMore = offset * pageSize + tasks.length < total;
+  const hasMore = tasks.length < total;
 
   return (
     <div className="space-y-6">
+      <CompletionCelebration
+        show={showCelebration}
+        onComplete={() => setShowCelebration(false)}
+      />
+
+      {/* Completion credit modal */}
+      {creditModal.task && (
+        <CompletionCreditModal
+          open={creditModal.open}
+          taskTitle={creditModal.task.title}
+          ownerIds={creditModal.task.owner_ids || []}
+          currentUserId={currentUserId}
+          members={members}
+          onConfirm={(creditedTo) => {
+            const taskId = creditModal.task!.id;
+            setCreditModal({ open: false, task: null });
+            executeComplete(taskId, creditedTo);
+          }}
+          onCancel={() => {
+            setCreditModal({ open: false, task: null });
+          }}
+        />
+      )}
+
       {/* Header with New Task button */}
       <div className="flex items-center justify-between gap-4">
         <div>
@@ -288,10 +424,11 @@ export default function TaskList({
       ) : tasks.length === 0 ? (
         <EmptyState
           icon="📋"
-          title="No tasks found"
-          description="Create a new task or adjust your filters to get started."
+          title="Your task board is empty"
+          description="Start by adding your first task — anything from 'take out the trash' to 'plan vacation'. Quick-add above or tap the button."
+          tip="Tip: Tasks are for one-time to-dos. For recurring things (daily cleanup, weekly laundry), try habits instead."
           action={{
-            label: "New Task",
+            label: "Create Your First Task",
             onClick: onCreateTask,
           }}
         />
@@ -304,6 +441,34 @@ export default function TaskList({
               onSelect={onSelectTask}
               onQuickComplete={handleQuickComplete}
               isSelected={selectedTaskId === task.id}
+              members={members}
+              onOwnersChanged={async (taskId, newOwnerIds) => {
+                // Optimistic update
+                setTasks((prev) =>
+                  prev.map((t) => {
+                    if (t.id !== taskId) return t;
+                    const nextOwners = newOwnerIds
+                      .map((id) => {
+                        const m = members.find((mm) => mm.user_id === id);
+                        if (!m) return null;
+                        return { id, full_name: m.user?.full_name || m.display_name || id, avatar_url: m.user?.avatar_url || null };
+                      })
+                      .filter(Boolean) as UserSummary[];
+                    return { ...t, owner_ids: newOwnerIds, owners: nextOwners, assignee: nextOwners[0] || undefined };
+                  })
+                );
+                try {
+                  const res = await fetch(`/api/tasks/${taskId}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ owner_ids: newOwnerIds }),
+                  });
+                  if (!res.ok) throw new Error("Update failed");
+                  onTaskUpdated?.();
+                } catch {
+                  fetchTasks(filters, true);
+                }
+              }}
             />
           ))}
 

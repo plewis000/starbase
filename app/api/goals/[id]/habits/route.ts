@@ -37,7 +37,7 @@ export async function GET(
     .eq("goal_id", goalId);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   if (!links || links.length === 0) {
@@ -139,7 +139,7 @@ export async function POST(
         { status: 409 }
       );
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   // Log activity
@@ -201,7 +201,7 @@ export async function DELETE(
     .eq("habit_id", habitId);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   await logActivity(supabase, {

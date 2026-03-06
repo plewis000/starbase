@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 
 export interface TaskFilters {
   status?: string;
@@ -9,6 +9,7 @@ export interface TaskFilters {
   search?: string;
   sort?: string;
   direction?: "asc" | "desc";
+  owner?: string;
 }
 
 interface FilterBarProps {
@@ -47,6 +48,16 @@ const SORT_OPTIONS: { label: string; value: string }[] = [
   { label: "Title", value: "title" },
 ];
 
+// Preset quick-access filter views
+const SAVED_VIEWS: { label: string; icon: string; filters: Partial<TaskFilters> }[] = [
+  { label: "All Tasks", icon: "📋", filters: { status: "All", priority: "All", due: "All", owner: "", sort: "due_date", direction: "asc" } },
+  { label: "My Overdue", icon: "🔴", filters: { owner: "me", due: "overdue", status: "All", priority: "All", sort: "due_date", direction: "asc" } },
+  { label: "Due Today", icon: "📅", filters: { due: "today", status: "All", priority: "All", owner: "", sort: "priority_id", direction: "asc" } },
+  { label: "This Week", icon: "📆", filters: { due: "this_week", status: "All", priority: "All", owner: "", sort: "due_date", direction: "asc" } },
+  { label: "High Priority", icon: "🔥", filters: { priority: "Urgent,High", status: "All", due: "All", owner: "", sort: "due_date", direction: "asc" } },
+  { label: "Unassigned", icon: "👤", filters: { owner: "", status: "To Do", priority: "All", due: "All", sort: "created_at", direction: "desc" } },
+];
+
 export default function FilterBar({ onFilterChange }: FilterBarProps) {
   const [filters, setFilters] = useState<TaskFilters>({
     status: "All",
@@ -56,24 +67,43 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
     sort: "due_date",
     direction: "asc",
   });
+  const [activeView, setActiveView] = useState<string | null>("All Tasks");
 
   const [showMobileFilters, setShowMobileFilters] = useState(false);
-  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const filtersRef = useRef(filters);
+  filtersRef.current = filters;
+
+  // Cleanup search timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    };
+  }, []);
 
   // Debounced search handler
   const handleSearchChange = useCallback(
     (value: string) => {
       setFilters((prev) => ({ ...prev, search: value }));
 
-      if (searchTimeout) clearTimeout(searchTimeout);
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
 
-      const timeout = setTimeout(() => {
-        onFilterChange({ ...filters, search: value });
+      searchTimeoutRef.current = setTimeout(() => {
+        onFilterChange({ ...filtersRef.current, search: value });
       }, 300);
-
-      setSearchTimeout(timeout);
     },
-    [filters, searchTimeout, onFilterChange]
+    [onFilterChange]
+  );
+
+  // Apply a saved view
+  const applyView = useCallback(
+    (view: typeof SAVED_VIEWS[number]) => {
+      const newFilters: TaskFilters = { ...filters, ...view.filters, search: "" };
+      setFilters(newFilters);
+      setActiveView(view.label);
+      onFilterChange(newFilters);
+    },
+    [filters, onFilterChange]
   );
 
   // Update filter and notify parent
@@ -81,6 +111,7 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
     (key: keyof TaskFilters, value: string) => {
       const newFilters: TaskFilters = { ...filters, [key]: value };
       setFilters(newFilters);
+      setActiveView(null); // Clear active view when manually changing filters
       onFilterChange(newFilters);
     },
     [filters, onFilterChange]
@@ -95,6 +126,48 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
 
   return (
     <div className="space-y-4">
+      {/* Saved views — horizontal scroll */}
+      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
+        {SAVED_VIEWS.map((view) => (
+          <button
+            key={view.label}
+            onClick={() => applyView(view)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all border ${
+              activeView === view.label
+                ? "bg-crimson-900/30 border-crimson-700 text-crimson-300"
+                : "bg-dungeon-850 border-dungeon-700 text-dungeon-500 hover:text-slate-300 hover:border-dungeon-600"
+            }`}
+          >
+            <span>{view.icon}</span>
+            {view.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Mine / All toggle */}
+      <div className="flex items-center gap-1 bg-dungeon-850 border border-dungeon-700 rounded-lg p-1 w-fit">
+        <button
+          onClick={() => updateFilter("owner", "me")}
+          className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
+            filters.owner === "me"
+              ? "bg-crimson-600 text-white shadow-sm"
+              : "text-dungeon-500 hover:text-slate-300"
+          }`}
+        >
+          Mine
+        </button>
+        <button
+          onClick={() => updateFilter("owner", "")}
+          className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
+            !filters.owner || filters.owner === ""
+              ? "bg-crimson-600 text-white shadow-sm"
+              : "text-dungeon-500 hover:text-slate-300"
+          }`}
+        >
+          All
+        </button>
+      </div>
+
       {/* Search bar */}
       <div className="flex gap-2 items-center">
         <div className="flex-1 relative">

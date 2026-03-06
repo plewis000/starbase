@@ -65,7 +65,7 @@ export async function PATCH(
         { status: 404 }
       );
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   await logActivity(supabase, {
@@ -125,7 +125,7 @@ export async function DELETE(
     .eq("id", commentId);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   await logActivity(supabase, {

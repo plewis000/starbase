@@ -96,6 +96,7 @@ export async function awardXp(
   sourceEntityType?: string,
   sourceEntityId?: string,
   multiplier: number = 1.0,
+  _retried: boolean = false,
 ): Promise<XpAwardResult> {
   const effectiveAmount = Math.round(amount * multiplier);
 
@@ -108,9 +109,10 @@ export async function awardXp(
     .single();
 
   if (!profile) {
+    if (_retried) throw new Error(`Failed to create crawler profile for user ${userId}`);
     // Auto-create profile if missing
     await ensureProfile(supabase, userId);
-    return awardXp(supabase, userId, amount, actionType, description, sourceEntityType, sourceEntityId, multiplier);
+    return awardXp(supabase, userId, amount, actionType, description, sourceEntityType, sourceEntityId, multiplier, true);
   }
 
   const oldTotal = profile.total_xp;
@@ -238,18 +240,24 @@ export async function checkAchievements(
     const met = await evaluateTrigger(supabase, userId, achievement, context);
     if (!met) continue;
 
-    // Unlock the achievement
+    // Unlock the achievement (upsert to prevent constraint violation on race conditions)
     const newCount = existingCount + 1;
-    await supabase
+    const { error: unlockError } = await supabase
       .schema("platform")
       .from("achievement_unlocks")
-      .insert({
+      .upsert({
         user_id: userId,
         achievement_id: achievement.id,
         xp_awarded: achievement.xp_reward,
         unlock_count: newCount,
+        unlocked_at: new Date().toISOString(),
         metadata: context,
-      });
+      }, { onConflict: "user_id,achievement_id,unlock_count" });
+
+    if (unlockError) {
+      console.error("[gamification] Achievement unlock failed:", unlockError);
+      continue;
+    }
 
     // Award XP
     await awardXp(
@@ -323,12 +331,14 @@ async function evaluateTrigger(
   const threshold = (config.threshold as number) || 0;
 
   switch (achievement.trigger_type) {
+    case "task_complete":
     case "task_count": {
+      // Count tasks the user is credited for (completed_by, credited_to, or owner_ids fallback)
       const { count } = await supabase
         .schema("platform")
         .from("tasks")
         .select("*", { count: "exact", head: true })
-        .eq("created_by", userId)
+        .or(`completed_by.eq.${userId},credited_to.cs.{${userId}},and(completed_by.is.null,owner_ids.cs.{${userId}})`)
         .not("completed_at", "is", null);
       return (count || 0) >= threshold;
     }
@@ -572,6 +582,30 @@ export async function ensureProfile(
       current_level: 1,
       xp_to_next_level: 100,
     });
+}
+
+// =============================================================
+// XP DEDUP & COOP HELPERS
+// =============================================================
+
+/**
+ * Check if XP has already been awarded for a specific task + user combo.
+ * Prevents double-XP from Done→InProgress→Done cycling.
+ */
+export async function hasXpBeenAwarded(
+  supabase: SupabaseClient,
+  userId: string,
+  taskId: string,
+): Promise<boolean> {
+  const { count } = await supabase
+    .schema("platform")
+    .from("xp_ledger")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("source_entity_type", "task")
+    .eq("source_entity_id", taskId)
+    .eq("action_type", "task_complete");
+  return (count || 0) > 0;
 }
 
 export async function updateLoginStreak(

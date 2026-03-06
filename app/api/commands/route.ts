@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { platform } from "@/lib/supabase/schemas";
+import { platform, config } from "@/lib/supabase/schemas";
 
 interface CommandResult {
   response: string;
@@ -65,7 +65,7 @@ async function executeCommand(
     const filter = lower.replace("tasks", "").trim();
     let query = platform(supabase)
       .from("tasks")
-      .select("id, title, priority, status, due_date, completed_at")
+      .select("id, title, due_date, completed_at, priority:priority_id(name), task_status:status_id(name)")
       .or(`created_by.eq.${userId},assigned_to.eq.${userId}`)
       .is("completed_at", null)
       .order("due_date", { ascending: true, nullsFirst: false })
@@ -84,8 +84,9 @@ async function executeCommand(
       return { response: filter === "today" ? "No tasks due today. Suspiciously quiet." : "No open tasks. The System is skeptical." };
     }
 
-    const lines = tasks.map((t) => {
-      const pri = t.priority === "critical" ? "🔴" : t.priority === "high" ? "🟠" : t.priority === "medium" ? "🟡" : "⚪";
+    const lines = tasks.map((t: any) => {
+      const priName = (t.priority?.name || "").toLowerCase();
+      const pri = priName === "critical" ? "🔴" : priName === "high" ? "🟠" : priName === "medium" ? "🟡" : "⚪";
       const due = t.due_date ? ` (due ${t.due_date})` : "";
       return `${pri} ${t.title}${due}`;
     });
@@ -97,13 +98,25 @@ async function executeCommand(
     const title = input.replace(/^(task add|add task|new task)\s+/i, "").trim();
     if (!title) return { response: "What's the task? Usage: `/task add Buy groceries`" };
 
+    // Look up default status and priority IDs
+    const [{ data: defaultStatus }, { data: defaultPriority }] = await Promise.all([
+      config(supabase).from("task_statuses").select("id").eq("sort_order", 0).limit(1).single(),
+      config(supabase).from("task_priorities").select("id").eq("name", "Medium").limit(1).single(),
+    ]);
+
     const { data: task, error } = await platform(supabase)
       .from("tasks")
-      .insert({ title, created_by: userId, assigned_to: userId, status: "todo", priority: "medium" })
+      .insert({
+        title,
+        created_by: userId,
+        assigned_to: userId,
+        status_id: defaultStatus?.id,
+        priority_id: defaultPriority?.id,
+      })
       .select("id, title")
       .single();
 
-    if (error) return { response: `Failed to create task: ${error.message}` };
+    if (error) { console.error(error.message); return { response: "Failed to create task" }; }
     return { response: `Task created: **${task.title}**`, data: task };
   }
 
@@ -127,9 +140,17 @@ async function executeCommand(
     }
 
     const task = tasks[0];
+    // Look up "Done" or "Shipped" status ID
+    const { data: doneStatus } = await config(supabase)
+      .from("task_statuses")
+      .select("id")
+      .ilike("name", "%done%")
+      .limit(1)
+      .single();
+
     await platform(supabase)
       .from("tasks")
-      .update({ status: "done", completed_at: new Date().toISOString() })
+      .update({ status_id: doneStatus?.id, completed_at: new Date().toISOString() })
       .eq("id", task.id);
 
     return { response: `Completed: **${task.title}** ✓`, data: task };
@@ -140,10 +161,10 @@ async function executeCommand(
     const today = new Date().toISOString().split("T")[0];
     const { data: habits } = await platform(supabase)
       .from("habits")
-      .select("id, name, current_streak, best_streak, status")
+      .select("id, title, current_streak, best_streak, status")
       .eq("owner_id", userId)
       .eq("status", "active")
-      .order("name");
+      .order("title");
 
     if (!habits || habits.length === 0) return { response: "No active habits. The Training Grounds are empty." };
 
@@ -151,7 +172,7 @@ async function executeCommand(
     const { data: checkins } = await platform(supabase)
       .from("habit_check_ins")
       .select("habit_id")
-      .eq("user_id", userId)
+      .eq("checked_by", userId)
       .eq("check_date", today);
 
     const doneIds = new Set((checkins || []).map((c) => c.habit_id));
@@ -159,7 +180,7 @@ async function executeCommand(
     const lines = habits.map((h) => {
       const done = doneIds.has(h.id) ? "✅" : "⬜";
       const streak = h.current_streak ? ` (🔥 ${h.current_streak}d)` : "";
-      return `${done} ${h.name}${streak}`;
+      return `${done} ${h.title}${streak}`;
     });
 
     const completed = habits.filter((h) => doneIds.has(h.id)).length;
@@ -173,15 +194,15 @@ async function executeCommand(
 
     const { data: habits } = await platform(supabase)
       .from("habits")
-      .select("id, name, current_streak")
+      .select("id, title, current_streak")
       .eq("owner_id", userId)
       .eq("status", "active")
-      .ilike("name", `%${search}%`)
+      .ilike("title", `%${search}%`)
       .limit(5);
 
     if (!habits || habits.length === 0) return { response: `No active habit matching "${search}".` };
     if (habits.length > 1) {
-      const matches = habits.map((h) => `• ${h.name}`).join("\n");
+      const matches = habits.map((h) => `• ${h.title}`).join("\n");
       return { response: `Multiple matches — be more specific:\n${matches}` };
     }
 
@@ -193,26 +214,26 @@ async function executeCommand(
       .from("habit_check_ins")
       .select("id")
       .eq("habit_id", habit.id)
-      .eq("user_id", userId)
+      .eq("checked_by", userId)
       .eq("check_date", today)
       .limit(1);
 
     if (existing && existing.length > 0) {
-      return { response: `Already checked in **${habit.name}** today.` };
+      return { response: `Already checked in **${habit.title}** today.` };
     }
 
     await platform(supabase)
       .from("habit_check_ins")
-      .insert({ habit_id: habit.id, user_id: userId, check_date: today });
+      .insert({ habit_id: habit.id, checked_by: userId, check_date: today });
 
     // Update streak
     const newStreak = (habit.current_streak || 0) + 1;
     await platform(supabase)
       .from("habits")
-      .update({ current_streak: newStreak, last_checked_date: today })
+      .update({ current_streak: newStreak, last_completed_at: new Date().toISOString() })
       .eq("id", habit.id);
 
-    return { response: `Checked in: **${habit.name}** ✓ (🔥 ${newStreak} day streak)`, data: habit };
+    return { response: `Checked in: **${habit.title}** ✓ (🔥 ${newStreak} day streak)`, data: habit };
   }
 
   // --- /xp ---
@@ -276,16 +297,16 @@ async function executeCommand(
   if (lower === "goals") {
     const { data: goals } = await platform(supabase)
       .from("goals")
-      .select("id, title, status, progress_pct, target_date")
+      .select("id, title, status, progress_value, target_date")
       .eq("owner_id", userId)
-      .in("status", ["active", "in_progress"])
+      .in("status", ["active"])
       .order("target_date", { ascending: true })
       .limit(10);
 
     if (!goals || goals.length === 0) return { response: "No active goals. Visit the War Room to set some." };
 
     const lines = goals.map((g) => {
-      const pct = g.progress_pct ? `${Math.round(g.progress_pct)}%` : "0%";
+      const pct = g.progress_value ? `${Math.round(g.progress_value)}%` : "0%";
       const due = g.target_date ? ` (target: ${g.target_date})` : "";
       return `• ${g.title} — ${pct}${due}`;
     });
@@ -329,7 +350,7 @@ async function executeCommand(
 
     const { data: habits } = await platform(supabase)
       .from("habits")
-      .select("name, current_streak, best_streak")
+      .select("title, current_streak, best_streak")
       .eq("owner_id", userId)
       .eq("status", "active")
       .gt("current_streak", 0)
@@ -340,7 +361,7 @@ async function executeCommand(
 
     if (habits && habits.length > 0) {
       response += "\n\n" + habits.map((h) =>
-        `🔥 ${h.name}: ${h.current_streak}d (best: ${h.best_streak || h.current_streak}d)`
+        `🔥 ${h.title}: ${h.current_streak}d (best: ${h.best_streak || h.current_streak}d)`
       ).join("\n");
     } else {
       response += "\n\nNo active habit streaks.";
@@ -362,7 +383,7 @@ async function executeCommand(
       platform(supabase)
         .from("habit_check_ins")
         .select("id", { count: "exact", head: true })
-        .eq("user_id", userId)
+        .eq("checked_by", userId)
         .eq("check_date", today),
       platform(supabase)
         .from("xp_ledger")

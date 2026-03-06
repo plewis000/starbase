@@ -74,6 +74,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Feedback not found" }, { status: 404 });
   }
 
+  if (feedback.household_id !== ctx.household_id) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   if (feedback.pipeline_status !== "preview_ready") {
     return NextResponse.json({
       error: `Cannot verify: pipeline_status is "${feedback.pipeline_status}", expected "preview_ready"`,
@@ -95,9 +99,8 @@ export async function POST(request: NextRequest) {
         commit_title: `${feedback.body.slice(0, 72)} (#${feedback.pr_number})`,
       });
     } catch (e) {
-      return NextResponse.json({
-        error: `Failed to merge PR: ${e instanceof Error ? e.message : "Unknown error"}`,
-      }, { status: 500 });
+      console.error("Failed to merge PR:", e instanceof Error ? e.message : e);
+      return NextResponse.json({ error: "Failed to merge PR" }, { status: 500 });
     }
 
     // Clean up branch

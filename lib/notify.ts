@@ -41,6 +41,7 @@ export type NotifyEvent =
   | "achievement_unlocked"
   | "level_up"
   | "loot_box_earned"
+  | "task_co_completed"
   | "system";
 
 // Keep v2 alias for any code that imported the old type name
@@ -84,6 +85,7 @@ const EVENT_COLORS: Partial<Record<NotifyEvent, number>> = {
   achievement_unlocked: 0xDC2626,
   level_up: 0xDC2626,
   loot_box_earned: 0xD4A857,
+  task_co_completed: 0x06b6d4,
   system: 0x64748b,
 };
 
@@ -104,6 +106,7 @@ const EVENT_EMOJI: Partial<Record<NotifyEvent, string>> = {
   achievement_unlocked: "🏆",
   level_up: "⬆️",
   loot_box_earned: "📦",
+  task_co_completed: "🤝",
   system: "🔔",
 };
 
@@ -476,7 +479,7 @@ export async function notifyTaskCommented(
 
   const { data: task } = await platform(supabase)
     .from("tasks")
-    .select("created_by, assigned_to")
+    .select("created_by, assigned_to, owner_ids")
     .eq("id", taskId)
     .single();
 
@@ -487,7 +490,11 @@ export async function notifyTaskCommented(
 
   const involvedIds = new Set<string>();
   if (task?.created_by) involvedIds.add(task.created_by);
-  if (task?.assigned_to) involvedIds.add(task.assigned_to);
+  // Add all owners
+  const ownerIds: string[] = task?.owner_ids || [];
+  for (const oid of ownerIds) involvedIds.add(oid);
+  // Fallback to assigned_to if no owner_ids
+  if (ownerIds.length === 0 && task?.assigned_to) involvedIds.add(task.assigned_to);
   if (commenters) {
     for (const c of commenters) {
       involvedIds.add(c.user_id);
@@ -522,13 +529,17 @@ export async function notifyTaskCompleted(
 
   const { data: task } = await platform(supabase)
     .from("tasks")
-    .select("created_by, assigned_to")
+    .select("created_by, assigned_to, owner_ids")
     .eq("id", taskId)
     .single();
 
   const recipients = new Set<string>();
   if (task?.created_by) recipients.add(task.created_by);
-  if (task?.assigned_to) recipients.add(task.assigned_to);
+  // Add all owners
+  const ownerIds: string[] = task?.owner_ids || [];
+  for (const oid of ownerIds) recipients.add(oid);
+  // Fallback to assigned_to if no owner_ids
+  if (ownerIds.length === 0 && task?.assigned_to) recipients.add(task.assigned_to);
   recipients.delete(completerId);
 
   const promises = Array.from(recipients).map((userId) =>
@@ -538,6 +549,34 @@ export async function notifyTaskCompleted(
       event: "task_completed",
       sourceUserId: completerId,
       metadata: { task_id: taskId },
+    })
+  );
+
+  await Promise.all(promises);
+}
+
+export async function notifyCreditedUsers(
+  supabase: SupabaseClient,
+  taskId: string,
+  taskTitle: string,
+  completerId: string,
+  creditedUserIds: string[],
+  xpAmount: number,
+) {
+  const name = await getUserDisplayName(supabase, completerId);
+
+  // Notify credited users who aren't the completer
+  const others = creditedUserIds.filter((id) => id !== completerId);
+  if (others.length === 0) return;
+
+  const promises = others.map((userId) =>
+    triggerNotification(supabase, {
+      recipientUserId: userId,
+      title: `${name} credited you on: ${taskTitle}`,
+      body: `You were credited for completing this task. +${xpAmount} XP`,
+      event: "task_co_completed",
+      sourceUserId: completerId,
+      metadata: { task_id: taskId, xp_amount: xpAmount },
     })
   );
 

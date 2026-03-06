@@ -242,7 +242,7 @@ export default function CommandPalette() {
       />
 
       {/* Palette */}
-      <div className="fixed top-[20%] left-1/2 -translate-x-1/2 w-[90%] max-w-[560px] bg-dungeon-850 border border-dungeon-700 rounded-2xl shadow-dungeon-lg z-[70] overflow-hidden">
+      <div className="fixed inset-0 md:inset-auto md:top-[20%] md:left-1/2 md:-translate-x-1/2 md:w-[90%] md:max-w-[560px] bg-dungeon-850 md:border md:border-dungeon-700 md:rounded-2xl shadow-dungeon-lg z-[70] overflow-hidden flex flex-col md:block">
         {/* Search input */}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-dungeon-700">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-dungeon-500 flex-shrink-0">
@@ -264,7 +264,7 @@ export default function CommandPalette() {
         </div>
 
         {/* Results */}
-        <div className="max-h-[320px] overflow-y-auto py-2">
+        <div className="flex-1 md:flex-none max-h-none md:max-h-[320px] overflow-y-auto py-2">
           {creating ? (
             <div className="px-4 py-6 text-center text-dungeon-500 text-sm font-mono">Creating...</div>
           ) : results.length === 0 ? (
@@ -298,8 +298,8 @@ export default function CommandPalette() {
           )}
         </div>
 
-        {/* Footer hints */}
-        <div className="border-t border-dungeon-700 px-4 py-2 flex items-center gap-4 text-xs text-dungeon-500 font-mono">
+        {/* Footer hints (hidden on mobile) */}
+        <div className="hidden md:flex border-t border-dungeon-700 px-4 py-2 items-center gap-4 text-xs text-dungeon-500 font-mono">
           <span><kbd className="px-1.5 py-0.5 bg-dungeon-800 rounded text-dungeon-500 border border-dungeon-700">↑↓</kbd> navigate</span>
           <span><kbd className="px-1.5 py-0.5 bg-dungeon-800 rounded text-dungeon-500 border border-dungeon-700">↵</kbd> select</span>
           <span><kbd className="px-1.5 py-0.5 bg-dungeon-800 rounded text-dungeon-500 border border-dungeon-700">esc</kbd> close</span>
