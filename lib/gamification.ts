@@ -73,6 +73,118 @@ export function getFloorForLevel(level: number): number {
 }
 
 // =============================================================
+// ACTIVATION GATE
+// =============================================================
+
+/**
+ * Check if gamification is activated for a user.
+ * All XP, achievement, and loot box operations are gated behind this.
+ */
+export async function isGamificationActive(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<boolean> {
+  const { data: profile } = await supabase
+    .schema("platform")
+    .from("crawler_profiles")
+    .select("gamification_activated")
+    .eq("user_id", userId)
+    .single();
+
+  return profile?.gamification_activated === true;
+}
+
+/**
+ * Check what modules a user has adopted and whether they have enough data
+ * to make gamification meaningful.
+ */
+export interface ActivationReadiness {
+  ready: boolean;
+  modules: {
+    tasks: { count: number; ready: boolean };
+    habits: { count: number; ready: boolean };
+    finance: { count: number; ready: boolean };
+    goals: { count: number; ready: boolean };
+  };
+  totalReady: number;
+  minRequired: number;
+  hasRewards: boolean;
+}
+
+export async function checkActivationReadiness(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<ActivationReadiness> {
+  const MIN_MODULES = 2; // Must have data in at least 2 modules
+  const TASK_MIN = 5;
+  const HABIT_MIN = 3; // check-ins
+  const FINANCE_MIN = 5; // transactions
+  const GOAL_MIN = 1;
+
+  const [tasksRes, habitsRes, financeRes, goalsRes, rewardsRes] = await Promise.all([
+    supabase.schema("platform").from("tasks")
+      .select("*", { count: "exact", head: true })
+      .or(`assigned_to.eq.${userId},created_by.eq.${userId}`)
+      .not("completed_at", "is", null),
+    supabase.schema("platform").from("habit_check_ins")
+      .select("*", { count: "exact", head: true })
+      .eq("checked_by", userId),
+    supabase.schema("finance").from("transactions")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", userId),
+    supabase.schema("platform").from("goals")
+      .select("*", { count: "exact", head: true })
+      .eq("owner_id", userId),
+    supabase.schema("platform").from("loot_box_rewards")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("active", true),
+  ]);
+
+  const modules = {
+    tasks: { count: tasksRes.count || 0, ready: (tasksRes.count || 0) >= TASK_MIN },
+    habits: { count: habitsRes.count || 0, ready: (habitsRes.count || 0) >= HABIT_MIN },
+    finance: { count: financeRes.count || 0, ready: (financeRes.count || 0) >= FINANCE_MIN },
+    goals: { count: goalsRes.count || 0, ready: (goalsRes.count || 0) >= GOAL_MIN },
+  };
+
+  const totalReady = Object.values(modules).filter(m => m.ready).length;
+  const hasRewards = (rewardsRes.count || 0) > 0;
+
+  return {
+    ready: totalReady >= MIN_MODULES && hasRewards,
+    modules,
+    totalReady,
+    minRequired: MIN_MODULES,
+    hasRewards,
+  };
+}
+
+/**
+ * Activate gamification for a user.
+ * Awards initial XP for existing accomplishments.
+ */
+export async function activateGamification(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<boolean> {
+  const readiness = await checkActivationReadiness(supabase, userId);
+  if (!readiness.ready) return false;
+
+  await supabase
+    .schema("platform")
+    .from("crawler_profiles")
+    .update({
+      gamification_activated: true,
+      activated_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", userId);
+
+  return true;
+}
+
+// =============================================================
 // XP AWARD ENGINE
 // =============================================================
 
@@ -98,6 +210,14 @@ export async function awardXp(
   multiplier: number = 1.0,
   _retried: boolean = false,
 ): Promise<XpAwardResult> {
+  // Gate: skip if gamification not activated (unless it's the "achievement" action from internal award)
+  if (actionType !== "achievement") {
+    const active = await isGamificationActive(supabase, userId);
+    if (!active) {
+      return { xpAwarded: 0, newTotal: 0, leveledUp: false, oldLevel: 1, newLevel: 1, newFloor: false, oldFloor: 1, newFloorNum: 1 };
+    }
+  }
+
   const effectiveAmount = Math.round(amount * multiplier);
 
   // Get current profile
@@ -204,6 +324,10 @@ export async function checkAchievements(
   triggerType: string,
   context: Record<string, unknown> = {},
 ): Promise<AchievementCheck[]> {
+  // Gate: skip if gamification not activated
+  const active = await isGamificationActive(supabase, userId);
+  if (!active) return [];
+
   // Get all active achievements matching this trigger type
   const { data: achievements } = await supabase
     .schema("config")
@@ -268,7 +392,7 @@ export async function checkAchievements(
       achievement.id,
     );
 
-    // Generate loot box if applicable
+    // Generate loot box if applicable (with pacing: max 1 box per tier per day)
     if (achievement.loot_box_tier) {
       const { data: tier } = await supabase
         .schema("config")
@@ -278,15 +402,39 @@ export async function checkAchievements(
         .single();
 
       if (tier) {
-        await supabase
+        // Check rewards exist for this tier before generating a box
+        const { count: rewardCount } = await supabase
           .schema("platform")
-          .from("loot_boxes")
-          .insert({
-            user_id: userId,
-            tier_id: tier.id,
-            source_achievement_id: achievement.id,
-            source_description: `Unlocked: ${achievement.name}`,
-          });
+          .from("loot_box_rewards")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", userId)
+          .eq("tier_id", tier.id)
+          .eq("active", true);
+
+        if ((rewardCount || 0) > 0) {
+          // Pacing: check if a box of this tier was already awarded today
+          const todayStart = new Date();
+          todayStart.setHours(0, 0, 0, 0);
+          const { count: todayBoxes } = await supabase
+            .schema("platform")
+            .from("loot_boxes")
+            .select("*", { count: "exact", head: true })
+            .eq("user_id", userId)
+            .eq("tier_id", tier.id)
+            .gte("created_at", todayStart.toISOString());
+
+          if ((todayBoxes || 0) === 0) {
+            await supabase
+              .schema("platform")
+              .from("loot_boxes")
+              .insert({
+                user_id: userId,
+                tier_id: tier.id,
+                source_achievement_id: achievement.id,
+                source_description: `Unlocked: ${achievement.name}`,
+              });
+          }
+        }
       }
     }
 

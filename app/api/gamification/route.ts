@@ -3,7 +3,7 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { ensureProfile, updateLoginStreak, calculateLevel, getFloorForLevel } from "@/lib/gamification";
+import { ensureProfile, updateLoginStreak, calculateLevel, getFloorForLevel, checkActivationReadiness, activateGamification } from "@/lib/gamification";
 
 export async function GET() {
   const supabase = await createClient();
@@ -16,12 +16,6 @@ export async function GET() {
   // Update login streak
   const { streak } = await updateLoginStreak(supabase, user.id);
 
-  // Refresh crawler stats + class (best-effort, non-blocking)
-  await Promise.allSettled([
-    supabase.schema("platform").rpc("calculate_crawler_stats", { p_user_id: user.id }),
-    supabase.schema("platform").rpc("calculate_crawler_class", { p_user_id: user.id }),
-  ]);
-
   // Get profile
   const { data: profile } = await supabase
     .schema("platform")
@@ -32,6 +26,28 @@ export async function GET() {
 
   if (!profile) {
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+  }
+
+  // Refresh crawler stats + class only if stale (>6 hours) — throttled
+  if (profile.gamification_activated) {
+    const staleThreshold = 6 * 60 * 60 * 1000; // 6 hours
+    const lastUpdate = profile.stats_updated_at ? new Date(profile.stats_updated_at).getTime() : 0;
+    if (Date.now() - lastUpdate > staleThreshold) {
+      await Promise.allSettled([
+        supabase.schema("platform").rpc("calculate_crawler_stats", { p_user_id: user.id }),
+        supabase.schema("platform").rpc("calculate_crawler_class", { p_user_id: user.id }),
+      ]);
+      // Refetch updated stats
+      const { data: refreshed } = await supabase
+        .schema("platform")
+        .from("crawler_profiles")
+        .select("stat_str, stat_dex, stat_con, stat_int, stat_cha, crawler_class, class_description, stats_updated_at")
+        .eq("user_id", user.id)
+        .single();
+      if (refreshed) {
+        Object.assign(profile, refreshed);
+      }
+    }
   }
 
   // Calculate level details
@@ -80,6 +96,12 @@ export async function GET() {
     .lt("due_date", new Date().toISOString().split("T")[0])
     .or(`assigned_to.eq.${user.id},created_by.eq.${user.id}`);
 
+  // If not activated, include readiness info
+  let activation = null;
+  if (!profile.gamification_activated) {
+    activation = await checkActivationReadiness(supabase, user.id);
+  }
+
   return NextResponse.json({
     profile: {
       ...profile,
@@ -90,6 +112,8 @@ export async function GET() {
       floor_number: getFloorForLevel(levelInfo.level),
       login_streak: streak,
     },
+    activated: profile.gamification_activated,
+    activation,
     stats: {
       achievement_count: achievementCount || 0,
       unopened_boxes: unopenedBoxes || 0,
@@ -116,6 +140,17 @@ export async function POST(request: Request) {
   let body;
 
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
+
+  // Handle activation request
+  if (body.action === "activate") {
+    await ensureProfile(supabase, user.id);
+    const success = await activateGamification(supabase, user.id);
+    if (!success) {
+      return NextResponse.json({ error: "Prerequisites not met. Set up rewards and use at least 2 modules first." }, { status: 400 });
+    }
+    return NextResponse.json({ activated: true });
+  }
+
   const updates: Record<string, unknown> = {};
 
   if (body.crawler_name !== undefined) {

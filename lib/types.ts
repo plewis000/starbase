@@ -541,6 +541,8 @@ export interface CrawlerProfile {
   crawler_class?: CrawlerClassSlug;
   class_description?: string;
   stats_updated_at?: string;
+  gamification_activated: boolean;
+  activated_at?: string;
   created_at: string;
   updated_at: string;
   // Enriched

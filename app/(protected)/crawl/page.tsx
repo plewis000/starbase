@@ -202,11 +202,29 @@ function LootBoxCeremony({
   );
 }
 
+interface ActivationReadiness {
+  ready: boolean;
+  modules: {
+    tasks: { count: number; ready: boolean };
+    habits: { count: number; ready: boolean };
+    finance: { count: number; ready: boolean };
+    goals: { count: number; ready: boolean };
+  };
+  totalReady: number;
+  minRequired: number;
+  hasRewards: boolean;
+}
+
 export default function CrawlPage() {
   const toast = useToast();
   const [user, setUser] = useState<{ full_name: string; email: string; avatar_url?: string } | null>(null);
   const [tab, setTab] = useState<Tab>("profile");
   const [loading, setLoading] = useState(true);
+
+  // Activation state
+  const [activated, setActivated] = useState<boolean>(true); // default true to avoid flash
+  const [activation, setActivation] = useState<ActivationReadiness | null>(null);
+  const [activating, setActivating] = useState(false);
 
   // Profile state
   const [profile, setProfile] = useState<CrawlerProfile | null>(null);
@@ -243,6 +261,8 @@ export default function CrawlPage() {
       const res = await fetch("/api/gamification");
       if (!res.ok) throw new Error();
       const data = await res.json();
+      setActivated(data.activated !== false);
+      setActivation(data.activation || null);
       setProfile(data.profile);
       setBuffs(data.buffs);
       setDebuffs(data.debuffs);
@@ -329,6 +349,30 @@ export default function CrawlPage() {
     }
   };
 
+  const handleActivate = async () => {
+    setActivating(true);
+    try {
+      const res = await fetch("/api/gamification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "activate" }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        toast.error(data.error || "Failed to activate");
+        return;
+      }
+      setActivated(true);
+      setActivation(null);
+      toast.success("The Crawl has begun. Good luck, crawler.");
+      fetchProfile();
+    } catch {
+      toast.error("Failed to activate gamification");
+    } finally {
+      setActivating(false);
+    }
+  };
+
   if (!user) return <LoadingSpinner size="lg" />;
 
   const tabs: { id: Tab; label: string; icon: string }[] = [
@@ -389,8 +433,84 @@ export default function CrawlPage() {
           ))}
         </div>
 
-        {/* Tab Content */}
-        {loading && tab === "profile" ? (
+        {/* Onboarding — shown when gamification not yet activated */}
+        {!activated && !loading ? (
+          <div className="max-w-lg mx-auto space-y-6">
+            <div className="dcc-card p-8 text-center">
+              <span className="text-5xl block mb-4">🗡️</span>
+              <h2 className="text-2xl font-bold text-slate-100 dcc-heading mb-2">Enter The Crawl</h2>
+              <p className="text-dungeon-500 text-sm font-mono mb-6">
+                The System has been watching. Before you can enter the dungeon, you need to prove you&apos;re worth tracking.
+              </p>
+
+              {/* Prerequisites checklist */}
+              <div className="text-left space-y-3 mb-6">
+                <p className="text-xs text-dungeon-500 uppercase tracking-wider font-mono mb-2">Prerequisites</p>
+
+                {activation && Object.entries(activation.modules).map(([key, mod]) => {
+                  const labels: Record<string, { name: string; min: number }> = {
+                    tasks: { name: "Complete tasks", min: 5 },
+                    habits: { name: "Log habit check-ins", min: 3 },
+                    finance: { name: "Track transactions", min: 5 },
+                    goals: { name: "Set a goal", min: 1 },
+                  };
+                  const label = labels[key];
+                  return (
+                    <div key={key} className={`flex items-center gap-3 p-3 rounded-lg border ${
+                      mod.ready ? "border-green-800 bg-green-950/20" : "border-dungeon-700 bg-dungeon-800"
+                    }`}>
+                      <span className="text-lg">{mod.ready ? "✅" : "⬜"}</span>
+                      <div className="flex-1">
+                        <span className={`text-sm ${mod.ready ? "text-green-400" : "text-slate-400"}`}>
+                          {label?.name || key}
+                        </span>
+                        <span className="text-xs text-dungeon-500 ml-2 font-mono">
+                          {mod.count}/{label?.min || 1}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {activation && (
+                  <div className={`flex items-center gap-3 p-3 rounded-lg border ${
+                    activation.hasRewards ? "border-green-800 bg-green-950/20" : "border-dungeon-700 bg-dungeon-800"
+                  }`}>
+                    <span className="text-lg">{activation.hasRewards ? "✅" : "⬜"}</span>
+                    <div className="flex-1">
+                      <span className={`text-sm ${activation.hasRewards ? "text-green-400" : "text-slate-400"}`}>
+                        Set up loot box rewards
+                      </span>
+                      {!activation.hasRewards && (
+                        <Link href="/crawl/rewards" className="text-xs text-crimson-400 ml-2 hover:text-crimson-300">
+                          Set up rewards &rarr;
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <p className="text-xs text-dungeon-500 font-mono mt-3">
+                  Need data in at least {activation?.minRequired || 2} modules + rewards configured.
+                  {activation && ` (${activation.totalReady}/${activation.minRequired} modules ready)`}
+                </p>
+              </div>
+
+              <button
+                onClick={handleActivate}
+                disabled={!activation?.ready || activating}
+                className={`w-full py-3 rounded-lg font-medium text-sm transition-all ${
+                  activation?.ready
+                    ? "dcc-btn-primary"
+                    : "bg-dungeon-800 text-dungeon-500 border border-dungeon-700 cursor-not-allowed"
+                }`}
+              >
+                {activating ? "Activating..." : activation?.ready ? "Begin The Crawl" : "Not Ready Yet"}
+              </button>
+            </div>
+          </div>
+        ) : /* Tab Content */
+        loading && tab === "profile" ? (
           <div className="flex justify-center py-12"><LoadingSpinner size="lg" /></div>
         ) : tab === "profile" && profile ? (
           <div className="space-y-6">
