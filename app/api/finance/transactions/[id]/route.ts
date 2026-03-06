@@ -1,21 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withUser } from "@/lib/api/withAuth";
 import { finance } from "@/lib/supabase/schemas";
+import { parseBody, updateTransactionSchema } from "@/lib/schemas";
 
 // PATCH /api/finance/transactions/[id] — Update transaction (categorize, notes, exclude, review)
 export const PATCH = withUser(async (request: NextRequest, { supabase, user }, params) => {
   const id = params?.id;
-  let body;
-  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
+  const parsed = await parseBody(request, updateTransactionSchema);
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
+  const data = parsed.data;
 
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
-  if (body.category_id !== undefined) updates.category_id = body.category_id || null;
-  if (body.notes !== undefined) updates.notes = typeof body.notes === "string" ? body.notes.trim() : null;
-  if (body.reviewed !== undefined) updates.reviewed = body.reviewed;
-  if (body.excluded !== undefined) updates.excluded = body.excluded;
-  if (body.merchant_name !== undefined) updates.merchant_name = typeof body.merchant_name === "string" ? body.merchant_name.trim() : null;
-  if (body.description !== undefined) updates.description = typeof body.description === "string" ? body.description.trim() : null;
+  if (data.category_id !== undefined) updates.category_id = data.category_id || null;
+  if (data.notes !== undefined) updates.notes = data.notes;
+  if (data.reviewed !== undefined) updates.reviewed = data.reviewed;
+  if (data.excluded !== undefined) updates.excluded = data.excluded;
+  if (data.merchant_name !== undefined) updates.merchant_name = data.merchant_name;
+  if (data.description !== undefined) updates.description = data.description;
 
   const { data: transaction, error } = await finance(supabase)
     .from("transactions")
@@ -28,7 +30,7 @@ export const PATCH = withUser(async (request: NextRequest, { supabase, user }, p
   if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
   // If category was changed, auto-create/update a merchant rule
-  if (body.category_id && transaction?.merchant_name) {
+  if (data.category_id && transaction?.merchant_name) {
     const pattern = transaction.merchant_name.toUpperCase().replace(/\s*#\d+.*$/, "%"); // Strip store numbers
     const { data: existingRule } = await finance(supabase)
       .from("merchant_rules")
@@ -39,14 +41,14 @@ export const PATCH = withUser(async (request: NextRequest, { supabase, user }, p
     if (existingRule) {
       await finance(supabase)
         .from("merchant_rules")
-        .update({ category_id: body.category_id, confidence: "user_confirmed", updated_at: new Date().toISOString() })
+        .update({ category_id: data.category_id, confidence: "user_confirmed", updated_at: new Date().toISOString() })
         .eq("id", existingRule.id);
     } else {
       await finance(supabase)
         .from("merchant_rules")
         .insert({
           merchant_pattern: pattern,
-          category_id: body.category_id,
+          category_id: data.category_id,
           created_by: user.id,
           confidence: "user_confirmed",
         });

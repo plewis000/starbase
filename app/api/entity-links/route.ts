@@ -2,12 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { withAuth } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
 import { isValidUUID } from "@/lib/validation";
+import { createEntityLinkSchema, parseBody } from "@/lib/schemas";
 
 const VALID_ENTITY_TYPES = ["task", "habit", "goal", "shopping_item"] as const;
-const VALID_LINK_TYPES = ["derived_from", "tracks", "syncs_with"] as const;
 
 type EntityType = (typeof VALID_ENTITY_TYPES)[number];
-type LinkType = (typeof VALID_LINK_TYPES)[number];
 
 /**
  * GET /api/entity-links?entity_type=task&entity_id=xxx
@@ -72,55 +71,9 @@ export const GET = withAuth(async (req: NextRequest, { supabase }) => {
  * Create a new entity link.
  */
 export const POST = withAuth(async (req: NextRequest, { supabase, user }) => {
-  let body;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
-
-  const { source_type, source_id, target_type, target_id, link_type, sync_completion } = body;
-
-  // Validate UUIDs
-  if (source_id && !isValidUUID(source_id)) {
-    return NextResponse.json({ error: "source_id must be a valid UUID" }, { status: 400 });
-  }
-  if (target_id && !isValidUUID(target_id)) {
-    return NextResponse.json({ error: "target_id must be a valid UUID" }, { status: 400 });
-  }
-
-  // Validate required fields
-  if (!source_type || !source_id || !target_type || !target_id || !link_type) {
-    return NextResponse.json(
-      { error: "source_type, source_id, target_type, target_id, and link_type are required" },
-      { status: 400 }
-    );
-  }
-
-  // Validate enum values
-  if (!VALID_ENTITY_TYPES.includes(source_type)) {
-    return NextResponse.json(
-      { error: `Invalid source_type. Must be one of: ${VALID_ENTITY_TYPES.join(", ")}` },
-      { status: 400 }
-    );
-  }
-  if (!VALID_ENTITY_TYPES.includes(target_type)) {
-    return NextResponse.json(
-      { error: `Invalid target_type. Must be one of: ${VALID_ENTITY_TYPES.join(", ")}` },
-      { status: 400 }
-    );
-  }
-  if (!VALID_LINK_TYPES.includes(link_type)) {
-    return NextResponse.json(
-      { error: `Invalid link_type. Must be one of: ${VALID_LINK_TYPES.join(", ")}` },
-      { status: 400 }
-    );
-  }
-
-  // Prevent self-linking
-  if (source_type === target_type && source_id === target_id) {
-    return NextResponse.json({ error: "Cannot link an entity to itself" }, { status: 400 });
-  }
+  const parsed = await parseBody(req, createEntityLinkSchema);
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
+  const { source_type, source_id, target_type, target_id, link_type, sync_completion } = parsed.data;
 
   const { data, error } = await platform(supabase)
     .from("entity_links")

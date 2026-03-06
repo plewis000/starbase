@@ -1,17 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withUser } from "@/lib/api/withAuth";
 import { finance } from "@/lib/supabase/schemas";
+import { parseBody, splitTransactionSchema } from "@/lib/schemas";
 
 // POST /api/finance/transactions/[id]/split — Split a transaction into categories
 export const POST = withUser(async (request: NextRequest, { supabase, user }, params) => {
   const id = params?.id;
-  let body;
-  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
-
-  const { splits } = body;
-  if (!Array.isArray(splits) || splits.length < 2) {
-    return NextResponse.json({ error: "Must provide at least 2 splits" }, { status: 400 });
-  }
+  const parsed = await parseBody(request, splitTransactionSchema);
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
+  const { splits } = parsed.data;
 
   // Fetch the parent transaction
   const { data: parent, error: fetchError } = await finance(supabase)
@@ -30,7 +27,7 @@ export const POST = withUser(async (request: NextRequest, { supabase, user }, pa
   }
 
   // Validate splits sum to parent amount
-  const splitTotal = splits.reduce((sum: number, s: { amount: number }) => sum + Number(s.amount), 0);
+  const splitTotal = splits.reduce((sum, s) => sum + s.amount, 0);
   const parentAmount = Math.abs(Number(parent.amount));
   const tolerance = 0.01;
 
@@ -40,22 +37,12 @@ export const POST = withUser(async (request: NextRequest, { supabase, user }, pa
     }, { status: 400 });
   }
 
-  // Validate each split has amount and category
-  for (const split of splits) {
-    if (!split.amount || Number(split.amount) <= 0) {
-      return NextResponse.json({ error: "Each split must have a positive amount" }, { status: 400 });
-    }
-    if (!split.category_id) {
-      return NextResponse.json({ error: "Each split must have a category_id" }, { status: 400 });
-    }
-  }
-
   // Create the splits
-  const inserts = splits.map((s: { amount: number; category_id: string; description?: string }) => ({
+  const inserts = splits.map((s) => ({
     parent_transaction_id: id,
-    amount: Number(s.amount),
+    amount: s.amount,
     category_id: s.category_id,
-    description: typeof s.description === "string" ? s.description.trim() : null,
+    description: s.description ?? null,
   }));
 
   const { data: createdSplits, error: insertError } = await finance(supabase)

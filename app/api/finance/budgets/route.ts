@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withUser } from "@/lib/api/withAuth";
 import { finance, config } from "@/lib/supabase/schemas";
+import { parseBody, createBudgetSchema } from "@/lib/schemas";
 
 // GET /api/finance/budgets — Get active budgets with current spending
 export const GET = withUser(async (request: NextRequest, { supabase, user }) => {
@@ -92,21 +93,15 @@ export const GET = withUser(async (request: NextRequest, { supabase, user }) => 
 
 // POST /api/finance/budgets — Create or update a budget for a category
 export const POST = withUser(async (request: NextRequest, { supabase, user }) => {
-  let body;
-  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
-
-  const { category_id, monthly_amount, alerts } = body;
-
-  if (!category_id) return NextResponse.json({ error: "category_id is required" }, { status: 400 });
-  if (!monthly_amount || Number(monthly_amount) <= 0) {
-    return NextResponse.json({ error: "monthly_amount must be positive" }, { status: 400 });
-  }
+  const parsed = await parseBody(request, createBudgetSchema);
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
+  const data = parsed.data;
 
   // Deactivate existing budget for this category (soft close)
   await finance(supabase)
     .from("budgets")
     .update({ effective_until: new Date().toISOString().slice(0, 10) })
-    .eq("category_id", category_id)
+    .eq("category_id", data.category_id)
     .eq("user_id", user.id)
     .is("effective_until", null);
 
@@ -114,8 +109,8 @@ export const POST = withUser(async (request: NextRequest, { supabase, user }) =>
   const { data: budget, error } = await finance(supabase)
     .from("budgets")
     .insert({
-      category_id,
-      monthly_amount: Number(monthly_amount),
+      category_id: data.category_id,
+      monthly_amount: data.monthly_amount,
       user_id: user.id,
     })
     .select("*")
@@ -124,7 +119,7 @@ export const POST = withUser(async (request: NextRequest, { supabase, user }) =>
   if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
   // Create default alerts if requested or use defaults
-  const alertThresholds = Array.isArray(alerts) ? alerts : [75, 90];
+  const alertThresholds = data.alerts ?? [75, 90];
   const alertInserts = alertThresholds.map((threshold: number) => ({
     budget_id: budget.id,
     threshold_percent: threshold,

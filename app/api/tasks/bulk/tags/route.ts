@@ -2,28 +2,25 @@ import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
 import { getHouseholdMemberIds, verifyTaskHouseholdAccess } from "@/lib/household";
+import { parseBody } from "@/lib/schemas";
+import { z } from "zod";
 
 // =============================================================
 // POST /api/tasks/bulk/tags — Bulk add/remove tags
 // Body: { task_ids: string[], action: "add" | "remove", tag_id: string }
 // =============================================================
+const bulkTagSchema = z.object({
+  task_ids: z.array(z.string().uuid()).min(1).max(100),
+  action: z.enum(["add", "remove"]),
+  tag_id: z.string().uuid(),
+});
+
 export const POST = withAuth(async (request, { supabase, user, ctx }) => {
   const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
 
-  const body = await request.json();
-  const { task_ids, action, tag_id } = body;
-
-  if (!Array.isArray(task_ids) || task_ids.length === 0) {
-    return NextResponse.json({ error: "task_ids required" }, { status: 400 });
-  }
-
-  if (!["add", "remove"].includes(action)) {
-    return NextResponse.json({ error: "action must be 'add' or 'remove'" }, { status: 400 });
-  }
-
-  if (!tag_id) {
-    return NextResponse.json({ error: "tag_id required" }, { status: 400 });
-  }
+  const parsed = await parseBody(request, bulkTagSchema);
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
+  const { task_ids, action, tag_id } = parsed.data;
 
   // Verify all tasks belong to household
   for (const taskId of task_ids) {

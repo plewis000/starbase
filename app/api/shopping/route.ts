@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { withAuth } from "@/lib/api/withAuth";
 import { household } from "@/lib/supabase/schemas";
 import { getHouseholdMemberIds } from "@/lib/household";
+import { parseBody, createShoppingListSchema } from "@/lib/schemas";
 
 // GET /api/shopping — List all shopping lists
 export const GET = withAuth(async (_request: NextRequest, { supabase, ctx }) => {
@@ -44,20 +45,15 @@ export const GET = withAuth(async (_request: NextRequest, { supabase, ctx }) => 
 
 // POST /api/shopping — Create a new shopping list
 export const POST = withAuth(async (request: NextRequest, { supabase, user }) => {
-  let body;
-  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
-  const { name, store, is_default } = body;
-
-  if (!name || typeof name !== "string" || !name.trim()) {
-    return NextResponse.json({ error: "name is required" }, { status: 400 });
-  }
+  const parsed = await parseBody(request, createShoppingListSchema);
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
+  const data = parsed.data;
 
   const { data: list, error } = await household(supabase)
     .from("shopping_lists")
     .insert({
-      name: name.trim(),
-      store: store?.trim() || null,
-      is_default: is_default || false,
+      name: data.name,
+      is_default: data.is_default,
       created_by: user.id,
       source: "manual",
     })

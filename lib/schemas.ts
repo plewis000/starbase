@@ -162,21 +162,31 @@ export const createCommentSchema = z.object({
 // ---- Finance Schemas ----
 
 export const updateTransactionSchema = z.object({
-  category: z.string().max(100).optional(),
+  category_id: z.string().uuid().nullish().transform(v => v ?? undefined),
   notes: optionalTrimmedString(1000),
   reviewed: z.boolean().optional(),
   excluded: z.boolean().optional(),
+  merchant_name: optionalTrimmedString(200),
+  description: optionalTrimmedString(1000),
 }).partial();
 
 export const createBudgetSchema = z.object({
-  category: trimmedString(100),
-  amount: z.number().min(0).max(10000000),
-  period: z.enum(["monthly", "quarterly", "annual"]),
+  category_id: uuid,
+  monthly_amount: z.number().min(0.01).max(10000000),
+  alerts: z.array(z.number().int().min(1).max(100)).max(10).optional(),
 });
 
 export const createMerchantRuleSchema = z.object({
-  merchant_name: trimmedString(200),
-  category: trimmedString(100),
+  merchant_pattern: trimmedString(200),
+  category_id: uuid,
+});
+
+export const splitTransactionSchema = z.object({
+  splits: z.array(z.object({
+    amount: z.number().min(0.01).max(10000000),
+    category_id: uuid,
+    description: optionalTrimmedString(500),
+  })).min(2).max(20),
 });
 
 // ---- Notification Schemas ----
@@ -214,12 +224,16 @@ export const createFeedbackSchema = z.object({
 // ---- Entity Link Schemas ----
 
 export const createEntityLinkSchema = z.object({
-  source_type: z.string().max(50),
+  source_type: z.enum(["task", "habit", "goal", "shopping_item"]),
   source_id: uuid,
-  target_type: z.string().max(50),
+  target_type: z.enum(["task", "habit", "goal", "shopping_item"]),
   target_id: uuid,
-  relationship: z.string().max(50).optional(),
-});
+  link_type: z.enum(["derived_from", "tracks", "syncs_with"]),
+  sync_completion: z.boolean().default(false),
+}).refine(
+  (d) => !(d.source_type === d.target_type && d.source_id === d.target_id),
+  { message: "Cannot link an entity to itself" }
+);
 
 // ---- Pagination (for query params) ----
 

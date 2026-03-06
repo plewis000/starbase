@@ -5,6 +5,7 @@
 
 import * as cheerio from "cheerio";
 import { parse as parseDuration } from "tinyduration";
+import { parseIngredient } from "parse-ingredient";
 
 export interface ImportedRecipe {
   title: string;
@@ -138,12 +139,25 @@ function parseRecipeNode(node: any): Omit<ImportedRecipe, "source_url"> {
     }
   }
 
-  // Ingredients
+  // Ingredients — parse raw strings into structured quantity + name
   const ingredients: { name: string; quantity: string }[] = [];
   if (node.recipeIngredient && Array.isArray(node.recipeIngredient)) {
     for (const ing of node.recipeIngredient) {
       if (typeof ing === "string" && ing.trim()) {
-        ingredients.push({ name: ing.trim(), quantity: "" });
+        const parsed = parseIngredient(ing.trim());
+        if (parsed.length > 0 && parsed[0].description) {
+          const p = parsed[0];
+          const qtyParts: string[] = [];
+          if (p.quantity != null) qtyParts.push(String(p.quantity));
+          if (p.quantity2 != null) qtyParts.push(`-${p.quantity2}`);
+          if (p.unitOfMeasure) qtyParts.push(` ${p.unitOfMeasure}`);
+          ingredients.push({
+            name: p.description,
+            quantity: qtyParts.join("").trim(),
+          });
+        } else {
+          ingredients.push({ name: ing.trim(), quantity: "" });
+        }
       }
     }
   }

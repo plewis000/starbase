@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withUser } from "@/lib/api/withAuth";
 import { finance, config } from "@/lib/supabase/schemas";
+import { parseBody, createMerchantRuleSchema } from "@/lib/schemas";
 
 // GET /api/finance/merchant-rules — List all merchant classification rules
 export const GET = withUser(async (_request: NextRequest, { supabase, user }) => {
@@ -31,23 +32,15 @@ export const GET = withUser(async (_request: NextRequest, { supabase, user }) =>
 
 // POST /api/finance/merchant-rules — Create a merchant classification rule
 export const POST = withUser(async (request: NextRequest, { supabase, user }) => {
-  let body;
-  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
-
-  const { merchant_pattern, category_id } = body;
-
-  if (!merchant_pattern || typeof merchant_pattern !== "string" || !merchant_pattern.trim()) {
-    return NextResponse.json({ error: "merchant_pattern is required" }, { status: 400 });
-  }
-  if (!category_id) {
-    return NextResponse.json({ error: "category_id is required" }, { status: 400 });
-  }
+  const parsed = await parseBody(request, createMerchantRuleSchema);
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
+  const data = parsed.data;
 
   const { data: rule, error } = await finance(supabase)
     .from("merchant_rules")
     .insert({
-      merchant_pattern: merchant_pattern.trim().toUpperCase(),
-      category_id,
+      merchant_pattern: data.merchant_pattern.toUpperCase(),
+      category_id: data.category_id,
       created_by: user.id,
       confidence: "user_confirmed",
     })

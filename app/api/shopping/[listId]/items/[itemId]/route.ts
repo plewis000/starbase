@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { withAuth } from "@/lib/api/withAuth";
 import { household } from "@/lib/supabase/schemas";
 import { getHouseholdMemberIds } from "@/lib/household";
+import { parseBody, updateShoppingItemSchema } from "@/lib/schemas";
 
 // PATCH /api/shopping/[listId]/items/[itemId] — Update item (check/uncheck, edit)
 export const PATCH = withAuth(async (request: NextRequest, { supabase, user, ctx }, params) => {
@@ -18,20 +19,22 @@ export const PATCH = withAuth(async (request: NextRequest, { supabase, user, ctx
     .single();
   if (!listCheck) return NextResponse.json({ error: "List not found" }, { status: 404 });
 
-  let body;
-  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
+  const parsed = await parseBody(request, updateShoppingItemSchema);
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
+  const data = parsed.data;
 
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
-  if (body.name !== undefined) updates.name = typeof body.name === "string" ? body.name.trim() : String(body.name);
-  if (body.quantity !== undefined) updates.quantity = typeof body.quantity === "string" ? body.quantity.trim() || null : body.quantity ? String(body.quantity) : null;
-  if (body.category_id !== undefined) updates.category_id = body.category_id || null;
-  if (body.is_staple !== undefined) updates.is_staple = body.is_staple;
+  if (data.name !== undefined) updates.name = data.name;
+  if (data.quantity !== undefined) updates.quantity = data.quantity != null ? String(data.quantity) : null;
+  if (data.category !== undefined) updates.category_id = data.category;
+  if (data.is_staple !== undefined) updates.is_staple = data.is_staple;
+  if (data.sort_order !== undefined) updates.sort_order = data.sort_order;
 
-  if (body.checked !== undefined) {
-    updates.checked = body.checked;
-    updates.checked_at = body.checked ? new Date().toISOString() : null;
-    updates.checked_by = body.checked ? user.id : null;
+  if (data.checked !== undefined) {
+    updates.checked = data.checked;
+    updates.checked_at = data.checked ? new Date().toISOString() : null;
+    updates.checked_by = data.checked ? user.id : null;
   }
 
   const { data: item, error } = await household(supabase)
