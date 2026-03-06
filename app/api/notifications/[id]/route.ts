@@ -1,23 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withUser } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
 
 // =============================================================
 // PATCH /api/notifications/:id — Mark read/unread
 // =============================================================
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const PATCH = withUser(async (request: NextRequest, { supabase, user }, params) => {
+  const id = params?.id;
 
   let body;
 
@@ -41,24 +30,13 @@ export async function PATCH(
   }
 
   return NextResponse.json({ notification });
-}
+});
 
 // =============================================================
 // DELETE /api/notifications/:id — Dismiss notification
 // =============================================================
-export async function DELETE(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const DELETE = withUser(async (_request: NextRequest, { supabase, user }, params) => {
+  const id = params?.id;
 
   const { error } = await platform(supabase)
     .from("notifications")
@@ -71,4 +49,4 @@ export async function DELETE(
   }
 
   return NextResponse.json({ success: true });
-}
+});

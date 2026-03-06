@@ -1,5 +1,5 @@
 import { NextResponse, after } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withAuth } from "@/lib/api/withAuth";
 import { platform, config } from "@/lib/supabase/schemas";
 import { logActivity } from "@/lib/activity-log";
 import { recalculateAndUpdateStreak } from "@/lib/streak-engine";
@@ -9,17 +9,8 @@ import { awardXp, checkAchievements } from "@/lib/gamification";
 
 // ---- POST: Check in to a habit ----
 
-export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { id: habitId } = await params;
+export const POST = withAuth(async (request, { supabase, user }, params) => {
+  const habitId = params!.id;
   const parsed = await safeParseBody(request);
   if (!parsed.ok) {
     return NextResponse.json({ error: parsed.error }, { status: 400 });
@@ -188,21 +179,12 @@ export async function POST(
     check_in: checkIn,
     streak: streakResult,
   }, { status: 201 });
-}
+});
 
 // ---- DELETE: Undo a check-in ----
 
-export async function DELETE(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { id: habitId } = await params;
+export const DELETE = withAuth(async (request, { supabase, user }, params) => {
+  const habitId = params!.id;
   const { searchParams } = new URL(request.url);
   const date = searchParams.get("date");
 
@@ -269,4 +251,4 @@ export async function DELETE(
   }).catch(console.error);
 
   return NextResponse.json({ success: true });
-}
+});

@@ -1,32 +1,19 @@
-import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { NextResponse } from "next/server";
+import { withAuth } from "@/lib/api/withAuth";
 import { logActivity } from "@/lib/activity-log";
-import { platform, config } from "@/lib/supabase/schemas";
+import { platform } from "@/lib/supabase/schemas";
 import { getConfigLookups, enrichTagAssociations } from "@/lib/task-enrichment";
-import { getHouseholdContext, getHouseholdMemberIds, verifyTaskHouseholdAccess } from "@/lib/household";
+import { getHouseholdMemberIds, verifyTaskHouseholdAccess } from "@/lib/household";
 
 // =============================================================
 // POST /api/tasks/:id/tags — Add tags to a task
 // =============================================================
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const POST = withAuth(async (request, { supabase, user, ctx }, params) => {
+  const id = params?.id;
 
   // Verify task belongs to user's household
-  const ctx = await getHouseholdContext(supabase, user.id);
-  if (!ctx) return NextResponse.json({ error: "No household found" }, { status: 404 });
   const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
-  if (!(await verifyTaskHouseholdAccess(supabase, id, memberIds))) {
+  if (!(await verifyTaskHouseholdAccess(supabase, id!, memberIds))) {
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
@@ -59,7 +46,7 @@ export async function POST(
 
   await logActivity(supabase, {
     entity_type: "task",
-    entity_id: id,
+    entity_id: id!,
     action: "tags_added",
     performed_by: user.id,
     metadata: { tag_ids },
@@ -70,4 +57,4 @@ export async function POST(
   const enrichedTags = enrichTagAssociations(inserted || [], lookups);
 
   return NextResponse.json({ tags: enrichedTags }, { status: 201 });
-}
+});

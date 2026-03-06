@@ -1,13 +1,9 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { NextRequest, NextResponse } from "next/server";
+import { withUser } from "@/lib/api/withAuth";
 import { finance } from "@/lib/supabase/schemas";
 
 // GET /api/plaid/accounts — List linked bank accounts
-export async function GET() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+export const GET = withUser(async (_request: NextRequest, { supabase, user }) => {
   // Get all plaid items for user
   const { data: items } = await finance(supabase)
     .from("plaid_items")
@@ -38,4 +34,4 @@ export async function GET() {
     items: enriched,
     accounts: accounts || [],
   });
-}
+});

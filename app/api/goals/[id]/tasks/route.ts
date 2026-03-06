@@ -1,22 +1,13 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withAuth } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
 import { logActivity } from "@/lib/activity-log";
 import { recalculateAndUpdateGoalProgress } from "@/lib/goal-progress";
 
 // ---- GET: List tasks linked to a goal ----
 
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { id: goalId } = await params;
+export const GET = withAuth(async (request, { supabase, user }, params) => {
+  const goalId = params!.id;
 
   // Verify goal exists and belongs to user
   const { data: goal } = await platform(supabase)
@@ -62,21 +53,12 @@ export async function GET(
   });
 
   return NextResponse.json({ tasks: enrichedTasks });
-}
+});
 
 // ---- POST: Link a task to a goal ----
 
-export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { id: goalId } = await params;
+export const POST = withAuth(async (request, { supabase, user }, params) => {
+  const goalId = params!.id;
   let body;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
   const { task_id } = body;
@@ -142,21 +124,12 @@ export async function POST(
   }
 
   return NextResponse.json({ link }, { status: 201 });
-}
+});
 
 // ---- DELETE: Unlink a task from a goal ----
 
-export async function DELETE(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { id: goalId } = await params;
+export const DELETE = withAuth(async (request, { supabase, user }, params) => {
+  const goalId = params!.id;
   const { searchParams } = new URL(request.url);
   const taskId = searchParams.get("task_id");
 
@@ -203,4 +176,4 @@ export async function DELETE(
   }
 
   return NextResponse.json({ success: true });
-}
+});

@@ -1,17 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withAuth } from "@/lib/api/withAuth";
 import { household } from "@/lib/supabase/schemas";
-import { getHouseholdContext, getHouseholdMemberIds } from "@/lib/household";
+import { getHouseholdMemberIds } from "@/lib/household";
 
 // GET /api/shopping — List all shopping lists
-export async function GET() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+export const GET = withAuth(async (_request: NextRequest, { supabase, ctx }) => {
   // Scope to household members
-  const ctx = await getHouseholdContext(supabase, user.id);
-  if (!ctx) return NextResponse.json({ error: "No household found" }, { status: 404 });
   const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
 
   const { data: lists, error } = await household(supabase)
@@ -46,14 +40,10 @@ export async function GET() {
   );
 
   return NextResponse.json({ lists: listsWithCounts });
-}
+});
 
 // POST /api/shopping — Create a new shopping list
-export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+export const POST = withAuth(async (request: NextRequest, { supabase, user }) => {
   let body;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
   const { name, store, is_default } = body;
@@ -77,4 +67,4 @@ export async function POST(request: NextRequest) {
   if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
   return NextResponse.json({ list }, { status: 201 });
-}
+});

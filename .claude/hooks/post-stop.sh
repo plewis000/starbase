@@ -64,7 +64,7 @@ git add -A .
 
 # Generate commit message from diff stat
 STAT=$(git diff --cached --stat | tail -1)
-FILES=$(git diff --cached --name-only | head -5 | xargs -I{} basename {} | paste -sd ", " -)
+FILES=$(git diff --cached --name-only | head -5 | while read -r f; do basename "$f"; done | tr '\n' ',' | sed 's/,$//' | sed 's/,/, /g')
 MSG="auto: update ${FILES} (${STAT})"
 
 git commit -m "$MSG

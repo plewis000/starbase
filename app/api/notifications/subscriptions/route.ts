@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withUser } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
-import { safeParseBody, validateRequiredString, validateEnum } from "@/lib/validation";
+import { safeParseBody, validateEnum } from "@/lib/validation";
 
 // All available event types
 const VALID_EVENT_TYPES = [
@@ -14,11 +14,7 @@ const VALID_EVENT_TYPES = [
 
 // ---- GET: List all notification subscriptions + quiet hours ----
 
-export async function GET(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+export const GET = withUser(async (_request, { supabase, user }) => {
   const [subsRes, prefsRes] = await Promise.all([
     platform(supabase)
       .from("notification_subscriptions")
@@ -62,15 +58,11 @@ export async function GET(request: NextRequest) {
     quiet_hours: quietHours,
     available_event_types: VALID_EVENT_TYPES,
   });
-}
+});
 
 // ---- POST: Update subscription for a specific event type ----
 
-export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+export const POST = withUser(async (request: NextRequest, { supabase, user }) => {
   const parsed = await safeParseBody(request);
   if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
 
@@ -100,15 +92,11 @@ export async function POST(request: NextRequest) {
   if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
   return NextResponse.json({ subscription: sub });
-}
+});
 
 // ---- PATCH: Update quiet hours ----
 
-export async function PATCH(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+export const PATCH = withUser(async (request: NextRequest, { supabase, user }) => {
   const parsed = await safeParseBody(request);
   if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
 
@@ -187,4 +175,4 @@ export async function PATCH(request: NextRequest) {
   }
 
   return NextResponse.json({ success: true, updated: updates });
-}
+});

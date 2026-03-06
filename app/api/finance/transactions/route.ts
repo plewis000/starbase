@@ -1,14 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withUser } from "@/lib/api/withAuth";
 import { finance, config } from "@/lib/supabase/schemas";
 import { sanitizeSearchInput, validatePagination } from "@/lib/validation";
 
 // GET /api/finance/transactions — List transactions with filters
-export async function GET(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+export const GET = withUser(async (request: NextRequest, { supabase, user }) => {
   const params = request.nextUrl.searchParams;
   const { limit, offset } = validatePagination(params.get("limit") || "50", params.get("offset"));
   const category_id = params.get("category_id");
@@ -63,14 +59,10 @@ export async function GET(request: NextRequest) {
   }));
 
   return NextResponse.json({ transactions: enriched, total: count });
-}
+});
 
 // POST /api/finance/transactions — Create a manual transaction
-export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+export const POST = withUser(async (request: NextRequest, { supabase, user }) => {
   let body;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
 
@@ -102,4 +94,4 @@ export async function POST(request: NextRequest) {
   if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
   return NextResponse.json({ transaction }, { status: 201 });
-}
+});

@@ -1,5 +1,5 @@
 import { NextResponse, after } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withAuth } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
 import { logActivity } from "@/lib/activity-log";
 import { recalculateAndUpdateGoalProgress } from "@/lib/goal-progress";
@@ -7,17 +7,9 @@ import { awardXp, checkAchievements } from "@/lib/gamification";
 
 // ---- PATCH: Update milestone (complete, rename, reorder) ----
 
-export async function PATCH(
-  request: Request,
-  { params }: { params: Promise<{ id: string; milestoneId: string }> }
-) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { id: goalId, milestoneId } = await params;
+export const PATCH = withAuth(async (request, { supabase, user }, params) => {
+  const goalId = params!.id;
+  const milestoneId = params!.milestoneId;
 
   // Verify goal belongs to user
   const { data: goal } = await platform(supabase)
@@ -97,21 +89,13 @@ export async function PATCH(
   }
 
   return NextResponse.json({ milestone });
-}
+});
 
 // ---- DELETE: Remove milestone ----
 
-export async function DELETE(
-  request: Request,
-  { params }: { params: Promise<{ id: string; milestoneId: string }> }
-) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { id: goalId, milestoneId } = await params;
+export const DELETE = withAuth(async (request, { supabase, user }, params) => {
+  const goalId = params!.id;
+  const milestoneId = params!.milestoneId;
 
   // Verify goal belongs to user
   const { data: goal } = await platform(supabase)
@@ -147,4 +131,4 @@ export async function DELETE(
   await recalculateAndUpdateGoalProgress(supabase, goalId).catch(console.error);
 
   return NextResponse.json({ success: true });
-}
+});

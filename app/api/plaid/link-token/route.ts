@@ -1,14 +1,10 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { NextRequest, NextResponse } from "next/server";
+import { withUser } from "@/lib/api/withAuth";
 import { plaidClient } from "@/lib/plaid";
 import { CountryCode, Products } from "plaid";
 
 // POST /api/plaid/link-token — Generate a Plaid Link token for the frontend
-export async function POST() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+export const POST = withUser(async (_request: NextRequest, { supabase: _supabase, user }) => {
   try {
     const response = await plaidClient.linkTokenCreate({
       user: { client_user_id: user.id },
@@ -24,4 +20,4 @@ export async function POST() {
     const message = err instanceof Error ? err.message : "Failed to create link token";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});

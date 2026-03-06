@@ -1,31 +1,19 @@
-import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { NextResponse } from "next/server";
+import { withAuth } from "@/lib/api/withAuth";
 import { logActivity } from "@/lib/activity-log";
 import { platform } from "@/lib/supabase/schemas";
-import { getHouseholdContext, getHouseholdMemberIds, verifyTaskHouseholdAccess } from "@/lib/household";
+import { getHouseholdMemberIds, verifyTaskHouseholdAccess } from "@/lib/household";
 
 // =============================================================
 // PATCH /api/tasks/:taskId/checklist/:itemId — Toggle/update
 // =============================================================
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string; itemId: string }> }
-) {
-  const { id: taskId, itemId } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const PATCH = withAuth(async (request, { supabase, user, ctx }, params) => {
+  const taskId = params?.id;
+  const itemId = params?.itemId;
 
   // Verify task belongs to user's household
-  const ctx = await getHouseholdContext(supabase, user.id);
-  if (!ctx) return NextResponse.json({ error: "No household found" }, { status: 404 });
   const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
-  if (!(await verifyTaskHouseholdAccess(supabase, taskId, memberIds))) {
+  if (!(await verifyTaskHouseholdAccess(supabase, taskId!, memberIds))) {
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
@@ -58,8 +46,8 @@ export async function PATCH(
   const { data: item, error } = await platform(supabase)
     .from("task_checklist_items")
     .update(updateFields)
-    .eq("id", itemId)
-    .eq("task_id", taskId)
+    .eq("id", itemId!)
+    .eq("task_id", taskId!)
     .select("*")
     .single();
 
@@ -70,7 +58,7 @@ export async function PATCH(
   const action = body.checked ? "checked" : body.checked === false ? "unchecked" : "updated";
   await logActivity(supabase, {
     entity_type: "checklist_item",
-    entity_id: itemId,
+    entity_id: itemId!,
     action,
     performed_by: user.id,
     metadata: { task_id: taskId },
@@ -80,21 +68,21 @@ export async function PATCH(
   await platform(supabase)
     .from("tasks")
     .update({ last_touched_at: new Date().toISOString() })
-    .eq("id", taskId);
+    .eq("id", taskId!);
 
   // Check if all checklist items are now checked (for automation triggers)
   if (body.checked) {
     const { data: allItems } = await platform(supabase)
       .from("task_checklist_items")
       .select("checked")
-      .eq("task_id", taskId);
+      .eq("task_id", taskId!);
 
     const allChecked =
       allItems && allItems.length > 0 && allItems.every((i) => i.checked);
     if (allChecked) {
       await logActivity(supabase, {
         entity_type: "task",
-        entity_id: taskId,
+        entity_id: taskId!,
         action: "checklist_complete",
         performed_by: user.id,
       });
@@ -102,38 +90,26 @@ export async function PATCH(
   }
 
   return NextResponse.json({ item });
-}
+});
 
 // =============================================================
 // DELETE /api/tasks/:taskId/checklist/:itemId — Remove item
 // =============================================================
-export async function DELETE(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string; itemId: string }> }
-) {
-  const { id: taskId, itemId } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const DELETE = withAuth(async (_request, { supabase, user, ctx }, params) => {
+  const taskId = params?.id;
+  const itemId = params?.itemId;
 
   // Verify task belongs to user's household
-  const ctxDel = await getHouseholdContext(supabase, user.id);
-  if (!ctxDel) return NextResponse.json({ error: "No household found" }, { status: 404 });
-  const memberIdsDel = await getHouseholdMemberIds(supabase, ctxDel.household_id);
-  if (!(await verifyTaskHouseholdAccess(supabase, taskId, memberIdsDel))) {
+  const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
+  if (!(await verifyTaskHouseholdAccess(supabase, taskId!, memberIds))) {
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
   const { error } = await platform(supabase)
     .from("task_checklist_items")
     .delete()
-    .eq("id", itemId)
-    .eq("task_id", taskId);
+    .eq("id", itemId!)
+    .eq("task_id", taskId!);
 
   if (error) {
     console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -141,11 +117,11 @@ export async function DELETE(
 
   await logActivity(supabase, {
     entity_type: "checklist_item",
-    entity_id: itemId,
+    entity_id: itemId!,
     action: "deleted",
     performed_by: user.id,
     metadata: { task_id: taskId },
   });
 
   return NextResponse.json({ success: true });
-}
+});

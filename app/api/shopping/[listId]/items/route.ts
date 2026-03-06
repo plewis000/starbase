@@ -1,22 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withAuth } from "@/lib/api/withAuth";
 import { household } from "@/lib/supabase/schemas";
-import { getHouseholdContext, getHouseholdMemberIds } from "@/lib/household";
+import { getHouseholdMemberIds } from "@/lib/household";
 
 // POST /api/shopping/[listId]/items — Add item(s) to list
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ listId: string }> }
-) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const { listId } = await params;
+export const POST = withAuth(async (request: NextRequest, { supabase, user, ctx }, params) => {
+  const listId = params?.listId;
 
   // Verify list belongs to user's household
-  const ctx = await getHouseholdContext(supabase, user.id);
-  if (!ctx) return NextResponse.json({ error: "No household found" }, { status: 404 });
   const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
   const { data: listCheck } = await household(supabase)
     .from("shopping_lists")
@@ -55,4 +46,4 @@ export async function POST(
   if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
   return NextResponse.json({ items: created }, { status: 201 });
-}
+});

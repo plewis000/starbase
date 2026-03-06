@@ -3,8 +3,9 @@
  * Eliminates ~12 lines of repeated code per route handler.
  *
  * Usage:
- *   export const GET = withAuth(async (request, { supabase, user, ctx }) => {
+ *   export const GET = withAuth(async (request, { supabase, user, ctx }, params) => {
  *     // user and ctx are already verified
+ *     // params.id is available for dynamic routes
  *     return NextResponse.json({ data: "..." });
  *   });
  */
@@ -15,6 +16,10 @@ import { getHouseholdContext, HouseholdContext } from "@/lib/household";
 import { SupabaseClient } from "@supabase/supabase-js";
 import { User } from "@supabase/supabase-js";
 
+// Params type: keys are always strings when they exist (guaranteed by Next.js router)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type RouteParams = Record<string, any>;
+
 export interface AuthContext {
   supabase: SupabaseClient;
   user: User;
@@ -24,7 +29,7 @@ export interface AuthContext {
 type RouteHandler = (
   request: NextRequest,
   auth: AuthContext,
-  params?: Record<string, string>
+  params: RouteParams
 ) => Promise<NextResponse>;
 
 /**
@@ -47,8 +52,39 @@ export function withAuth(handler: RouteHandler) {
       return NextResponse.json({ error: "No household found" }, { status: 404 });
     }
 
-    const params = context?.params ? await context.params : undefined;
+    const params = context?.params ? await context.params : {};
     return handler(request, { supabase, user, ctx }, params);
+  };
+}
+
+/**
+ * Like withAuth but only requires authentication (no household context).
+ * For routes that are user-scoped, not household-scoped.
+ */
+export interface UserContext {
+  supabase: SupabaseClient;
+  user: User;
+}
+
+type UserRouteHandler = (
+  request: NextRequest,
+  auth: UserContext,
+  params: RouteParams
+) => Promise<NextResponse>;
+
+export function withUser(handler: UserRouteHandler) {
+  return async (request: NextRequest, context?: { params?: Promise<Record<string, string>> }) => {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const params = context?.params ? await context.params : {};
+    return handler(request, { supabase, user }, params);
   };
 }
 

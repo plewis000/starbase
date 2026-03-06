@@ -1,13 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withUser } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
 
 // GET /api/agent/usage — Get API usage and cost summary
-export async function GET(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+export const GET = withUser(async (request: NextRequest, { supabase }) => {
   const params = request.nextUrl.searchParams;
   const period = params.get("period") || "month"; // day, week, month
 
@@ -72,4 +68,4 @@ export async function GET(request: NextRequest) {
         cost: `$${(stats.cost_cents / 100).toFixed(4)}`,
       })),
   });
-}
+});

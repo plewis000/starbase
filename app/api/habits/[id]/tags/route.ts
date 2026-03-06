@@ -1,20 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withAuth } from "@/lib/api/withAuth";
 import { platform, config } from "@/lib/supabase/schemas";
 import { safeParseBody, isValidUUID, validateUUIDArray } from "@/lib/validation";
 
 // ---- GET: List tags for a habit ----
 
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const { id } = await params;
-  if (!isValidUUID(id)) return NextResponse.json({ error: "Invalid habit ID" }, { status: 400 });
+export const GET = withAuth(async (request, { supabase, user }, params) => {
+  const id = params!.id;
+  if (!isValidUUID(id || "")) return NextResponse.json({ error: "Invalid habit ID" }, { status: 400 });
 
   // Verify ownership
   const { data: habit } = await platform(supabase)
@@ -50,20 +43,13 @@ export async function GET(
   }));
 
   return NextResponse.json({ tags: enriched });
-}
+});
 
 // ---- POST: Add tags to a habit ----
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const { id } = await params;
-  if (!isValidUUID(id)) return NextResponse.json({ error: "Invalid habit ID" }, { status: 400 });
+export const POST = withAuth(async (request, { supabase, user }, params) => {
+  const id = params!.id;
+  if (!isValidUUID(id || "")) return NextResponse.json({ error: "Invalid habit ID" }, { status: 400 });
 
   const { data: habit } = await platform(supabase)
     .from("habits")
@@ -96,20 +82,13 @@ export async function POST(
   if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
   return NextResponse.json({ habit_tags: inserted }, { status: 201 });
-}
+});
 
 // ---- DELETE: Remove a tag from a habit ----
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const { id } = await params;
-  if (!isValidUUID(id)) return NextResponse.json({ error: "Invalid habit ID" }, { status: 400 });
+export const DELETE = withAuth(async (request, { supabase, user }, params) => {
+  const id = params!.id;
+  if (!isValidUUID(id || "")) return NextResponse.json({ error: "Invalid habit ID" }, { status: 400 });
 
   const { data: habit } = await platform(supabase)
     .from("habits")
@@ -120,7 +99,8 @@ export async function DELETE(
 
   if (!habit) return NextResponse.json({ error: "Habit not found" }, { status: 404 });
 
-  const tagId = request.nextUrl.searchParams.get("tag_id");
+  const url = new URL(request.url);
+  const tagId = url.searchParams.get("tag_id");
   if (!tagId || !isValidUUID(tagId)) {
     return NextResponse.json({ error: "tag_id query parameter is required and must be a valid UUID" }, { status: 400 });
   }
@@ -134,4 +114,4 @@ export async function DELETE(
   if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
   return NextResponse.json({ success: true });
-}
+});

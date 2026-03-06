@@ -1,22 +1,13 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withAuth } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
 import { logActivity } from "@/lib/activity-log";
 import { recalculateAndUpdateGoalProgress } from "@/lib/goal-progress";
 
 // ---- GET: List milestones for a goal ----
 
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { id } = await params;
+export const GET = withAuth(async (request, { supabase, user }, params) => {
+  const id = params!.id;
 
   // Verify goal belongs to user
   const { data: goal } = await platform(supabase)
@@ -41,21 +32,12 @@ export async function GET(
   }
 
   return NextResponse.json({ milestones: milestones || [] });
-}
+});
 
 // ---- POST: Add milestone to a goal ----
 
-export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { id } = await params;
+export const POST = withAuth(async (request, { supabase, user }, params) => {
+  const id = params!.id;
 
   // Verify goal belongs to user
   const { data: goal } = await platform(supabase)
@@ -106,4 +88,4 @@ export async function POST(
   }).catch(console.error);
 
   return NextResponse.json({ milestone }, { status: 201 });
-}
+});

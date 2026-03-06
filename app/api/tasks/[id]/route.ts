@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse, after } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { NextResponse, after } from "next/server";
+import { withAuth } from "@/lib/api/withAuth";
 import { createServiceClient } from "@/lib/supabase/service";
 import { logActivity, logFieldChanges } from "@/lib/activity-log";
 import { createNextRecurrence } from "@/lib/recurrence-engine";
@@ -8,32 +8,17 @@ import { platform, config } from "@/lib/supabase/schemas";
 import { getConfigLookups, enrichTasks } from "@/lib/task-enrichment";
 import { isValidUUID } from "@/lib/validation";
 import { awardXp, checkAchievements, hasXpBeenAwarded } from "@/lib/gamification";
-import { getHouseholdContext, getHouseholdMemberIds, verifyTaskHouseholdAccess } from "@/lib/household";
+import { getHouseholdMemberIds, verifyTaskHouseholdAccess } from "@/lib/household";
 
 // =============================================================
 // GET /api/tasks/:id — Get single task with all relations
 // =============================================================
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const GET = withAuth(async (_request, { supabase, user, ctx }, params) => {
+  const id = params?.id;
 
   // Verify task belongs to user's household
-  const ctx = await getHouseholdContext(supabase, user.id);
-  if (!ctx) {
-    return NextResponse.json({ error: "No household found" }, { status: 404 });
-  }
   const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
-  const hasAccess = await verifyTaskHouseholdAccess(supabase, id, memberIds);
+  const hasAccess = await verifyTaskHouseholdAccess(supabase, id!, memberIds);
   if (!hasAccess) {
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
@@ -49,7 +34,7 @@ export async function GET(
       comments:task_comments(id, user_id, body, created_at, updated_at)
     `
     )
-    .eq("id", id)
+    .eq("id", id!)
     .single();
 
   if (error) {
@@ -69,7 +54,7 @@ export async function GET(
   const { data: rawSubtasks } = await platform(supabase)
     .from("tasks")
     .select("id, title, status_id, priority_id, assigned_to, due_date")
-    .eq("parent_task_id", id)
+    .eq("parent_task_id", id!)
     .order("created_at");
 
   const enrichedSubtasks = (rawSubtasks || []).map((st: any) => ({
@@ -92,19 +77,19 @@ export async function GET(
   const { data: blocks } = await platform(supabase)
     .from("task_dependencies")
     .select("id, depends_on_id, dependency_type")
-    .eq("task_id", id);
+    .eq("task_id", id!);
 
   const { data: blockedBy } = await platform(supabase)
     .from("task_dependencies")
     .select("id, task_id, dependency_type")
-    .eq("depends_on_id", id);
+    .eq("depends_on_id", id!);
 
   // Fetch activity log
   const { data: activity } = await platform(supabase)
     .from("activity_log")
     .select("*")
     .eq("entity_type", "task")
-    .eq("entity_id", id)
+    .eq("entity_id", id!)
     .order("performed_at", { ascending: false })
     .limit(50);
 
@@ -167,37 +152,22 @@ export async function GET(
       activity: activity || [],
     },
   });
-}
+});
 
 // =============================================================
 // PATCH /api/tasks/:id — Update task fields (partial update)
 // =============================================================
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const PATCH = withAuth(async (request, { supabase, user, ctx }, params) => {
+  const id = params?.id;
 
   // Verify task belongs to user's household
-  const ctx = await getHouseholdContext(supabase, user.id);
-  if (!ctx) {
-    return NextResponse.json({ error: "No household found" }, { status: 404 });
-  }
   const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
 
   // Get current task state (for diff logging)
   const { data: currentTask, error: fetchError } = await platform(supabase)
     .from("tasks")
     .select("*")
-    .eq("id", id)
+    .eq("id", id!)
     .single();
 
   if (fetchError || !currentTask) {
@@ -358,7 +328,7 @@ export async function PATCH(
   const { data: updatedTask, error: updateError } = await platform(supabase)
     .from("tasks")
     .update(updateFields)
-    .eq("id", id)
+    .eq("id", id!)
     .select("*")
     .single();
 
@@ -370,7 +340,7 @@ export async function PATCH(
   await logFieldChanges(
     supabase,
     "task",
-    id,
+    id!,
     user.id,
     currentTask as Record<string, unknown>,
     updateFields
@@ -393,7 +363,7 @@ export async function PATCH(
     // Notify newly added owners
     for (const ownerId of newOwnerIds) {
       if (!oldOwnerIds.includes(ownerId) && ownerId !== user.id) {
-        notifyTaskAssigned(supabase, updatedTask.title, ownerId, user.id, id)
+        notifyTaskAssigned(supabase, updatedTask.title, ownerId, user.id, id!)
           .catch((err) => console.error("Assignment notification error:", err));
       }
     }
@@ -406,13 +376,13 @@ export async function PATCH(
       updatedTask.title,
       updateFields.assigned_to as string,
       user.id,
-      id
+      id!
     ).catch((err) => console.error("Assignment notification error:", err));
   }
 
   // Notify on task completion (non-blocking)
   if (isCompletingTask) {
-    notifyTaskCompleted(supabase, id, updatedTask.title, user.id).catch(
+    notifyTaskCompleted(supabase, id!, updatedTask.title, user.id).catch(
       (err) => console.error("Completion notification error:", err)
     );
 
@@ -444,7 +414,7 @@ export async function PATCH(
 
         // Award full XP to each credited user
         for (const creditedUserId of creditedTo) {
-          const alreadyAwarded = await hasXpBeenAwarded(svc, creditedUserId, id);
+          const alreadyAwarded = await hasXpBeenAwarded(svc, creditedUserId, id!);
           if (alreadyAwarded) continue;
 
           // Speed bonus only for the person who clicked Done
@@ -458,7 +428,7 @@ export async function PATCH(
             "task_complete",
             `Completed: ${updatedTask.title}${creditedUserId === user.id && isSpeedComplete ? " (speed bonus!)" : ""}`,
             "task",
-            id
+            id!
           );
 
           await checkAchievements(svc, creditedUserId, "task_complete", {
@@ -474,7 +444,7 @@ export async function PATCH(
         if (creditedTo.length > 1) {
           await notifyCreditedUsers(
             svc,
-            id,
+            id!,
             updatedTask.title,
             user.id,
             creditedTo,
@@ -498,7 +468,7 @@ export async function PATCH(
       checklist_items:task_checklist_items(id, title, checked, sort_order)
     `
     )
-    .eq("id", id)
+    .eq("id", id!)
     .single();
 
   // Enrich with config data
@@ -509,47 +479,32 @@ export async function PATCH(
     task: fullTask,
     next_recurrence_id: nextRecurrenceId,
   });
-}
+});
 
 // =============================================================
 // DELETE /api/tasks/:id — Soft delete (archive) or hard delete
 // =============================================================
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const DELETE = withAuth(async (request, { supabase, user, ctx }, params) => {
+  const id = params?.id;
 
   // Verify task belongs to user's household
-  const ctxDel = await getHouseholdContext(supabase, user.id);
-  if (!ctxDel) {
-    return NextResponse.json({ error: "No household found" }, { status: 404 });
-  }
-  const memberIdsDel = await getHouseholdMemberIds(supabase, ctxDel.household_id);
-  const hasAccessDel = await verifyTaskHouseholdAccess(supabase, id, memberIdsDel);
-  if (!hasAccessDel) {
+  const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
+  const hasAccess = await verifyTaskHouseholdAccess(supabase, id!, memberIds);
+  if (!hasAccess) {
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
   const hard = request.nextUrl.searchParams.get("hard") === "true";
 
   if (hard) {
-    const { error } = await platform(supabase).from("tasks").delete().eq("id", id);
+    const { error } = await platform(supabase).from("tasks").delete().eq("id", id!);
     if (error) {
       console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 
     await logActivity(supabase, {
       entity_type: "task",
-      entity_id: id,
+      entity_id: id!,
       action: "deleted",
       performed_by: user.id,
     });
@@ -571,7 +526,7 @@ export async function DELETE(
     const { error } = await platform(supabase)
       .from("tasks")
       .update({ status_id: archivedStatus.id, last_touched_at: new Date().toISOString() })
-      .eq("id", id);
+      .eq("id", id!);
 
     if (error) {
       console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -579,11 +534,11 @@ export async function DELETE(
 
     await logActivity(supabase, {
       entity_type: "task",
-      entity_id: id,
+      entity_id: id!,
       action: "archived",
       performed_by: user.id,
     });
   }
 
   return NextResponse.json({ success: true });
-}
+});

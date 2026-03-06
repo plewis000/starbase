@@ -1,31 +1,18 @@
-import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { NextResponse } from "next/server";
+import { withAuth } from "@/lib/api/withAuth";
 import { logActivity } from "@/lib/activity-log";
 import { platform } from "@/lib/supabase/schemas";
-import { getHouseholdContext, getHouseholdMemberIds, verifyTaskHouseholdAccess } from "@/lib/household";
+import { getHouseholdMemberIds, verifyTaskHouseholdAccess } from "@/lib/household";
 
 // =============================================================
 // GET /api/tasks/:id/dependencies — List dependencies (both directions)
 // =============================================================
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const GET = withAuth(async (_request, { supabase, user, ctx }, params) => {
+  const id = params?.id;
 
   // Verify task belongs to user's household
-  const ctx = await getHouseholdContext(supabase, user.id);
-  if (!ctx) return NextResponse.json({ error: "No household found" }, { status: 404 });
   const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
-  if (!(await verifyTaskHouseholdAccess(supabase, id, memberIds))) {
+  if (!(await verifyTaskHouseholdAccess(supabase, id!, memberIds))) {
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
@@ -33,42 +20,29 @@ export async function GET(
   const { data: blockedBy } = await platform(supabase)
     .from("task_dependencies")
     .select("id, depends_on_id, dependency_type")
-    .eq("task_id", id);
+    .eq("task_id", id!);
 
   // Tasks that depend on this task (this task BLOCKS them)
   const { data: blocks } = await platform(supabase)
     .from("task_dependencies")
     .select("id, task_id, dependency_type")
-    .eq("depends_on_id", id);
+    .eq("depends_on_id", id!);
 
   return NextResponse.json({
     blocked_by: blockedBy || [],
     blocks: blocks || [],
   });
-}
+});
 
 // =============================================================
 // POST /api/tasks/:id/dependencies — Add dependency
 // =============================================================
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const POST = withAuth(async (request, { supabase, user, ctx }, params) => {
+  const id = params?.id;
 
   // Verify task belongs to user's household
-  const ctxPost = await getHouseholdContext(supabase, user.id);
-  if (!ctxPost) return NextResponse.json({ error: "No household found" }, { status: 404 });
-  const memberIdsPost = await getHouseholdMemberIds(supabase, ctxPost.household_id);
-  if (!(await verifyTaskHouseholdAccess(supabase, id, memberIdsPost))) {
+  const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
+  if (!(await verifyTaskHouseholdAccess(supabase, id!, memberIds))) {
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
@@ -144,11 +118,11 @@ export async function POST(
 
   await logActivity(supabase, {
     entity_type: "task",
-    entity_id: id,
+    entity_id: id!,
     action: "dependency_added",
     performed_by: user.id,
     metadata: { depends_on_id, dependency_type: dependency_type || "blocks" },
   });
 
   return NextResponse.json({ dependency: dep }, { status: 201 });
-}
+});

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { withUser } from "@/lib/api/withAuth";
 import { plaidClient } from "@/lib/plaid";
 import { finance } from "@/lib/supabase/schemas";
 
@@ -9,11 +10,7 @@ const MAX_TRANSACTIONS_PER_SYNC = 10000; // Hard cap on total transactions per s
 const SYNC_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes between syncs per item
 
 // POST /api/plaid/exchange — Exchange public token for access token, store item + accounts
-export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+export const POST = withUser(async (request: NextRequest, { supabase, user }) => {
   let body;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
 
@@ -102,7 +99,7 @@ export async function POST(request: NextRequest) {
     console.error("Plaid exchange error:", err);
     return NextResponse.json({ error: "Failed to link account" }, { status: 500 });
   }
-}
+});
 
 function mapAccountType(plaidType: string): string {
   const typeMap: Record<string, string> = {

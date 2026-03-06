@@ -1,33 +1,20 @@
-import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { NextResponse } from "next/server";
+import { withAuth } from "@/lib/api/withAuth";
 import { logActivity } from "@/lib/activity-log";
 import { platform, config } from "@/lib/supabase/schemas";
 import { getConfigLookups, enrichSubtasks } from "@/lib/task-enrichment";
-import { getHouseholdContext, getHouseholdMemberIds, verifyTaskHouseholdAccess } from "@/lib/household";
+import { getHouseholdMemberIds, verifyTaskHouseholdAccess } from "@/lib/household";
 import { isValidUUID } from "@/lib/validation";
 
 // =============================================================
 // GET /api/tasks/:id/subtasks — List sub-tasks
 // =============================================================
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const GET = withAuth(async (_request, { supabase, user, ctx }, params) => {
+  const id = params?.id;
 
   // Verify parent task belongs to user's household
-  const ctx = await getHouseholdContext(supabase, user.id);
-  if (!ctx) return NextResponse.json({ error: "No household found" }, { status: 404 });
   const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
-  if (!(await verifyTaskHouseholdAccess(supabase, id, memberIds))) {
+  if (!(await verifyTaskHouseholdAccess(supabase, id!, memberIds))) {
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
@@ -39,7 +26,7 @@ export async function GET(
       checklist_items:task_checklist_items(id, title, checked)
     `
     )
-    .eq("parent_task_id", id)
+    .eq("parent_task_id", id!)
     .order("created_at");
 
   if (error) {
@@ -51,30 +38,17 @@ export async function GET(
   const subtasks = enrichSubtasks(rawSubtasks || [], lookups);
 
   return NextResponse.json({ subtasks });
-}
+});
 
 // =============================================================
 // POST /api/tasks/:id/subtasks — Create sub-task
 // =============================================================
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const POST = withAuth(async (request, { supabase, user, ctx }, params) => {
+  const id = params?.id;
 
   // Verify parent task belongs to user's household
-  const ctxPost = await getHouseholdContext(supabase, user.id);
-  if (!ctxPost) return NextResponse.json({ error: "No household found" }, { status: 404 });
-  const memberIdsPost = await getHouseholdMemberIds(supabase, ctxPost.household_id);
-  if (!(await verifyTaskHouseholdAccess(supabase, id, memberIdsPost))) {
+  const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
+  if (!(await verifyTaskHouseholdAccess(supabase, id!, memberIds))) {
     return NextResponse.json({ error: "Parent task not found" }, { status: 404 });
   }
 
@@ -150,4 +124,4 @@ export async function POST(
   const subtask = enrichSubtasks([rawSubtask], lookups2)[0];
 
   return NextResponse.json({ subtask }, { status: 201 });
-}
+});

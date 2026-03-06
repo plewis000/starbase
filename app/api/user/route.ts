@@ -1,21 +1,12 @@
 import { NextResponse, after } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withUser } from "@/lib/api/withAuth";
 
 /**
  * GET /api/user — returns the authenticated user's profile
  *
  * Response: { id, email, full_name, avatar_url }
  */
-export async function GET() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
+export const GET = withUser(async (_request, { supabase, user }) => {
   // Background: ensure gamification profile exists + track login (P024: use after() for serverless)
   after(async () => {
     try {
@@ -52,4 +43,4 @@ export async function GET() {
       anthropic: { connected: hasAnthropic },
     },
   });
-}
+});

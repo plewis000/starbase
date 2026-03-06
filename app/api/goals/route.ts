@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withAuth } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
 import { getGoalHabitLookups, enrichGoals, enrichGoal } from "@/lib/goal-habit-enrichment";
 import { logActivity } from "@/lib/activity-log";
@@ -11,13 +11,7 @@ import {
 
 // ---- GET: List goals with filtering ----
 
-export async function GET(request: Request) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const GET = withAuth(async (request, { supabase, user }) => {
   const { searchParams } = new URL(request.url);
   const status = searchParams.get("status"); // active, completed, abandoned, paused
   const category = searchParams.get("category"); // category slug
@@ -113,17 +107,11 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json({ goals: enrichedGoals, total: count || 0 });
-}
+});
 
 // ---- POST: Create a goal ----
 
-export async function POST(request: Request) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const POST = withAuth(async (request, { supabase, user }) => {
   const parsed = await safeParseBody(request);
   if (!parsed.ok) {
     return NextResponse.json({ error: parsed.error }, { status: 400 });
@@ -250,7 +238,7 @@ export async function POST(request: Request) {
     goal: enriched,
     ...(linkErrors.length > 0 ? { warnings: linkErrors } : {}),
   }, { status: 201 });
-}
+});
 
 // ---- HELPER ----
 

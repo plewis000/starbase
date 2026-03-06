@@ -1,14 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withUser } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
 import { isValidUUID } from "@/lib/validation";
 
 // GET /api/gamification/party-goals — List all party goals with progress
-export async function GET() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+export const GET = withUser(async (_request, { supabase }) => {
   const { data: partyGoals, error } = await platform(supabase)
     .from("party_goals")
     .select(`
@@ -22,14 +18,10 @@ export async function GET() {
   if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
   return NextResponse.json({ partyGoals: partyGoals || [] });
-}
+});
 
 // POST /api/gamification/party-goals — Mark a goal as a party goal
-export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+export const POST = withUser(async (request: NextRequest, { supabase }) => {
   let body;
 
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
@@ -54,14 +46,10 @@ export async function POST(request: NextRequest) {
   if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
   return NextResponse.json({ partyGoal: data }, { status: 201 });
-}
+});
 
 // DELETE /api/gamification/party-goals — Remove party status from a goal
-export async function DELETE(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+export const DELETE = withUser(async (request: NextRequest, { supabase }) => {
   const goalId = request.nextUrl.searchParams.get("goal_id");
   if (!goalId || !isValidUUID(goalId)) return NextResponse.json({ error: "goal_id must be a valid UUID" }, { status: 400 });
 
@@ -73,4 +61,4 @@ export async function DELETE(request: NextRequest) {
   if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
   return NextResponse.json({ success: true });
-}
+});

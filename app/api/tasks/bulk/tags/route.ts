@@ -1,22 +1,13 @@
-import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { NextResponse } from "next/server";
+import { withAuth } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
-import { getHouseholdContext, getHouseholdMemberIds, verifyTaskHouseholdAccess } from "@/lib/household";
+import { getHouseholdMemberIds, verifyTaskHouseholdAccess } from "@/lib/household";
 
 // =============================================================
 // POST /api/tasks/bulk/tags — Bulk add/remove tags
 // Body: { task_ids: string[], action: "add" | "remove", tag_id: string }
 // =============================================================
-export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const ctx = await getHouseholdContext(supabase, user.id);
-  if (!ctx) return NextResponse.json({ error: "No household found" }, { status: 404 });
+export const POST = withAuth(async (request, { supabase, user, ctx }) => {
   const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
 
   const body = await request.json();
@@ -65,4 +56,4 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ success: true, updated: task_ids.length });
-}
+});

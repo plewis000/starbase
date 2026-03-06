@@ -1,29 +1,16 @@
-import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { NextResponse } from "next/server";
+import { withAuth } from "@/lib/api/withAuth";
 import { logActivity } from "@/lib/activity-log";
 import { platform, config } from "@/lib/supabase/schemas";
 import { getConfigLookups, enrichTasks } from "@/lib/task-enrichment";
 import { sanitizeSearchInput, validatePagination, validateRequiredString, isValidUUID } from "@/lib/validation";
-import { getHouseholdContext, getHouseholdMemberIds } from "@/lib/household";
+import { getHouseholdMemberIds } from "@/lib/household";
 
 // =============================================================
 // GET /api/tasks — List tasks with filtering, sorting, pagination
 // =============================================================
-export async function GET(request: NextRequest) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const GET = withAuth(async (request, { supabase, user, ctx }) => {
   // Scope tasks to user's household
-  const ctx = await getHouseholdContext(supabase, user.id);
-  if (!ctx) {
-    return NextResponse.json({ error: "No household found" }, { status: 404 });
-  }
   const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
 
   const params = request.nextUrl.searchParams;
@@ -247,26 +234,14 @@ export async function GET(request: NextRequest) {
   }));
 
   return NextResponse.json({ tasks: tasksWithProgress, total: count || 0 });
-}
+});
 
 // =============================================================
 // POST /api/tasks — Create a task
 // =============================================================
-export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  // Verify household membership
-  const ctx = await getHouseholdContext(supabase, user.id);
-  if (!ctx) {
-    return NextResponse.json({ error: "No household found" }, { status: 404 });
-  }
+export const POST = withAuth(async (request, { supabase, user, ctx }) => {
+  // Verify all owners are in the same household
+  const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
 
   let body;
 
@@ -289,9 +264,6 @@ export async function POST(request: NextRequest) {
     tag_ids,
     checklist_items,
   } = body;
-
-  // Verify all owners are in the same household
-  const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
 
   // Build owner_ids: prefer owner_ids, fall back to assigned_to, default to [current_user]
   let ownerIds: string[] = [];
@@ -418,4 +390,4 @@ export async function POST(request: NextRequest) {
   const fullTask = rawTask ? enrichTasks([rawTask], lookups2)[0] : null;
 
   return NextResponse.json({ task: fullTask }, { status: 201 });
-}
+});

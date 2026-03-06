@@ -1,31 +1,19 @@
-import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { NextResponse } from "next/server";
+import { withAuth } from "@/lib/api/withAuth";
 import { logActivity } from "@/lib/activity-log";
 import { platform } from "@/lib/supabase/schemas";
-import { getHouseholdContext, getHouseholdMemberIds, verifyTaskHouseholdAccess } from "@/lib/household";
+import { getHouseholdMemberIds, verifyTaskHouseholdAccess } from "@/lib/household";
 
 // =============================================================
 // PATCH /api/tasks/:taskId/comments/:commentId — Edit comment
 // =============================================================
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string; commentId: string }> }
-) {
-  const { id: taskId, commentId } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const PATCH = withAuth(async (request, { supabase, user, ctx }, params) => {
+  const taskId = params?.id;
+  const commentId = params?.commentId;
 
   // Verify task belongs to user's household
-  const ctx = await getHouseholdContext(supabase, user.id);
-  if (!ctx) return NextResponse.json({ error: "No household found" }, { status: 404 });
   const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
-  if (!(await verifyTaskHouseholdAccess(supabase, taskId, memberIds))) {
+  if (!(await verifyTaskHouseholdAccess(supabase, taskId!, memberIds))) {
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
@@ -52,8 +40,8 @@ export async function PATCH(
       body: commentBody.trim(),
       updated_at: new Date().toISOString(),
     })
-    .eq("id", commentId)
-    .eq("task_id", taskId)
+    .eq("id", commentId!)
+    .eq("task_id", taskId!)
     .eq("user_id", user.id) // Author only
     .select("*")
     .single();
@@ -70,37 +58,25 @@ export async function PATCH(
 
   await logActivity(supabase, {
     entity_type: "task",
-    entity_id: taskId,
+    entity_id: taskId!,
     action: "comment_edited",
     performed_by: user.id,
     metadata: { comment_id: commentId },
   });
 
   return NextResponse.json({ comment });
-}
+});
 
 // =============================================================
 // DELETE /api/tasks/:taskId/comments/:commentId — Delete comment
 // =============================================================
-export async function DELETE(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string; commentId: string }> }
-) {
-  const { id: taskId, commentId } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const DELETE = withAuth(async (_request, { supabase, user, ctx }, params) => {
+  const taskId = params?.id;
+  const commentId = params?.commentId;
 
   // Verify task belongs to user's household
-  const ctxDel = await getHouseholdContext(supabase, user.id);
-  if (!ctxDel) return NextResponse.json({ error: "No household found" }, { status: 404 });
-  const memberIdsDel = await getHouseholdMemberIds(supabase, ctxDel.household_id);
-  if (!(await verifyTaskHouseholdAccess(supabase, taskId, memberIdsDel))) {
+  const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
+  if (!(await verifyTaskHouseholdAccess(supabase, taskId!, memberIds))) {
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
@@ -108,7 +84,7 @@ export async function DELETE(
   const { data: existing } = await platform(supabase)
     .from("task_comments")
     .select("id")
-    .eq("id", commentId)
+    .eq("id", commentId!)
     .eq("user_id", user.id)
     .single();
 
@@ -122,7 +98,7 @@ export async function DELETE(
   const { error } = await platform(supabase)
     .from("task_comments")
     .delete()
-    .eq("id", commentId);
+    .eq("id", commentId!);
 
   if (error) {
     console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -130,11 +106,11 @@ export async function DELETE(
 
   await logActivity(supabase, {
     entity_type: "task",
-    entity_id: taskId,
+    entity_id: taskId!,
     action: "comment_deleted",
     performed_by: user.id,
     metadata: { comment_id: commentId },
   });
 
   return NextResponse.json({ success: true });
-}
+});

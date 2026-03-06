@@ -1,22 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withAuth } from "@/lib/api/withAuth";
 import { household, config } from "@/lib/supabase/schemas";
-import { getHouseholdContext, getHouseholdMemberIds } from "@/lib/household";
+import { getHouseholdMemberIds } from "@/lib/household";
 
 // GET /api/shopping/[listId] — Get a single list with all items
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ listId: string }> }
-) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const { listId } = await params;
+export const GET = withAuth(async (_request: NextRequest, { supabase, ctx }, params) => {
+  const listId = params?.listId;
 
   // Verify list belongs to user's household
-  const ctx = await getHouseholdContext(supabase, user.id);
-  if (!ctx) return NextResponse.json({ error: "No household found" }, { status: 404 });
   const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
 
   const { data: list, error } = await household(supabase)
@@ -56,23 +47,14 @@ export async function GET(
       items: enrichedItems,
     },
   });
-}
+});
 
 // PATCH /api/shopping/[listId] — Update list metadata
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ listId: string }> }
-) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const { listId } = await params;
+export const PATCH = withAuth(async (request: NextRequest, { supabase, ctx }, params) => {
+  const listId = params?.listId;
 
   // Verify list belongs to user's household
-  const ctxPatch = await getHouseholdContext(supabase, user.id);
-  if (!ctxPatch) return NextResponse.json({ error: "No household found" }, { status: 404 });
-  const memberIdsPatch = await getHouseholdMemberIds(supabase, ctxPatch.household_id);
+  const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
 
   let body;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
@@ -86,38 +68,29 @@ export async function PATCH(
     .from("shopping_lists")
     .update(updates)
     .eq("id", listId)
-    .in("created_by", memberIdsPatch)
+    .in("created_by", memberIds)
     .select("*")
     .single();
 
   if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
   return NextResponse.json({ list });
-}
+});
 
 // DELETE /api/shopping/[listId] — Delete a list and all its items
-export async function DELETE(
-  _request: NextRequest,
-  { params }: { params: Promise<{ listId: string }> }
-) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const { listId } = await params;
+export const DELETE = withAuth(async (_request: NextRequest, { supabase, ctx }, params) => {
+  const listId = params?.listId;
 
   // Verify list belongs to user's household
-  const ctxDel = await getHouseholdContext(supabase, user.id);
-  if (!ctxDel) return NextResponse.json({ error: "No household found" }, { status: 404 });
-  const memberIdsDel = await getHouseholdMemberIds(supabase, ctxDel.household_id);
+  const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
 
   const { error } = await household(supabase)
     .from("shopping_lists")
     .delete()
     .eq("id", listId)
-    .in("created_by", memberIdsDel);
+    .in("created_by", memberIds);
 
   if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
   return NextResponse.json({ success: true });
-}
+});

@@ -1,15 +1,11 @@
 // GET /api/gamification — Crawler profile + stats
 // POST /api/gamification — Update profile (crawler_name, showcase_achievements)
 
-import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { NextRequest, NextResponse } from "next/server";
+import { withUser } from "@/lib/api/withAuth";
 import { ensureProfile, updateLoginStreak, calculateLevel, getFloorForLevel, checkActivationReadiness, activateGamification } from "@/lib/gamification";
 
-export async function GET() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+export const GET = withUser(async (_request, { supabase, user }) => {
   // Ensure profile exists
   await ensureProfile(supabase, user.id);
 
@@ -130,13 +126,9 @@ export async function GET() {
     })),
     recent_xp: recentXp || [],
   });
-}
+});
 
-export async function POST(request: Request) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+export const POST = withUser(async (request: NextRequest, { supabase, user }) => {
   let body;
 
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
@@ -182,4 +174,4 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({ profile });
-}
+});

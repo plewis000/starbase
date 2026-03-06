@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withUser } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
 import {
   anthropic,
@@ -38,7 +38,7 @@ Onboarding:
 - The The Keep is themed as a dungeon crawl. Use the theming naturally — "the crawl", "floors", "XP" — but don't overdo it.`;
 
 // POST /api/agent — Send a message to the agent
-export async function POST(request: NextRequest) {
+export const POST = withUser(async (request: NextRequest, { supabase, user }) => {
   // Rate limit: AI agent costs money — 20 req/min per IP
   const { checkRateLimit, getClientIp, RATE_LIMITS } = await import("@/lib/rate-limit");
   const ip = getClientIp(request);
@@ -49,10 +49,6 @@ export async function POST(request: NextRequest) {
       { status: 429, headers: { "Retry-After": String(rl.retryAfter) } }
     );
   }
-
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   let body;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
@@ -279,14 +275,10 @@ export async function POST(request: NextRequest) {
     console.error("Agent error:", err);
     return NextResponse.json({ error: "Agent failed to respond" }, { status: 500 });
   }
-}
+});
 
 // GET /api/agent — Get conversation history
-export async function GET(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+export const GET = withUser(async (request: NextRequest, { supabase, user }) => {
   const params = request.nextUrl.searchParams;
   const conversationId = params.get("conversation_id");
 
@@ -322,7 +314,7 @@ export async function GET(request: NextRequest) {
     .limit(20);
 
   return NextResponse.json({ conversations: conversations || [] });
-}
+});
 
 // Ensure messages alternate user/assistant correctly
 function ensureAlternation(messages: { role: "user" | "assistant"; content: string }[]) {

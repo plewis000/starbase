@@ -1,13 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withUser } from "@/lib/api/withAuth";
 import { finance, config } from "@/lib/supabase/schemas";
 
 // GET /api/finance/summary — Spending summary by category for a period
-export async function GET(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+export const GET = withUser(async (request: NextRequest, { supabase, user }) => {
   const params = request.nextUrl.searchParams;
   const period = params.get("period") || "month"; // month, week, year, custom
   const month = params.get("month"); // YYYY-MM for month period
@@ -157,4 +153,4 @@ export async function GET(request: NextRequest) {
     breakdown: budgetComparison,
     unreviewed_count: (transactions || []).filter((t) => !t.is_split_parent && !t.reviewed && !(categoryMap.get(t.category_id || "")?.is_income)).length,
   });
-}
+});

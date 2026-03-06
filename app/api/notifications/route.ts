@@ -1,21 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withUser } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
 import { safeParseBody, isValidUUID, validatePagination } from "@/lib/validation";
 
 // =============================================================
 // GET /api/notifications — User's notification inbox (with grouping)
 // =============================================================
-export async function GET(request: NextRequest) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const GET = withUser(async (request: NextRequest, { supabase, user }) => {
   const params = request.nextUrl.searchParams;
   const unreadOnly = params.get("unread") === "true";
   const grouped = params.get("grouped") === "true";
@@ -92,21 +83,12 @@ export async function GET(request: NextRequest) {
     total: count || 0,
     unread_count: unreadCount || 0,
   });
-}
+});
 
 // =============================================================
 // POST /api/notifications — Bulk actions
 // =============================================================
-export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const POST = withUser(async (request: NextRequest, { supabase, user }) => {
   const parsed = await safeParseBody(request);
   if (!parsed.ok) {
     return NextResponse.json({ error: parsed.error }, { status: 400 });
@@ -170,4 +152,4 @@ export async function POST(request: NextRequest) {
     default:
       return NextResponse.json({ error: "Unknown action. Valid: mark_all_read, mark_read, mark_group_read" }, { status: 400 });
   }
-}
+});

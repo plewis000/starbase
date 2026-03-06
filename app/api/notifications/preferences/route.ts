@@ -1,20 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withUser } from "@/lib/api/withAuth";
 import { platform, config } from "@/lib/supabase/schemas";
 
 // =============================================================
 // GET /api/notifications/preferences — User's channel preferences
 // =============================================================
-export async function GET() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const GET = withUser(async (_request, { supabase, user }) => {
   // Get all channels
   const { data: channels } = await config(supabase)
     .from("notification_channels")
@@ -43,21 +34,12 @@ export async function GET() {
   });
 
   return NextResponse.json({ preferences: merged });
-}
+});
 
 // =============================================================
 // PATCH /api/notifications/preferences — Update preferences
 // =============================================================
-export async function PATCH(request: NextRequest) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const PATCH = withUser(async (request: NextRequest, { supabase, user }) => {
   let body;
 
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
@@ -133,4 +115,4 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json({ preference: pref }, { status: 201 });
   }
-}
+});

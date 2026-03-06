@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse, after } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { NextResponse, after } from "next/server";
+import { withAuth } from "@/lib/api/withAuth";
 import { createServiceClient } from "@/lib/supabase/service";
 import { platform, config } from "@/lib/supabase/schemas";
-import { getHouseholdContext, getHouseholdMemberIds, verifyTaskHouseholdAccess } from "@/lib/household";
+import { getHouseholdMemberIds, verifyTaskHouseholdAccess } from "@/lib/household";
 import { awardXp, checkAchievements, hasXpBeenAwarded } from "@/lib/gamification";
 import { isValidUUID } from "@/lib/validation";
 
@@ -10,16 +10,7 @@ import { isValidUUID } from "@/lib/validation";
 // PATCH /api/tasks/bulk — Bulk update tasks
 // Body: { task_ids: string[], patch: { status_id?, priority_id?, assigned_to? } }
 // =============================================================
-export async function PATCH(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const ctx = await getHouseholdContext(supabase, user.id);
-  if (!ctx) return NextResponse.json({ error: "No household found" }, { status: 404 });
+export const PATCH = withAuth(async (request, { supabase, user, ctx }) => {
   const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
 
   let body;
@@ -178,4 +169,4 @@ export async function PATCH(request: NextRequest) {
   }
 
   return NextResponse.json({ success: true, updated: task_ids.length });
-}
+});

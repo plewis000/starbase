@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withAuth } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
 import { getGoalHabitLookups, enrichHabits, enrichHabit } from "@/lib/goal-habit-enrichment";
 import { logActivity } from "@/lib/activity-log";
@@ -11,13 +11,7 @@ import {
 
 // ---- GET: List habits with filtering ----
 
-export async function GET(request: Request) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const GET = withAuth(async (request, { supabase, user }) => {
   const { searchParams } = new URL(request.url);
   const status = searchParams.get("status"); // active, paused, retired
   const category = searchParams.get("category"); // category slug
@@ -97,17 +91,11 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json({ habits: enrichedHabits, total: count || 0 });
-}
+});
 
 // ---- POST: Create a habit ----
 
-export async function POST(request: Request) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const POST = withAuth(async (request, { supabase, user }) => {
   const parsed = await safeParseBody(request);
   if (!parsed.ok) {
     return NextResponse.json({ error: parsed.error }, { status: 400 });
@@ -196,4 +184,4 @@ export async function POST(request: Request) {
   const enriched = enrichHabit(habit, lookups);
 
   return NextResponse.json({ habit: { ...enriched, checked_today: false, completions_this_week: 0 } }, { status: 201 });
-}
+});

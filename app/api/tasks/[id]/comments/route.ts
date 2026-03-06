@@ -1,12 +1,12 @@
-import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { NextResponse } from "next/server";
+import { withAuth } from "@/lib/api/withAuth";
 import { logActivity } from "@/lib/activity-log";
 import { notifyTaskCommented } from "@/lib/notify";
 import { parseMentions, persistMentions } from "@/lib/mention-parser";
 import { platform } from "@/lib/supabase/schemas";
 import { getConfigLookups } from "@/lib/task-enrichment";
 import { isValidUUID } from "@/lib/validation";
-import { getHouseholdContext, getHouseholdMemberIds, verifyTaskHouseholdAccess } from "@/lib/household";
+import { getHouseholdMemberIds, verifyTaskHouseholdAccess } from "@/lib/household";
 
 // Helper to enrich comments with author data from platform.users
 function enrichComments(comments: any[], lookups: { users: Map<string, any> }) {
@@ -19,25 +19,12 @@ function enrichComments(comments: any[], lookups: { users: Map<string, any> }) {
 // =============================================================
 // GET /api/tasks/:id/comments — List comments (threaded or flat)
 // =============================================================
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const GET = withAuth(async (request, { supabase, user, ctx }, params) => {
+  const id = params?.id;
 
   // Verify task belongs to user's household
-  const ctx = await getHouseholdContext(supabase, user.id);
-  if (!ctx) return NextResponse.json({ error: "No household found" }, { status: 404 });
   const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
-  if (!(await verifyTaskHouseholdAccess(supabase, id, memberIds))) {
+  if (!(await verifyTaskHouseholdAccess(supabase, id!, memberIds))) {
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
@@ -47,7 +34,7 @@ export async function GET(
     .from("comments")
     .select("*")
     .eq("entity_type", "task")
-    .eq("entity_id", id)
+    .eq("entity_id", id!)
     .eq("is_deleted", false)
     .order("created_at", { ascending: true });
 
@@ -101,30 +88,17 @@ export async function GET(
 
   const comments = enrichComments(rawComments || [], lookups);
   return NextResponse.json({ comments });
-}
+});
 
 // =============================================================
 // POST /api/tasks/:id/comments — Add a comment (with threading + mentions)
 // =============================================================
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const POST = withAuth(async (request, { supabase, user, ctx }, params) => {
+  const id = params?.id;
 
   // Verify task belongs to user's household
-  const ctxPost = await getHouseholdContext(supabase, user.id);
-  if (!ctxPost) return NextResponse.json({ error: "No household found" }, { status: 404 });
-  const memberIdsPost = await getHouseholdMemberIds(supabase, ctxPost.household_id);
-  if (!(await verifyTaskHouseholdAccess(supabase, id, memberIdsPost))) {
+  const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
+  if (!(await verifyTaskHouseholdAccess(supabase, id!, memberIds))) {
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
@@ -154,7 +128,7 @@ export async function POST(
       .select("id")
       .eq("id", parent_id)
       .eq("entity_type", "task")
-      .eq("entity_id", id)
+      .eq("entity_id", id!)
       .eq("is_deleted", false)
       .single();
 
@@ -167,7 +141,7 @@ export async function POST(
   const { data: task } = await platform(supabase)
     .from("tasks")
     .select("id, title")
-    .eq("id", id)
+    .eq("id", id!)
     .single();
 
   if (!task) {
@@ -194,7 +168,7 @@ export async function POST(
 
   await logActivity(supabase, {
     entity_type: "task",
-    entity_id: id,
+    entity_id: id!,
     action: parent_id ? "replied" : "commented",
     performed_by: user.id,
     metadata: { comment_id: rawComment.id, parent_id: parent_id || undefined },
@@ -204,7 +178,7 @@ export async function POST(
   await platform(supabase)
     .from("tasks")
     .update({ last_touched_at: new Date().toISOString() })
-    .eq("id", id);
+    .eq("id", id!);
 
   // Parse @mentions and persist them
   let mentions: any[] = [];
@@ -216,7 +190,7 @@ export async function POST(
 
     // Persist mentions to database
     if (mentionedUserIds.length > 0) {
-      await persistMentions(supabase, rawComment.id, "task", id, mentionedUserIds);
+      await persistMentions(supabase, rawComment.id, "task", id!, mentionedUserIds);
     }
   } catch (err) {
     console.error("Mention parsing error:", err);
@@ -227,7 +201,7 @@ export async function POST(
   const comment = enrichComments([rawComment], lookups)[0];
 
   // Notify all involved users (non-blocking)
-  notifyTaskCommented(supabase, id, task.title, user.id, trimmedBody).catch(
+  notifyTaskCommented(supabase, id!, task.title, user.id, trimmedBody).catch(
     (err) => console.error("Comment notification error:", err)
   );
 
@@ -247,4 +221,4 @@ export async function POST(
   return NextResponse.json({
     comment: { ...comment, mentions },
   }, { status: 201 });
-}
+});

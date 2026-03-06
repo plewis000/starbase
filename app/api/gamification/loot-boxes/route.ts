@@ -2,15 +2,11 @@
 // POST /api/gamification/loot-boxes — Open a loot box
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withUser } from "@/lib/api/withAuth";
 import { openLootBox } from "@/lib/gamification";
 import { isValidUUID } from "@/lib/validation";
 
-export async function GET(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+export const GET = withUser(async (request: NextRequest, { supabase, user }) => {
   const { searchParams } = new URL(request.url);
   const unopenedOnly = searchParams.get("unopened") === "true";
 
@@ -35,13 +31,9 @@ export async function GET(request: NextRequest) {
     loot_boxes: boxes || [],
     unopened_count: (boxes || []).filter(b => !b.opened).length,
   });
-}
+});
 
-export async function POST(request: Request) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+export const POST = withUser(async (request: NextRequest, { supabase, user }) => {
   let body;
 
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
@@ -61,4 +53,4 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({ result });
-}
+});

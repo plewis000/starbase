@@ -4,14 +4,10 @@
 // DELETE /api/gamification/rewards — Remove reward
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withUser } from "@/lib/api/withAuth";
 import { isValidUUID } from "@/lib/validation";
 
-export async function GET(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+export const GET = withUser(async (request: NextRequest, { supabase, user }) => {
   const { searchParams } = new URL(request.url);
   const tierId = searchParams.get("tier_id");
 
@@ -40,13 +36,9 @@ export async function GET(request: NextRequest) {
     .order("sort_order");
 
   return NextResponse.json({ rewards: rewards || [], tiers: tiers || [] });
-}
+});
 
-export async function POST(request: Request) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+export const POST = withUser(async (request: NextRequest, { supabase, user }) => {
   let body;
 
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
@@ -78,13 +70,9 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({ reward }, { status: 201 });
-}
+});
 
-export async function PATCH(request: Request) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+export const PATCH = withUser(async (request: NextRequest, { supabase, user }) => {
   let body;
 
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
@@ -115,13 +103,9 @@ export async function PATCH(request: Request) {
   }
 
   return NextResponse.json({ reward });
-}
+});
 
-export async function DELETE(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+export const DELETE = withUser(async (request: NextRequest, { supabase, user }) => {
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
 
@@ -141,4 +125,4 @@ export async function DELETE(request: NextRequest) {
   }
 
   return NextResponse.json({ deleted: true });
-}
+});

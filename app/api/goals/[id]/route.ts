@@ -1,5 +1,5 @@
 import { NextResponse, after } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withAuth } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
 import { getGoalHabitLookups, enrichGoal } from "@/lib/goal-habit-enrichment";
 import { logActivity, logFieldChanges } from "@/lib/activity-log";
@@ -8,17 +8,8 @@ import { awardXp, checkAchievements } from "@/lib/gamification";
 
 // ---- GET: Single goal with full details ----
 
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { id } = await params;
+export const GET = withAuth(async (request, { supabase, user }, params) => {
+  const id = params!.id;
 
   const { data: goal, error } = await platform(supabase)
     .from("goals")
@@ -100,21 +91,12 @@ export async function GET(
       activity: activityRes.data || [],
     },
   });
-}
+});
 
 // ---- PATCH: Update a goal ----
 
-export async function PATCH(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { id } = await params;
+export const PATCH = withAuth(async (request, { supabase, user }, params) => {
+  const id = params!.id;
 
   // Fetch current goal for diff logging
   const { data: currentGoal } = await platform(supabase)
@@ -191,21 +173,12 @@ export async function PATCH(
   const enriched = enrichGoal(updated, lookups);
 
   return NextResponse.json({ goal: enriched });
-}
+});
 
 // ---- DELETE: Archive or delete a goal ----
 
-export async function DELETE(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { id } = await params;
+export const DELETE = withAuth(async (request, { supabase, user }, params) => {
+  const id = params!.id;
 
   // Soft delete: set status to abandoned
   const { error } = await platform(supabase)
@@ -229,4 +202,4 @@ export async function DELETE(
   }).catch(console.error);
 
   return NextResponse.json({ success: true });
-}
+});

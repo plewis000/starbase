@@ -1,13 +1,9 @@
 // GET /api/gamification/leaderboard — Household leaderboard
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withUser } from "@/lib/api/withAuth";
 
-export async function GET(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+export const GET = withUser(async (request: NextRequest, { supabase, user }) => {
   const { searchParams } = new URL(request.url);
   const period = searchParams.get("period") || "alltime"; // alltime, weekly, monthly
 
@@ -95,4 +91,4 @@ export async function GET(request: NextRequest) {
     }));
 
   return NextResponse.json({ leaderboard, period, period_start: periodStart });
-}
+});

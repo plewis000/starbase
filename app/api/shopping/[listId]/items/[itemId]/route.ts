@@ -1,22 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withAuth } from "@/lib/api/withAuth";
 import { household } from "@/lib/supabase/schemas";
-import { getHouseholdContext, getHouseholdMemberIds } from "@/lib/household";
+import { getHouseholdMemberIds } from "@/lib/household";
 
 // PATCH /api/shopping/[listId]/items/[itemId] — Update item (check/uncheck, edit)
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ listId: string; itemId: string }> }
-) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const { listId, itemId } = await params;
+export const PATCH = withAuth(async (request: NextRequest, { supabase, user, ctx }, params) => {
+  const listId = params?.listId;
+  const itemId = params?.itemId;
 
   // Verify list belongs to user's household
-  const ctx = await getHouseholdContext(supabase, user.id);
-  if (!ctx) return NextResponse.json({ error: "No household found" }, { status: 404 });
   const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
   const { data: listCheck } = await household(supabase)
     .from("shopping_lists")
@@ -54,30 +46,22 @@ export async function PATCH(
   if (!item) return NextResponse.json({ error: "Item not found in this list" }, { status: 404 });
 
   return NextResponse.json({ item });
-}
+});
 
 // DELETE /api/shopping/[listId]/items/[itemId] — Remove item
-export async function DELETE(
-  _request: NextRequest,
-  { params }: { params: Promise<{ listId: string; itemId: string }> }
-) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const { listId, itemId } = await params;
+export const DELETE = withAuth(async (_request: NextRequest, { supabase, ctx }, params) => {
+  const listId = params?.listId;
+  const itemId = params?.itemId;
 
   // Verify list belongs to user's household
-  const ctxDel = await getHouseholdContext(supabase, user.id);
-  if (!ctxDel) return NextResponse.json({ error: "No household found" }, { status: 404 });
-  const memberIdsDel = await getHouseholdMemberIds(supabase, ctxDel.household_id);
-  const { data: listCheckDel } = await household(supabase)
+  const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
+  const { data: listCheck } = await household(supabase)
     .from("shopping_lists")
     .select("id")
     .eq("id", listId)
-    .in("created_by", memberIdsDel)
+    .in("created_by", memberIds)
     .single();
-  if (!listCheckDel) return NextResponse.json({ error: "List not found" }, { status: 404 });
+  if (!listCheck) return NextResponse.json({ error: "List not found" }, { status: 404 });
 
   const { error } = await household(supabase)
     .from("shopping_items")
@@ -88,4 +72,4 @@ export async function DELETE(
   if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
   return NextResponse.json({ success: true });
-}
+});
