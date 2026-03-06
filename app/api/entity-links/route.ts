@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { platform } from "@/lib/supabase/schemas";
+import { isValidUUID } from "@/lib/validation";
 
 const VALID_ENTITY_TYPES = ["task", "habit", "goal", "shopping_item"] as const;
 const VALID_LINK_TYPES = ["derived_from", "tracks", "syncs_with"] as const;
@@ -92,6 +93,14 @@ export async function POST(req: NextRequest) {
 
   const { source_type, source_id, target_type, target_id, link_type, sync_completion } = body;
 
+  // Validate UUIDs
+  if (source_id && !isValidUUID(source_id)) {
+    return NextResponse.json({ error: "source_id must be a valid UUID" }, { status: 400 });
+  }
+  if (target_id && !isValidUUID(target_id)) {
+    return NextResponse.json({ error: "target_id must be a valid UUID" }, { status: 400 });
+  }
+
   // Validate required fields
   if (!source_type || !source_id || !target_type || !target_id || !link_type) {
     return NextResponse.json(
@@ -161,14 +170,15 @@ export async function DELETE(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const id = req.nextUrl.searchParams.get("id");
-  if (!id) {
-    return NextResponse.json({ error: "id is required" }, { status: 400 });
+  if (!id || !isValidUUID(id)) {
+    return NextResponse.json({ error: "id must be a valid UUID" }, { status: 400 });
   }
 
   const { error } = await platform(supabase)
     .from("entity_links")
     .delete()
-    .eq("id", id);
+    .eq("id", id)
+    .eq("created_by", user.id);
 
   if (error) {
     console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });

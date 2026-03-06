@@ -47,6 +47,7 @@ export async function PATCH(
     .from("life_events")
     .update(updateFields)
     .eq("id", id)
+    .eq("user_id", user.id)
     .select("*")
     .single();
 
@@ -77,7 +78,8 @@ export async function DELETE(
   const { error } = await platform(supabase)
     .from("life_events")
     .delete()
-    .eq("id", id);
+    .eq("id", id)
+    .eq("user_id", user.id);
 
   if (error) {
     console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });

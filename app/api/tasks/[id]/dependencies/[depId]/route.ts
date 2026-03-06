@@ -32,7 +32,8 @@ export async function DELETE(
   const { error } = await platform(supabase)
     .from("task_dependencies")
     .delete()
-    .eq("id", depId);
+    .eq("id", depId)
+    .eq("task_id", taskId);
 
   if (error) {
     console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });

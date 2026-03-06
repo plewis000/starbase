@@ -18,6 +18,19 @@ export async function PATCH(
   }
 
   const { id: goalId, milestoneId } = await params;
+
+  // Verify goal belongs to user
+  const { data: goal } = await platform(supabase)
+    .from("goals")
+    .select("id")
+    .eq("id", goalId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (!goal) {
+    return NextResponse.json({ error: "Goal not found" }, { status: 404 });
+  }
+
   let body;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
 
@@ -99,6 +112,18 @@ export async function DELETE(
   }
 
   const { id: goalId, milestoneId } = await params;
+
+  // Verify goal belongs to user
+  const { data: goal } = await platform(supabase)
+    .from("goals")
+    .select("id")
+    .eq("id", goalId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (!goal) {
+    return NextResponse.json({ error: "Goal not found" }, { status: 404 });
+  }
 
   const { error } = await platform(supabase)
     .from("goal_milestones")

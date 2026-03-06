@@ -32,6 +32,12 @@ export async function GET(
     return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
   }
 
+  // Verify user is in a household and scope delegation access
+  const ctx = await getHouseholdContext(supabase, user.id);
+  if (!ctx) {
+    return NextResponse.json({ error: "No household found" }, { status: 404 });
+  }
+
   const { data: delegation, error } = await platform(supabase)
     .from("delegations")
     .select("*")
@@ -39,6 +45,11 @@ export async function GET(
     .single();
 
   if (error || !delegation) {
+    return NextResponse.json({ error: "Delegation not found" }, { status: 404 });
+  }
+
+  // Verify user is involved in this delegation (from or to)
+  if (delegation.from_user_id !== user.id && delegation.to_user_id !== user.id) {
     return NextResponse.json({ error: "Delegation not found" }, { status: 404 });
   }
 
