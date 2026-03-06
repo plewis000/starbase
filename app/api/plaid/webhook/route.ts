@@ -2,27 +2,40 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { finance } from "@/lib/supabase/schemas";
 import { syncTransactions } from "@/app/api/plaid/exchange/route";
+import { verifyPlaidWebhook } from "@/lib/plaid-webhook-verify";
 
-// Webhook verification secret — set in Plaid dashboard + Vercel env vars
+// Fallback shared secret — used only when Plaid JWT header is absent
 const WEBHOOK_VERIFY_TOKEN = process.env.PLAID_WEBHOOK_VERIFY_TOKEN;
 
 // POST /api/plaid/webhook — Receive Plaid webhooks for transaction updates
 // NOTE: This route is excluded from auth middleware (see middleware.ts matcher)
 export async function POST(request: NextRequest) {
-  // Verify webhook authenticity — always require verification token
-  if (!WEBHOOK_VERIFY_TOKEN) {
-    console.error("PLAID_WEBHOOK_VERIFY_TOKEN not configured — rejecting webhook");
-    return NextResponse.json({ error: "Webhook verification not configured" }, { status: 500 });
-  }
-
-  const providedToken =
-    request.headers.get("x-webhook-token");
-  if (providedToken !== WEBHOOK_VERIFY_TOKEN) {
-    return NextResponse.json({ error: "Invalid webhook token" }, { status: 403 });
-  }
-
+  // Read body as text for JWT hash verification
+  const bodyText = await request.text();
   let body;
-  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
+  try { body = JSON.parse(bodyText); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
+
+  // Verify webhook authenticity — prefer Plaid JWT, fall back to shared secret
+  const plaidVerificationHeader = request.headers.get("plaid-verification");
+
+  if (plaidVerificationHeader) {
+    // Primary: Plaid JWT verification
+    const valid = await verifyPlaidWebhook(bodyText, plaidVerificationHeader);
+    if (!valid) {
+      console.error("[plaid-webhook] JWT verification failed — rejecting");
+      return NextResponse.json({ error: "Invalid webhook signature" }, { status: 403 });
+    }
+  } else {
+    // Fallback: shared secret header
+    if (!WEBHOOK_VERIFY_TOKEN) {
+      console.error("PLAID_WEBHOOK_VERIFY_TOKEN not configured — rejecting webhook");
+      return NextResponse.json({ error: "Webhook verification not configured" }, { status: 500 });
+    }
+    const providedToken = request.headers.get("x-webhook-token");
+    if (providedToken !== WEBHOOK_VERIFY_TOKEN) {
+      return NextResponse.json({ error: "Invalid webhook token" }, { status: 403 });
+    }
+  }
 
   const { webhook_type, webhook_code, item_id } = body;
 

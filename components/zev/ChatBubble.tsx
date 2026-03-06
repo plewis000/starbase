@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { usePathname } from "next/navigation";
+import DOMPurify from "dompurify";
 
 type Tab = "chat" | "commands" | "feedback";
 type FeedbackType = "bug" | "wish" | "feedback";
@@ -202,10 +203,11 @@ export default function ChatBubble() {
     const boldTag = variant === "system"
       ? '<span class="text-slate-100 font-semibold">$1</span>'
       : "<strong>$1</strong>";
-    return content
+    const html = content
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
       .replace(/\*\*(.+?)\*\*/g, boldTag)
       .replace(/`([^`]+)`/g, `<code class="${codeClass}">$1</code>`);
+    return DOMPurify.sanitize(html, { ALLOWED_TAGS: ["strong", "span", "code"], ALLOWED_ATTR: ["class"] });
   };
 
   // Loading dots component
