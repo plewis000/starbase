@@ -5,9 +5,8 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withAuth } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
-import { getHouseholdContext } from "@/lib/household";
 import {
   isValidUUID,
   validateRequiredString,
@@ -21,25 +20,11 @@ import type { OwnershipType } from "@/lib/types";
 const VALID_OWNERSHIP_TYPES: readonly OwnershipType[] = ["fixed", "rotating", "shared", "flexible"] as const;
 
 // GET /api/responsibilities/[id] — full detail with history, links, active delegation
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const GET = withAuth(async (_request: NextRequest, { supabase, ctx }, params) => {
+  const id = params?.id;
 
   if (!isValidUUID(id)) {
     return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
-  }
-
-  const ctx = await getHouseholdContext(supabase, user.id);
-  if (!ctx) {
-    return NextResponse.json({ error: "No household found" }, { status: 404 });
   }
 
   // Fetch responsibility
@@ -86,28 +71,14 @@ export async function GET(
       active_delegation: activeDelegation || null,
     },
   });
-}
+});
 
 // PATCH /api/responsibilities/[id] — update responsibility fields or reassign
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const PATCH = withAuth(async (request: NextRequest, { supabase, user, ctx }, params) => {
+  const id = params?.id;
 
   if (!isValidUUID(id)) {
     return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
-  }
-
-  const ctx = await getHouseholdContext(supabase, user.id);
-  if (!ctx) {
-    return NextResponse.json({ error: "No household found" }, { status: 404 });
   }
 
   // Fetch current state
@@ -215,28 +186,14 @@ export async function PATCH(
   }
 
   return NextResponse.json({ responsibility: updated });
-}
+});
 
 // DELETE /api/responsibilities/[id] — delete a responsibility
-export async function DELETE(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const DELETE = withAuth(async (_request: NextRequest, { supabase, ctx }, params) => {
+  const id = params?.id;
 
   if (!isValidUUID(id)) {
     return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
-  }
-
-  const ctx = await getHouseholdContext(supabase, user.id);
-  if (!ctx) {
-    return NextResponse.json({ error: "No household found" }, { status: 404 });
   }
 
   const { error } = await platform(supabase)
@@ -250,4 +207,4 @@ export async function DELETE(
   }
 
   return NextResponse.json({ success: true });
-}
+});

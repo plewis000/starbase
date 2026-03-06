@@ -1,20 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withUser } from "@/lib/api/withAuth";
 import { config } from "@/lib/supabase/schemas";
 
 // =============================================================
 // GET /api/tags — List all active tags
 // =============================================================
-export async function GET() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const GET = withUser(async (_request, { supabase }) => {
   const { data: tags, error } = await config(supabase)
     .from("tags")
     .select("*")
@@ -26,21 +17,12 @@ export async function GET() {
   }
 
   return NextResponse.json({ tags: tags || [] });
-}
+});
 
 // =============================================================
 // POST /api/tags — Create a new tag
 // =============================================================
-export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const POST = withUser(async (request: NextRequest, { supabase, user }) => {
   let body;
 
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
@@ -80,4 +62,4 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ tag }, { status: 201 });
-}
+});

@@ -167,6 +167,7 @@ export default function CommandPalette() {
       { label: "Habits", icon: "🔄", path: "/habits", keywords: ["habit", "routine", "streak"] },
       { label: "Budget", icon: "💰", path: "/budget", keywords: ["budget", "money", "spend", "finance"] },
       { label: "Shopping", icon: "🛒", path: "/shopping", keywords: ["shop", "grocery", "list", "buy"] },
+      { label: "Recipes & Meals", icon: "🍳", path: "/recipes", keywords: ["recipe", "meal", "plan", "cook", "food", "dinner", "ingredient"] },
       { label: "Notifications", icon: "🔔", path: "/notifications", keywords: ["notification", "alert", "bell"] },
       { label: "Party Quests", icon: "👥", path: "/crawl/party", keywords: ["party", "quest", "team", "coop", "shared"] },
       { label: "Reward Pool", icon: "🎁", path: "/crawl/rewards", keywords: ["reward", "loot", "prize", "pool"] },

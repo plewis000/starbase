@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withAuth } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
 import { isValidUUID } from "@/lib/validation";
 
@@ -13,13 +13,7 @@ type LinkType = (typeof VALID_LINK_TYPES)[number];
  * GET /api/entity-links?entity_type=task&entity_id=xxx
  * Returns all links for a given entity (from both directions).
  */
-export async function GET(req: NextRequest) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+export const GET = withAuth(async (req: NextRequest, { supabase }) => {
   const entityType = req.nextUrl.searchParams.get("entity_type");
   const entityId = req.nextUrl.searchParams.get("entity_id");
 
@@ -71,19 +65,13 @@ export async function GET(req: NextRequest) {
   });
 
   return NextResponse.json({ links });
-}
+});
 
 /**
  * POST /api/entity-links
  * Create a new entity link.
  */
-export async function POST(req: NextRequest) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+export const POST = withAuth(async (req: NextRequest, { supabase, user }) => {
   let body;
   try {
     body = await req.json();
@@ -156,19 +144,13 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ link: data }, { status: 201 });
-}
+});
 
 /**
  * DELETE /api/entity-links?id=xxx
  * Remove an entity link.
  */
-export async function DELETE(req: NextRequest) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+export const DELETE = withAuth(async (req: NextRequest, { supabase, user }) => {
   const id = req.nextUrl.searchParams.get("id");
   if (!id || !isValidUUID(id)) {
     return NextResponse.json({ error: "id must be a valid UUID" }, { status: 400 });
@@ -185,4 +167,4 @@ export async function DELETE(req: NextRequest) {
   }
 
   return NextResponse.json({ success: true });
-}
+});

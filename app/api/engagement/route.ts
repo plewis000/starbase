@@ -6,19 +6,12 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withUser } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
 import { validateRequiredString, validateOptionalString, isValidUUID } from "@/lib/validation";
 
 // POST /api/engagement — track a feature usage event
-export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const POST = withUser(async (request: NextRequest, { supabase, user }) => {
   let body;
 
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
@@ -58,4 +51,4 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ success: true }, { status: 201 });
-}
+});

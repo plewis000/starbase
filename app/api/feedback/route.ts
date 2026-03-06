@@ -6,7 +6,7 @@
 // ============================================================
 
 import { NextRequest, NextResponse, after } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withUser } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
 import { getHouseholdContext } from "@/lib/household";
 import { triggerNotification } from "@/lib/notify";
@@ -24,14 +24,7 @@ const VALID_STATUSES: readonly FeedbackStatus[] = ["new", "acknowledged", "plann
 const VALID_SOURCES: readonly FeedbackSource[] = ["chat", "discord", "web_form", "system"] as const;
 
 // GET /api/feedback — list feedback with filters
-export async function GET(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const GET = withUser(async (request: NextRequest, { supabase, user }) => {
   const ctx = await getHouseholdContext(supabase, user.id);
   const params = request.nextUrl.searchParams;
 
@@ -106,17 +99,10 @@ export async function GET(request: NextRequest) {
   }
 
   return NextResponse.json({ feedback: enrichedFeedback, total: count || 0 });
-}
+});
 
 // POST /api/feedback — submit feedback (frictionless)
-export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const POST = withUser(async (request: NextRequest, { supabase, user }) => {
   let body;
   try { body = await request.json(); } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
@@ -247,4 +233,4 @@ export async function POST(request: NextRequest) {
       ? "Wish captured. Added to the backlog."
       : "Thanks for the feedback!",
   }, { status: 201 });
-}
+});

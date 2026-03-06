@@ -5,31 +5,16 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withAuth } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
-import { getHouseholdContext } from "@/lib/household";
 import { isValidUUID, validatePagination } from "@/lib/validation";
 
 // GET /api/responsibilities/[id]/history — paginated history
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const GET = withAuth(async (request: NextRequest, { supabase, ctx }, params) => {
+  const id = params?.id;
 
   if (!isValidUUID(id)) {
     return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
-  }
-
-  const ctx = await getHouseholdContext(supabase, user.id);
-  if (!ctx) {
-    return NextResponse.json({ error: "No household found" }, { status: 404 });
   }
 
   // Verify responsibility belongs to household
@@ -65,4 +50,4 @@ export async function GET(
     history: history || [],
     total: count || 0,
   });
-}
+});

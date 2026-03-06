@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withAuth } from "@/lib/api/withAuth";
 import { syncCompletion } from "@/lib/entity-links";
 
 const VALID_ENTITY_TYPES = ["task", "habit", "goal", "shopping_item"] as const;
@@ -13,13 +13,7 @@ type EntityType = (typeof VALID_ENTITY_TYPES)[number];
  * Body: { entity_type: string, entity_id: string }
  * Response: { synced: number, errors: string[] }
  */
-export async function POST(req: NextRequest) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+export const POST = withAuth(async (req: NextRequest, { supabase, user }) => {
   let body;
   try {
     body = await req.json();
@@ -52,4 +46,4 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

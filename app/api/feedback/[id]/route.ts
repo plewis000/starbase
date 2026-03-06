@@ -6,7 +6,7 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withUser } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
 import { getHouseholdContext } from "@/lib/household";
 import { triggerNotification } from "@/lib/notify";
@@ -20,17 +20,8 @@ import type { FeedbackStatus } from "@/lib/types";
 const VALID_STATUSES: readonly FeedbackStatus[] = ["new", "acknowledged", "planned", "in_progress", "done", "wont_fix"] as const;
 
 // GET /api/feedback/[id] — get single feedback with votes
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const GET = withUser(async (_request: NextRequest, { supabase, user }, params) => {
+  const id = params?.id;
 
   if (!isValidUUID(id)) {
     return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
@@ -59,20 +50,11 @@ export async function GET(
       voted_by_me: votes?.some((v) => v.user_id === user.id) || false,
     },
   });
-}
+});
 
 // PATCH /api/feedback/[id] — triage: status, priority, response, AI fields
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const PATCH = withUser(async (request: NextRequest, { supabase, user }, params) => {
+  const id = params?.id;
 
   if (!isValidUUID(id)) {
     return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
@@ -163,4 +145,4 @@ export async function PATCH(
   }
 
   return NextResponse.json({ feedback: updated });
-}
+});

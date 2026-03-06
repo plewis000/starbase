@@ -6,9 +6,8 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withAuth } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
-import { getHouseholdContext } from "@/lib/household";
 
 // Generate a simple 6-character invite code
 function generateInviteCode(): string {
@@ -21,16 +20,8 @@ function generateInviteCode(): string {
 }
 
 // GET /api/household/invite — list active invite codes (admin only)
-export async function GET() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const ctx = await getHouseholdContext(supabase, user.id);
-  if (!ctx || ctx.role !== "admin") {
+export const GET = withAuth(async (_request, { supabase, user, ctx }) => {
+  if (ctx.role !== "admin") {
     return NextResponse.json({ error: "Admin access required" }, { status: 403 });
   }
 
@@ -46,19 +37,11 @@ export async function GET() {
   }
 
   return NextResponse.json({ invites: invites || [] });
-}
+});
 
 // POST /api/household/invite — generate a new invite code (admin only)
-export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const ctx = await getHouseholdContext(supabase, user.id);
-  if (!ctx || ctx.role !== "admin") {
+export const POST = withAuth(async (request: NextRequest, { supabase, user, ctx }) => {
+  if (ctx.role !== "admin") {
     return NextResponse.json({ error: "Admin access required" }, { status: 403 });
   }
 
@@ -113,4 +96,4 @@ export async function POST(request: NextRequest) {
     invite,
     message: `Invite code: ${code} — share this with your partner. Expires in ${body.expires_in_days || 7} days.`,
   }, { status: 201 });
-}
+});

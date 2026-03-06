@@ -5,9 +5,8 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withAuth } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
-import { getHouseholdContext } from "@/lib/household";
 import {
   validateRequiredString,
   validateOptionalString,
@@ -22,19 +21,7 @@ import type { OwnershipType } from "@/lib/types";
 const VALID_OWNERSHIP_TYPES: readonly OwnershipType[] = ["fixed", "rotating", "shared", "flexible"] as const;
 
 // GET /api/responsibilities — list all household responsibilities
-export async function GET(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const ctx = await getHouseholdContext(supabase, user.id);
-  if (!ctx) {
-    return NextResponse.json({ error: "No household found" }, { status: 404 });
-  }
-
+export const GET = withAuth(async (request: NextRequest, { supabase, ctx }) => {
   const params = request.nextUrl.searchParams;
 
   let query = platform(supabase)
@@ -89,22 +76,10 @@ export async function GET(request: NextRequest) {
     responsibilities: responsibilities || [],
     total: count || 0,
   });
-}
+});
 
 // POST /api/responsibilities — create a new responsibility
-export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const ctx = await getHouseholdContext(supabase, user.id);
-  if (!ctx) {
-    return NextResponse.json({ error: "No household found" }, { status: 404 });
-  }
-
+export const POST = withAuth(async (request: NextRequest, { supabase, user, ctx }) => {
   let body;
 
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
@@ -183,4 +158,4 @@ export async function POST(request: NextRequest) {
     });
 
   return NextResponse.json({ responsibility }, { status: 201 });
-}
+});

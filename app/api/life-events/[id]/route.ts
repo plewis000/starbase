@@ -5,22 +5,13 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withUser } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
 import { isValidUUID } from "@/lib/validation";
 
 // PATCH /api/life-events/[id] — update or end a life event
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const PATCH = withUser(async (request: NextRequest, { supabase, user }, params) => {
+  const id = params?.id;
 
   if (!isValidUUID(id)) {
     return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
@@ -56,20 +47,11 @@ export async function PATCH(
   }
 
   return NextResponse.json({ event: updated });
-}
+});
 
 // DELETE /api/life-events/[id]
-export async function DELETE(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const DELETE = withUser(async (_request: NextRequest, { supabase, user }, params) => {
+  const id = params?.id;
 
   if (!isValidUUID(id)) {
     return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
@@ -86,4 +68,4 @@ export async function DELETE(
   }
 
   return NextResponse.json({ success: true });
-}
+});

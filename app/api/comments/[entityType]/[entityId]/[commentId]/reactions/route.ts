@@ -1,19 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withAuth } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
 import { safeParseBody, isValidUUID, validateRequiredString } from "@/lib/validation";
 
 // ---- POST: Add a reaction ----
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ entityType: string; entityId: string; commentId: string }> }
-) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const { commentId } = await params;
+export const POST = withAuth(async (request: NextRequest, { supabase, user }, params) => {
+  const commentId = params?.commentId;
   if (!isValidUUID(commentId)) return NextResponse.json({ error: "Invalid comment ID" }, { status: 400 });
 
   const parsed = await safeParseBody(request);
@@ -49,19 +42,12 @@ export async function POST(
   if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
   return NextResponse.json({ reaction }, { status: 201 });
-}
+});
 
 // ---- DELETE: Remove a reaction ----
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ entityType: string; entityId: string; commentId: string }> }
-) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const { commentId } = await params;
+export const DELETE = withAuth(async (request: NextRequest, { supabase, user }, params) => {
+  const commentId = params?.commentId;
   if (!isValidUUID(commentId)) return NextResponse.json({ error: "Invalid comment ID" }, { status: 400 });
 
   const emoji = request.nextUrl.searchParams.get("emoji");
@@ -79,4 +65,4 @@ export async function DELETE(
   if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
   return NextResponse.json({ success: true });
-}
+});

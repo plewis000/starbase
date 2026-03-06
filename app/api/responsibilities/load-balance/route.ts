@@ -1,29 +1,15 @@
 // ============================================================
 // FILE: app/api/responsibilities/load-balance/route.ts
 // PURPOSE: Household load balance — compute and view effort distribution
-//          AI uses this to suggest rebalancing. Also stores snapshots.
 // PART OF: The Keep
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withAuth } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
-import { getHouseholdContext } from "@/lib/household";
 
 // GET /api/responsibilities/load-balance — compute current load distribution
-export async function GET() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const ctx = await getHouseholdContext(supabase, user.id);
-  if (!ctx) {
-    return NextResponse.json({ error: "No household found" }, { status: 404 });
-  }
-
+export const GET = withAuth(async (_request, { supabase, ctx }) => {
   // Fetch all responsibilities with effort weights
   const { data: responsibilities } = await platform(supabase)
     .from("responsibilities")
@@ -97,22 +83,10 @@ export async function GET() {
     total_effort: totalEffort,
     total_responsibilities: responsibilities.length,
   });
-}
+});
 
 // POST /api/responsibilities/load-balance — save a snapshot (called by AI or manual)
-export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const ctx = await getHouseholdContext(supabase, user.id);
-  if (!ctx) {
-    return NextResponse.json({ error: "No household found" }, { status: 404 });
-  }
-
+export const POST = withAuth(async (request: NextRequest, { supabase, ctx }) => {
   let body;
 
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
@@ -172,4 +146,4 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ snapshots: saved }, { status: 201 });
-}
+});

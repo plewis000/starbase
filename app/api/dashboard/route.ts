@@ -1,17 +1,11 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withUser } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
 import { getHouseholdContext } from "@/lib/household";
 
 // ---- GET: Unified dashboard summary ----
 
-export async function GET() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const GET = withUser(async (_request, { supabase, user }) => {
   // Scope to household
   const ctx = await getHouseholdContext(supabase, user.id);
   if (!ctx) return NextResponse.json({ error: "No household found" }, { status: 404 });
@@ -227,4 +221,4 @@ export async function GET() {
     },
     streaks_leaderboard: streaksLeaderboard,
   });
-}
+});

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withAuth } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
 
 const VALID_ENTITY_TYPES = ["task", "habit", "goal", "shopping_item"] as const;
@@ -7,7 +7,7 @@ type EntityType = (typeof VALID_ENTITY_TYPES)[number];
 
 /**
  * POST /api/entity-links/batch
- * Returns a map of entity_id → link_count for a batch of entities of the same type.
+ * Returns a map of entity_id -> link_count for a batch of entities of the same type.
  *
  * Body: { entity_type: string, entity_ids: string[] }
  * Response: { linked: Record<string, number> }
@@ -15,13 +15,7 @@ type EntityType = (typeof VALID_ENTITY_TYPES)[number];
  * Example: { entity_type: "shopping_item", entity_ids: ["abc", "def"] }
  * Returns: { linked: { "abc": 2 } }  (def has 0 links, omitted)
  */
-export async function POST(req: NextRequest) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+export const POST = withAuth(async (req: NextRequest, { supabase }) => {
   let body;
   try {
     body = await req.json();
@@ -72,4 +66,4 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ linked });
-}
+});

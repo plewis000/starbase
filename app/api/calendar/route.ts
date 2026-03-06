@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withUser } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
 import { getHouseholdContext, getHouseholdMemberIds } from "@/lib/household";
 
@@ -14,14 +14,7 @@ export interface CalendarItem {
 }
 
 // GET /api/calendar?start=2026-03-01&end=2026-03-31
-export async function GET(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const GET = withUser(async (request: NextRequest, { supabase, user }) => {
   const start = request.nextUrl.searchParams.get("start");
   const end = request.nextUrl.searchParams.get("end");
 
@@ -136,10 +129,6 @@ export async function GET(request: NextRequest) {
       .select("id, full_name, birthday, anniversary")
       .eq("user_id", user.id);
 
-    const startMonth = parseInt(start.slice(5, 7));
-    const startDay = parseInt(start.slice(8, 10));
-    const endMonth = parseInt(end.slice(5, 7));
-    const endDay = parseInt(end.slice(8, 10));
     const year = start.slice(0, 4);
 
     for (const c of contacts || []) {
@@ -208,4 +197,4 @@ export async function GET(request: NextRequest) {
   } catch { /* silent */ }
 
   return NextResponse.json({ items });
-}
+});

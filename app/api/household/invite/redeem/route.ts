@@ -6,7 +6,7 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withUser } from "@/lib/api/withAuth";
 import { createServiceClient } from "@/lib/supabase/service";
 import { platform } from "@/lib/supabase/schemas";
 import { validateRequiredString } from "@/lib/validation";
@@ -14,15 +14,8 @@ import { validateRequiredString } from "@/lib/validation";
 // POST /api/household/invite/redeem — join household using invite code
 // Uses service role for DB operations because new users have no household
 // membership yet, so RLS would block all queries.
-export async function POST(request: NextRequest) {
-  // Cookie client — only for identifying the user
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+// Note: withUser (not withAuth) because user has no household yet.
+export const POST = withUser(async (request: NextRequest, { user }) => {
   // Service role client — bypasses RLS for invite redemption
   const adminDb = createServiceClient();
 
@@ -120,4 +113,4 @@ export async function POST(request: NextRequest) {
     household_id: invite.household_id,
     message: `Welcome to ${household?.name || "the household"}!`,
   }, { status: 201 });
-}
+});

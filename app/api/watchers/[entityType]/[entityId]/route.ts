@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withAuth } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
 import { safeParseBody, isValidUUID, validateEnum } from "@/lib/validation";
 
@@ -8,15 +8,9 @@ const VALID_WATCH_LEVELS = ["all", "mentions_only", "muted"] as const;
 
 // ---- GET: List watchers for an entity ----
 
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ entityType: string; entityId: string }> }
-) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const { entityType, entityId } = await params;
+export const GET = withAuth(async (_request: NextRequest, { supabase, user }, params) => {
+  const entityType = params?.entityType;
+  const entityId = params?.entityId;
 
   const etCheck = validateEnum(entityType, "entityType", VALID_ENTITY_TYPES);
   if (!etCheck.valid) return NextResponse.json({ error: etCheck.error }, { status: 400 });
@@ -55,19 +49,13 @@ export async function GET(
     my_watch_status: myWatch ? myWatch.watch_level : null,
     total: enriched.length,
   });
-}
+});
 
 // ---- POST: Watch an entity (or update watch level) ----
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ entityType: string; entityId: string }> }
-) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const { entityType, entityId } = await params;
+export const POST = withAuth(async (request: NextRequest, { supabase, user }, params) => {
+  const entityType = params?.entityType;
+  const entityId = params?.entityId;
 
   const etCheck = validateEnum(entityType, "entityType", VALID_ENTITY_TYPES);
   if (!etCheck.valid) return NextResponse.json({ error: etCheck.error }, { status: 400 });
@@ -98,19 +86,13 @@ export async function POST(
   if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
   return NextResponse.json({ watcher }, { status: 201 });
-}
+});
 
 // ---- DELETE: Unwatch an entity ----
 
-export async function DELETE(
-  _request: NextRequest,
-  { params }: { params: Promise<{ entityType: string; entityId: string }> }
-) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const { entityType, entityId } = await params;
+export const DELETE = withAuth(async (_request: NextRequest, { supabase, user }, params) => {
+  const entityType = params?.entityType;
+  const entityId = params?.entityId;
 
   const etCheck = validateEnum(entityType, "entityType", VALID_ENTITY_TYPES);
   if (!etCheck.valid) return NextResponse.json({ error: etCheck.error }, { status: 400 });
@@ -126,4 +108,4 @@ export async function DELETE(
   if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
   return NextResponse.json({ success: true });
-}
+});

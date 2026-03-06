@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withAuth } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
 import { logActivity } from "@/lib/activity-log";
 import { parseMentions, persistMentions } from "@/lib/mention-parser";
@@ -9,15 +9,8 @@ const VALID_ENTITY_TYPES = ["task", "goal", "habit"] as const;
 
 // ---- GET: Single comment with edit history ----
 
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ entityType: string; entityId: string; commentId: string }> }
-) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const { commentId } = await params;
+export const GET = withAuth(async (_request: NextRequest, { supabase, user }, params) => {
+  const commentId = params?.commentId;
   if (!isValidUUID(commentId)) return NextResponse.json({ error: "Invalid comment ID" }, { status: 400 });
 
   const { data: comment, error } = await platform(supabase)
@@ -65,19 +58,14 @@ export async function GET(
       mention_user_ids: (mentions || []).map((m) => m.mentioned_user_id),
     },
   });
-}
+});
 
 // ---- PATCH: Edit comment body or toggle pin ----
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ entityType: string; entityId: string; commentId: string }> }
-) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const { entityType, entityId, commentId } = await params;
+export const PATCH = withAuth(async (request: NextRequest, { supabase, user }, params) => {
+  const entityType = params?.entityType;
+  const entityId = params?.entityId;
+  const commentId = params?.commentId;
   if (!isValidUUID(commentId)) return NextResponse.json({ error: "Invalid comment ID" }, { status: 400 });
 
   const parsed = await safeParseBody(request);
@@ -190,19 +178,14 @@ export async function PATCH(
   }).catch(console.error);
 
   return NextResponse.json({ comment: updated });
-}
+});
 
 // ---- DELETE: Soft-delete a comment ----
 
-export async function DELETE(
-  _request: NextRequest,
-  { params }: { params: Promise<{ entityType: string; entityId: string; commentId: string }> }
-) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const { entityType, entityId, commentId } = await params;
+export const DELETE = withAuth(async (_request: NextRequest, { supabase, user }, params) => {
+  const entityType = params?.entityType;
+  const entityId = params?.entityId;
+  const commentId = params?.commentId;
   if (!isValidUUID(commentId)) return NextResponse.json({ error: "Invalid comment ID" }, { status: 400 });
 
   const { data: existing } = await platform(supabase)
@@ -240,4 +223,4 @@ export async function DELETE(
   }).catch(console.error);
 
   return NextResponse.json({ success: true });
-}
+});

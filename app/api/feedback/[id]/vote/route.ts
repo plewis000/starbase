@@ -5,22 +5,13 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withUser } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
 import { isValidUUID } from "@/lib/validation";
 
 // POST /api/feedback/[id]/vote — toggle vote (upvote if not voted, remove if already voted)
-export async function POST(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const POST = withUser(async (_request: NextRequest, { supabase, user }, params) => {
+  const id = params?.id;
 
   if (!isValidUUID(id)) {
     return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
@@ -54,4 +45,4 @@ export async function POST(
   }
 
   return NextResponse.json({ voted: true }, { status: 201 });
-}
+});

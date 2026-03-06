@@ -5,19 +5,12 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withAuth, withUser } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
 import { validateRequiredString, validateOptionalString } from "@/lib/validation";
 
 // GET /api/household — get the current user's household with members
-export async function GET() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const GET = withUser(async (_request, { supabase, user }) => {
   // Find the user's household membership
   const { data: membership, error: memErr } = await platform(supabase)
     .from("household_members")
@@ -53,17 +46,10 @@ export async function GET() {
     },
     current_role: membership.role,
   });
-}
+});
 
-// POST /api/household — create a new household (or join existing by invite code later)
-export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+// POST /api/household — create a new household (user may not have one yet, so withUser)
+export const POST = withUser(async (request: NextRequest, { supabase, user }) => {
   // Check if user already has a household
   const { data: existing } = await platform(supabase)
     .from("household_members")
@@ -123,25 +109,12 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ household }, { status: 201 });
-}
+});
 
 // PATCH /api/household — update household settings (admin only)
-export async function PATCH(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const PATCH = withAuth(async (request: NextRequest, { supabase, user, ctx }) => {
   // Verify admin role
-  const { data: membership } = await platform(supabase)
-    .from("household_members")
-    .select("household_id, role")
-    .eq("user_id", user.id)
-    .single();
-
-  if (!membership || membership.role !== "admin") {
+  if (ctx.role !== "admin") {
     return NextResponse.json({ error: "Admin access required" }, { status: 403 });
   }
 
@@ -177,7 +150,7 @@ export async function PATCH(request: NextRequest) {
   const { data: updated, error } = await platform(supabase)
     .from("households")
     .update(updateFields)
-    .eq("id", membership.household_id)
+    .eq("id", ctx.household_id)
     .select("*")
     .single();
 
@@ -186,4 +159,4 @@ export async function PATCH(request: NextRequest) {
   }
 
   return NextResponse.json({ household: updated });
-}
+});

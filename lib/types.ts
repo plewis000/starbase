@@ -1130,3 +1130,71 @@ export interface HouseholdInvite {
   is_active: boolean;
   created_at: string;
 }
+
+// ─── Recipes & Meal Planning ──────────────────────────────
+
+export type MealType = "breakfast" | "lunch" | "dinner" | "snack";
+
+export interface RecipeIngredient {
+  id: string;
+  recipe_id: string;
+  name: string;
+  quantity: string | null;
+  category_id: string | null;
+  is_optional: boolean;
+  sort_order: number;
+}
+
+export interface Recipe {
+  id: string;
+  title: string;
+  source_url: string | null;
+  servings: number;
+  prep_time_minutes: number | null;
+  cook_time_minutes: number | null;
+  instructions: string | null;
+  tags: string[];
+  notes: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  ingredients?: RecipeIngredient[];
+}
+
+export interface RecipeFormData {
+  title: string;
+  source_url?: string;
+  servings?: number;
+  prep_time_minutes?: number;
+  cook_time_minutes?: number;
+  instructions?: string;
+  tags?: string[];
+  notes?: string;
+  ingredients?: Array<{
+    name: string;
+    quantity?: string;
+    category_id?: string;
+    is_optional?: boolean;
+  }>;
+}
+
+export interface MealPlan {
+  id: string;
+  week_start: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  entries?: MealPlanEntry[];
+}
+
+export interface MealPlanEntry {
+  id: string;
+  meal_plan_id: string;
+  recipe_id: string | null;
+  day_of_week: number;
+  meal_type: MealType;
+  label: string | null;
+  servings_override: number | null;
+  created_at: string;
+  recipe?: Recipe;
+}

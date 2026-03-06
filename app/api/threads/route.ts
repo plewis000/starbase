@@ -1,19 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withAuth } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
-import { getHouseholdContext } from "@/lib/household";
 
 // =============================================================
 // GET /api/threads — List threads
 // =============================================================
-export async function GET(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const ctx = await getHouseholdContext(supabase, user.id);
-  if (!ctx) return NextResponse.json({ error: "No household" }, { status: 404 });
-
+export const GET = withAuth(async (_request: NextRequest, { supabase, ctx }) => {
   const { data: threads, error } = await platform(supabase)
     .from("threads")
     .select("*")
@@ -26,20 +18,13 @@ export async function GET(request: NextRequest) {
   }
 
   return NextResponse.json({ threads: threads || [] });
-}
+});
 
 // =============================================================
 // POST /api/threads — Create thread
 // Body: { title, entity_type?, entity_id? }
 // =============================================================
-export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const ctx = await getHouseholdContext(supabase, user.id);
-  if (!ctx) return NextResponse.json({ error: "No household" }, { status: 404 });
-
+export const POST = withAuth(async (request: NextRequest, { supabase, user, ctx }) => {
   const body = await request.json();
   const { title, entity_type, entity_id } = body;
 
@@ -65,4 +50,4 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ thread }, { status: 201 });
-}
+});

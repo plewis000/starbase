@@ -6,9 +6,8 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withAuth } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
-import { getHouseholdContext } from "@/lib/household";
 import { isValidUUID, validateEnum, validateOptionalString } from "@/lib/validation";
 import { triggerNotification } from "@/lib/notify";
 
@@ -16,26 +15,11 @@ type DelegationAction = "accept" | "decline" | "complete" | "cancel";
 const VALID_ACTIONS: readonly DelegationAction[] = ["accept", "decline", "complete", "cancel"] as const;
 
 // GET /api/delegations/[id] — get delegation detail
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const GET = withAuth(async (_request: NextRequest, { supabase, user }, params) => {
+  const id = params?.id;
 
   if (!isValidUUID(id)) {
     return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
-  }
-
-  // Verify user is in a household and scope delegation access
-  const ctx = await getHouseholdContext(supabase, user.id);
-  if (!ctx) {
-    return NextResponse.json({ error: "No household found" }, { status: 404 });
   }
 
   const { data: delegation, error } = await platform(supabase)
@@ -66,29 +50,15 @@ export async function GET(
       responsibility: responsibility || null,
     },
   });
-}
+});
 
 // PATCH /api/delegations/[id] — transition delegation status
 // Body: { action: "accept" | "decline" | "complete" | "cancel", reason?: string }
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const PATCH = withAuth(async (request: NextRequest, { supabase, user, ctx }, params) => {
+  const id = params?.id;
 
   if (!isValidUUID(id)) {
     return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
-  }
-
-  const ctx = await getHouseholdContext(supabase, user.id);
-  if (!ctx) {
-    return NextResponse.json({ error: "No household found" }, { status: 404 });
   }
 
   let body;
@@ -167,7 +137,6 @@ export async function PATCH(
     }
 
     case "decline": {
-      // Only the target user can decline
       if (delegation.to_user_id !== user.id) {
         return NextResponse.json({ error: "Only the delegatee can decline" }, { status: 403 });
       }
@@ -180,7 +149,6 @@ export async function PATCH(
         .update({ status: "declined", completed_at: now })
         .eq("id", id);
 
-      // Notify the delegator
       await triggerNotification(supabase, {
         recipientUserId: delegation.from_user_id,
         title: "Delegation declined",
@@ -193,7 +161,6 @@ export async function PATCH(
     }
 
     case "complete": {
-      // Either party can mark as complete (for temporary delegations)
       if (delegation.from_user_id !== user.id && delegation.to_user_id !== user.id) {
         return NextResponse.json({ error: "Only involved parties can complete" }, { status: 403 });
       }
@@ -206,7 +173,6 @@ export async function PATCH(
         .update({ status: "completed", completed_at: now })
         .eq("id", id);
 
-      // For temporary/one_time delegations, return ownership to the original owner
       if (delegation.delegation_type !== "permanent") {
         await platform(supabase)
           .from("responsibilities")
@@ -229,7 +195,6 @@ export async function PATCH(
           });
       }
 
-      // Notify the other party
       const notifyUserId = user.id === delegation.from_user_id
         ? delegation.to_user_id
         : delegation.from_user_id;
@@ -246,7 +211,6 @@ export async function PATCH(
     }
 
     case "cancel": {
-      // Only the delegator or admin can cancel
       if (delegation.from_user_id !== user.id && ctx.role !== "admin") {
         return NextResponse.json({ error: "Only the delegator or admin can cancel" }, { status: 403 });
       }
@@ -259,7 +223,6 @@ export async function PATCH(
         .update({ status: "cancelled", completed_at: now })
         .eq("id", id);
 
-      // If ownership was transferred, revert it
       if (["accepted", "active"].includes(delegation.status)) {
         await platform(supabase)
           .from("responsibilities")
@@ -282,7 +245,6 @@ export async function PATCH(
           });
       }
 
-      // Notify the other party
       await triggerNotification(supabase, {
         recipientUserId: delegation.to_user_id,
         title: "Delegation cancelled",
@@ -303,4 +265,4 @@ export async function PATCH(
     .single();
 
   return NextResponse.json({ delegation: updated });
-}
+});

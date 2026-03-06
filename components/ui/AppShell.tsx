@@ -37,6 +37,7 @@ const navItems: NavItem[] = [
   { href: "/goals", label: "War Room", icon: "🎯" },
   { href: "/habits", label: "Training Grounds", icon: "🔄" },
   { href: "/shopping", label: "Quartermaster", icon: "🛒" },
+  { href: "/recipes", label: "Mess Hall", icon: "🍳" },
   { href: "/notifications", label: "Message Board", icon: "🔔" },
   { href: "/settings", label: "Registry", icon: "⚙️" },
 ];

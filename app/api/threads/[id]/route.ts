@@ -1,22 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withAuth } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
-import { getHouseholdContext } from "@/lib/household";
 
 // =============================================================
 // GET /api/threads/:id — Get thread with messages
 // =============================================================
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const ctx = await getHouseholdContext(supabase, user.id);
-  if (!ctx) return NextResponse.json({ error: "No household" }, { status: 404 });
+export const GET = withAuth(async (_request: NextRequest, { supabase, ctx }, params) => {
+  const id = params?.id;
 
   const { data: thread, error } = await platform(supabase)
     .from("threads")
@@ -38,22 +28,13 @@ export async function GET(
     .order("created_at", { ascending: true });
 
   return NextResponse.json({ thread, comments: comments || [] });
-}
+});
 
 // =============================================================
 // DELETE /api/threads/:id — Delete thread
 // =============================================================
-export async function DELETE(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const ctx = await getHouseholdContext(supabase, user.id);
-  if (!ctx) return NextResponse.json({ error: "No household" }, { status: 404 });
+export const DELETE = withAuth(async (_request: NextRequest, { supabase, ctx }, params) => {
+  const id = params?.id;
 
   const { error } = await platform(supabase)
     .from("threads")
@@ -66,4 +47,4 @@ export async function DELETE(
   }
 
   return NextResponse.json({ success: true });
-}
+});

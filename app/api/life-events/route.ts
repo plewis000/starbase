@@ -6,7 +6,7 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withUser } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
 import { getHouseholdContext } from "@/lib/household";
 import {
@@ -21,14 +21,7 @@ import type { LifeEventImpact } from "@/lib/types";
 const VALID_IMPACTS: readonly LifeEventImpact[] = ["positive", "negative", "neutral", "mixed"] as const;
 
 // GET /api/life-events — list life events
-export async function GET(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const GET = withUser(async (request: NextRequest, { supabase, user }) => {
   const ctx = await getHouseholdContext(supabase, user.id);
   const params = request.nextUrl.searchParams;
 
@@ -62,17 +55,10 @@ export async function GET(request: NextRequest) {
   }
 
   return NextResponse.json({ events: events || [], total: count || 0 });
-}
+});
 
 // POST /api/life-events — log a new life event
-export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const POST = withUser(async (request: NextRequest, { supabase, user }) => {
   const ctx = await getHouseholdContext(supabase, user.id);
   let body;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
@@ -116,4 +102,4 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ event }, { status: 201 });
-}
+});

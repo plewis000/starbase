@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withAuth } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
 import { logActivity } from "@/lib/activity-log";
 import { parseMentions, persistMentions } from "@/lib/mention-parser";
 import { notifyEntity, ensureWatching, getUserDisplayName } from "@/lib/notify";
 import { validateRequiredString, safeParseBody, isValidUUID, validateEnum } from "@/lib/validation";
+import { createClient } from "@/lib/supabase/server";
 
 const VALID_ENTITY_TYPES = ["task", "goal", "habit"] as const;
 
@@ -31,15 +32,9 @@ async function enrichCommentsWithAuthors(
 
 // ---- GET: List comments for an entity (with threading) ----
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ entityType: string; entityId: string }> }
-) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const { entityType, entityId } = await params;
+export const GET = withAuth(async (request: NextRequest, { supabase, user }, params) => {
+  const entityType = params?.entityType;
+  const entityId = params?.entityId;
 
   // Validate entity type
   const etCheck = validateEnum(entityType, "entityType", VALID_ENTITY_TYPES);
@@ -132,19 +127,13 @@ export async function GET(
   }));
 
   return NextResponse.json({ comments: flatComments });
-}
+});
 
 // ---- POST: Create a comment (with mention parsing) ----
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ entityType: string; entityId: string }> }
-) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const { entityType, entityId } = await params;
+export const POST = withAuth(async (request: NextRequest, { supabase, user }, params) => {
+  const entityType = params?.entityType;
+  const entityId = params?.entityId;
 
   const etCheck = validateEnum(entityType, "entityType", VALID_ENTITY_TYPES);
   if (!etCheck.valid) return NextResponse.json({ error: etCheck.error }, { status: 400 });
@@ -251,4 +240,4 @@ export async function POST(
       reactions: {},
     },
   }, { status: 201 });
-}
+});

@@ -6,7 +6,7 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withAuth } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
 import {
   validateRequiredString,
@@ -21,14 +21,7 @@ const VALID_CATEGORIES: readonly BoundaryCategory[] = [
 ] as const;
 
 // GET /api/boundaries — list all boundaries for current user
-export async function GET(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const GET = withAuth(async (request: NextRequest, { supabase, user }) => {
   const category = request.nextUrl.searchParams.get("category");
 
   let query = platform(supabase)
@@ -50,17 +43,10 @@ export async function GET(request: NextRequest) {
   }
 
   return NextResponse.json({ boundaries: boundaries || [] });
-}
+});
 
 // POST /api/boundaries — create a new boundary
-export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const POST = withAuth(async (request: NextRequest, { supabase, user }) => {
   let body;
 
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
@@ -96,4 +82,4 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ boundary }, { status: 201 });
-}
+});

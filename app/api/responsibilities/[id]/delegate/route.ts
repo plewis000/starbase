@@ -1,15 +1,12 @@
 // ============================================================
 // FILE: app/api/responsibilities/[id]/delegate/route.ts
 // PURPOSE: Delegation workflow — create, accept, decline, complete
-//          This is the DEEP delegation system. Supports temporary,
-//          permanent, and one-time transfers with full status workflow.
 // PART OF: The Keep
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withAuth } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
-import { getHouseholdContext } from "@/lib/household";
 import {
   isValidUUID,
   validateRequiredUUID,
@@ -18,30 +15,16 @@ import {
   validateEnum,
 } from "@/lib/validation";
 import { triggerNotification } from "@/lib/notify";
-import type { DelegationType, DelegationStatus } from "@/lib/types";
+import type { DelegationType } from "@/lib/types";
 
 const VALID_DELEGATION_TYPES: readonly DelegationType[] = ["temporary", "permanent", "one_time"] as const;
 
 // GET /api/responsibilities/[id]/delegate — list all delegations for this responsibility
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const GET = withAuth(async (request: NextRequest, { supabase, ctx }, params) => {
+  const id = params?.id;
 
   if (!isValidUUID(id)) {
     return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
-  }
-
-  const ctx = await getHouseholdContext(supabase, user.id);
-  if (!ctx) {
-    return NextResponse.json({ error: "No household found" }, { status: 404 });
   }
 
   const statusFilter = request.nextUrl.searchParams.get("status");
@@ -63,28 +46,14 @@ export async function GET(
   }
 
   return NextResponse.json({ delegations: delegations || [] });
-}
+});
 
 // POST /api/responsibilities/[id]/delegate — create a new delegation request
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const POST = withAuth(async (request: NextRequest, { supabase, user, ctx }, params) => {
+  const id = params?.id;
 
   if (!isValidUUID(id)) {
     return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
-  }
-
-  const ctx = await getHouseholdContext(supabase, user.id);
-  if (!ctx) {
-    return NextResponse.json({ error: "No household found" }, { status: 404 });
   }
 
   // Verify responsibility exists and belongs to household
@@ -213,4 +182,4 @@ export async function POST(
     });
 
   return NextResponse.json({ delegation }, { status: 201 });
-}
+});

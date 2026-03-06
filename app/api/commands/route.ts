@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { withUser } from "@/lib/api/withAuth";
 import { platform, config } from "@/lib/supabase/schemas";
 import { sanitizeSearchInput } from "@/lib/validation";
 
@@ -23,11 +24,7 @@ const COMMANDS: Record<string, { description: string; usage: string; aliases?: s
   stats:     { description: "Show your daily stats", usage: "/stats" },
 };
 
-export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+export const POST = withUser(async (request: NextRequest, { supabase, user }) => {
   let body;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
 
@@ -40,7 +37,7 @@ export async function POST(request: NextRequest) {
   const result = await executeCommand(supabase, user.id, raw);
 
   return NextResponse.json({ response: result.response, data: result.data, free: true });
-}
+});
 
 async function executeCommand(
   supabase: Awaited<ReturnType<typeof createClient>>,

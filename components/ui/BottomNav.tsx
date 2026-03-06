@@ -22,6 +22,7 @@ const moreItems: NavItem[] = [
   { href: "/calendar", label: "Calendar", icon: "📅" },
   { href: "/budget", label: "Vault", icon: "💰" },
   { href: "/shopping", label: "Shop", icon: "🛒" },
+  { href: "/recipes", label: "Meals", icon: "🍳" },
   { href: "/chat", label: "Zev", icon: "💬" },
   { href: "/notifications", label: "Alerts", icon: "🔔" },
   { href: "/settings", label: "Settings", icon: "⚙️" },
