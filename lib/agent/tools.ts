@@ -315,7 +315,7 @@ export const AGENT_TOOLS: Tool[] = [
     input_schema: {
       type: "object" as const,
       properties: {
-        observation_type: { type: "string", description: "Type: 'preference', 'routine', 'personality', 'relationship', 'goal', 'boundary', 'context', 'feedback_pattern'" },
+        observation_type: { type: "string", description: "Type: 'preference', 'routine', 'personality', 'relationship', 'goal', 'boundary', 'context', 'feedback_pattern', 'correction'" },
         content: { type: "string", description: "What you observed (required)" },
         confidence: { type: "number", description: "How confident (0-1, default 0.7)" },
         layer: { type: "string", description: "Source: 'declared' (user told you), 'observed' (from behavior), 'inferred' (your conclusion). Default: 'observed'" },

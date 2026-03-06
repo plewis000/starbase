@@ -82,7 +82,7 @@ const TIMEZONE_OPTIONS = [
   "UTC",
 ];
 
-type TabId = "profile" | "integrations" | "notifications" | "customization" | "household" | "saved_views";
+type TabId = "profile" | "integrations" | "notifications" | "customization" | "household" | "saved_views" | "zev_memory";
 
 export default function SettingsPage() {
   const toast = useToast();
@@ -113,6 +113,7 @@ export default function SettingsPage() {
     { id: "notifications", label: "Notifications", icon: "🔔" },
     { id: "customization", label: "Customization", icon: "🎨" },
     { id: "saved_views", label: "Saved Views", icon: "📋" },
+    { id: "zev_memory", label: "Zev's Memory", icon: "🧠" },
   ];
 
   if (loading) {
@@ -258,6 +259,9 @@ export default function SettingsPage() {
 
       {/* Saved Views Tab */}
       {activeTab === "saved_views" && <SavedViewsManager />}
+
+      {/* Zev's Memory Tab */}
+      {activeTab === "zev_memory" && <ZevMemoryManager />}
 
       {/* Keyboard shortcuts */}
       <div className="dcc-card p-6">
@@ -912,6 +916,248 @@ function NotificationPreferences() {
         <div className="dcc-card p-6 text-center">
           <p className="text-sm text-slate-400">No notification channels configured.</p>
         </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Zev's Memory Manager ──────────────────────────────
+
+interface Observation {
+  id: string;
+  observation_type: string;
+  content: string;
+  confidence: number;
+  source_layer: string;
+  tags: string[] | null;
+  created_at: string;
+  is_active: boolean;
+}
+
+const TYPE_LABELS: Record<string, string> = {
+  preference: "Preferences",
+  routine: "Routines & Schedule",
+  personality: "Personality",
+  relationship: "Relationships",
+  goal: "Goals",
+  boundary: "Boundaries",
+  context: "Life Context",
+  feedback_pattern: "How You Respond",
+  correction: "Corrections",
+};
+
+const TYPE_ICONS: Record<string, string> = {
+  preference: "⭐",
+  routine: "🔄",
+  personality: "🎭",
+  relationship: "👥",
+  goal: "🎯",
+  boundary: "🚫",
+  context: "📍",
+  feedback_pattern: "💬",
+  correction: "⚠️",
+};
+
+function ZevMemoryManager() {
+  const toast = useToast();
+  const [observations, setObservations] = useState<Observation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filterType, setFilterType] = useState<string>("all");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState("");
+  const [showInactive, setShowInactive] = useState(false);
+  const [total, setTotal] = useState(0);
+
+  const fetchObservations = useCallback(async () => {
+    try {
+      const params = new URLSearchParams();
+      if (filterType !== "all") params.set("type", filterType);
+      if (showInactive) params.set("active", "false");
+      params.set("limit", "100");
+
+      const res = await fetch(`/api/ai/observations?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        setObservations(data.observations || []);
+        setTotal(data.total || 0);
+      }
+    } catch {
+      toast.error("Failed to load observations");
+    } finally {
+      setLoading(false);
+    }
+  }, [filterType, showInactive]);
+
+  useEffect(() => { fetchObservations(); }, [fetchObservations]);
+
+  const handleUpdate = async (id: string) => {
+    if (!editContent.trim()) return;
+    try {
+      const res = await fetch("/api/ai/observations", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, content: editContent.trim() }),
+      });
+      if (res.ok) {
+        toast.success("Observation updated");
+        setEditingId(null);
+        fetchObservations();
+      } else {
+        toast.error("Failed to update");
+      }
+    } catch { toast.error("Failed to update"); }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      const res = await fetch(`/api/ai/observations?id=${id}`, { method: "DELETE" });
+      if (res.ok) {
+        toast.success("Observation removed");
+        fetchObservations();
+      } else {
+        toast.error("Failed to remove");
+      }
+    } catch { toast.error("Failed to remove"); }
+  };
+
+  // Group observations by type
+  const grouped: Record<string, Observation[]> = {};
+  for (const obs of observations) {
+    const type = obs.observation_type;
+    if (!grouped[type]) grouped[type] = [];
+    grouped[type].push(obs);
+  }
+
+  if (loading) {
+    return <div className="dcc-card p-6"><div className="animate-pulse h-32 bg-slate-800 rounded" /></div>;
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="dcc-card p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-100">What Zev Knows About You</h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {total} observation{total !== 1 ? "s" : ""} — Zev learns from every conversation
+            </p>
+          </div>
+          <label className="flex items-center gap-1.5 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={showInactive}
+              onChange={(e) => setShowInactive(e.target.checked)}
+              className="rounded border-slate-600 w-3.5 h-3.5"
+            />
+            <span className="text-[10px] text-slate-500">Show removed</span>
+          </label>
+        </div>
+        <div className="flex items-center gap-1 overflow-x-auto pb-1">
+          <button
+            onClick={() => setFilterType("all")}
+            className={`px-3 py-1.5 rounded text-xs font-medium whitespace-nowrap transition-colors ${
+              filterType === "all" ? "bg-dungeon-800 text-crimson-400" : "text-slate-500 hover:text-slate-300"
+            }`}
+          >
+            All
+          </button>
+          {Object.entries(TYPE_LABELS).map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => setFilterType(key)}
+              className={`px-3 py-1.5 rounded text-xs font-medium whitespace-nowrap transition-colors ${
+                filterType === key ? "bg-dungeon-800 text-crimson-400" : "text-slate-500 hover:text-slate-300"
+              }`}
+            >
+              {TYPE_ICONS[key]} {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {Object.keys(grouped).length === 0 ? (
+        <div className="dcc-card p-8 text-center">
+          <p className="text-slate-400 text-sm">
+            {filterType === "all"
+              ? "Zev hasn't learned anything yet. Start chatting to build up memory."
+              : `No ${TYPE_LABELS[filterType] || filterType} observations yet.`}
+          </p>
+        </div>
+      ) : (
+        Object.entries(grouped).map(([type, obs]) => (
+          <div key={type} className="dcc-card p-4 space-y-2">
+            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+              <span>{TYPE_ICONS[type] || "📝"}</span>
+              {TYPE_LABELS[type] || type}
+              <span className="text-slate-600 font-normal">({obs.length})</span>
+            </h4>
+            <div className="space-y-1">
+              {obs.map((o) => (
+                <div
+                  key={o.id}
+                  className={`flex items-start gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                    !o.is_active ? "opacity-40" : "hover:bg-slate-800/50"
+                  }`}
+                >
+                  {editingId === o.id ? (
+                    <div className="flex-1 flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={editContent}
+                        onChange={(e) => setEditContent(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleUpdate(o.id);
+                          if (e.key === "Escape") setEditingId(null);
+                        }}
+                        className="flex-1 bg-slate-800 border border-red-400 rounded px-2 py-1 text-sm text-slate-100 focus:outline-none"
+                        autoFocus
+                      />
+                      <button onClick={() => handleUpdate(o.id)} className="text-xs text-green-400">Save</button>
+                      <button onClick={() => setEditingId(null)} className="text-xs text-slate-500">Cancel</button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-slate-200">{o.content}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+                            o.source_layer === "declared" ? "bg-blue-900/30 text-blue-400" :
+                            o.source_layer === "observed" ? "bg-amber-900/30 text-amber-400" :
+                            "bg-purple-900/30 text-purple-400"
+                          }`}>
+                            {o.source_layer}
+                          </span>
+                          <span className="text-[10px] text-slate-600">
+                            {Math.round(o.confidence * 100)}% confidence
+                          </span>
+                          <span className="text-[10px] text-slate-600">
+                            {new Date(o.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </div>
+                      {o.is_active && (
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <button
+                            onClick={() => { setEditingId(o.id); setEditContent(o.content); }}
+                            className="text-xs text-slate-500 hover:text-slate-300 px-1.5 py-1"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(o.id)}
+                            className="text-xs text-slate-500 hover:text-red-400 px-1.5 py-1"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))
       )}
     </div>
   );

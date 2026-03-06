@@ -50,10 +50,53 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // Observation decay: reduce confidence of old inferred/observed observations
+  // Observations older than 60 days with no updates lose 5% confidence per run
+  // Observations below 0.15 confidence get deactivated
+  let decayed = 0;
+  let expired = 0;
+  try {
+    const sixtyDaysAgo = new Date();
+    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+
+    // Deactivate very low confidence observations
+    const { data: expiredObs } = await platform(supabase)
+      .from("ai_observations")
+      .update({ is_active: false })
+      .eq("is_active", true)
+      .lt("confidence", 0.15)
+      .in("source_layer", ["observed", "inferred"])
+      .select("id");
+    expired = expiredObs?.length || 0;
+
+    // Decay confidence for stale non-declared observations
+    const { data: staleObs } = await platform(supabase)
+      .from("ai_observations")
+      .select("id, confidence")
+      .eq("is_active", true)
+      .in("source_layer", ["observed", "inferred"])
+      .lt("created_at", sixtyDaysAgo.toISOString())
+      .gt("confidence", 0.15);
+
+    if (staleObs && staleObs.length > 0) {
+      for (const obs of staleObs) {
+        const newConf = Math.round((obs.confidence * 0.95) * 100) / 100;
+        await platform(supabase)
+          .from("ai_observations")
+          .update({ confidence: newConf })
+          .eq("id", obs.id);
+        decayed++;
+      }
+    }
+  } catch (err) {
+    errors.push(`observation decay: ${err}`);
+  }
+
   return NextResponse.json({
     computed,
     total_users: users.length,
     date: dateStr,
+    observation_decay: { decayed, expired },
     errors: errors.length > 0 ? errors : undefined,
   });
 }

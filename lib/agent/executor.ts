@@ -944,7 +944,7 @@ async function storeObservation(supabase: Supabase, userId: string, input: Recor
     return { success: false, error: "content must be 5000 characters or fewer" };
   }
 
-  const validTypes = ["preference", "routine", "personality", "relationship", "goal", "boundary", "context", "feedback_pattern"];
+  const validTypes = ["preference", "routine", "personality", "relationship", "goal", "boundary", "context", "feedback_pattern", "correction"];
   if (!validTypes.includes(observationType)) {
     return { success: false, error: `observation_type must be one of: ${validTypes.join(", ")}` };
   }

@@ -115,10 +115,17 @@ export async function extractLearnings(
         // Deduplicate: skip if substantially similar content exists
         const normalizedContent = o.content.toLowerCase().trim();
         if (existingContents.has(normalizedContent)) return false;
-        // Check for fuzzy duplicates (first 40 chars match)
+        // Check for fuzzy duplicates — prefix match OR keyword overlap
         const prefix = normalizedContent.slice(0, 40);
+        const words = new Set(normalizedContent.split(/\s+/).filter((w) => w.length > 3));
         for (const existing of existingContents) {
           if (existing.startsWith(prefix)) return false;
+          // Check keyword overlap — if >60% of significant words match, it's a duplicate
+          if (words.size > 0) {
+            const existingWords = existing.split(/\s+/).filter((w: string) => w.length > 3);
+            const overlap = existingWords.filter((w: string) => words.has(w)).length;
+            if (overlap > 0 && overlap / Math.max(words.size, existingWords.length) > 0.6) return false;
+          }
         }
         return true;
       })
@@ -181,7 +188,7 @@ export async function buildUserContext(
     .limit(30);
 
   if (!observations || observations.length === 0) {
-    return `You are talking to ${userName}. You don't know much about them yet — learn through conversation.`;
+    return `You are talking to ${userName}. You don't know much about them yet — learn through conversation. Ask questions naturally, remember what they tell you.`;
   }
 
   // Group by type

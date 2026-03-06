@@ -127,3 +127,111 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({ observation }, { status: 201 });
 }
+
+// PATCH /api/ai/observations — update an observation (correct content, adjust confidence, deactivate)
+export async function PATCH(request: NextRequest) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  let body;
+  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
+
+  const idCheck = validateRequiredString(body.id, "id", 100);
+  if (!idCheck.valid) return NextResponse.json({ error: idCheck.error }, { status: 400 });
+
+  // Verify ownership
+  const { data: existing } = await platform(supabase)
+    .from("ai_observations")
+    .select("id, user_id")
+    .eq("id", idCheck.value)
+    .single();
+
+  if (!existing || existing.user_id !== user.id) {
+    return NextResponse.json({ error: "Observation not found" }, { status: 404 });
+  }
+
+  // Build update object
+  const updates: Record<string, unknown> = {};
+
+  if (body.content !== undefined) {
+    const contentCheck = validateRequiredString(body.content, "content", 5000);
+    if (!contentCheck.valid) return NextResponse.json({ error: contentCheck.error }, { status: 400 });
+    updates.content = contentCheck.value;
+  }
+
+  if (body.confidence !== undefined) {
+    const confCheck = validateOptionalNumber(body.confidence, "confidence", 0, 1);
+    if (!confCheck.valid) return NextResponse.json({ error: confCheck.error }, { status: 400 });
+    updates.confidence = confCheck.value;
+  }
+
+  if (body.is_active !== undefined) {
+    updates.is_active = Boolean(body.is_active);
+  }
+
+  if (body.observation_type !== undefined) {
+    updates.observation_type = body.observation_type;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
+  }
+
+  const { data: updated, error } = await platform(supabase)
+    .from("ai_observations")
+    .update(updates)
+    .eq("id", idCheck.value)
+    .select("*")
+    .single();
+
+  if (error) {
+    console.error(error.message);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+
+  return NextResponse.json({ observation: updated });
+}
+
+// DELETE /api/ai/observations — soft-delete (deactivate) an observation
+export async function DELETE(request: NextRequest) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const params = request.nextUrl.searchParams;
+  const id = params.get("id");
+
+  if (!id) {
+    return NextResponse.json({ error: "id query parameter is required" }, { status: 400 });
+  }
+
+  // Verify ownership
+  const { data: existing } = await platform(supabase)
+    .from("ai_observations")
+    .select("id, user_id")
+    .eq("id", id)
+    .single();
+
+  if (!existing || existing.user_id !== user.id) {
+    return NextResponse.json({ error: "Observation not found" }, { status: 404 });
+  }
+
+  const { error } = await platform(supabase)
+    .from("ai_observations")
+    .update({ is_active: false })
+    .eq("id", id);
+
+  if (error) {
+    console.error(error.message);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true });
+}
