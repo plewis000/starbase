@@ -24,7 +24,7 @@ export async function PATCH(
     .from("goals")
     .select("id")
     .eq("id", goalId)
-    .eq("user_id", user.id)
+    .eq("owner_id", user.id)
     .single();
 
   if (!goal) {
@@ -118,7 +118,7 @@ export async function DELETE(
     .from("goals")
     .select("id")
     .eq("id", goalId)
-    .eq("user_id", user.id)
+    .eq("owner_id", user.id)
     .single();
 
   if (!goal) {

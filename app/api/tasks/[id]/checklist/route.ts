@@ -75,6 +75,9 @@ export async function POST(
   if (!title || typeof title !== "string" || title.trim().length === 0) {
     return NextResponse.json({ error: "Title is required" }, { status: 400 });
   }
+  if (title.length > 500) {
+    return NextResponse.json({ error: "Title must be 500 characters or fewer" }, { status: 400 });
+  }
 
   const { data: item, error } = await platform(supabase)
     .from("task_checklist_items")

@@ -4,6 +4,7 @@ import { logActivity } from "@/lib/activity-log";
 import { platform, config } from "@/lib/supabase/schemas";
 import { getConfigLookups, enrichSubtasks } from "@/lib/task-enrichment";
 import { getHouseholdContext, getHouseholdMemberIds, verifyTaskHouseholdAccess } from "@/lib/household";
+import { isValidUUID } from "@/lib/validation";
 
 // =============================================================
 // GET /api/tasks/:id/subtasks — List sub-tasks
@@ -88,6 +89,17 @@ export async function POST(
       { error: "Title is required" },
       { status: 400 }
     );
+  }
+  if (title.length > 300) {
+    return NextResponse.json({ error: "Title must be 300 characters or fewer" }, { status: 400 });
+  }
+
+  // Validate UUID fields if provided
+  const uuidFields = { status_id, priority_id, assigned_to };
+  for (const [field, val] of Object.entries(uuidFields)) {
+    if (val && !isValidUUID(val)) {
+      return NextResponse.json({ error: `${field} must be a valid UUID` }, { status: 400 });
+    }
   }
 
   // Default to "To Do" status

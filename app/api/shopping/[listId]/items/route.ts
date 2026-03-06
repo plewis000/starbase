@@ -34,7 +34,7 @@ export async function POST(
 
   const inserts = items.map((item: Record<string, unknown>) => ({
     list_id: listId,
-    name: typeof item.name === "string" ? item.name.trim() : "",
+    name: typeof item.name === "string" ? item.name.trim().slice(0, 300) : "",
     quantity: typeof item.quantity === "string" ? item.quantity.trim() || null : item.quantity ? String(item.quantity) : null,
     category_id: item.category_id || null,
     is_staple: item.is_staple || false,
