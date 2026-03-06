@@ -507,7 +507,17 @@ export interface HabitTag {
 
 export type AchievementTier = "common" | "uncommon" | "rare" | "epic" | "legendary";
 export type AchievementCategory = "productivity" | "finance" | "health" | "streak" | "social" | "meta" | "party" | "seasonal";
-export type LootBoxTierSlug = "bronze" | "silver" | "gold" | "platinum";
+export type LootBoxTierSlug = "bronze" | "silver" | "gold" | "platinum" | "legendary" | "celestial";
+export type CrawlerClassSlug = "berserker" | "ranger" | "scholar" | "paladin" | "monk" | "artificer" | "warden" | "unclassed";
+export type BoxType = "standard" | "achievement" | "milestone" | "streak" | "boss";
+
+export interface CrawlerStats {
+  str: number;
+  dex: number;
+  con: number;
+  int: number;
+  cha: number;
+}
 
 export interface CrawlerProfile {
   id: string;
@@ -522,6 +532,15 @@ export interface CrawlerProfile {
   last_login_date?: string;
   showcase_achievement_ids: string[];
   title?: string;
+  // DCC stats
+  stat_str: number;
+  stat_dex: number;
+  stat_con: number;
+  stat_int: number;
+  stat_cha: number;
+  crawler_class?: CrawlerClassSlug;
+  class_description?: string;
+  stats_updated_at?: string;
   created_at: string;
   updated_at: string;
   // Enriched
@@ -581,6 +600,7 @@ export interface LootBox {
   reward_id?: string;
   reward_redeemed: boolean;
   redeemed_at?: string;
+  box_type: BoxType;
   created_at: string;
   // Enriched
   tier?: {

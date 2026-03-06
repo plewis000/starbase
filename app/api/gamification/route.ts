@@ -16,6 +16,12 @@ export async function GET() {
   // Update login streak
   const { streak } = await updateLoginStreak(supabase, user.id);
 
+  // Refresh crawler stats + class (best-effort, non-blocking)
+  await Promise.allSettled([
+    supabase.schema("platform").rpc("calculate_crawler_stats", { p_user_id: user.id }),
+    supabase.schema("platform").rpc("calculate_crawler_class", { p_user_id: user.id }),
+  ]);
+
   // Get profile
   const { data: profile } = await supabase
     .schema("platform")

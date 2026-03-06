@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { useToast } from "@/components/ui/Toast";
@@ -21,7 +21,7 @@ const TIER_COLORS: Record<string, string> = {
   uncommon: "text-green-400 border-green-700",
   rare: "text-blue-400 border-blue-700",
   epic: "text-purple-400 border-purple-700",
-  legendary: "text-gold-400 border-gold-600",
+  legendary: "text-orange-400 border-orange-600",
 };
 
 const TIER_BG: Record<string, string> = {
@@ -29,15 +29,178 @@ const TIER_BG: Record<string, string> = {
   uncommon: "bg-green-950/20",
   rare: "bg-blue-950/20",
   epic: "bg-purple-950/20",
-  legendary: "bg-gold-900/20",
+  legendary: "bg-orange-950/20",
 };
 
-const BOX_COLORS: Record<string, { bg: string; border: string; text: string }> = {
+const BOX_COLORS: Record<string, { bg: string; border: string; text: string; glow?: string }> = {
   bronze: { bg: "bg-amber-900/15", border: "border-amber-800", text: "text-amber-500" },
   silver: { bg: "bg-dungeon-700/30", border: "border-dungeon-600", text: "text-slate-300" },
-  gold: { bg: "bg-gold-900/20", border: "border-gold-700", text: "text-gold-400" },
+  gold: { bg: "bg-gold-900/20", border: "border-gold-700", text: "text-gold-400", glow: "dcc-glow-gold" },
   platinum: { bg: "bg-slate-200/5", border: "border-slate-400", text: "text-slate-100" },
+  legendary: { bg: "bg-orange-950/20", border: "border-orange-600", text: "text-orange-400", glow: "dcc-glow-legendary" },
+  celestial: { bg: "bg-fuchsia-950/20", border: "border-fuchsia-600", text: "text-fuchsia-400", glow: "dcc-glow-celestial" },
 };
+
+const CLASS_ICONS: Record<string, string> = {
+  berserker: "⚔️", ranger: "🏹", scholar: "📖", paladin: "🛡️",
+  monk: "🧘", artificer: "⚙️", warden: "🏠", unclassed: "❓",
+};
+
+const STAT_COLORS: Record<string, string> = {
+  str: "#ef4444", dex: "#22c55e", con: "#f59e0b", int: "#3b82f6", cha: "#a855f7",
+};
+
+const STAT_LABELS: Record<string, string> = {
+  str: "STR", dex: "DEX", con: "CON", int: "INT", cha: "CHA",
+};
+
+// --- Stat Pentagon SVG ---
+function StatPentagon({ stats }: { stats: { str: number; dex: number; con: number; int: number; cha: number } }) {
+  const size = 140;
+  const cx = size / 2;
+  const cy = size / 2;
+  const maxR = 55;
+  const statKeys = ["str", "dex", "con", "int", "cha"] as const;
+
+  const getPoint = (index: number, value: number) => {
+    const angle = (Math.PI * 2 * index) / 5 - Math.PI / 2;
+    const r = (value / 20) * maxR;
+    return { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
+  };
+
+  const gridLevels = [5, 10, 15, 20];
+
+  return (
+    <svg viewBox={`0 0 ${size} ${size}`} className="w-36 h-36">
+      {/* Grid */}
+      {gridLevels.map(level => {
+        const points = statKeys.map((_, i) => getPoint(i, level));
+        return (
+          <polygon
+            key={level}
+            points={points.map(p => `${p.x},${p.y}`).join(" ")}
+            fill="none"
+            stroke="#252a3a"
+            strokeWidth="0.5"
+          />
+        );
+      })}
+      {/* Axis lines */}
+      {statKeys.map((_, i) => {
+        const p = getPoint(i, 20);
+        return <line key={i} x1={cx} y1={cy} x2={p.x} y2={p.y} stroke="#252a3a" strokeWidth="0.5" />;
+      })}
+      {/* Stat polygon */}
+      <polygon
+        points={statKeys.map((key, i) => {
+          const p = getPoint(i, stats[key]);
+          return `${p.x},${p.y}`;
+        }).join(" ")}
+        fill="rgba(220, 38, 38, 0.15)"
+        stroke="#DC2626"
+        strokeWidth="1.5"
+      />
+      {/* Stat dots + labels */}
+      {statKeys.map((key, i) => {
+        const p = getPoint(i, stats[key]);
+        const lp = getPoint(i, 23);
+        return (
+          <g key={key}>
+            <circle cx={p.x} cy={p.y} r="3" fill={STAT_COLORS[key]} />
+            <text x={lp.x} y={lp.y} textAnchor="middle" dominantBaseline="middle" fill={STAT_COLORS[key]} fontSize="8" fontFamily="monospace" fontWeight="bold">
+              {STAT_LABELS[key]}
+            </text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+// --- Stat Bars ---
+function StatBars({ stats }: { stats: { str: number; dex: number; con: number; int: number; cha: number } }) {
+  const statKeys = ["str", "dex", "con", "int", "cha"] as const;
+  return (
+    <div className="space-y-2">
+      {statKeys.map(key => (
+        <div key={key} className="flex items-center gap-2">
+          <span className="text-xs font-mono w-8" style={{ color: STAT_COLORS[key] }}>{STAT_LABELS[key]}</span>
+          <div className="dcc-stat-bar flex-1">
+            <div className="dcc-stat-fill dcc-stat-bar-fill" style={{ width: `${(stats[key] / 20) * 100}%`, backgroundColor: STAT_COLORS[key] }} />
+          </div>
+          <span className="text-xs font-mono text-dungeon-500 w-6 text-right">{stats[key]}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// --- Loot Box Opening Ceremony ---
+type CeremonyStage = "idle" | "shaking" | "bursting" | "revealing" | "done";
+
+function LootBoxCeremony({
+  result,
+  onDismiss,
+}: {
+  result: { tierName: string; tierSlug: string; rewardName: string; rewardIcon?: string };
+  onDismiss: () => void;
+}) {
+  const [stage, setStage] = useState<CeremonyStage>("idle");
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const style = BOX_COLORS[result.tierSlug] || BOX_COLORS.bronze;
+
+  useEffect(() => {
+    setStage("shaking");
+    timerRef.current = setTimeout(() => setStage("bursting"), 800);
+    return () => clearTimeout(timerRef.current);
+  }, []);
+
+  useEffect(() => {
+    if (stage === "bursting") {
+      timerRef.current = setTimeout(() => setStage("revealing"), 500);
+    }
+    if (stage === "revealing") {
+      timerRef.current = setTimeout(() => setStage("done"), 900);
+    }
+    return () => clearTimeout(timerRef.current);
+  }, [stage]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={stage === "done" ? onDismiss : undefined}>
+      <div className={`relative p-8 rounded-2xl border-2 ${style.border} ${style.bg} max-w-sm w-full mx-4 text-center ${style.glow || ""}`}>
+        {/* Box shaking phase */}
+        {(stage === "shaking" || stage === "idle") && (
+          <div className={stage === "shaking" ? "dcc-box-shake" : ""}>
+            <span className="text-7xl block mb-4">📦</span>
+            <p className={`font-semibold dcc-heading ${style.text}`}>{result.tierName}</p>
+          </div>
+        )}
+        {/* Burst phase */}
+        {stage === "bursting" && (
+          <div className="dcc-box-burst">
+            <span className="text-7xl block mb-4">📦</span>
+          </div>
+        )}
+        {/* Reveal phase */}
+        {(stage === "revealing" || stage === "done") && (
+          <div className={stage === "revealing" ? "dcc-reward-reveal" : ""}>
+            <span className="text-6xl block mb-4">{result.rewardIcon || "🎁"}</span>
+            <h3 className={`text-2xl font-bold mb-2 dcc-heading ${style.text}`}>{result.tierName}</h3>
+            <p className="text-lg text-slate-100 font-medium mb-3">{result.rewardName}</p>
+            <p className="text-dungeon-500 text-sm italic font-mono mb-4">
+              The System does not understand your reward system but acknowledges its importance to crawler morale.
+            </p>
+            {stage === "done" && (
+              <button onClick={onDismiss} className="dcc-btn-primary">
+                Claim Reward
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function CrawlPage() {
   const toast = useToast();
@@ -59,7 +222,7 @@ export default function CrawlPage() {
   // Loot box state
   const [lootBoxes, setLootBoxes] = useState<LootBox[]>([]);
   const [openingBox, setOpeningBox] = useState<string | null>(null);
-  const [openResult, setOpenResult] = useState<{ tierName: string; rewardName: string; rewardIcon?: string } | null>(null);
+  const [ceremonyResult, setCeremonyResult] = useState<{ tierName: string; tierSlug: string; rewardName: string; rewardIcon?: string } | null>(null);
 
   // Leaderboard state
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -102,7 +265,7 @@ export default function CrawlPage() {
       const data = await res.json();
       setAchievements(data.achievements);
     } catch {
-      // Silently fail — tables may not exist yet
+      // Silently fail
     }
   }, [toast]);
 
@@ -137,10 +300,10 @@ export default function CrawlPage() {
     if (tab === "leaderboard") fetchLeaderboard();
   }, [tab, fetchAchievements, fetchLootBoxes, fetchLeaderboard]);
 
-  // Open loot box
+  // Open loot box with ceremony
   const handleOpenBox = async (boxId: string) => {
     setOpeningBox(boxId);
-    setOpenResult(null);
+    setCeremonyResult(null);
     try {
       const res = await fetch("/api/gamification/loot-boxes", {
         method: "POST",
@@ -149,8 +312,11 @@ export default function CrawlPage() {
       });
       if (!res.ok) throw new Error();
       const data = await res.json();
-      setOpenResult({
+      // Find the box to get the tier slug
+      const box = lootBoxes.find(b => b.id === boxId);
+      setCeremonyResult({
         tierName: data.result.tierName,
+        tierSlug: box?.tier?.slug || "bronze",
         rewardName: data.result.rewardName,
         rewardIcon: data.result.rewardIcon,
       });
@@ -178,8 +344,21 @@ export default function CrawlPage() {
       ? achievements.filter(a => a.unlocked)
       : achievements.filter(a => a.category === achievementFilter);
 
+  const crawlerStats = profile ? {
+    str: profile.stat_str || 0,
+    dex: profile.stat_dex || 0,
+    con: profile.stat_con || 0,
+    int: profile.stat_int || 0,
+    cha: profile.stat_cha || 0,
+  } : { str: 0, dex: 0, con: 0, int: 0, cha: 0 };
+
   return (
     <>
+      {/* Loot Box Opening Ceremony */}
+      {ceremonyResult && (
+        <LootBoxCeremony result={ceremonyResult} onDismiss={() => setCeremonyResult(null)} />
+      )}
+
       <div className="max-w-5xl mx-auto p-6">
         {/* Header */}
         <div className="mb-6">
@@ -215,7 +394,7 @@ export default function CrawlPage() {
           <div className="flex justify-center py-12"><LoadingSpinner size="lg" /></div>
         ) : tab === "profile" && profile ? (
           <div className="space-y-6">
-            {/* Crawler Card */}
+            {/* Crawler Card — Enhanced with class + stats */}
             <div className="dcc-card p-6 relative overflow-hidden">
               {/* Floor color accent */}
               <div
@@ -223,15 +402,20 @@ export default function CrawlPage() {
                 style={{ backgroundColor: profile.floor?.color || "#DC2626" }}
               />
 
-              <div className="flex items-start gap-6">
-                {/* Level circle */}
-                <div className="flex-shrink-0">
+              <div className="flex flex-col md:flex-row items-start gap-6">
+                {/* Left: Level + Class */}
+                <div className="flex-shrink-0 flex flex-col items-center gap-2">
                   <div className="w-20 h-20 rounded-full border-4 border-crimson-500 flex items-center justify-center bg-dungeon-950 dcc-glow-crimson">
                     <span className="text-2xl font-bold text-crimson-400 font-mono">{profile.level || profile.current_level}</span>
                   </div>
+                  {/* Class badge */}
+                  <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-dungeon-800 border border-dungeon-700">
+                    <span className="text-sm">{CLASS_ICONS[profile.crawler_class || "unclassed"]}</span>
+                    <span className="text-xs font-mono text-slate-300 capitalize">{profile.crawler_class || "Unclassed"}</span>
+                  </div>
                 </div>
 
-                {/* Info */}
+                {/* Center: Info + XP */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-baseline gap-3 mb-1">
                     <h2 className="text-2xl font-bold text-slate-100 dcc-heading tracking-wide">{profile.crawler_name}</h2>
@@ -271,13 +455,32 @@ export default function CrawlPage() {
                       </span>
                     )}
                   </div>
+
+                  {/* Class description */}
+                  {profile.class_description && (
+                    <p className="text-xs text-dungeon-500 mt-2 italic font-mono">&quot;{profile.class_description}&quot;</p>
+                  )}
                 </div>
+
+                {/* Right: Stat Pentagon */}
+                <div className="flex-shrink-0 hidden lg:block">
+                  <StatPentagon stats={crawlerStats} />
+                </div>
+              </div>
+
+              {/* Stat Bars (mobile/tablet — below main card) */}
+              <div className="mt-4 lg:hidden">
+                <StatBars stats={crawlerStats} />
+              </div>
+
+              {/* Stat Bars (desktop — below pentagon) */}
+              <div className="hidden lg:block mt-4 pt-4 border-t border-dungeon-700/50">
+                <StatBars stats={crawlerStats} />
               </div>
             </div>
 
             {/* Buffs & Debuffs */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Buffs */}
               <div className="dcc-card p-4">
                 <h3 className="text-sm font-semibold text-green-400 mb-3">⬆️ Active Buffs</h3>
                 {buffs.length === 0 ? (
@@ -294,7 +497,6 @@ export default function CrawlPage() {
                 )}
               </div>
 
-              {/* Debuffs */}
               <div className="dcc-card-system p-4">
                 <h3 className="text-sm font-semibold text-crimson-400 mb-3">⬇️ Active Debuffs</h3>
                 {debuffs.length === 0 ? (
@@ -314,17 +516,11 @@ export default function CrawlPage() {
 
             {/* Quick Links */}
             <div className="grid grid-cols-2 gap-3">
-              <Link
-                href="/crawl/party"
-                className="dcc-card-hover flex items-center gap-3 p-4"
-              >
+              <Link href="/crawl/party" className="dcc-card-hover flex items-center gap-3 p-4">
                 <span className="text-lg">👥</span>
                 <span className="text-sm text-slate-300 font-medium">Party Quests</span>
               </Link>
-              <Link
-                href="/crawl/rewards"
-                className="dcc-card-hover flex items-center gap-3 p-4"
-              >
+              <Link href="/crawl/rewards" className="dcc-card-hover flex items-center gap-3 p-4">
                 <span className="text-lg">🎁</span>
                 <span className="text-sm text-slate-300 font-medium">Reward Pool</span>
               </Link>
@@ -368,42 +564,59 @@ export default function CrawlPage() {
               ))}
             </div>
 
+            {/* Achievement count */}
+            <p className="text-xs text-dungeon-500 font-mono">
+              {achievements.filter(a => a.unlocked).length}/{achievements.length} unlocked
+            </p>
+
             {/* Achievement Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {filteredAchievements.map(a => (
-                <div
-                  key={a.id}
-                  className={`rounded-lg border p-4 transition-all ${
-                    a.unlocked
-                      ? `${TIER_BG[a.tier]} ${TIER_COLORS[a.tier]}`
-                      : "bg-dungeon-800 border-dungeon-700 opacity-60"
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <span className="text-2xl">{a.icon || "❓"}</span>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h4 className={`font-semibold text-sm ${a.unlocked ? "text-slate-100" : "text-slate-400"}`}>
-                          {a.name}
-                        </h4>
-                        <span className={`text-xs font-mono px-1.5 py-0.5 rounded ${TIER_COLORS[a.tier]} border`}>
-                          {a.tier}
-                        </span>
-                        {a.is_party && <span className="text-xs">🤝</span>}
+              {filteredAchievements.map(a => {
+                const isHiddenLocked = a.is_hidden && !a.unlocked;
+                return (
+                  <div
+                    key={a.id}
+                    className={`rounded-lg border p-4 transition-all ${
+                      a.unlocked
+                        ? `${TIER_BG[a.tier]} ${TIER_COLORS[a.tier]}`
+                        : isHiddenLocked
+                          ? "bg-dungeon-900 border-dungeon-800 opacity-40"
+                          : "bg-dungeon-800 border-dungeon-700 opacity-60"
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <span className="text-2xl">
+                        {isHiddenLocked ? "🔒" : (a.icon || "❓")}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className={`font-semibold text-sm ${a.unlocked ? "text-slate-100" : "text-slate-400"}`}>
+                            {isHiddenLocked ? "Hidden Achievement" : a.name}
+                          </h4>
+                          <span className={`text-xs font-mono px-1.5 py-0.5 rounded ${TIER_COLORS[a.tier]} border`}>
+                            {a.tier}
+                          </span>
+                          {a.is_party && <span className="text-xs">🤝</span>}
+                        </div>
+                        <p className="text-xs text-slate-400 line-clamp-2">
+                          {isHiddenLocked ? "Keep crawling to discover this achievement..." : a.description}
+                        </p>
+                        <div className="flex items-center gap-3 mt-2 text-xs text-slate-500">
+                          <span>+{a.xp_reward} XP</span>
+                          {a.loot_box_tier && <span>📦 {a.loot_box_tier}</span>}
+                          {a.unlocked && a.unlock_count > 1 && <span>x{a.unlock_count}</span>}
+                          {a.unlocked && a.unlocked_at && (
+                            <span className="text-dungeon-500">{new Date(a.unlocked_at).toLocaleDateString()}</span>
+                          )}
+                        </div>
                       </div>
-                      <p className="text-xs text-slate-400 line-clamp-2">{a.description}</p>
-                      <div className="flex items-center gap-3 mt-2 text-xs text-slate-500">
-                        <span>+{a.xp_reward} XP</span>
-                        {a.loot_box_tier && <span>📦 {a.loot_box_tier}</span>}
-                        {a.unlocked && a.unlock_count > 1 && <span>×{a.unlock_count}</span>}
-                      </div>
+                      {a.unlocked && (
+                        <span className="text-green-400 text-lg">✓</span>
+                      )}
                     </div>
-                    {a.unlocked && (
-                      <span className="text-green-400 text-lg">✓</span>
-                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         ) : tab === "loot" ? (
@@ -418,33 +631,16 @@ export default function CrawlPage() {
               </Link>
             </div>
 
-            {/* Open result overlay */}
-            {openResult && (
-              <div className="dcc-card border-2 border-gold-500 p-6 text-center dcc-glow-gold">
-                <div className="text-4xl mb-3">{openResult.rewardIcon || "🎁"}</div>
-                <h3 className="text-xl font-bold text-gold-400 mb-1 dcc-heading">{openResult.tierName}</h3>
-                <p className="text-lg text-slate-100 font-medium">{openResult.rewardName}</p>
-                <p className="text-dungeon-500 text-sm mt-2 italic font-mono">
-                  The System does not understand your reward system but acknowledges its importance to crawler morale.
-                </p>
-                <button
-                  onClick={() => setOpenResult(null)}
-                  className="mt-4 dcc-btn-secondary"
-                >
-                  Nice
-                </button>
-              </div>
-            )}
-
             {/* Unopened boxes */}
             {lootBoxes.filter(b => !b.opened).length > 0 && (
               <div>
                 <h3 className="text-lg font-semibold text-slate-100 mb-3">📦 Unopened Boxes</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                   {lootBoxes.filter(b => !b.opened).map(box => {
-                    const style = BOX_COLORS[box.tier?.slug || "bronze"];
+                    const tierSlug = box.tier?.slug || "bronze";
+                    const style = BOX_COLORS[tierSlug] || BOX_COLORS.bronze;
                     return (
-                      <div key={box.id} className={`${style.bg} border ${style.border} rounded-lg p-4`}>
+                      <div key={box.id} className={`${style.bg} border ${style.border} rounded-lg p-4 ${style.glow || ""}`}>
                         <div className="text-center mb-2">
                           <span className="text-3xl">{box.tier?.icon || "📦"}</span>
                         </div>
@@ -466,6 +662,14 @@ export default function CrawlPage() {
               </div>
             )}
 
+            {/* No boxes message */}
+            {lootBoxes.filter(b => !b.opened).length === 0 && (
+              <div className="dcc-card p-6 text-center">
+                <span className="text-4xl block mb-3">📦</span>
+                <p className="text-dungeon-500 font-mono text-sm">No unopened boxes. Keep crawling to earn more.</p>
+              </div>
+            )}
+
             {/* History */}
             <div>
               <h3 className="text-lg font-semibold text-slate-100 mb-3">History</h3>
@@ -473,17 +677,24 @@ export default function CrawlPage() {
                 <p className="text-dungeon-500 text-sm font-mono">No boxes opened yet.</p>
               ) : (
                 <div className="space-y-2">
-                  {lootBoxes.filter(b => b.opened).map(box => (
-                    <div key={box.id} className="flex items-center justify-between bg-dungeon-800 border border-dungeon-700 rounded-lg p-3 text-sm">
-                      <div className="flex items-center gap-3">
-                        <span>{box.tier?.icon || "📦"}</span>
-                        <span className="text-slate-300">{box.tier?.name}: {box.reward?.name || "Unknown"}</span>
+                  {lootBoxes.filter(b => b.opened).map(box => {
+                    const tierSlug = box.tier?.slug || "bronze";
+                    const style = BOX_COLORS[tierSlug] || BOX_COLORS.bronze;
+                    return (
+                      <div key={box.id} className="flex items-center justify-between bg-dungeon-800 border border-dungeon-700 rounded-lg p-3 text-sm">
+                        <div className="flex items-center gap-3">
+                          <span>{box.tier?.icon || "📦"}</span>
+                          <span className="text-slate-300">{box.tier?.name}: {box.reward?.name || "Unknown"}</span>
+                          <span className={`text-xs font-mono px-1.5 py-0.5 rounded border ${style.text} ${style.border}`}>
+                            {tierSlug}
+                          </span>
+                        </div>
+                        <span className="text-dungeon-500 text-xs font-mono">
+                          {box.opened_at ? new Date(box.opened_at).toLocaleDateString() : ""}
+                        </span>
                       </div>
-                      <span className="text-dungeon-500 text-xs font-mono">
-                        {box.opened_at ? new Date(box.opened_at).toLocaleDateString() : ""}
-                      </span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -528,9 +739,9 @@ export default function CrawlPage() {
                     {/* Rank */}
                     <div className="w-10 text-center">
                       <span className={`text-2xl font-bold ${
-                        entry.rank === 1 ? "text-gold-400" : "text-dungeon-500"
+                        entry.rank === 1 ? "text-gold-400" : entry.rank === 2 ? "text-slate-300" : entry.rank === 3 ? "text-amber-600" : "text-dungeon-500"
                       }`}>
-                        {entry.rank === 1 ? "👑" : `#${entry.rank}`}
+                        {entry.rank === 1 ? "👑" : entry.rank === 2 ? "🥈" : entry.rank === 3 ? "🥉" : `#${entry.rank}`}
                       </span>
                     </div>
 
