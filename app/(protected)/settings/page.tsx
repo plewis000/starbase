@@ -238,19 +238,7 @@ export default function SettingsPage() {
       )}
 
       {/* Notifications Tab */}
-      {activeTab === "notifications" && (
-        <div className="dcc-card p-6 space-y-4">
-          <p className="text-sm text-slate-400">
-            Notification preferences are managed in the Notifications page.
-          </p>
-          <a
-            href="/notifications"
-            className="inline-block px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-100 rounded-lg text-sm font-medium transition-colors"
-          >
-            Go to Notifications
-          </a>
-        </div>
-      )}
+      {activeTab === "notifications" && <NotificationPreferences />}
 
       {/* Customization Tab */}
       {activeTab === "customization" && (
@@ -772,6 +760,158 @@ function ConfigSection({ table, label }: { table: string; label: string }) {
 
       {items.length === 0 && (
         <p className="text-sm text-slate-500 text-center py-4">No items configured</p>
+      )}
+    </div>
+  );
+}
+
+// ─── Notification Preferences ──────────────────────────────
+
+interface NotifPref {
+  channel_id: string;
+  channel_name: string;
+  channel_slug: string;
+  channel_icon: string;
+  enabled: boolean;
+  config: Record<string, unknown> | null;
+  pref_id: string | null;
+}
+
+function NotificationPreferences() {
+  const toast = useToast();
+  const [prefs, setPrefs] = useState<NotifPref[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [webhookUrl, setWebhookUrl] = useState("");
+  const [saving, setSaving] = useState<string | null>(null);
+
+  const fetchPrefs = useCallback(async () => {
+    try {
+      const res = await fetch("/api/notifications/preferences");
+      if (res.ok) {
+        const data = await res.json();
+        setPrefs(data.preferences || []);
+        const discord = (data.preferences || []).find((p: NotifPref) => p.channel_slug === "discord");
+        if (discord?.config?.webhook_url) {
+          setWebhookUrl(discord.config.webhook_url as string);
+        }
+      }
+    } catch {
+      toast.error("Failed to load notification preferences");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchPrefs(); }, [fetchPrefs]);
+
+  const toggleChannel = async (pref: NotifPref) => {
+    setSaving(pref.channel_id);
+    try {
+      const res = await fetch("/api/notifications/preferences", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          channel_id: pref.channel_id,
+          enabled: !pref.enabled,
+        }),
+      });
+      if (res.ok) {
+        toast.success(`${pref.channel_name} ${pref.enabled ? "disabled" : "enabled"}`);
+        fetchPrefs();
+      }
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const saveWebhook = async () => {
+    const discord = prefs.find((p) => p.channel_slug === "discord");
+    if (!discord) return;
+    setSaving(discord.channel_id);
+    try {
+      const res = await fetch("/api/notifications/preferences", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          channel_id: discord.channel_id,
+          enabled: true,
+          config: { webhook_url: webhookUrl.trim() },
+        }),
+      });
+      if (res.ok) {
+        toast.success("Discord webhook saved");
+        fetchPrefs();
+      } else {
+        toast.error("Failed to save webhook");
+      }
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  if (loading) {
+    return <div className="dcc-card p-6"><p className="text-sm text-slate-400">Loading preferences...</p></div>;
+  }
+
+  return (
+    <div className="space-y-4">
+      {prefs.map((pref) => (
+        <div key={pref.channel_id} className="dcc-card p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-xl">{pref.channel_icon}</span>
+              <div>
+                <h3 className="text-sm font-semibold text-slate-100">{pref.channel_name}</h3>
+                <p className="text-xs text-slate-500">{pref.channel_slug}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => toggleChannel(pref)}
+              disabled={saving === pref.channel_id}
+              className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+                pref.enabled
+                  ? "bg-green-600/20 text-green-400 hover:bg-green-600/30"
+                  : "bg-slate-700 text-slate-400 hover:bg-slate-600"
+              }`}
+            >
+              {pref.enabled ? "Enabled" : "Disabled"}
+            </button>
+          </div>
+
+          {/* Discord-specific: webhook URL */}
+          {pref.channel_slug === "discord" && (
+            <div className="mt-3 pt-3 border-t border-slate-700">
+              <label className="text-xs text-slate-400 block mb-1">
+                Discord Webhook URL (for task reminders)
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  placeholder="https://discord.com/api/webhooks/..."
+                  value={webhookUrl}
+                  onChange={(e) => setWebhookUrl(e.target.value)}
+                  className="flex-1 bg-slate-800 border border-slate-600 rounded px-3 py-1.5 text-sm text-slate-100 placeholder:text-slate-500"
+                />
+                <button
+                  onClick={saveWebhook}
+                  disabled={saving === pref.channel_id || !webhookUrl.trim()}
+                  className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-3 py-1.5 rounded text-xs font-medium"
+                >
+                  Save
+                </button>
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                Create a webhook in your Discord server settings and paste the URL here to receive daily task reminders.
+              </p>
+            </div>
+          )}
+        </div>
+      ))}
+
+      {prefs.length === 0 && (
+        <div className="dcc-card p-6 text-center">
+          <p className="text-sm text-slate-400">No notification channels configured.</p>
+        </div>
       )}
     </div>
   );

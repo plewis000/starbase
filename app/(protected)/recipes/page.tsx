@@ -18,6 +18,7 @@ export default function RecipesPage() {
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [showRecipeModal, setShowRecipeModal] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   // Meal plan state
   const [mealPlan, setMealPlan] = useState<MealPlan | null>(null);
@@ -77,6 +78,47 @@ export default function RecipesPage() {
     } else {
       toast.error("Failed to add to shopping list");
     }
+  };
+
+  const importFromUrl = async (url: string) => {
+    const res = await fetch("/api/recipes/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+    });
+    if (!res.ok) {
+      const data = await res.json();
+      toast.error(data.error || "Import failed");
+      return;
+    }
+    const imported = await res.json();
+    // Pre-fill as a new recipe for editing
+    setEditingRecipe({
+      id: "",
+      title: imported.title,
+      source_url: imported.source_url,
+      servings: imported.servings,
+      prep_time_minutes: imported.prep_time_minutes,
+      cook_time_minutes: imported.cook_time_minutes,
+      instructions: imported.instructions,
+      tags: imported.tags || [],
+      notes: null,
+      created_by: "",
+      created_at: "",
+      updated_at: "",
+      ingredients: (imported.ingredients || []).map((ing: { name: string; quantity: string }, i: number) => ({
+        id: `temp-${i}`,
+        recipe_id: "",
+        name: ing.name,
+        quantity: ing.quantity,
+        category_id: null,
+        is_optional: false,
+        sort_order: i,
+      })),
+    } as Recipe);
+    setShowImportModal(false);
+    setShowRecipeModal(true);
+    toast.success(`Imported "${imported.title}" — review and save`);
   };
 
   // ─── Meal Plan ──────────────────────────────────────────
@@ -220,6 +262,9 @@ export default function RecipesPage() {
           setEditingRecipe={setEditingRecipe}
           fetchRecipes={fetchRecipes}
           toast={toast}
+          showImportModal={showImportModal}
+          setShowImportModal={setShowImportModal}
+          importFromUrl={importFromUrl}
         />
       )}
 
@@ -258,13 +303,16 @@ interface RecipesTabProps {
   setEditingRecipe: (r: Recipe | null) => void;
   fetchRecipes: () => void;
   toast: ReturnType<typeof useToast>;
+  showImportModal: boolean;
+  setShowImportModal: (v: boolean) => void;
+  importFromUrl: (url: string) => Promise<void>;
 }
 
 function RecipesTab({
   recipes, loading, search, setSearch, selectedRecipe, setSelectedRecipe,
   fetchRecipeDetail, deleteRecipe, addToShoppingList,
   showRecipeModal, setShowRecipeModal, editingRecipe, setEditingRecipe,
-  fetchRecipes, toast,
+  fetchRecipes, toast, showImportModal, setShowImportModal, importFromUrl,
 }: RecipesTabProps) {
   if (loading) return <LoadingSpinner />;
 
@@ -279,6 +327,12 @@ function RecipesTab({
           onChange={(e) => setSearch(e.target.value)}
           className="flex-1 bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500"
         />
+        <button
+          onClick={() => setShowImportModal(true)}
+          className="bg-slate-700 hover:bg-slate-600 text-slate-200 px-4 py-2 rounded text-sm font-medium"
+        >
+          Import URL
+        </button>
         <button
           onClick={() => { setEditingRecipe(null); setShowRecipeModal(true); }}
           className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded text-sm font-medium"
@@ -335,6 +389,14 @@ function RecipesTab({
             ))}
           </div>
         )
+      )}
+
+      {/* Import URL Modal */}
+      {showImportModal && (
+        <ImportUrlModal
+          onClose={() => setShowImportModal(false)}
+          onImport={importFromUrl}
+        />
       )}
 
       {/* Recipe Form Modal */}
@@ -838,5 +900,57 @@ function MealPlanTab({
         </>
       )}
     </div>
+  );
+}
+
+// ─── Import URL Modal ──────────────────────────────────────
+
+function ImportUrlModal({
+  onClose,
+  onImport,
+}: {
+  onClose: () => void;
+  onImport: (url: string) => Promise<void>;
+}) {
+  const [url, setUrl] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleImport = async () => {
+    if (!url.trim()) return;
+    setLoading(true);
+    try {
+      await onImport(url.trim());
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal isOpen={true} onClose={onClose} title="Import Recipe from URL">
+      <div className="space-y-4">
+        <p className="text-sm text-slate-400">
+          Paste a recipe URL to automatically extract ingredients, instructions, and more.
+        </p>
+        <input
+          type="url"
+          placeholder="https://www.example.com/recipe/..."
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") handleImport(); }}
+          className="w-full bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500"
+          autoFocus
+        />
+        <div className="flex justify-end gap-2">
+          <button onClick={onClose} className="text-xs text-slate-400 px-3 py-1.5">Cancel</button>
+          <button
+            onClick={handleImport}
+            disabled={!url.trim() || loading}
+            className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-4 py-2 rounded text-sm font-medium"
+          >
+            {loading ? "Importing..." : "Import"}
+          </button>
+        </div>
+      </div>
+    </Modal>
   );
 }

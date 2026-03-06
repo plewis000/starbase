@@ -1,8 +1,15 @@
 // Discord API helpers — used by both interaction webhook and setup route
+// Uses @discordjs/rest for automatic rate-limit handling
+
+import { REST } from "@discordjs/rest";
+import { Routes } from "discord-api-types/v10";
 
 const DISCORD_API = "https://discord.com/api/v10";
 const BOT_TOKEN = process.env.DISCORD_BOT_TOKEN!;
 const GUILD_ID = process.env.DISCORD_GUILD_ID!;
+
+// Singleton REST client — handles rate limits, retries, and auth automatically
+const rest = new REST({ version: "10" }).setToken(BOT_TOKEN);
 
 interface DiscordChannel {
   id: string;
@@ -11,39 +18,29 @@ interface DiscordChannel {
   parent_id?: string;
 }
 
-// Standard headers for Discord API calls
-function headers() {
-  return {
-    Authorization: `Bot ${BOT_TOKEN}`,
-    "Content-Type": "application/json",
-  };
-}
-
 // Send a message to a Discord channel
 export async function sendMessage(channelId: string, content: string) {
   // Discord message limit is 2000 chars — split if needed
   const chunks = splitMessage(content, 2000);
   for (const chunk of chunks) {
-    const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
-      method: "POST",
-      headers: headers(),
-      body: JSON.stringify({ content: chunk }),
-    });
-    if (!res.ok) {
-      console.error("[discord] sendMessage failed:", res.status, await res.text().catch(() => ""));
+    try {
+      await rest.post(Routes.channelMessages(channelId), {
+        body: { content: chunk },
+      });
+    } catch (err) {
+      console.error("[discord] sendMessage failed:", err);
     }
   }
 }
 
 // Send an embed to a Discord channel
 export async function sendEmbed(channelId: string, embed: Record<string, unknown>) {
-  const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
-    method: "POST",
-    headers: headers(),
-    body: JSON.stringify({ embeds: [embed] }),
-  });
-  if (!res.ok) {
-    console.error("[discord] sendEmbed failed:", res.status, await res.text().catch(() => ""));
+  try {
+    await rest.post(Routes.channelMessages(channelId), {
+      body: { embeds: [embed] },
+    });
+  } catch (err) {
+    console.error("[discord] sendEmbed failed:", err);
   }
 }
 
@@ -53,26 +50,24 @@ export async function sendMessageWithButtons(
   channelId: string,
   payload: { content?: string; embeds?: Record<string, unknown>[]; components: Record<string, unknown>[] }
 ): Promise<string | null> {
-  const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
-    method: "POST",
-    headers: headers(),
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) {
-    console.error("[discord] sendMessageWithButtons failed:", await res.text());
+  try {
+    const msg = (await rest.post(Routes.channelMessages(channelId), {
+      body: payload,
+    })) as { id?: string };
+    return msg.id || null;
+  } catch (err) {
+    console.error("[discord] sendMessageWithButtons failed:", err);
     return null;
   }
-  const msg = await res.json();
-  return msg.id || null;
 }
 
 // Get all channels in the guild
 export async function getGuildChannels(): Promise<DiscordChannel[]> {
-  const res = await fetch(`${DISCORD_API}/guilds/${GUILD_ID}/channels`, {
-    headers: headers(),
-  });
-  if (!res.ok) return [];
-  return res.json();
+  try {
+    return (await rest.get(Routes.guildChannels(GUILD_ID))) as DiscordChannel[];
+  } catch {
+    return [];
+  }
 }
 
 // Create a text channel in the guild
@@ -83,32 +78,24 @@ export async function createChannel(name: string, categoryId?: string): Promise<
   };
   if (categoryId) body.parent_id = categoryId;
 
-  const res = await fetch(`${DISCORD_API}/guilds/${GUILD_ID}/channels`, {
-    method: "POST",
-    headers: headers(),
-    body: JSON.stringify(body),
-  });
-
-  if (!res.ok) {
-    console.error("Failed to create channel:", await res.text());
+  try {
+    return (await rest.post(Routes.guildChannels(GUILD_ID), { body })) as DiscordChannel;
+  } catch (err) {
+    console.error("Failed to create channel:", err);
     return null;
   }
-  return res.json();
 }
 
 // Create a category channel
 export async function createCategory(name: string): Promise<DiscordChannel | null> {
-  const res = await fetch(`${DISCORD_API}/guilds/${GUILD_ID}/channels`, {
-    method: "POST",
-    headers: headers(),
-    body: JSON.stringify({ name, type: 4 }), // 4 = category
-  });
-
-  if (!res.ok) {
-    console.error("Failed to create category:", await res.text());
+  try {
+    return (await rest.post(Routes.guildChannels(GUILD_ID), {
+      body: { name, type: 4 }, // 4 = category
+    })) as DiscordChannel;
+  } catch (err) {
+    console.error("Failed to create category:", err);
     return null;
   }
-  return res.json();
 }
 
 // Register slash commands for the guild
@@ -199,19 +186,17 @@ export async function registerSlashCommands() {
     },
   ];
 
-  const res = await fetch(`${DISCORD_API}/applications/${APP_ID}/guilds/${GUILD_ID}/commands`, {
-    method: "PUT",
-    headers: headers(),
-    body: JSON.stringify(commands),
-  });
-
-  if (!res.ok) {
-    const err = await res.text();
-    console.error("Failed to register commands:", err);
-    return { success: false, error: err };
+  try {
+    await rest.put(
+      Routes.applicationGuildCommands(APP_ID, GUILD_ID),
+      { body: commands },
+    );
+    return { success: true, commands: commands.length };
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.error("Failed to register commands:", errMsg);
+    return { success: false, error: errMsg };
   }
-
-  return { success: true, commands: commands.length };
 }
 
 // Split long messages at newlines
@@ -257,13 +242,12 @@ export const SYSTEM_COLOR = 0xDC2626;   // Crimson red — The System's announce
 
 // Update a message (e.g., to disable buttons after interaction)
 export async function editMessage(channelId: string, messageId: string, payload: Record<string, unknown>) {
-  const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages/${messageId}`, {
-    method: "PATCH",
-    headers: headers(),
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) {
-    console.error("[discord] editMessage failed:", res.status, await res.text().catch(() => ""));
+  try {
+    await rest.patch(Routes.channelMessage(channelId, messageId), {
+      body: payload,
+    });
+  } catch (err) {
+    console.error("[discord] editMessage failed:", err);
   }
 }
 
