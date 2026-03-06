@@ -205,7 +205,7 @@ export async function buildUserContext(
   // Get observations grouped by type, ordered by confidence
   const { data: observations } = await platform(supabase)
     .from("ai_observations")
-    .select("observation_type, content, confidence, source_layer")
+    .select("id, observation_type, content, confidence, source_layer")
     .eq("user_id", userId)
     .eq("is_active", true)
     .order("confidence", { ascending: false })
@@ -213,6 +213,20 @@ export async function buildUserContext(
 
   if (!observations || observations.length === 0) {
     return `You are talking to ${userName}. You don't know much about them yet — learn through conversation. Ask questions naturally, remember what they tell you.`;
+  }
+
+  // Memory access refresh — boost confidence of accessed observations (Ebbinghaus-inspired).
+  // Observations that are used in conversations are still relevant; prevent decay.
+  // Non-blocking: fire and forget.
+  const boostIds = observations
+    .filter((o) => o.confidence < 0.95 && o.source_layer !== "declared")
+    .map((o) => o.id);
+  if (boostIds.length > 0) {
+    // Tiny boost (+0.02) per access, capped at 0.95
+    Promise.resolve(
+      platform(supabase)
+        .rpc("boost_observation_confidence", { p_ids: boostIds, p_amount: 0.02, p_cap: 0.95 })
+    ).catch(() => {}); // Non-critical — silently ignore errors
   }
 
   // Group by type
