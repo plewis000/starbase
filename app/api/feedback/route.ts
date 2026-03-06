@@ -11,12 +11,8 @@ import { platform } from "@/lib/supabase/schemas";
 import { getHouseholdContext } from "@/lib/household";
 import { triggerNotification } from "@/lib/notify";
 import { sendMessageWithButtons, ZEV_COLOR } from "@/lib/discord";
-import {
-  validateRequiredString,
-  validateOptionalString,
-  validateEnum,
-  validatePagination,
-} from "@/lib/validation";
+import { validateEnum, validatePagination } from "@/lib/validation";
+import { createFeedbackSchema, parseBody } from "@/lib/schemas";
 import type { FeedbackType, FeedbackStatus, FeedbackSource } from "@/lib/types";
 
 const VALID_TYPES: readonly FeedbackType[] = ["bug", "wish", "feedback", "question"] as const;
@@ -103,23 +99,11 @@ export const GET = withUser(async (request: NextRequest, { supabase, user }) => 
 
 // POST /api/feedback — submit feedback (frictionless)
 export const POST = withUser(async (request: NextRequest, { supabase, user }) => {
-  let body;
-  try { body = await request.json(); } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  const parsed = await parseBody(request, createFeedbackSchema);
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
-
-  // Only body is truly required — everything else has defaults or is optional
-  const bodyCheck = validateRequiredString(body.body, "body", 5000);
-  if (!bodyCheck.valid) return NextResponse.json({ error: bodyCheck.error }, { status: 400 });
-
-  const typeCheck = validateEnum(body.type || "feedback", "type", VALID_TYPES);
-  if (!typeCheck.valid) return NextResponse.json({ error: typeCheck.error }, { status: 400 });
-
-  const sourceCheck = validateEnum(body.source || "web_form", "source", VALID_SOURCES);
-  if (!sourceCheck.valid) return NextResponse.json({ error: sourceCheck.error }, { status: 400 });
-
-  const pageUrlCheck = validateOptionalString(body.page_url, "page_url", 500);
-  if (!pageUrlCheck.valid) return NextResponse.json({ error: pageUrlCheck.error }, { status: 400 });
+  const { type, content, source } = parsed.data;
 
   // Get household context (non-blocking — feedback works without a household)
   let householdId: string | null = null;
@@ -133,13 +117,13 @@ export const POST = withUser(async (request: NextRequest, { supabase, user }) =>
   const insertPayload = {
     household_id: householdId,
     submitted_by: user.id,
-    type: typeCheck.value,
-    body: bodyCheck.value,
-    page_url: pageUrlCheck.value || body.page_url || null,
-    screenshot_url: body.screenshot_url || null,
-    source: sourceCheck.value,
-    conversation_id: body.conversation_id || null,
-    tags: body.tags || null,
+    type,
+    body: content,
+    page_url: null,
+    screenshot_url: null,
+    source,
+    conversation_id: null,
+    tags: null,
   };
 
   const { data: feedbackItem, error } = await platform(supabase)
@@ -178,13 +162,13 @@ export const POST = withUser(async (request: NextRequest, { supabase, user }) =>
         for (const member of (members || [])) {
           await triggerNotification(supabase, {
             recipientUserId: member.user_id,
-            title: `${typeEmoji[typeCheck.value]} New ${typeCheck.value}: ${bodyCheck.value.slice(0, 80)}`,
-            body: bodyCheck.value.length > 80 ? bodyCheck.value.slice(0, 200) + "..." : bodyCheck.value,
+            title: `${typeEmoji[type]} New ${type}: ${content.slice(0, 80)}`,
+            body: content.length > 80 ? content.slice(0, 200) + "..." : content,
             event: "system",
             metadata: {
               feedback_id: feedbackItem.id,
-              feedback_type: typeCheck.value,
-              page_url: pageUrlCheck.value,
+              feedback_type: type,
+              page_url: null,
             },
           });
         }
@@ -200,10 +184,10 @@ export const POST = withUser(async (request: NextRequest, { supabase, user }) =>
         };
         const messageId = await sendMessageWithButtons(pipelineChannelId, {
           embeds: [{
-            title: `${typeEmoji[typeCheck.value] || "💬"} New ${typeCheck.value}`,
-            description: bodyCheck.value.slice(0, 2000),
+            title: `${typeEmoji[type] || "💬"} New ${type}`,
+            description: content.slice(0, 2000),
             color: ZEV_COLOR,
-            footer: { text: `ID: ${feedbackItem.id.slice(0, 8)} | Source: ${sourceCheck.value}` },
+            footer: { text: `ID: ${feedbackItem.id.slice(0, 8)} | Source: ${source}` },
           }],
           components: [{
             type: 1,
@@ -227,9 +211,9 @@ export const POST = withUser(async (request: NextRequest, { supabase, user }) =>
 
   return NextResponse.json({
     feedback: feedbackItem,
-    message: typeCheck.value === "bug"
+    message: type === "bug"
       ? "Bug logged. We'll look into it."
-      : typeCheck.value === "wish"
+      : type === "wish"
       ? "Wish captured. Added to the backlog."
       : "Thanks for the feedback!",
   }, { status: 201 });

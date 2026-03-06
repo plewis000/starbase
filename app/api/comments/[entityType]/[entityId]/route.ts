@@ -4,7 +4,8 @@ import { platform } from "@/lib/supabase/schemas";
 import { logActivity } from "@/lib/activity-log";
 import { parseMentions, persistMentions } from "@/lib/mention-parser";
 import { notifyEntity, ensureWatching, getUserDisplayName } from "@/lib/notify";
-import { validateRequiredString, safeParseBody, isValidUUID, validateEnum } from "@/lib/validation";
+import { isValidUUID, validateEnum } from "@/lib/validation";
+import { createCommentSchema, parseBody } from "@/lib/schemas";
 import { createClient } from "@/lib/supabase/server";
 
 const VALID_ENTITY_TYPES = ["task", "goal", "habit"] as const;
@@ -139,19 +140,14 @@ export const POST = withAuth(async (request: NextRequest, { supabase, user }, pa
   if (!etCheck.valid) return NextResponse.json({ error: etCheck.error }, { status: 400 });
   if (!isValidUUID(entityId)) return NextResponse.json({ error: "Invalid entity ID" }, { status: 400 });
 
-  const parsed = await safeParseBody(request);
-  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
-
-  const { body: commentBody, parent_id, metadata } = parsed.body;
-
-  const bodyCheck = validateRequiredString(commentBody, "body", 10000);
-  if (!bodyCheck.valid) return NextResponse.json({ error: bodyCheck.error }, { status: 400 });
+  const parsed = await parseBody(request, createCommentSchema);
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
+  }
+  const { content, parent_id } = parsed.data;
 
   // Validate parent_id if provided (must be a comment on same entity)
   if (parent_id) {
-    if (!isValidUUID(parent_id)) {
-      return NextResponse.json({ error: "parent_id must be a valid UUID" }, { status: 400 });
-    }
     const { data: parentComment } = await platform(supabase)
       .from("comments")
       .select("id, entity_type, entity_id")
@@ -173,9 +169,9 @@ export const POST = withAuth(async (request: NextRequest, { supabase, user }, pa
       entity_type: entityType,
       entity_id: entityId,
       user_id: user.id,
-      body: bodyCheck.value,
+      body: content,
       parent_id: parent_id || null,
-      metadata: metadata && typeof metadata === "object" ? metadata : null,
+      metadata: null,
     })
     .select("*")
     .single();
@@ -183,7 +179,7 @@ export const POST = withAuth(async (request: NextRequest, { supabase, user }, pa
   if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
   // Parse mentions and persist
-  const mentionResult = await parseMentions(supabase, bodyCheck.value);
+  const mentionResult = await parseMentions(supabase, content);
   if (mentionResult.resolvedUserIds.length > 0) {
     await persistMentions(
       supabase,
@@ -225,7 +221,7 @@ export const POST = withAuth(async (request: NextRequest, { supabase, user }, pa
     event: eventType as any,
     actorUserId: user.id,
     title: `${actorName} commented on ${entityType}: ${entityTitle}`,
-    body: bodyCheck.value.length > 200 ? bodyCheck.value.slice(0, 200) + "..." : bodyCheck.value,
+    body: content.length > 200 ? content.slice(0, 200) + "..." : content,
     mentionedUserIds: mentionResult.resolvedUserIds,
     metadata: { comment_id: comment.id },
   }).catch(console.error);

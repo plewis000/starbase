@@ -3,11 +3,7 @@ import { withAuth } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
 import { getGoalHabitLookups, enrichHabits, enrichHabit } from "@/lib/goal-habit-enrichment";
 import { logActivity } from "@/lib/activity-log";
-import {
-  validateRequiredString, validateOptionalString, validateRequiredUUID,
-  validateOptionalUUID, validateOptionalDate, validateSpecificDays,
-  validateUUIDArray, validatePositiveInt, safeParseBody,
-} from "@/lib/validation";
+import { createHabitSchema, parseBody } from "@/lib/schemas";
 
 // ---- GET: List habits with filtering ----
 
@@ -96,59 +92,25 @@ export const GET = withAuth(async (request, { supabase, user }) => {
 // ---- POST: Create a habit ----
 
 export const POST = withAuth(async (request, { supabase, user }) => {
-  const parsed = await safeParseBody(request);
+  const parsed = await parseBody(request, createHabitSchema);
   if (!parsed.ok) {
     return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
-  const body = parsed.body;
   const { title, description, category_id, frequency_id, target_count,
-          time_preference_id, specific_days, started_on, goal_ids } = body;
-
-  // Validate inputs
-  const titleCheck = validateRequiredString(title, "title", 200);
-  if (!titleCheck.valid) return NextResponse.json({ error: titleCheck.error }, { status: 400 });
-
-  const descCheck = validateOptionalString(description, "description", 2000);
-  if (!descCheck.valid) return NextResponse.json({ error: descCheck.error }, { status: 400 });
-
-  const freqCheck = validateRequiredUUID(frequency_id, "frequency_id");
-  if (!freqCheck.valid) return NextResponse.json({ error: freqCheck.error }, { status: 400 });
-
-  const catCheck = validateOptionalUUID(category_id, "category_id");
-  if (!catCheck.valid) return NextResponse.json({ error: catCheck.error }, { status: 400 });
-
-  const tpCheck = validateOptionalUUID(time_preference_id, "time_preference_id");
-  if (!tpCheck.valid) return NextResponse.json({ error: tpCheck.error }, { status: 400 });
-
-  const startCheck = validateOptionalDate(started_on, "started_on");
-  if (!startCheck.valid) return NextResponse.json({ error: startCheck.error }, { status: 400 });
-
-  const daysCheck = validateSpecificDays(specific_days);
-  if (!daysCheck.valid) return NextResponse.json({ error: daysCheck.error }, { status: 400 });
-
-  const goalIdsCheck = validateUUIDArray(goal_ids, "goal_ids");
-  if (!goalIdsCheck.valid) return NextResponse.json({ error: goalIdsCheck.error }, { status: 400 });
-
-  // Validate target_count if provided
-  let validatedTargetCount = 1;
-  if (target_count !== undefined && target_count !== null) {
-    const tcCheck = validatePositiveInt(target_count, "target_count", 1, 365);
-    if (!tcCheck.valid) return NextResponse.json({ error: tcCheck.error }, { status: 400 });
-    validatedTargetCount = tcCheck.value;
-  }
+          time_preference_id, specific_days, started_on, goal_ids } = parsed.data;
 
   const { data: habit, error } = await platform(supabase)
     .from("habits")
     .insert({
-      title: titleCheck.value,
-      description: descCheck.value,
-      category_id: catCheck.value,
-      frequency_id: freqCheck.value,
-      target_count: validatedTargetCount,
-      time_preference_id: tpCheck.value,
-      specific_days: daysCheck.value,
+      title,
+      description,
+      category_id,
+      frequency_id,
+      target_count,
+      time_preference_id,
+      specific_days,
       owner_id: user.id,
-      started_on: startCheck.value || new Date().toISOString().split("T")[0],
+      started_on: started_on || new Date().toISOString().split("T")[0],
       source: "manual",
     })
     .select("*")
@@ -159,8 +121,8 @@ export const POST = withAuth(async (request, { supabase, user }) => {
   }
 
   // Link to goals if provided
-  if (goalIdsCheck.value.length > 0) {
-    const goalLinks = goalIdsCheck.value.map((gid: string) => ({
+  if (goal_ids && goal_ids.length > 0) {
+    const goalLinks = goal_ids.map((gid: string) => ({
       goal_id: gid,
       habit_id: habit.id,
       weight: 1.0,

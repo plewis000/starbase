@@ -5,6 +5,7 @@ import { getGoalHabitLookups, enrichGoal } from "@/lib/goal-habit-enrichment";
 import { logActivity, logFieldChanges } from "@/lib/activity-log";
 import { recalculateAndUpdateGoalProgress } from "@/lib/goal-progress";
 import { awardXp, checkAchievements } from "@/lib/gamification";
+import { updateGoalSchema, parseBody } from "@/lib/schemas";
 
 // ---- GET: Single goal with full details ----
 
@@ -110,21 +111,15 @@ export const PATCH = withAuth(async (request, { supabase, user }, params) => {
     return NextResponse.json({ error: "Goal not found" }, { status: 404 });
   }
 
-  let body;
-
-  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
-
-  // Allowed update fields
-  const allowedFields = [
-    "title", "description", "category_id", "timeframe_id",
-    "start_date", "target_date", "progress_type", "progress_value",
-    "target_value", "current_value", "unit", "status", "parent_goal_id",
-  ];
+  const parsed = await parseBody(request, updateGoalSchema);
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
+  }
 
   const updates: Record<string, unknown> = {};
-  for (const field of allowedFields) {
-    if (body[field] !== undefined) {
-      updates[field] = body[field];
+  for (const [key, value] of Object.entries(parsed.data)) {
+    if (value !== undefined) {
+      updates[key] = value;
     }
   }
 
@@ -153,7 +148,7 @@ export const PATCH = withAuth(async (request, { supabase, user }, params) => {
   await logFieldChanges(supabase, "goal", id, user.id, currentGoal, updates).catch(console.error);
 
   // If current_value changed on a manual goal, recalculate progress
-  if (body.current_value !== undefined && currentGoal.progress_type === "manual" && currentGoal.target_value) {
+  if (updates.current_value !== undefined && currentGoal.progress_type === "manual" && currentGoal.target_value) {
     await recalculateAndUpdateGoalProgress(supabase, id).catch(console.error);
   }
 

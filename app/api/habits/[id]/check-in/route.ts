@@ -4,27 +4,22 @@ import { platform, config } from "@/lib/supabase/schemas";
 import { logActivity } from "@/lib/activity-log";
 import { recalculateAndUpdateStreak } from "@/lib/streak-engine";
 import { recalculateAndUpdateGoalProgress } from "@/lib/goal-progress";
-import { safeParseBody, validateOptionalString, validateOptionalNumber, validateEnum, isValidDate } from "@/lib/validation";
+import { habitCheckInSchema, parseBody } from "@/lib/schemas";
+import { isValidDate } from "@/lib/validation";
 import { awardXp, checkAchievements } from "@/lib/gamification";
 
 // ---- POST: Check in to a habit ----
 
 export const POST = withAuth(async (request, { supabase, user }, params) => {
   const habitId = params!.id;
-  const parsed = await safeParseBody(request);
+  const parsed = await parseBody(request, habitCheckInSchema);
   if (!parsed.ok) {
     return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
-  const body = parsed.body;
-  const { check_date, value, unit, note, mood } = body;
+  const { check_date, value, note, mood } = parsed.data;
 
   // Default to today
-  const date = (check_date as string) || new Date().toISOString().split("T")[0];
-
-  // Validate date format and it must be a real date
-  if (!isValidDate(date)) {
-    return NextResponse.json({ error: "Invalid date format. Use YYYY-MM-DD with a real date." }, { status: 400 });
-  }
+  const date = check_date || new Date().toISOString().split("T")[0];
 
   // Don't allow check-ins in the future
   const today = new Date().toISOString().split("T")[0];
@@ -37,23 +32,6 @@ export const POST = withAuth(async (request, { supabase, user }, params) => {
   oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
   if (date < oneYearAgo.toISOString().split("T")[0]) {
     return NextResponse.json({ error: "Cannot check in for dates more than 1 year ago" }, { status: 400 });
-  }
-
-  // Validate optional fields
-  const valueCheck = validateOptionalNumber(value, "value", 0, 1000000);
-  if (!valueCheck.valid) return NextResponse.json({ error: valueCheck.error }, { status: 400 });
-
-  const noteCheck = validateOptionalString(note, "note", 1000);
-  if (!noteCheck.valid) return NextResponse.json({ error: noteCheck.error }, { status: 400 });
-
-  const unitCheck = validateOptionalString(unit, "unit", 50);
-  if (!unitCheck.valid) return NextResponse.json({ error: unitCheck.error }, { status: 400 });
-
-  // Validate mood if provided
-  const validMoods = ["great", "good", "neutral", "tough", "terrible"] as const;
-  if (mood) {
-    const moodCheck = validateEnum(mood, "mood", validMoods);
-    if (!moodCheck.valid) return NextResponse.json({ error: moodCheck.error }, { status: 400 });
   }
 
   // Verify habit exists and belongs to user
@@ -79,10 +57,10 @@ export const POST = withAuth(async (request, { supabase, user }, params) => {
       habit_id: habitId,
       checked_by: user.id,
       check_date: date,
-      value: valueCheck.value,
-      unit: unitCheck.value,
-      note: noteCheck.value,
-      mood: (mood as string) || null,
+      value: value ?? null,
+      unit: null,
+      note: note ?? null,
+      mood: mood ?? null,
       source: "manual",
     })
     .select("*")

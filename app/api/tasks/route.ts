@@ -3,8 +3,9 @@ import { withAuth } from "@/lib/api/withAuth";
 import { logActivity } from "@/lib/activity-log";
 import { platform, config } from "@/lib/supabase/schemas";
 import { getConfigLookups, enrichTasks } from "@/lib/task-enrichment";
-import { sanitizeSearchInput, validatePagination, validateRequiredString, isValidUUID } from "@/lib/validation";
+import { sanitizeSearchInput, validatePagination, isValidUUID } from "@/lib/validation";
 import { getHouseholdMemberIds } from "@/lib/household";
+import { createTaskSchema, parseBody } from "@/lib/schemas";
 
 // =============================================================
 // GET /api/tasks — List tasks with filtering, sorting, pagination
@@ -243,9 +244,10 @@ export const POST = withAuth(async (request, { supabase, user, ctx }) => {
   // Verify all owners are in the same household
   const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
 
-  let body;
-
-  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
+  const parsed = await parseBody(request, createTaskSchema);
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
+  }
   const {
     title,
     description,
@@ -263,31 +265,17 @@ export const POST = withAuth(async (request, { supabase, user, ctx }) => {
     domain_slugs,
     tag_ids,
     checklist_items,
-  } = body;
+  } = parsed.data;
 
   // Build owner_ids: prefer owner_ids, fall back to assigned_to, default to [current_user]
   let ownerIds: string[] = [];
-  if (rawOwnerIds && Array.isArray(rawOwnerIds) && rawOwnerIds.length > 0) {
-    ownerIds = rawOwnerIds.filter((id: unknown) => typeof id === "string" && memberIds.includes(id as string));
+  if (rawOwnerIds && rawOwnerIds.length > 0) {
+    ownerIds = rawOwnerIds.filter((id) => memberIds.includes(id));
   } else if (assigned_to) {
     if (!memberIds.includes(assigned_to)) {
       return NextResponse.json({ error: "Cannot assign to user outside your household" }, { status: 403 });
     }
     ownerIds = [assigned_to];
-  }
-
-  // Validate title
-  const titleCheck = validateRequiredString(title, "title", 300);
-  if (!titleCheck.valid) {
-    return NextResponse.json({ error: titleCheck.error }, { status: 400 });
-  }
-
-  // Validate UUID fields if provided
-  const uuidFields = { status_id, priority_id, task_type_id, assigned_to, effort_level_id, location_context_id, parent_task_id };
-  for (const [field, val] of Object.entries(uuidFields)) {
-    if (val && !isValidUUID(val)) {
-      return NextResponse.json({ error: `${field} must be a valid UUID` }, { status: 400 });
-    }
   }
 
   // If no status provided, default to "To Do"
@@ -305,7 +293,7 @@ export const POST = withAuth(async (request, { supabase, user, ctx }) => {
   const { data: task, error: taskError } = await platform(supabase)
     .from("tasks")
     .insert({
-      title: titleCheck.value,
+      title,
       description: description || null,
       status_id: effectiveStatusId,
       priority_id: priority_id || null,

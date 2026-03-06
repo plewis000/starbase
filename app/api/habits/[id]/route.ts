@@ -5,6 +5,8 @@ import { getGoalHabitLookups, enrichHabit } from "@/lib/goal-habit-enrichment";
 import { logActivity, logFieldChanges } from "@/lib/activity-log";
 import { getStreakData } from "@/lib/streak-engine";
 import { getCheckInHistory } from "@/lib/streak-engine";
+import { z } from "zod";
+import { updateHabitSchema, parseBody } from "@/lib/schemas";
 
 // ---- GET: Single habit with full details ----
 
@@ -93,30 +95,19 @@ export const PATCH = withAuth(async (request, { supabase, user }, params) => {
     return NextResponse.json({ error: "Habit not found" }, { status: 404 });
   }
 
-  let body;
-
-  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
-
-  const allowedFields = [
-    "title", "description", "category_id", "frequency_id", "target_count",
-    "time_preference_id", "specific_days", "status",
-  ];
-
-  const updates: Record<string, unknown> = {};
-  for (const field of allowedFields) {
-    if (body[field] !== undefined) {
-      updates[field] = body[field];
-    }
+  const patchSchema = updateHabitSchema.extend({
+    goal_ids: z.array(z.string().uuid()).max(50).optional(),
+  });
+  const parsed = await parseBody(request, patchSchema);
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  // Validate specific_days
-  if (updates.specific_days && Array.isArray(updates.specific_days)) {
-    const validDays = (updates.specific_days as number[]).every((d) => d >= 0 && d <= 6);
-    if (!validDays) {
-      return NextResponse.json(
-        { error: "specific_days must be array of 0-6 (Sun-Sat)" },
-        { status: 400 }
-      );
+  const { goal_ids: parsedGoalIds, ...validatedFields } = parsed.data;
+  const updates: Record<string, unknown> = {};
+  for (const [key, val] of Object.entries(validatedFields)) {
+    if (val !== undefined) {
+      updates[key] = val;
     }
   }
 
@@ -145,7 +136,7 @@ export const PATCH = withAuth(async (request, { supabase, user }, params) => {
   }
 
   // Handle goal linking if goal_ids provided
-  if (Array.isArray(body.goal_ids)) {
+  if (parsedGoalIds !== undefined) {
     // Remove existing links
     await platform(supabase)
       .from("goal_habits")
@@ -153,8 +144,8 @@ export const PATCH = withAuth(async (request, { supabase, user }, params) => {
       .eq("habit_id", id);
 
     // Insert new links
-    if (body.goal_ids.length > 0) {
-      const links = body.goal_ids.map((goalId: string) => ({
+    if (parsedGoalIds.length > 0) {
+      const links = parsedGoalIds.map((goalId: string) => ({
         goal_id: goalId,
         habit_id: id,
         weight: 1.0,

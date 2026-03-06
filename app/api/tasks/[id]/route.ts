@@ -7,6 +7,7 @@ import { notifyTaskAssigned, notifyTaskCompleted, notifyCreditedUsers } from "@/
 import { platform, config } from "@/lib/supabase/schemas";
 import { getConfigLookups, enrichTasks } from "@/lib/task-enrichment";
 import { isValidUUID } from "@/lib/validation";
+import { updateTaskSchema } from "@/lib/schemas";
 import { awardXp, checkAchievements, hasXpBeenAwarded } from "@/lib/gamification";
 import { getHouseholdMemberIds, verifyTaskHouseholdAccess } from "@/lib/household";
 
@@ -179,20 +180,24 @@ export const PATCH = withAuth(async (request, { supabase, user, ctx }, params) =
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
-  let body;
-
+  let body: Record<string, unknown>;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
+
+  // Validate known fields with Zod (partial, ignores unknown fields)
+  const zodResult = updateTaskSchema.safeParse(body);
+  if (!zodResult.success) {
+    const firstError = zodResult.error.issues[0];
+    const path = firstError.path.length > 0 ? `${firstError.path.join(".")}: ` : "";
+    return NextResponse.json({ error: `${path}${firstError.message}` }, { status: 400 });
+  }
+
   const updateFields: Record<string, unknown> = {};
 
   // Handle owner_ids update
   if ("owner_ids" in body && Array.isArray(body.owner_ids)) {
-    const validOwners = body.owner_ids.filter(
-      (id: unknown) => typeof id === "string" && memberIds.includes(id as string)
-    );
+    const validOwners = (body.owner_ids as string[]).filter((oid) => memberIds.includes(oid));
     updateFields.owner_ids = validOwners;
-    // Sync assigned_to for backward compat (trigger also handles this, but be explicit)
     updateFields.assigned_to = validOwners[0] || null;
-    // Strip additional_owners from metadata if present
     const existingMetadata = (currentTask.metadata as Record<string, unknown>) || {};
     if (existingMetadata.additional_owners) {
       const { additional_owners: _, ...cleanMeta } = existingMetadata;
@@ -200,77 +205,28 @@ export const PATCH = withAuth(async (request, { supabase, user, ctx }, params) =
     }
   }
 
-  // Only include fields that were actually sent
-  const allowedFields = [
-    "title",
-    "description",
-    "status_id",
-    "priority_id",
-    "task_type_id",
-    "assigned_to",
-    "due_date",
-    "schedule_date",
-    "effort_level_id",
-    "location_context_id",
-    "recurrence_rule",
-    "parent_task_id",
-    "estimated_minutes",
-    "actual_minutes",
-    "snoozed_until",
-    "workflow_phase",
-    "metadata",
-  ];
+  // Apply validated fields from Zod output
+  const validatedData = zodResult.data;
+  for (const [field, value] of Object.entries(validatedData)) {
+    if (value !== undefined && !(field in updateFields)) {
+      updateFields[field] = value;
+    }
+  }
 
-  // UUID fields that need format validation
-  const uuidUpdateFields = [
-    "status_id", "priority_id", "task_type_id", "assigned_to",
-    "effort_level_id", "location_context_id", "parent_task_id",
-  ];
+  // Handle metadata merge (not in Zod schema)
+  if ("metadata" in body && typeof body.metadata === "object" && body.metadata !== null) {
+    const rawMeta = { ...(body.metadata as Record<string, unknown>) };
+    delete rawMeta.additional_owners;
+    if (updateFields.metadata) {
+      updateFields.metadata = { ...(updateFields.metadata as Record<string, unknown>), ...rawMeta };
+    } else {
+      updateFields.metadata = rawMeta;
+    }
+  }
 
-  for (const field of allowedFields) {
-    if (field in body) {
-      // Validate UUID fields
-      if (uuidUpdateFields.includes(field) && body[field] !== null) {
-        if (!isValidUUID(body[field])) {
-          return NextResponse.json(
-            { error: `${field} must be a valid UUID` },
-            { status: 400 }
-          );
-        }
-      }
-      // Validate title length
-      if (field === "title" && typeof body[field] === "string") {
-        const trimmed = body[field].trim();
-        if (trimmed.length === 0) {
-          return NextResponse.json({ error: "title cannot be empty" }, { status: 400 });
-        }
-        if (trimmed.length > 300) {
-          return NextResponse.json({ error: "title must be 300 characters or fewer" }, { status: 400 });
-        }
-        updateFields[field] = trimmed;
-        continue;
-      }
-      // Validate numeric fields
-      if ((field === "estimated_minutes" || field === "actual_minutes") && body[field] !== null) {
-        const num = body[field];
-        if (typeof num !== "number" || num < 0 || num > 525600) {
-          return NextResponse.json(
-            { error: `${field} must be a number between 0 and 525600` },
-            { status: 400 }
-          );
-        }
-      }
-      // Merge metadata, strip additional_owners (migrated to owner_ids)
-      if (field === "metadata") {
-        const rawMeta = { ...body.metadata };
-        delete rawMeta.additional_owners;
-        if (updateFields.metadata) {
-          updateFields.metadata = { ...(updateFields.metadata as Record<string, unknown>), ...rawMeta };
-        } else {
-          updateFields.metadata = rawMeta;
-        }
-        continue;
-      }
+  // Handle fields not in Zod schema but still allowed
+  for (const field of ["estimated_minutes", "actual_minutes", "snoozed_until", "workflow_phase"]) {
+    if (field in body && !(field in updateFields)) {
       updateFields[field] = body[field];
     }
   }
