@@ -39,6 +39,17 @@ Onboarding:
 
 // POST /api/agent — Send a message to the agent
 export async function POST(request: NextRequest) {
+  // Rate limit: AI agent costs money — 20 req/min per IP
+  const { checkRateLimit, getClientIp, RATE_LIMITS } = await import("@/lib/rate-limit");
+  const ip = getClientIp(request);
+  const rl = checkRateLimit(`agent:${ip}`, RATE_LIMITS.agent.limit, RATE_LIMITS.agent.windowMs);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please try again later." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } }
+    );
+  }
+
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

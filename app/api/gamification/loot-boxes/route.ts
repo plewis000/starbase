@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { openLootBox } from "@/lib/gamification";
+import { isValidUUID } from "@/lib/validation";
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
@@ -46,8 +47,8 @@ export async function POST(request: Request) {
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
   const { loot_box_id } = body;
 
-  if (!loot_box_id) {
-    return NextResponse.json({ error: "loot_box_id required" }, { status: 400 });
+  if (!loot_box_id || !isValidUUID(loot_box_id)) {
+    return NextResponse.json({ error: "loot_box_id must be a valid UUID" }, { status: 400 });
   }
 
   const result = await openLootBox(supabase, user.id, loot_box_id);

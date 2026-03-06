@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { platform } from "@/lib/supabase/schemas";
+import { isValidUUID } from "@/lib/validation";
 
 // GET /api/gamification/party-goals — List all party goals with progress
 export async function GET() {
@@ -34,16 +35,18 @@ export async function POST(request: NextRequest) {
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
   const { goal_id, party_xp_bonus } = body;
 
-  if (!goal_id) {
-    return NextResponse.json({ error: "goal_id is required" }, { status: 400 });
+  if (!goal_id || !isValidUUID(goal_id)) {
+    return NextResponse.json({ error: "goal_id must be a valid UUID" }, { status: 400 });
   }
+  const xpBonus = typeof party_xp_bonus === "number" && party_xp_bonus >= 0 && party_xp_bonus <= 10000
+    ? party_xp_bonus : 100;
 
   const { data, error } = await platform(supabase)
     .from("party_goals")
     .upsert({
       goal_id,
       is_party_goal: true,
-      party_xp_bonus: party_xp_bonus || 100,
+      party_xp_bonus: xpBonus,
     }, { onConflict: "goal_id" })
     .select("*")
     .single();
@@ -60,7 +63,7 @@ export async function DELETE(request: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const goalId = request.nextUrl.searchParams.get("goal_id");
-  if (!goalId) return NextResponse.json({ error: "goal_id required" }, { status: 400 });
+  if (!goalId || !isValidUUID(goalId)) return NextResponse.json({ error: "goal_id must be a valid UUID" }, { status: 400 });
 
   const { error } = await platform(supabase)
     .from("party_goals")

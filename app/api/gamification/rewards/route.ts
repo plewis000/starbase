@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { isValidUUID } from "@/lib/validation";
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
@@ -51,8 +52,11 @@ export async function POST(request: Request) {
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
   const { tier_id, name, description, icon, is_household } = body;
 
-  if (!tier_id || !name?.trim()) {
-    return NextResponse.json({ error: "tier_id and name required" }, { status: 400 });
+  if (!tier_id || !isValidUUID(tier_id)) {
+    return NextResponse.json({ error: "tier_id must be a valid UUID" }, { status: 400 });
+  }
+  if (!name || typeof name !== "string" || !name.trim() || name.trim().length > 200) {
+    return NextResponse.json({ error: "name is required (max 200 chars)" }, { status: 400 });
   }
 
   const { data: reward, error } = await supabase
@@ -86,8 +90,8 @@ export async function PATCH(request: Request) {
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
   const { id, name, description, icon, is_household, active } = body;
 
-  if (!id) {
-    return NextResponse.json({ error: "id required" }, { status: 400 });
+  if (!id || !isValidUUID(id)) {
+    return NextResponse.json({ error: "id must be a valid UUID" }, { status: 400 });
   }
 
   const updates: Record<string, unknown> = {};
@@ -121,8 +125,8 @@ export async function DELETE(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
 
-  if (!id) {
-    return NextResponse.json({ error: "id required" }, { status: 400 });
+  if (!id || !isValidUUID(id)) {
+    return NextResponse.json({ error: "id must be a valid UUID" }, { status: 400 });
   }
 
   const { error } = await supabase
