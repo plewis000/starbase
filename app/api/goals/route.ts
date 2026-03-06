@@ -49,7 +49,11 @@ export async function GET(request: Request) {
   }
 
   if (search) {
-    query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`);
+    const { sanitizeSearchInput } = await import("@/lib/validation");
+    const sanitized = sanitizeSearchInput(search);
+    if (sanitized.length > 0) {
+      query = query.or(`title.ilike.%${sanitized}%,description.ilike.%${sanitized}%`);
+    }
   }
 
   const { data: goals, count, error } = await query;
