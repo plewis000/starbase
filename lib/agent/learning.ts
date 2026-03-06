@@ -61,10 +61,10 @@ export async function extractLearnings(
     return { extracted: 0, errors: [] };
   }
 
-  // Load existing observations to avoid duplicates
+  // Load existing observations to avoid duplicates and enable superseding
   const { data: existing } = await platform(supabase)
     .from("ai_observations")
-    .select("content")
+    .select("id, content, observation_type")
     .eq("user_id", userId)
     .eq("is_active", true)
     .limit(50);
@@ -72,6 +72,11 @@ export async function extractLearnings(
   const existingContents = new Set(
     (existing || []).map((o) => o.content.toLowerCase().trim())
   );
+  const existingByType = new Map<string, { id: string; content: string }[]>();
+  for (const o of existing || []) {
+    if (!existingByType.has(o.observation_type)) existingByType.set(o.observation_type, []);
+    existingByType.get(o.observation_type)!.push({ id: o.id, content: o.content.toLowerCase().trim() });
+  }
 
   try {
     const response = await anthropic.messages.create({
@@ -144,6 +149,25 @@ export async function extractLearnings(
 
     if (toInsert.length === 0) {
       return { extracted: 0, errors: [] };
+    }
+
+    // For corrections, supersede conflicting observations of the same type
+    for (const obs of toInsert) {
+      if (obs.observation_type === "correction") {
+        const sameType = existingByType.get("correction") || [];
+        const obsWords = new Set(obs.content.toLowerCase().split(/\s+/).filter((w: string) => w.length > 3));
+        for (const existing of sameType) {
+          const existWords = existing.content.split(/\s+/).filter((w: string) => w.length > 3);
+          const overlap = existWords.filter((w: string) => obsWords.has(w)).length;
+          if (overlap > 0 && overlap / Math.max(obsWords.size, existWords.length) > 0.4) {
+            // Supersede the old observation
+            await platform(supabase)
+              .from("ai_observations")
+              .update({ is_active: false })
+              .eq("id", existing.id);
+          }
+        }
+      }
     }
 
     const { error: insertErr } = await platform(supabase)

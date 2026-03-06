@@ -161,6 +161,9 @@ export async function PATCH(request: NextRequest) {
     const contentCheck = validateRequiredString(body.content, "content", 5000);
     if (!contentCheck.valid) return NextResponse.json({ error: contentCheck.error }, { status: 400 });
     updates.content = contentCheck.value;
+    // User-edited content is a direct declaration — upgrade source and confidence
+    updates.source_layer = "declared";
+    updates.confidence = 0.95;
   }
 
   if (body.confidence !== undefined) {

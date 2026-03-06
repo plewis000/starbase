@@ -921,7 +921,7 @@ async function recallObservations(supabase: Supabase, userId: string, input: Rec
     }
   }
 
-  query = query.order("created_at", { ascending: false }).limit(limit);
+  query = query.order("confidence", { ascending: false }).order("created_at", { ascending: false }).limit(limit);
 
   const { data, error } = await query;
   if (error) return { success: false, error: error.message };
