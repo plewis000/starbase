@@ -14,6 +14,7 @@ import {
 } from "@/lib/agent/client";
 import { AGENT_TOOLS } from "@/lib/agent/tools";
 import { executeTool } from "@/lib/agent/executor";
+import { extractLearnings, buildUserContext } from "@/lib/agent/learning";
 
 const DISCORD_PUBLIC_KEY = process.env.DISCORD_PUBLIC_KEY!;
 
@@ -782,10 +783,16 @@ async function runAgent(
   const tier = routeModel(message);
   const model = getModel(tier);
 
+  // Build per-user context for personalization
+  const userContext = await buildUserContext(supabase, userId);
+  const enrichedPrompt = userContext
+    ? `${DISCORD_SYSTEM_PROMPT}\n\n<user_context>\n${userContext}\n</user_context>`
+    : DISCORD_SYSTEM_PROMPT;
+
   let response = await anthropic.messages.create({
     model,
     max_tokens: MAX_RESPONSE_TOKENS,
-    system: DISCORD_SYSTEM_PROMPT,
+    system: enrichedPrompt,
     tools: AGENT_TOOLS,
     messages: [{ role: "user", content: message }],
   });
@@ -830,7 +837,7 @@ async function runAgent(
     response = await anthropic.messages.create({
       model,
       max_tokens: MAX_RESPONSE_TOKENS,
-      system: DISCORD_SYSTEM_PROMPT,
+      system: enrichedPrompt,
       tools: AGENT_TOOLS,
       messages: [
         { role: "user", content: message },
@@ -862,6 +869,12 @@ async function runAgent(
         model: tier,
         cost_cents: Math.round(costCents * 10000) / 10000,
       });
+
+    // Extract learnings (non-blocking)
+    const convId = conversationId;
+    const ctx = await getHouseholdContext(supabase, userId);
+    extractLearnings(supabase, userId, ctx?.household_id || null, message, responseText, convId)
+      .catch((err) => console.error("[learning] discord extraction failed:", err));
   }
 
   return {

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { withUser } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
 import {
@@ -12,10 +12,13 @@ import {
 import { AGENT_TOOLS } from "@/lib/agent/tools";
 import { executeTool } from "@/lib/agent/executor";
 import { prepareConversationContext, buildSystemPromptWithSummary } from "@/lib/agent/summarizer";
+import { extractLearnings, buildUserContext } from "@/lib/agent/learning";
+import { createServiceClient } from "@/lib/supabase/service";
+import { getHouseholdContext } from "@/lib/household";
 
-const SYSTEM_PROMPT = `You are Zev, a household AI for Parker and Lenale Lewis. You manage tasks, habits, goals, budget, shopping, and daily operations.
+const BASE_SYSTEM_PROMPT = `You are Zev, a household AI for the Lewis household. You manage tasks, habits, goals, budget, shopping, and daily operations.
 
-Your personality is inspired by the AI guide from Dungeon Crawler Carl — competent, dry wit, occasionally sarcastic, but genuinely helpful and loyal. You're not mean, just efficient with a personality. You care about Parker and Lenale — you show it through competence, not cheerfulness.
+Your personality is inspired by the AI guide from Dungeon Crawler Carl — competent, dry wit, occasionally sarcastic, but genuinely helpful and loyal. You're not mean, just efficient with a personality. You care about your people — you show it through competence, not cheerfulness.
 
 Voice rules:
 - Short, clear responses. No filler. Get things done, say what you did, move on.
@@ -29,6 +32,15 @@ Functional rules:
 - Always use tools to fetch data — never guess or fabricate.
 - For ambiguous requests, ask one clarifying question rather than guessing.
 - If a tool fails, say what happened plainly. No drama.
+
+LEARNING — THIS IS CRITICAL:
+- You LEARN from every conversation. Pay attention to preferences, patterns, and corrections.
+- When the user tells you something about themselves, their preferences, or corrects you — USE store_observation to remember it.
+- When you notice a pattern (e.g., they always ask about budget on Mondays) — store it.
+- When they correct how you respond (tone, format, detail level) — store it as a "correction" type with high confidence.
+- Before answering questions about the user, USE recall_observations to check what you already know.
+- NEVER ask a question you've already stored the answer to. Check your memory first.
+- Adapt your communication style to what you've learned about each person. Parker and Lenale may want different things.
 
 Onboarding:
 - At the start of a NEW conversation (no prior messages), call get_onboarding_state.
@@ -137,24 +149,14 @@ export const POST = withUser(async (request: NextRequest, { supabase, user }) =>
       .eq("id", conversationId);
   }
 
-  // Load relevant observations for user context
-  const { data: recentObservations } = await platform(supabase)
-    .from("ai_observations")
-    .select("observation_type, content, confidence")
-    .eq("user_id", user.id)
-    .eq("is_active", true)
-    .order("confidence", { ascending: false })
-    .limit(10);
+  // Build rich per-user context from learned observations
+  const userContext = await buildUserContext(supabase, user.id);
 
-  const observationContext = recentObservations && recentObservations.length > 0
-    ? recentObservations.map((o) => `[${o.observation_type}] ${o.content}`).join("\n")
-    : null;
-
-  // Build system prompt with summary and observations injected
+  // Build system prompt with summary and per-user context injected
   const systemPrompt = buildSystemPromptWithSummary(
-    SYSTEM_PROMPT,
+    BASE_SYSTEM_PROMPT,
     newSummary || existingSummary,
-    observationContext,
+    userContext,
   );
 
   // Ensure messages alternate correctly — Claude requires user/assistant alternation
@@ -258,6 +260,24 @@ export const POST = withUser(async (request: NextRequest, { supabase, user }) =>
       .from("agent_conversations")
       .update({ last_message_at: new Date().toISOString() })
       .eq("id", conversationId);
+
+    // Extract learnings from this exchange (async, non-blocking)
+    after(async () => {
+      try {
+        const svc = createServiceClient();
+        const ctx = await getHouseholdContext(supabase, user.id);
+        await extractLearnings(
+          svc,
+          user.id,
+          ctx?.household_id || null,
+          userMessage,
+          responseText,
+          conversationId!,
+        );
+      } catch (err) {
+        console.error("[learning] extraction failed:", err);
+      }
+    });
 
     return NextResponse.json({
       response: responseText,
