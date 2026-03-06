@@ -19,11 +19,12 @@ export async function GET(request: NextRequest) {
       .select("user_id, crawler_name, total_xp, current_level, current_floor_id, login_streak, title")
       .order("total_xp", { ascending: false });
 
-    // Get achievement counts per user
+    // Get achievement counts per user (bounded to household size)
     const { data: achievementCounts } = await supabase
       .schema("platform")
       .from("achievement_unlocks")
-      .select("user_id");
+      .select("user_id")
+      .limit(5000);
 
     const countMap = new Map<string, number>();
     for (const a of achievementCounts || []) {
@@ -62,7 +63,8 @@ export async function GET(request: NextRequest) {
     .schema("platform")
     .from("xp_ledger")
     .select("user_id, amount")
-    .gte("created_at", periodStart);
+    .gte("created_at", periodStart)
+    .limit(10000);
 
   const xpTotals = new Map<string, number>();
   for (const entry of periodXp || []) {

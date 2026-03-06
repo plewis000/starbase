@@ -148,18 +148,16 @@ export async function awardXp(
     if (floor) floorId = floor.id;
   }
 
-  // Update profile
-  await supabase
-    .schema("platform")
-    .from("crawler_profiles")
-    .update({
-      total_xp: newTotal,
-      current_level: newCalc.level,
-      xp_to_next_level: newCalc.xpToNext,
-      current_floor_id: floorId,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("user_id", userId);
+  // Atomically update profile XP (prevents race condition on concurrent awards)
+  const { data: xpResult } = await supabase.schema("platform").rpc("atomic_update_xp", {
+    p_user_id: userId,
+    p_xp_delta: effectiveAmount,
+    p_new_level: newCalc.level,
+    p_xp_to_next: newCalc.xpToNext,
+    p_floor_id: newFloorNum !== oldFloor ? floorId : null,
+  });
+  // Use actual DB total if available (handles concurrent awards)
+  const actualTotal = xpResult?.[0]?.new_total_xp ?? newTotal;
 
   // Trigger level-up notification
   if (newCalc.level > oldCalc.level) {
@@ -168,15 +166,15 @@ export async function awardXp(
       title: `Level Up! You reached Level ${newCalc.level}`,
       body: newFloorNum > oldFloor
         ? `Welcome to Floor ${newFloorNum}. The System acknowledges your continued existence.`
-        : `${newTotal.toLocaleString()} XP total. Keep crawling.`,
+        : `${actualTotal.toLocaleString()} XP total. Keep crawling.`,
       event: "level_up",
-      metadata: { level: newCalc.level, floor: newFloorNum, total_xp: newTotal },
+      metadata: { level: newCalc.level, floor: newFloorNum, total_xp: actualTotal },
     }).catch(() => {});
   }
 
   return {
     xpAwarded: effectiveAmount,
-    newTotal,
+    newTotal: actualTotal,
     leveledUp: newCalc.level > oldCalc.level,
     oldLevel: oldCalc.level,
     newLevel: newCalc.level,
@@ -520,12 +518,10 @@ async function finishOpen(
     })
     .eq("id", box.id);
 
-  // Increment reward win count
-  await supabase
-    .schema("platform")
-    .from("loot_box_rewards")
-    .update({ times_won: (reward.times_won as number || 0) + 1 })
-    .eq("id", reward.id);
+  // Atomically increment reward win count (prevents race condition)
+  await supabase.schema("platform").rpc("increment_reward_wins", {
+    p_reward_id: reward.id,
+  });
 
   const tier = box.tier as Record<string, string> | undefined;
 

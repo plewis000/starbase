@@ -10,8 +10,7 @@ export async function GET(request: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const params = request.nextUrl.searchParams;
-  const limit = Math.min(parseInt(params.get("limit") || "50"), 200);
-  const offset = parseInt(params.get("offset") || "0");
+  const { limit, offset } = validatePagination(params.get("limit") || "50", params.get("offset"));
   const category_id = params.get("category_id");
   const reviewed = params.get("reviewed");
   const pending = params.get("pending");
