@@ -100,6 +100,10 @@ export async function executeTool(
       case "get_behavioral_summary":
         return await getBehavioralSummary(supabase, userId, input);
 
+      // ── DETECTED PATTERNS ──
+      case "get_patterns":
+        return await getPatterns(supabase, userId, input);
+
       // ── ONBOARDING ──
       case "get_onboarding_state":
         return await getOnboardingState(supabase, userId);
@@ -904,7 +908,7 @@ async function recallObservations(supabase: Supabase, userId: string, input: Rec
 
   let query = platform(supabase)
     .from("ai_observations")
-    .select("id, observation_type, content, confidence, source_layer, tags, created_at")
+    .select("id, observation_type, observation, confidence, source_layer, tags, created_at")
     .eq("user_id", userId)
     .eq("is_active", true);
 
@@ -917,7 +921,17 @@ async function recallObservations(supabase: Supabase, userId: string, input: Rec
   if (input.search) {
     const sanitized = sanitizeSearchInput(input.search as string);
     if (sanitized.length > 0) {
-      query = query.ilike("content", `%${sanitized}%`);
+      // Try fuzzy search via pg_trgm RPC first, fall back to ilike
+      const { data: fuzzyResults } = await platform(supabase)
+        .rpc("search_observations_fuzzy", {
+          p_user_id: userId,
+          p_query: sanitized,
+          p_limit: limit,
+        });
+      if (fuzzyResults && fuzzyResults.length > 0) {
+        return { success: true, data: { observations: fuzzyResults, count: fuzzyResults.length, search_type: "fuzzy" } };
+      }
+      query = query.ilike("observation", `%${sanitized}%`);
     }
   }
 
@@ -959,12 +973,12 @@ async function storeObservation(supabase: Supabase, userId: string, input: Recor
     .insert({
       user_id: userId,
       observation_type: observationType,
-      content: content.trim(),
+      observation: content.trim(),
       confidence,
       source_layer: layer,
       tags: Array.isArray(input.tags) ? (input.tags as string[]).slice(0, 10) : null,
     })
-    .select("id, observation_type, content")
+    .select("id, observation_type, observation")
     .single();
 
   if (error) return { success: false, error: error.message };
@@ -974,11 +988,11 @@ async function storeObservation(supabase: Supabase, userId: string, input: Recor
 async function getUserModel(supabase: Supabase, userId: string, input: Record<string, unknown>): Promise<ToolResult> {
   let query = platform(supabase)
     .from("user_model")
-    .select("attribute_key, attribute_value, source_layer, confidence, version, updated_at")
+    .select("attribute, value, layer, confidence, version, updated_at")
     .eq("user_id", userId);
 
   if (input.attribute_key) {
-    query = query.eq("attribute_key", input.attribute_key as string);
+    query = query.eq("attribute", input.attribute_key as string);
   }
 
   query = query.order("updated_at", { ascending: false });
@@ -1001,7 +1015,7 @@ async function getSuggestions(supabase: Supabase, userId: string, input: Record<
 
   let query = platform(supabase)
     .from("ai_suggestions")
-    .select("id, category, title, description, reasoning, priority, confidence, status, created_at, expires_at")
+    .select("id, category, title, body, reasoning, priority, confidence, status, created_at, expires_at")
     .eq("user_id", userId)
     .eq("status", status)
     .order("priority", { ascending: false })
@@ -1018,15 +1032,15 @@ async function getSuggestions(supabase: Supabase, userId: string, input: Record<
 
 async function createSuggestion(supabase: Supabase, userId: string, input: Record<string, unknown>): Promise<ToolResult> {
   const title = input.title as string;
-  const description = input.description as string;
+  const body = input.description as string;
   const category = input.category as string;
 
-  if (!title || !description || !category) {
+  if (!title || !body || !category) {
     return { success: false, error: "category, title, and description are required" };
   }
 
   if (title.length > 300) return { success: false, error: "title must be 300 characters or fewer" };
-  if (description.length > 2000) return { success: false, error: "description must be 2000 characters or fewer" };
+  if (body.length > 2000) return { success: false, error: "description must be 2000 characters or fewer" };
 
   const validCategories = [
     "habit_adjustment", "goal_suggestion", "schedule_optimization",
@@ -1047,12 +1061,12 @@ async function createSuggestion(supabase: Supabase, userId: string, input: Recor
       user_id: userId,
       category,
       title: title.trim(),
-      description: description.trim(),
+      body: body.trim(),
       reasoning: (input.reasoning as string)?.trim() || null,
-      priority,
+      priority: String(priority),
       confidence,
       status: "pending",
-      source_observation_ids: Array.isArray(input.source_observation_ids)
+      observation_ids: Array.isArray(input.source_observation_ids)
         ? (input.source_observation_ids as string[]).slice(0, 20)
         : null,
     })
@@ -1137,6 +1151,32 @@ async function getBehavioralSummary(supabase: Supabase, userId: string, input: R
       peak_activity_hour: peakHour ? peakHour[0] : null,
     },
   };
+}
+
+// ── DETECTED PATTERNS ──
+
+async function getPatterns(supabase: Supabase, userId: string, input: Record<string, unknown>): Promise<ToolResult> {
+  const activeOnly = input.active_only !== false;
+
+  let query = platform(supabase)
+    .from("detected_patterns")
+    .select("id, pattern_type, description, action, trigger_conditions, confidence, times_observed, times_acted_on, last_observed_at, is_active")
+    .eq("user_id", userId);
+
+  if (activeOnly) {
+    query = query.eq("is_active", true);
+  }
+
+  query = query.order("confidence", { ascending: false }).limit(20);
+
+  const { data, error } = await query;
+  if (error) return { success: false, error: error.message };
+
+  if (!data || data.length === 0) {
+    return { success: true, data: { patterns: [], message: "No behavioral patterns detected yet. These build up over time as you use the app." } };
+  }
+
+  return { success: true, data: { patterns: data, count: data.length } };
 }
 
 // ── ONBOARDING ──

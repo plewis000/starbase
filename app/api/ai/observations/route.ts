@@ -10,8 +10,6 @@ import { createClient } from "@/lib/supabase/server";
 import { platform } from "@/lib/supabase/schemas";
 import {
   validateRequiredString,
-  validateOptionalString,
-  validateOptionalUUID,
   validateOptionalNumber,
   validateEnum,
   validatePagination,
@@ -84,7 +82,9 @@ export async function POST(request: NextRequest) {
   const typeCheck = validateRequiredString(body.observation_type, "observation_type", 100);
   if (!typeCheck.valid) return NextResponse.json({ error: typeCheck.error }, { status: 400 });
 
-  const contentCheck = validateRequiredString(body.content, "content", 5000);
+  // Accept both "content" (API-friendly) and "observation" (DB column)
+  const contentVal = body.content || body.observation;
+  const contentCheck = validateRequiredString(contentVal, "content", 5000);
   if (!contentCheck.valid) return NextResponse.json({ error: contentCheck.error }, { status: 400 });
 
   const layerCheck = validateEnum(body.source_layer || "observed", "source_layer", VALID_LAYERS);
@@ -93,15 +93,12 @@ export async function POST(request: NextRequest) {
   const confCheck = validateOptionalNumber(body.confidence, "confidence", 0, 1);
   if (!confCheck.valid) return NextResponse.json({ error: confCheck.error }, { status: 400 });
 
-  const supersedesCheck = validateOptionalUUID(body.supersedes_id, "supersedes_id");
-  if (!supersedesCheck.valid) return NextResponse.json({ error: supersedesCheck.error }, { status: 400 });
-
   // If superseding another observation, deactivate the old one
-  if (supersedesCheck.value) {
+  if (body.supersedes_id) {
     await platform(supabase)
       .from("ai_observations")
       .update({ is_active: false })
-      .eq("id", supersedesCheck.value);
+      .eq("id", body.supersedes_id);
   }
 
   const { data: observation, error } = await platform(supabase)
@@ -110,13 +107,12 @@ export async function POST(request: NextRequest) {
       user_id: user.id,
       household_id: body.household_id || null,
       observation_type: typeCheck.value,
-      content: contentCheck.value,
+      observation: contentCheck.value,
       confidence: confCheck.value ?? 0.5,
       source_layer: layerCheck.value,
-      source_data: body.source_data || null,
+      data: body.source_data || body.data || null,
       tags: body.tags || null,
-      supersedes_id: supersedesCheck.value,
-      expires_at: body.expires_at || null,
+      supersedes_id: body.supersedes_id || null,
     })
     .select("*")
     .single();
@@ -157,10 +153,12 @@ export async function PATCH(request: NextRequest) {
   // Build update object
   const updates: Record<string, unknown> = {};
 
-  if (body.content !== undefined) {
-    const contentCheck = validateRequiredString(body.content, "content", 5000);
+  // Accept both "content" (API-friendly) and "observation" (DB column)
+  const contentVal = body.content || body.observation;
+  if (contentVal !== undefined) {
+    const contentCheck = validateRequiredString(contentVal, "content", 5000);
     if (!contentCheck.valid) return NextResponse.json({ error: contentCheck.error }, { status: 400 });
-    updates.content = contentCheck.value;
+    updates.observation = contentCheck.value;
     // User-edited content is a direct declaration — upgrade source and confidence
     updates.source_layer = "declared";
     updates.confidence = 0.95;

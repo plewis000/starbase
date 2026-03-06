@@ -381,6 +381,19 @@ export const AGENT_TOOLS: Tool[] = [
     },
   },
 
+  // ── DETECTED PATTERNS ──
+  {
+    name: "get_patterns",
+    description: "View detected behavioral patterns for this user — recurring habits, temporal trends, correlations. Use to understand the user's rhythms and anticipate needs.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        active_only: { type: "boolean", description: "Only active patterns (default true)" },
+      },
+      required: [],
+    },
+  },
+
   // ── ONBOARDING ──
   {
     name: "get_onboarding_state",

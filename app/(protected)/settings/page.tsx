@@ -926,7 +926,7 @@ function NotificationPreferences() {
 interface Observation {
   id: string;
   observation_type: string;
-  content: string;
+  observation: string;
   confidence: number;
   source_layer: string;
   tags: string[] | null;
@@ -996,7 +996,7 @@ function ZevMemoryManager() {
       const res = await fetch("/api/ai/observations", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, content: editContent.trim() }),
+        body: JSON.stringify({ id, content: editContent.trim() }), // API accepts "content" and maps to "observation"
       });
       if (res.ok) {
         toast.success("Observation updated");
@@ -1118,7 +1118,7 @@ function ZevMemoryManager() {
                   ) : (
                     <>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm text-slate-200">{o.content}</p>
+                        <p className="text-sm text-slate-200">{o.observation}</p>
                         <div className="flex items-center gap-2 mt-1">
                           <span className={`text-[10px] px-1.5 py-0.5 rounded ${
                             o.source_layer === "declared" ? "bg-blue-900/30 text-blue-400" :
@@ -1138,7 +1138,7 @@ function ZevMemoryManager() {
                       {o.is_active && (
                         <div className="flex items-center gap-1 flex-shrink-0">
                           <button
-                            onClick={() => { setEditingId(o.id); setEditContent(o.content); }}
+                            onClick={() => { setEditingId(o.id); setEditContent(o.observation); }}
                             className="text-xs text-slate-500 hover:text-slate-300 px-1.5 py-1"
                           >
                             Edit

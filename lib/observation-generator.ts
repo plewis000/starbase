@@ -12,10 +12,10 @@ import type { AiSourceLayer } from "@/lib/types";
 
 interface ObservationPartial {
   observation_type: string;
-  content: string;
+  observation: string;
   confidence: number;
   source_layer: AiSourceLayer;
-  source_data?: Record<string, unknown>;
+  data?: Record<string, unknown>;
   tags?: string[];
 }
 
@@ -29,102 +29,102 @@ const QUESTION_EXTRACTORS: Record<string, (raw: string, extracted?: Record<strin
   // Core identity
   household_roles: (raw, extracted) => [{
     observation_type: "relationship",
-    content: `Household roles and dynamics: ${raw}`,
+    observation: `Household roles and dynamics: ${raw}`,
     confidence: 0.9,
     source_layer: "declared",
     tags: ["household", "roles", "onboarding"],
-    source_data: { question: "household_roles", extracted },
+    data: { question: "household_roles", extracted },
   }],
 
   daily_routine: (raw, extracted) => [{
     observation_type: "routine",
-    content: `Daily routine: ${raw}`,
+    observation: `Daily routine: ${raw}`,
     confidence: 0.9,
     source_layer: "declared",
     tags: ["routine", "schedule", "onboarding"],
-    source_data: { question: "daily_routine", extracted },
+    data: { question: "daily_routine", extracted },
   }],
 
   communication_style: (raw, extracted) => [{
     observation_type: "preference",
-    content: `Communication preferences: ${raw}`,
+    observation: `Communication preferences: ${raw}`,
     confidence: 0.9,
     source_layer: "declared",
     tags: ["communication", "preference", "onboarding"],
-    source_data: { question: "communication_style", extracted },
+    data: { question: "communication_style", extracted },
   }],
 
   biggest_challenge: (raw, extracted) => [{
     observation_type: "context",
-    content: `Biggest current challenge: ${raw}`,
+    observation: `Biggest current challenge: ${raw}`,
     confidence: 0.85,
     source_layer: "declared",
     tags: ["challenge", "pain-point", "onboarding"],
-    source_data: { question: "biggest_challenge", extracted },
+    data: { question: "biggest_challenge", extracted },
   }],
 
   goals_priorities: (raw, extracted) => [{
     observation_type: "goal",
-    content: `Goals and priorities: ${raw}`,
+    observation: `Goals and priorities: ${raw}`,
     confidence: 0.9,
     source_layer: "declared",
     tags: ["goals", "priorities", "onboarding"],
-    source_data: { question: "goals_priorities", extracted },
+    data: { question: "goals_priorities", extracted },
   }],
 
   financial_comfort: (raw, extracted) => [
     {
       observation_type: "preference",
-      content: `Financial tracking comfort level: ${raw}`,
+      observation: `Financial tracking comfort level: ${raw}`,
       confidence: 0.85,
       source_layer: "declared",
       tags: ["finance", "comfort", "onboarding"],
-      source_data: { question: "financial_comfort", extracted },
+      data: { question: "financial_comfort", extracted },
     },
     {
       observation_type: "boundary",
-      content: `Financial sensitivity — be mindful of comfort level when discussing money: ${raw}`,
+      observation: `Financial sensitivity — be mindful of comfort level when discussing money: ${raw}`,
       confidence: 0.7,
       source_layer: "inferred",
       tags: ["finance", "boundary", "onboarding"],
-      source_data: { question: "financial_comfort", inferred: true },
+      data: { question: "financial_comfort", inferred: true },
     },
   ],
 
   pet_peeves: (raw, extracted) => [{
     observation_type: "boundary",
-    content: `Things that annoy or frustrate them: ${raw}`,
+    observation: `Things that annoy or frustrate them: ${raw}`,
     confidence: 0.9,
     source_layer: "declared",
     tags: ["boundary", "preference", "onboarding"],
-    source_data: { question: "pet_peeves", extracted },
+    data: { question: "pet_peeves", extracted },
   }],
 
   motivation_style: (raw, extracted) => [{
     observation_type: "personality",
-    content: `What motivates them: ${raw}`,
+    observation: `What motivates them: ${raw}`,
     confidence: 0.85,
     source_layer: "declared",
     tags: ["motivation", "personality", "onboarding"],
-    source_data: { question: "motivation_style", extracted },
+    data: { question: "motivation_style", extracted },
   }],
 
   notification_preferences: (raw, extracted) => [{
     observation_type: "preference",
-    content: `Notification preferences: ${raw}`,
+    observation: `Notification preferences: ${raw}`,
     confidence: 0.9,
     source_layer: "declared",
     tags: ["notifications", "preference", "onboarding"],
-    source_data: { question: "notification_preferences", extracted },
+    data: { question: "notification_preferences", extracted },
   }],
 
   household_division: (raw, extracted) => [{
     observation_type: "relationship",
-    content: `How household work is divided: ${raw}`,
+    observation: `How household work is divided: ${raw}`,
     confidence: 0.85,
     source_layer: "declared",
     tags: ["household", "division", "responsibilities", "onboarding"],
-    source_data: { question: "household_division", extracted },
+    data: { question: "household_division", extracted },
   }],
 };
 
@@ -172,11 +172,11 @@ export async function generateObservationsFromOnboarding(
         user_id: userId,
         household_id: householdId,
         observation_type: "context",
-        content: `Onboarding answer (${response.question_key}): ${response.raw_response}`,
+        observation: `Onboarding answer (${response.question_key}): ${response.raw_response}`,
         confidence: 0.7,
         source_layer: "declared",
         tags: ["onboarding", response.question_key],
-        source_data: { question: response.question_key },
+        data: { question: response.question_key },
       });
     }
   }

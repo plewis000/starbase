@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { platform } from "@/lib/supabase/schemas";
 import { generateSuggestionsForUser } from "@/lib/suggestion-engine";
+import { detectPatterns } from "@/lib/agent/patterns";
 
 /**
  * CRON: Generate proactive AI suggestions for all active users.
@@ -27,19 +28,30 @@ export async function GET(request: NextRequest) {
   }
 
   let totalCreated = 0;
-  const results: { user_id: string; created: number; errors: string[] }[] = [];
+  let totalPatterns = 0;
+  const results: { user_id: string; created: number; patterns: number; errors: string[] }[] = [];
 
   for (const user of users) {
     const householdId = (user as unknown as { household_members: { household_id: string }[] })
       .household_members?.[0]?.household_id;
 
+    // Detect patterns first — they feed into suggestion generation
+    const patternResult = await detectPatterns(supabase, user.id, householdId || null);
+    totalPatterns += patternResult.detected;
+
     const result = await generateSuggestionsForUser(supabase, user.id, householdId);
     totalCreated += result.created;
-    results.push({ user_id: user.id, ...result });
+    results.push({
+      user_id: user.id,
+      created: result.created,
+      patterns: patternResult.detected,
+      errors: [...result.errors, ...patternResult.errors],
+    });
   }
 
   return NextResponse.json({
     total_created: totalCreated,
+    total_patterns: totalPatterns,
     total_users: users.length,
     results,
   });

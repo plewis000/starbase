@@ -49,7 +49,7 @@ export async function generateSuggestionsForUser(
 
   // Build prompt for AI
   const observationText = observations
-    .map((o) => `[${o.observation_type}|${o.source_layer}|conf:${o.confidence}] ${o.content}`)
+    .map((o) => `[${o.observation_type}|${o.source_layer}|conf:${o.confidence}] ${o.observation}`)
     .join("\n");
 
   const aggregateText = aggregates.length > 0
@@ -117,12 +117,12 @@ Rules:
         household_id: householdId || null,
         category: c.category,
         title: c.title.slice(0, 300),
-        description: c.description.slice(0, 2000),
+        body: c.description.slice(0, 2000),
         reasoning: c.reasoning?.slice(0, 5000) || null,
-        priority: Math.min(Math.max(Math.round(c.priority || 5), 1), 10),
+        priority: String(Math.min(Math.max(Math.round(c.priority || 5), 1), 10)),
         confidence: Math.min(Math.max(c.confidence || 0.5, 0), 1),
         status: "pending" as const,
-        source_observation_ids: Array.isArray(c.source_observation_ids) ? c.source_observation_ids.slice(0, 20) : null,
+        observation_ids: Array.isArray(c.source_observation_ids) ? c.source_observation_ids.slice(0, 20) : null,
       }));
 
     if (toInsert.length === 0) {
@@ -146,7 +146,7 @@ Rules:
 async function getRecentObservations(supabase: SupabaseClient, userId: string) {
   const { data } = await platform(supabase)
     .from("ai_observations")
-    .select("id, observation_type, content, confidence, source_layer")
+    .select("id, observation_type, observation, confidence, source_layer")
     .eq("user_id", userId)
     .eq("is_active", true)
     .order("confidence", { ascending: false })

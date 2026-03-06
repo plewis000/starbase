@@ -8,6 +8,9 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { anthropic, getModel } from "./client";
 import { platform } from "@/lib/supabase/schemas";
+import { analyzeStyleSignals, updateStyleProfile, getStyleProfile, buildStyleGuidance } from "./style-tracker";
+import { getActivePatterns } from "./patterns";
+import { getProactivityState, recordInteraction, getSuggestionFraming } from "./proactivity";
 
 interface ExtractedObservation {
   observation_type: string;
@@ -61,21 +64,30 @@ export async function extractLearnings(
     return { extracted: 0, errors: [] };
   }
 
+  // Track communication style signals (non-blocking)
+  const styleSignals = analyzeStyleSignals(userMessage, assistantResponse);
+  if (styleSignals) {
+    updateStyleProfile(supabase, userId, styleSignals).catch(() => {});
+  }
+
+  // Record interaction for proactivity graduation (non-blocking)
+  recordInteraction(supabase, userId).catch(() => {});
+
   // Load existing observations to avoid duplicates and enable superseding
   const { data: existing } = await platform(supabase)
     .from("ai_observations")
-    .select("id, content, observation_type")
+    .select("id, observation, observation_type")
     .eq("user_id", userId)
     .eq("is_active", true)
     .limit(50);
 
   const existingContents = new Set(
-    (existing || []).map((o) => o.content.toLowerCase().trim())
+    (existing || []).map((o) => o.observation.toLowerCase().trim())
   );
   const existingByType = new Map<string, { id: string; content: string }[]>();
   for (const o of existing || []) {
     if (!existingByType.has(o.observation_type)) existingByType.set(o.observation_type, []);
-    existingByType.get(o.observation_type)!.push({ id: o.id, content: o.content.toLowerCase().trim() });
+    existingByType.get(o.observation_type)!.push({ id: o.id, content: o.observation.toLowerCase().trim() });
   }
 
   try {
@@ -117,7 +129,7 @@ export async function extractLearnings(
     const toInsert = observations
       .filter((o) => {
         if (!o.content || !validTypes.includes(o.observation_type)) return false;
-        // Deduplicate: skip if substantially similar content exists
+        // Deduplicate: skip if substantially similar observation exists
         const normalizedContent = o.content.toLowerCase().trim();
         if (existingContents.has(normalizedContent)) return false;
         // Check for fuzzy duplicates — prefix match OR keyword overlap
@@ -139,10 +151,10 @@ export async function extractLearnings(
         user_id: userId,
         household_id: householdId,
         observation_type: o.observation_type,
-        content: o.content.slice(0, 1000),
+        observation: o.content.slice(0, 1000),
         confidence: Math.min(Math.max(o.confidence || 0.7, 0.1), 1.0),
         source_layer: o.source_layer || "observed",
-        source_data: { conversation_id: conversationId, auto_extracted: true },
+        data: { conversation_id: conversationId, auto_extracted: true },
         tags: Array.isArray(o.tags) ? o.tags.slice(0, 10) : [],
         is_active: true,
       }));
@@ -155,7 +167,7 @@ export async function extractLearnings(
     for (const obs of toInsert) {
       if (obs.observation_type === "correction") {
         const sameType = existingByType.get("correction") || [];
-        const obsWords = new Set(obs.content.toLowerCase().split(/\s+/).filter((w: string) => w.length > 3));
+        const obsWords = new Set(obs.observation.toLowerCase().split(/\s+/).filter((w: string) => w.length > 3));
         for (const existing of sameType) {
           const existWords = existing.content.split(/\s+/).filter((w: string) => w.length > 3);
           const overlap = existWords.filter((w: string) => obsWords.has(w)).length;
@@ -205,7 +217,7 @@ export async function buildUserContext(
   // Get observations grouped by type, ordered by confidence
   const { data: observations } = await platform(supabase)
     .from("ai_observations")
-    .select("id, observation_type, content, confidence, source_layer")
+    .select("id, observation_type, observation, confidence, source_layer")
     .eq("user_id", userId)
     .eq("is_active", true)
     .order("confidence", { ascending: false })
@@ -234,7 +246,7 @@ export async function buildUserContext(
   for (const obs of observations) {
     const type = obs.observation_type;
     if (!grouped[type]) grouped[type] = [];
-    grouped[type].push(`${obs.content} [${obs.source_layer}, conf:${obs.confidence}]`);
+    grouped[type].push(`${obs.observation} [${obs.source_layer}, conf:${obs.confidence}]`);
   }
 
   // Build structured context
@@ -266,6 +278,28 @@ export async function buildUserContext(
         sections.push(`- ${item}`);
       }
     }
+  }
+
+  // Inject communication style guidance
+  const styleProfile = await getStyleProfile(supabase, userId);
+  const styleGuidance = buildStyleGuidance(styleProfile);
+  if (styleGuidance) {
+    sections.push(styleGuidance);
+  }
+
+  // Inject detected behavioral patterns
+  const patternContext = await getActivePatterns(supabase, userId);
+  if (patternContext) {
+    sections.push(patternContext);
+  }
+
+  // Inject proactivity level
+  const proactivity = await getProactivityState(supabase, userId);
+  if (proactivity.level !== "observe") {
+    const framing = getSuggestionFraming(proactivity.level);
+    sections.push(`\nProactivity level: ${proactivity.level}. ${framing ? `When suggesting, use framing like: "${framing}"` : "You can act autonomously and report results."}`);
+  } else {
+    sections.push("\nProactivity level: observe. Do NOT proactively suggest things yet — focus on learning about this user.");
   }
 
   // Get recent suggestion feedback to understand what they accept/reject
