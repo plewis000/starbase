@@ -2,7 +2,7 @@
 // FILE: app/api/ai/aggregates/route.ts
 // PURPOSE: Behavioral aggregates — compute and retrieve daily metrics
 //          Called by cron job or manually. Agent uses this for patterns.
-// PART OF: Desperado Club
+// PART OF: The Keep
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";

@@ -1,4 +1,4 @@
-# Starbase — Decisions Log
+# The Keep — Decisions Log
 
 Extracted during Sisyphus import (Session 3, 2026-02-26). Decisions mined from codebase, git history, existing docs, and FAILURE_LOG.
 

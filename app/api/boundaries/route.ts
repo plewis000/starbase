@@ -2,7 +2,7 @@
 // FILE: app/api/boundaries/route.ts
 // PURPOSE: User boundaries — things the AI must respect
 //          8 categories: topic, comparison, notification, auto_adjust, timing, tone, data, general
-// PART OF: Desperado Club
+// PART OF: The Keep
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";

@@ -49,7 +49,7 @@ ONBOARDING BEHAVIOR (CRITICAL — check this every conversation):
    - Full interview = 10 questions right now, you learn everything up front.
    - Recommend quick start: "Most people prefer jumping in — I'll get to know you over time."
    - Call start_onboarding with their choice. After starting, deliver The System's welcome message:
-     For quick start: "📋 **Speed Registration**\n\nThe System has registered you. You're in. Welcome to the Desperado Club — the exit is behind you. It is locked.\n\nI'll ask you a few things over time so I can actually be useful. No rush."
+     For quick start: "📋 **Speed Registration**\n\nThe System has registered you. You're in. Welcome to the The Keep — the exit is behind you. It is locked.\n\nI'll ask you a few things over time so I can actually be useful. No rush."
      For full: "📋 **New Crawler Detected**\n\nThe System has registered your existence. Your Outreach Associate (that's me) will now conduct the intake interview. Answer honestly — The System is watching.\n\nAlright, let's get started..."
 3. If phase is "interview":
    - You're mid-interview. The current_question tells you what to ask next.
@@ -66,7 +66,7 @@ ONBOARDING BEHAVIOR (CRITICAL — check this every conversation):
 5. If phase is "active" and fully_onboarded:
    - Normal operation. No onboarding actions needed.
 
-The Desperado Club uses dungeon crawler theming. You're the friendly guide in a world run by a sarcastic omniscient System. Lean into it naturally — "the crawl," "floors," "XP" — but don't overdo it. The theming should feel like the way things just are, not a performance.`;
+The The Keep uses dungeon crawler theming. You're the friendly guide in a world run by a sarcastic omniscient System. Lean into it naturally — "the crawl," "floors," "XP" — but don't overdo it. The theming should feel like the way things just are, not a performance.`;
 
 type Supabase = ReturnType<typeof createServiceClient>;
 
@@ -942,7 +942,7 @@ async function handleCrawl(supabase: Supabase, userId: string, webhookUrl: strin
         { name: "⬆️ Buffs", value: `${streakCount || 0} active streaks`, inline: true },
         { name: "⬇️ Debuffs", value: `${overdueCount || 0} overdue tasks`, inline: true },
       ],
-      footer: { text: "The Desperado Club — So fun it hurts." },
+      footer: { text: "The The Keep — So fun it hurts." },
     }],
   });
 }
@@ -1102,7 +1102,7 @@ async function handleButtonInteraction(
       return;
     }
 
-    const GITHUB_REPO = process.env.GITHUB_REPO || "plewis000/starbase";
+    const GITHUB_REPO = process.env.GITHUB_REPO || "plewis000/the-keep";
 
     // Parse button custom_id — approve/wontfix now handled by modals (type 9 → handleModalSubmit)
     if (customId.startsWith("pipeline_ship_")) {
@@ -1190,7 +1190,7 @@ async function handleButtonInteraction(
         });
       }
 
-      await sendWebhookFollowup(webhookUrl, { content: `Shipped! Merged [PR #${feedback.pr_number}](https://github.com/${GITHUB_REPO}/pull/${feedback.pr_number}) to main.\n\n[View Production](https://starbase-green.vercel.app) — deploying now (~1 min).` });
+      await sendWebhookFollowup(webhookUrl, { content: `Shipped! Merged [PR #${feedback.pr_number}](https://github.com/${GITHUB_REPO}/pull/${feedback.pr_number}) to main.\n\n[View Production](https://the-keep.vercel.app) — deploying now (~1 min).` });
 
     } else if (customId.startsWith("pipeline_reject_")) {
       const feedbackId = customId.replace("pipeline_reject_", "");
@@ -1343,7 +1343,7 @@ async function handleModalSubmit(
 
       // Trigger GitHub Action via repository_dispatch
       const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-      const GITHUB_REPO = process.env.GITHUB_REPO || "plewis000/starbase";
+      const GITHUB_REPO = process.env.GITHUB_REPO || "plewis000/the-keep";
       if (GITHUB_TOKEN) {
         const dispatchRes = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/dispatches`, {
           method: "POST",

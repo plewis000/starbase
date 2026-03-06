@@ -51,7 +51,7 @@ jobs:
             --allowedTools Edit Write Read Grep Glob
             "Bash(git:*)" "Bash(npm:*)" "Bash(npx:*)"
           prompt: |
-            You are working on the Desperado Club (Starbase) codebase — a Next.js 14 app with Supabase, Discord integration, and gamification.
+            You are working on the The Keep codebase — a Next.js 14 app with Supabase, Discord integration, and gamification.
 
             Implement this feedback item:
             TYPE: ${{ github.event.client_payload.type }}
@@ -105,7 +105,7 @@ jobs:
           echo "${DESCRIPTION}" >> /tmp/pr-body.md
           echo "" >> /tmp/pr-body.md
           echo "---" >> /tmp/pr-body.md
-          echo "Automated by Starbase Pipeline via Claude Code Action" >> /tmp/pr-body.md
+          echo "Automated by The Keep Pipeline via Claude Code Action" >> /tmp/pr-body.md
 
           PR_URL=$(gh pr create --title "$TITLE" --body-file /tmp/pr-body.md)
 
@@ -118,7 +118,7 @@ jobs:
         run: |
           BRANCH="${{ steps.branch.outputs.branch }}"
           SAFE_BRANCH=$(echo "$BRANCH" | sed 's/\//-/g')
-          PREVIEW_URL="https://starbase-git-${SAFE_BRANCH}-plewis000s-projects.vercel.app"
+          PREVIEW_URL="https://the-keep-git-${SAFE_BRANCH}-plewis000s-projects.vercel.app"
 
           curl -sf -X POST "$PIPELINE_API_URL/api/pipeline/status" \
             -H "Authorization: Bearer $PIPELINE_SECRET" \

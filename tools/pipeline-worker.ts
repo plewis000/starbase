@@ -4,7 +4,7 @@
 //          runs Claude Code CLI to fix/build, creates PR
 // USAGE: npx tsx tools/pipeline-worker.ts
 // SECURITY: execFileSync only (locked decision #29), PIPELINE_SECRET auth
-// PART OF: Desperado Club
+// PART OF: The Keep
 // ============================================================
 
 import { execFileSync } from "child_process";
@@ -29,12 +29,12 @@ if (existsSync(envPath)) {
 }
 
 const PIPELINE_SECRET = process.env.PIPELINE_SECRET;
-const PIPELINE_API_URL = process.env.PIPELINE_API_URL || "https://starbase-green.vercel.app";
+const PIPELINE_API_URL = process.env.PIPELINE_API_URL || "https://the-keep.vercel.app";
 const REPO_PATH = process.env.STARBASE_REPO_PATH || resolve(__dirname, "..");
 const POLL_INTERVAL = parseInt(process.env.POLL_INTERVAL_MS || "30000", 10);
 const JOB_TIMEOUT = parseInt(process.env.JOB_TIMEOUT_MS || "600000", 10); // 10 min default
 const CLAUDE_CMD = process.env.CLAUDE_CMD || "claude";
-const GITHUB_REPO = process.env.GITHUB_REPO || "plewis000/starbase";
+const GITHUB_REPO = process.env.GITHUB_REPO || "plewis000/the-keep";
 
 // Validate config
 if (isNaN(POLL_INTERVAL) || POLL_INTERVAL < 5000) {
@@ -239,7 +239,7 @@ async function processJob(job: PipelineJob) {
 
     // Build prompt for Claude Code
     const prompt = [
-      `You are working on a Next.js app (Desperado Club / Starbase).`,
+      `You are working on a Next.js app (The Keep).`,
       `This is a ${job.type} from a user. Your job: implement the changes needed.`,
       "",
       `## ${typeLabel[job.type] || "Task"}`,
@@ -357,7 +357,7 @@ async function processJob(job: PipelineJob) {
     const prNumber = prMatch ? parseInt(prMatch[1], 10) : null;
 
     // Construct preview URL from branch name
-    const previewUrl = `https://desparado-club-git-${branchName.replace(/\//g, "-")}-plewis000s-projects.vercel.app`;
+    const previewUrl = `https://the-keep-git-${branchName.replace(/\//g, "-")}-plewis000s-projects.vercel.app`;
 
     console.log(`   ✅ PR created: #${prNumber}`);
     console.log(`   Preview URL: ${previewUrl}`);

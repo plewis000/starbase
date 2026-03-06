@@ -24,7 +24,7 @@ export default function LoginPage() {
         <div className="text-center mb-10">
           <div className="text-5xl mb-4">🗡️</div>
           <h1 className="dcc-heading text-3xl tracking-wider text-slate-100">
-            Desperado Club
+            The Keep
           </h1>
           <p className="mt-3 text-dungeon-500 text-sm italic font-mono">
             So fun it hurts.
@@ -34,7 +34,7 @@ export default function LoginPage() {
         {/* Login card */}
         <div className="dcc-card p-8 border-crimson-900/40">
           <h2 className="text-lg font-semibold text-slate-100 mb-1 dcc-heading tracking-wide">
-            Enter Desperado Club
+            Enter The Keep
           </h2>
           <p className="text-dungeon-500 text-sm mb-6">
             Sign in with your Google account to begin the crawl.

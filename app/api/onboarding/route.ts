@@ -4,7 +4,7 @@
 //          QUICK: 2-3 fields → straight to active (beta users)
 //          FULL:  10-question interview → observation → refinement → active
 //          Zev defers full interview questions to 1-per-session after quick start
-// PART OF: Desperado Club
+// PART OF: The Keep
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";

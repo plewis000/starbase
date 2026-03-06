@@ -2,7 +2,7 @@
 // FILE: app/api/ai/suggestions/generate/route.ts
 // PURPOSE: Trigger suggestion generation for the current user
 //          Called by cron job, agent, or manually
-// PART OF: Desperado Club
+// PART OF: The Keep
 // ============================================================
 
 import { NextResponse } from "next/server";

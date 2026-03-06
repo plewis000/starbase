@@ -1,7 +1,7 @@
 // ============================================================
 // FILE: app/api/household/members/route.ts
 // PURPOSE: Household member management — add, remove, update roles
-// PART OF: Desperado Club
+// PART OF: The Keep
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";

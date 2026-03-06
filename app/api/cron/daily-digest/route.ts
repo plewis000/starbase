@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
       : `${todayCount} task${todayCount !== 1 ? "s" : ""} due today.`,
     color: overdueCount > 0 ? 0xef4444 : ZEV_COLOR,
     fields,
-    footer: { text: "Desperado Club Daily Digest" },
+    footer: { text: "The Keep Daily Digest" },
     timestamp: now.toISOString(),
   });
 

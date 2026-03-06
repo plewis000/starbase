@@ -2,7 +2,7 @@
 // FILE: app/api/pipeline/approve/route.ts
 // PURPOSE: Admin approves feedback for pipeline work (queues it for worker)
 // AUTH: Supabase session, admin role required
-// PART OF: Desperado Club
+// PART OF: The Keep
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";

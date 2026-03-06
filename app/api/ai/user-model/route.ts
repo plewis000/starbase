@@ -2,7 +2,7 @@
 // FILE: app/api/ai/user-model/route.ts
 // PURPOSE: User model — versioned attributes the AI knows about each user
 //          Three layers: declared, observed, inferred — with version history
-// PART OF: Desperado Club
+// PART OF: The Keep
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";

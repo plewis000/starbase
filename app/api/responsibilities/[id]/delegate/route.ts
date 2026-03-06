@@ -3,7 +3,7 @@
 // PURPOSE: Delegation workflow — create, accept, decline, complete
 //          This is the DEEP delegation system. Supports temporary,
 //          permanent, and one-time transfers with full status workflow.
-// PART OF: Desperado Club
+// PART OF: The Keep
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";

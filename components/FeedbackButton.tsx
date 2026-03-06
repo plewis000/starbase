@@ -3,7 +3,7 @@
 // PURPOSE: Floating feedback button — always visible on every page
 //          Opens a minimal modal: type (bug/wish/feedback) + free text
 //          Auto-captures page URL. Minimal friction.
-// PART OF: Desperado Club
+// PART OF: The Keep
 // ============================================================
 
 "use client";

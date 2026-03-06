@@ -2,7 +2,7 @@
 // FILE: app/api/responsibilities/templates/route.ts
 // PURPOSE: Responsibility templates — pre-built household tasks
 //          Used during onboarding to help users pick responsibilities
-// PART OF: Desperado Club
+// PART OF: The Keep
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";

@@ -2,7 +2,7 @@
 // FILE: app/api/pipeline/queue/route.ts
 // PURPOSE: Worker polls for approved feedback items ready for work
 // AUTH: PIPELINE_SECRET (not Supabase session — worker runs locally)
-// PART OF: Desperado Club
+// PART OF: The Keep
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";

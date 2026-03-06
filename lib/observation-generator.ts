@@ -3,7 +3,7 @@
 // PURPOSE: Convert onboarding interview responses into AI observations
 //          Each question maps to one or more typed observations
 //          that the agent can query during conversations
-// PART OF: Desperado Club
+// PART OF: The Keep
 // ============================================================
 
 import { SupabaseClient } from "@supabase/supabase-js";

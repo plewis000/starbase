@@ -1,7 +1,7 @@
 // ============================================================
 // FILE: app/api/feedback/[id]/vote/route.ts
 // PURPOSE: Upvote/un-vote feedback — simple toggle
-// PART OF: Desperado Club
+// PART OF: The Keep
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";

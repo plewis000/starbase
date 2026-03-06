@@ -251,7 +251,7 @@ export const CHANNELS = {
   PIPELINE: "pipeline",
 } as const;
 
-// Bot embed colors — Desperado Club theme
+// Bot embed colors — The Keep theme
 export const ZEV_COLOR = 0xD4A857;      // Warm gold — Zev's personal color
 export const SYSTEM_COLOR = 0xDC2626;   // Crimson red — The System's announcements
 

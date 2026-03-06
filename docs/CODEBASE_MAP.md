@@ -1,4 +1,4 @@
-# Desperado Club (Starbase) — Codebase Map
+# The Keep — Codebase Map
 
 > **READ THIS FIRST** in every session working on this project. Compact index — read specific files on demand.
 
@@ -10,7 +10,7 @@ Last updated: 2026-02-28 (Session 10)
 
 Household command center + AI agent platform. Discord bot "Zev" + web UI. Tasks, habits, goals, shopping, budget, gamification (DCC theme), AI memory, onboarding, feedback. Built with Next.js 15 + Supabase + Claude API.
 
-**Infra:** GitHub `plewis000/starbase` | Vercel `desparado-club` | Domain `starbase-green.vercel.app` | Supabase `starbase` (US East)
+**Infra:** GitHub `plewis000/the-keep` | Vercel `the-keep` | Domain `the-keep.vercel.app` | Supabase `starbase` (US East)
 
 ---
 

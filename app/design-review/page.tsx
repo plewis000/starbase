@@ -653,7 +653,7 @@ function NavLinearStyle() {
   return (
     <div className={`bg-slate-900 border border-slate-800 rounded-xl py-3 transition-all ${collapsed ? "w-14" : "w-56"}`}>
       <div className="px-3 pb-3 border-b border-slate-800 flex items-center justify-between">
-        {!collapsed && <span className="text-xs font-bold text-slate-100 tracking-wide">Desperado Club</span>}
+        {!collapsed && <span className="text-xs font-bold text-slate-100 tracking-wide">The Keep</span>}
         <button onClick={() => setCollapsed(!collapsed)} className="text-slate-500 hover:text-slate-200 text-xs p-1">
           {collapsed ? "→" : "←"}
         </button>
@@ -1047,7 +1047,7 @@ export default function DesignReviewPage() {
         <div id="nav">
           <Section title="Navigation" description="How you move between sections of the app. Affects speed, discoverability, and focus.">
             <div className="grid grid-cols-3 gap-6 items-start">
-              <VariantLabel name="A. Current Sidebar" inspiration="Current Starbase design">
+              <VariantLabel name="A. Current Sidebar" inspiration="Current design">
                 <NavCurrentStyle />
               </VariantLabel>
               <VariantLabel name="B. Collapsible + Shortcuts" inspiration="Inspired by Linear">

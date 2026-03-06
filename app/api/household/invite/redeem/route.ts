@@ -2,7 +2,7 @@
 // FILE: app/api/household/invite/redeem/route.ts
 // PURPOSE: Redeem an invite code — join a household
 //          No UUID needed, just the 6-character code
-// PART OF: Desperado Club
+// PART OF: The Keep
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";

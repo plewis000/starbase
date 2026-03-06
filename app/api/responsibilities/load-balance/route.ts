@@ -2,7 +2,7 @@
 // FILE: app/api/responsibilities/load-balance/route.ts
 // PURPOSE: Household load balance — compute and view effort distribution
 //          AI uses this to suggest rebalancing. Also stores snapshots.
-// PART OF: Desperado Club
+// PART OF: The Keep
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";

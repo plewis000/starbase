@@ -2,7 +2,7 @@
 // FILE: app/api/engagement/route.ts
 // PURPOSE: Lightweight engagement tracking — feature usage events
 //          The AI reads this to learn what's working and what's not
-// PART OF: Desperado Club
+// PART OF: The Keep
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";

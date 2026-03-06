@@ -1,7 +1,7 @@
 // ============================================================
 // FILE: app/api/household/route.ts
 // PURPOSE: Household CRUD — create, get current household
-// PART OF: Desperado Club
+// PART OF: The Keep
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";

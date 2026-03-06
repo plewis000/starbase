@@ -2,7 +2,7 @@
 // FILE: app/api/feedback/[id]/route.ts
 // PURPOSE: Feedback triage — update status, priority, respond, link to task
 //          Zev can also update AI classification fields
-// PART OF: Desperado Club
+// PART OF: The Keep
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";

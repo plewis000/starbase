@@ -1,7 +1,7 @@
 /**
  * Lightweight RRULE parser for common recurrence patterns.
  * Supports: FREQ=DAILY, WEEKLY, MONTHLY, YEARLY with INTERVAL and BYDAY.
- * For the Starbase household use case, this covers 95%+ of needs.
+ * For the The Keep household use case, this covers 95%+ of needs.
  */
 
 interface ParsedRule {

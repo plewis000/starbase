@@ -3,7 +3,7 @@
 // PURPOSE: Conversation summarization — compress older messages
 //          into a summary instead of losing them at the 50-msg cap.
 //          Uses Haiku for fast, cheap summarization.
-// PART OF: Desperado Club
+// PART OF: The Keep
 // ============================================================
 
 import { anthropic, getModel } from "./client";

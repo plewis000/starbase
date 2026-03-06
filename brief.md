@@ -1,4 +1,4 @@
-# Starbase — Project Brief
+# The Keep — Project Brief
 
 **Owner:** Parker Lewis
 **Status:** In-flight — Agentic Platform Build (Phase 1 active)
