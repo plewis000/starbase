@@ -151,6 +151,13 @@ export const POST = withAuth(async (request, { supabase, user }, params) => {
       await checkAchievements(supabase, user.id, "habit_count", {
         habitId,
       });
+
+      // Comeback kid: streak rebuilt (had a longest > current, and current is now 7+)
+      if (streak >= 7 && streakResult.longest_streak > streak) {
+        await checkAchievements(supabase, user.id, "custom", {
+          custom_type: "streak_rebuilt",
+        });
+      }
     } catch (err) {
       console.error("Gamification error:", err);
     }

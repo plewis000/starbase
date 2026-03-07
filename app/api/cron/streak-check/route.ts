@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { platform, config } from "@/lib/supabase/schemas";
 import { sendEmbed, SYSTEM_COLOR } from "@/lib/discord";
+import { checkAchievements } from "@/lib/gamification";
 
 export async function GET(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
@@ -59,6 +60,16 @@ export async function GET(request: NextRequest) {
 
   if (missed.length === 0) {
     return NextResponse.json({ message: "All streaks maintained", count: 0 });
+  }
+
+  // Fire streak_funeral achievement for 14+ day streaks that just broke
+  for (const habit of missed) {
+    if (habit.current_streak >= 14) {
+      checkAchievements(supabase, habit.owner_id, "custom", {
+        custom_type: "streak_broken",
+        min_length: habit.current_streak,
+      }).catch(() => {});
+    }
   }
 
   const channelId = process.env.PIPELINE_CHANNEL_ID;

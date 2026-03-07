@@ -58,7 +58,7 @@ function parseTokens(input: string, config?: ConfigData | null): { cleanTitle: s
   if (priorityMatch) {
     for (const match of priorityMatch) {
       const val = match.slice(1).toLowerCase();
-      const priorityNames = ["urgent", "high", "medium", "low"];
+      const priorityNames = config?.priorities?.map(p => p.name.toLowerCase()) || [];
       if (priorityNames.includes(val)) {
         const resolved = config?.priorities?.find(
           (p) => p.name.toLowerCase() === val
