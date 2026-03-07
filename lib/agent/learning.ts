@@ -361,5 +361,39 @@ export async function buildUserContext(
     }
   }
 
+  // Inject situation awareness — pending suggestions to weave in naturally
+  if (proactivity.level !== "observe") {
+    const { data: pendingSuggestions } = await platform(supabase)
+      .from("ai_suggestions")
+      .select("title, category, body")
+      .eq("user_id", userId)
+      .eq("status", "pending")
+      .order("priority", { ascending: false })
+      .limit(2);
+
+    if (pendingSuggestions && pendingSuggestions.length > 0) {
+      sections.push("\nPending suggestions you can weave in when naturally relevant (don't force them):");
+      for (const s of pendingSuggestions) {
+        sections.push(`- [${s.category}] ${s.title}: ${(s.body || "").slice(0, 100)}`);
+      }
+    }
+  }
+
+  // Quick workload snapshot for EA awareness
+  if (ctx) {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const { count: overdueCount } = await platform(supabase)
+      .from("tasks")
+      .select("id", { count: "exact", head: true })
+      .contains("owner_ids", [userId])
+      .lt("due_date", todayStr)
+      .is("completed_at", null);
+
+    const overdue = overdueCount || 0;
+    if (overdue > 0) {
+      sections.push(`\nSituation: ${userName} has ${overdue} overdue task${overdue > 1 ? "s" : ""}. Address if relevant.`);
+    }
+  }
+
   return sections.join("\n");
 }
