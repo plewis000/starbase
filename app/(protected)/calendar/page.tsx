@@ -66,9 +66,6 @@ export default function CalendarPage() {
     });
   };
 
-  const prevMonth = () => setViewDate(new Date(year, month - 1, 1));
-  const nextMonth = () => setViewDate(new Date(year, month + 1, 1));
-
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-4">
       <div className="flex items-center justify-between">
@@ -104,6 +101,7 @@ export default function CalendarPage() {
             items={filteredItems}
             timezone={timezone}
             initialDate={viewDate}
+            onMonthChange={setViewDate}
           />
         )}
       </div>

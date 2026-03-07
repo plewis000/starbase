@@ -53,6 +53,7 @@ export const POST = withAuth(async (request: NextRequest, { supabase, user }) =>
     .from("shopping_lists")
     .insert({
       name: data.name,
+      store: data.store,
       is_default: data.is_default,
       created_by: user.id,
       source: "manual",

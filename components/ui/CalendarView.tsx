@@ -18,6 +18,7 @@ interface Props {
   timezone: string;
   onItemClick?: (item: CalendarItem) => void;
   initialDate?: Date;
+  onMonthChange?: (date: Date) => void;
 }
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -63,7 +64,7 @@ const TYPE_LABELS: Record<string, string> = {
   life_event: "Event",
 };
 
-export default function CalendarView({ items, timezone, onItemClick, initialDate }: Props) {
+export default function CalendarView({ items, timezone, onItemClick, initialDate, onMonthChange }: Props) {
   const today = useMemo(() => todayInTimezone(timezone), [timezone]);
   const todayKey = dateKey(today);
 
@@ -100,9 +101,20 @@ export default function CalendarView({ items, timezone, onItemClick, initialDate
     return map;
   }, [items]);
 
-  const prevMonth = () => setViewDate(new Date(year, month - 1, 1));
-  const nextMonth = () => setViewDate(new Date(year, month + 1, 1));
-  const goToday = () => setViewDate(today);
+  const prevMonth = () => {
+    const d = new Date(year, month - 1, 1);
+    setViewDate(d);
+    onMonthChange?.(d);
+  };
+  const nextMonth = () => {
+    const d = new Date(year, month + 1, 1);
+    setViewDate(d);
+    onMonthChange?.(d);
+  };
+  const goToday = () => {
+    setViewDate(today);
+    onMonthChange?.(today);
+  };
 
   // Close popover on outside click
   useEffect(() => {

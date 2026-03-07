@@ -130,6 +130,7 @@ export const updateGoalSchema = z.object({
 
 export const createShoppingListSchema = z.object({
   name: trimmedString(100),
+  store: optionalTrimmedString(200),
   is_default: z.boolean().default(false),
 });
 
@@ -137,7 +138,7 @@ export const createShoppingItemSchema = z.object({
   name: trimmedString(200),
   quantity: z.number().min(0).max(10000).optional(),
   unit: z.string().max(50).nullish().transform(v => v ?? null),
-  category: z.string().max(100).nullish().transform(v => v ?? null),
+  category_id: optionalUuid,
   is_staple: z.boolean().default(false),
   sort_order: z.number().int().min(0).max(10000).optional(),
 });
@@ -146,7 +147,7 @@ export const updateShoppingItemSchema = z.object({
   name: trimmedString(200).optional(),
   quantity: z.number().min(0).max(10000).optional(),
   unit: z.string().max(50).nullish().transform(v => v ?? null),
-  category: z.string().max(100).nullish().transform(v => v ?? null),
+  category_id: optionalUuid,
   checked: z.boolean().optional(),
   is_staple: z.boolean().optional(),
   sort_order: z.number().int().min(0).max(10000).optional(),

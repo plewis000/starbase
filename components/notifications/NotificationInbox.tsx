@@ -93,6 +93,7 @@ export default function NotificationInbox() {
       });
       if (res.ok) {
         setNotifications((prev) => prev.map((n) => ({ ...n, read_at: new Date().toISOString() })));
+        if (filter === "unread") setFilter("all");
       }
     } catch {
       toast.error("Failed to mark all as read");

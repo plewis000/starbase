@@ -27,7 +27,7 @@ export const PATCH = withAuth(async (request: NextRequest, { supabase, user, ctx
 
   if (data.name !== undefined) updates.name = data.name;
   if (data.quantity !== undefined) updates.quantity = data.quantity != null ? String(data.quantity) : null;
-  if (data.category !== undefined) updates.category_id = data.category;
+  if (data.category_id !== undefined) updates.category_id = data.category_id;
   if (data.is_staple !== undefined) updates.is_staple = data.is_staple;
   if (data.sort_order !== undefined) updates.sort_order = data.sort_order;
 

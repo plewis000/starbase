@@ -104,6 +104,11 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
       const data = await (await fetch(`/api/habits/${habitId}`)).json();
       setHabit(data.habit);
       onHabitUpdated?.();
+    } else if (res.status === 409) {
+      toast.warning("Already checked in for today");
+      // Refresh to sync UI state
+      const data = await (await fetch(`/api/habits/${habitId}`)).json();
+      setHabit(data.habit);
     }
   };
 
