@@ -26,6 +26,15 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
+  // Check for Bearer token (mobile app auth)
+  const authHeader = request.headers.get("Authorization");
+  if (authHeader?.startsWith("Bearer ") && request.nextUrl.pathname.startsWith("/api/")) {
+    // Mobile clients send Supabase access tokens as Bearer tokens.
+    // Middleware can't validate these server-side without an API call,
+    // so let the request through — each route's createClient() will validate.
+    return supabaseResponse;
+  }
+
   // Refresh session — do not remove this
   const { data: { user } } = await supabase.auth.getUser();
 
