@@ -142,11 +142,13 @@ export const POST = withAuth(async (request, { supabase, user }, params) => {
         habitId
       );
 
-      // Check for habit-related achievements
-      await checkAchievements(supabase, user.id, "habit_check_in", {
+      // Check for habit-related achievements (use correct trigger types from config)
+      await checkAchievements(supabase, user.id, "habit_streak", {
+        current_streak: streak,
         habitId,
-        streak,
-        mood: mood || null,
+      });
+      await checkAchievements(supabase, user.id, "habit_count", {
+        habitId,
       });
     } catch (err) {
       console.error("Gamification error:", err);

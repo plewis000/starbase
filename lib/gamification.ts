@@ -218,7 +218,23 @@ export async function awardXp(
     }
   }
 
-  const effectiveAmount = Math.round(amount * multiplier);
+  // Check for active season XP multiplier
+  let seasonMultiplier = 1.0;
+  const { data: activeSeason } = await supabase
+    .schema("config")
+    .from("seasons")
+    .select("xp_multiplier")
+    .eq("active", true)
+    .lte("starts_at", new Date().toISOString().split("T")[0])
+    .gte("ends_at", new Date().toISOString().split("T")[0])
+    .limit(1)
+    .maybeSingle();
+
+  if (activeSeason?.xp_multiplier) {
+    seasonMultiplier = parseFloat(activeSeason.xp_multiplier);
+  }
+
+  const effectiveAmount = Math.round(amount * multiplier * seasonMultiplier);
 
   // Get current profile
   const { data: profile } = await supabase
@@ -562,6 +578,11 @@ async function evaluateTrigger(
     case "budget_under": {
       // Context should provide consecutive months under budget
       return (context.consecutive_under_budget_months as number || 0) >= threshold;
+    }
+
+    case "task_streak": {
+      // Consecutive days with all tasks cleared (scope: "all_cleared")
+      return (context.consecutive_all_clear_days as number || 0) >= threshold;
     }
 
     case "combo_streak": {

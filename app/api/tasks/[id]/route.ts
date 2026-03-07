@@ -387,13 +387,20 @@ export const PATCH = withAuth(async (request, { supabase, user, ctx }, params) =
             id!
           );
 
-          await checkAchievements(svc, creditedUserId, "task_complete", {
+          // Check achievements with correct trigger types from config
+          await checkAchievements(svc, creditedUserId, "task_count", {
             taskId: id,
             priority: priority?.name,
-            isSpeedComplete: creditedUserId === user.id && isSpeedComplete,
-            created_at: currentTask.created_at,
-            completed_at: new Date().toISOString(),
           });
+
+          // Speed complete achievement (only for the person who clicked Done)
+          if (creditedUserId === user.id && isSpeedComplete) {
+            await checkAchievements(svc, creditedUserId, "speed_complete", {
+              taskId: id,
+              created_at: currentTask.created_at,
+              completed_at: new Date().toISOString(),
+            });
+          }
         }
 
         // Notify credited users who aren't the completer
