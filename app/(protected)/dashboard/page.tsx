@@ -351,6 +351,26 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {/* Recent XP Activity */}
+        {crawler && crawler.recent_xp && crawler.recent_xp.length > 0 && (
+          <div className="dcc-card p-4">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xs font-semibold text-dungeon-500 uppercase tracking-wider font-mono">Recent XP</h3>
+              <Link href="/crawl" className="text-xs text-crimson-400 hover:text-crimson-300 transition-colors font-mono">
+                Full log &rarr;
+              </Link>
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {crawler.recent_xp.slice(0, 6).map((xp, i) => (
+                <div key={i} className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-dungeon-800/60 border border-dungeon-700/50">
+                  <span className="text-xs font-bold text-green-400 font-mono">+{xp.amount}</span>
+                  <span className="text-[10px] text-dungeon-500 truncate max-w-[120px]">{xp.description}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Outcomes Panel */}
         <section>
           <h2 className="text-lg font-semibold text-slate-100 mb-4 dcc-heading tracking-wide">Your Outcomes</h2>
@@ -543,7 +563,8 @@ export default function DashboardPage() {
         )}
 
         {/* Quick Action Buttons */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <QuickActionButton href="/chat" icon="💬" label="Ask Zev" />
           <QuickActionButton href="/crawl" icon="🗡️" label="The Crawl" />
           <QuickActionButton href="/goals" icon="🎯" label="War Room" />
           <QuickActionButton href="/habits" icon="🔄" label="Training" />
