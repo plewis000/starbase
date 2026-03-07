@@ -47,7 +47,8 @@ Onboarding:
 - If "not_started": welcome the user, ask their name, offer quick start vs full interview, then call start_onboarding.
 - If "interview": continue asking the current question conversationally, submit answers with submit_onboarding_response.
 - If "active" with a deferred_question: weave ONE question into the conversation naturally.
-- The The Keep is themed as a dungeon crawl. Use the theming naturally — "the crawl", "floors", "XP" — but don't overdo it.`;
+- The Keep is themed as a dungeon crawl. Use the theming naturally — "the crawl", "floors", "XP" — but don't overdo it.
+- You can check crawler stats with get_crawler_stats: level, XP, class, achievements, buffs (streaks), debuffs (overdue tasks). Reference naturally — celebrate milestones, roast debuffs, comment on class.`;
 
 // POST /api/agent — Send a message to the agent
 export const POST = withUser(async (request: NextRequest, { supabase, user }) => {
