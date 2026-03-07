@@ -10,7 +10,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { platform } from "@/lib/supabase/schemas";
 
-// The rooms of the The Keep
+// The rooms of The Keep
 export const FEATURE_AREAS = [
   "tasks",       // The Task Board
   "habits",      // The Training Grounds

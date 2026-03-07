@@ -50,7 +50,7 @@ ONBOARDING BEHAVIOR (CRITICAL — check this every conversation):
    - Full interview = 10 questions right now, you learn everything up front.
    - Recommend quick start: "Most people prefer jumping in — I'll get to know you over time."
    - Call start_onboarding with their choice. After starting, deliver The System's welcome message:
-     For quick start: "📋 **Speed Registration**\n\nThe System has registered you. You're in. Welcome to the The Keep — the exit is behind you. It is locked.\n\nI'll ask you a few things over time so I can actually be useful. No rush."
+     For quick start: "📋 **Speed Registration**\n\nThe System has registered you. You're in. Welcome to The Keep — the exit is behind you. It is locked.\n\nI'll ask you a few things over time so I can actually be useful. No rush."
      For full: "📋 **New Crawler Detected**\n\nThe System has registered your existence. Your Outreach Associate (that's me) will now conduct the intake interview. Answer honestly — The System is watching.\n\nAlright, let's get started..."
 3. If phase is "interview":
    - You're mid-interview. The current_question tells you what to ask next.
@@ -67,7 +67,7 @@ ONBOARDING BEHAVIOR (CRITICAL — check this every conversation):
 5. If phase is "active" and fully_onboarded:
    - Normal operation. No onboarding actions needed.
 
-The The Keep uses dungeon crawler theming. You're the friendly guide in a world run by a sarcastic omniscient System. Lean into it naturally — "the crawl," "floors," "XP" — but don't overdo it. The theming should feel like the way things just are, not a performance.`;
+The Keep uses dungeon crawler theming. You're the friendly guide in a world run by a sarcastic omniscient System. Lean into it naturally — "the crawl," "floors," "XP" — but don't overdo it. The theming should feel like the way things just are, not a performance.`;
 
 type Supabase = ReturnType<typeof createServiceClient>;
 
@@ -92,6 +92,10 @@ export async function POST(request: NextRequest) {
     const commandName = interaction.data.name;
     const options = parseOptions(interaction.data.options || []);
     const discordUserId = interaction.member?.user?.id || interaction.user?.id;
+
+    if (!discordUserId) {
+      return NextResponse.json({ type: 4, data: { content: "Couldn't identify your Discord account." } });
+    }
 
     const promise = processCommand(commandName, options, discordUserId, interaction);
     after(() => promise.catch(console.error));
@@ -471,7 +475,7 @@ async function handleHabit(supabase: Supabase, userId: string, options: Record<s
     .select("id")
     .eq("habit_id", match.id)
     .eq("checked_by", userId)
-    .eq("check_in_date", today)
+    .eq("check_date", today)
     .limit(1);
 
   if (existing && existing.length > 0) {
@@ -487,7 +491,7 @@ async function handleHabit(supabase: Supabase, userId: string, options: Record<s
   // Create check-in
   const { error } = await platform(supabase)
     .from("habit_check_ins")
-    .insert({ habit_id: match.id, checked_by: userId, check_in_date: today, status: "done" });
+    .insert({ habit_id: match.id, checked_by: userId, check_date: today });
 
   if (error) {
     console.error("Discord habit check-in failed:", error.message);
@@ -526,12 +530,14 @@ async function handleHabit(supabase: Supabase, userId: string, options: Record<s
   });
 
   // Send achievement notifications via The System's voice
-  for (const unlock of achievementUnlocks) {
-    const notification = formatAchievement(unlock.achievementName, unlock.description, unlock.xpReward, unlock.lootBoxTier);
+  if (achievementUnlocks.length > 0) {
     const channels = await getGuildChannels();
     const generalCh = channels.find(c => c.name === CHANNELS.GENERAL);
     if (generalCh) {
-      await sendEmbed(generalCh.id, toDiscordEmbed(notification));
+      for (const unlock of achievementUnlocks) {
+        const notification = formatAchievement(unlock.achievementName, unlock.description, unlock.xpReward, unlock.lootBoxTier);
+        await sendEmbed(generalCh.id, toDiscordEmbed(notification));
+      }
     }
   }
 }
@@ -697,7 +703,7 @@ async function handleDashboard(supabase: Supabase, userId: string, webhookUrl: s
     .from("habit_check_ins")
     .select("id", { count: "exact", head: true })
     .eq("checked_by", userId)
-    .eq("check_in_date", today);
+    .eq("check_date", today);
 
   const overdueCount = overdueResult.count || 0;
   const todayCount = todayResult.count || 0;
@@ -806,13 +812,17 @@ async function handleAsk(
   const response = await runAgent(supabase, userId, message, "discord", interaction.channel_id);
 
   const costStr = `$${(response.costCents / 100).toFixed(4)}`;
-  await sendWebhook(webhookUrl, {
-    content: response.text,
-    embeds: [{
-      color: 0x2F3136,
-      footer: { text: `Cost: ${costStr}` },
-    }],
-  });
+
+  // Discord has a 2000-char limit — split long responses
+  const chunks = splitForDiscord(response.text, 1900); // Leave room for cost embed
+  for (let i = 0; i < chunks.length; i++) {
+    const isLast = i === chunks.length - 1;
+    const payload: Record<string, unknown> = { content: chunks[i] };
+    if (isLast) {
+      payload.embeds = [{ color: 0x2F3136, footer: { text: `Cost: ${costStr}` } }];
+    }
+    await sendWebhook(webhookUrl, payload);
+  }
 
   if (response.toolRounds > 0) {
     await logToChannel(response.summary);
@@ -828,18 +838,61 @@ async function runAgent(
   channel: string,
   channelId: string,
 ): Promise<{ text: string; toolRounds: number; costCents: number; summary: string }> {
-  const { data: conv } = await platform(supabase)
+  // Reuse recent conversation in same Discord channel (within 30 min) for continuity
+  const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+  const { data: recentConv } = await platform(supabase)
     .from("agent_conversations")
-    .insert({ user_id: userId, channel, channel_id: channelId })
     .select("id")
-    .single();
+    .eq("user_id", userId)
+    .eq("channel", channel)
+    .eq("channel_id", channelId)
+    .gte("last_message_at", thirtyMinAgo)
+    .order("last_message_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
-  const conversationId = conv?.id;
+  let conversationId: string | null = recentConv?.id || null;
+
+  if (!conversationId) {
+    const { data: conv } = await platform(supabase)
+      .from("agent_conversations")
+      .insert({ user_id: userId, channel, channel_id: channelId })
+      .select("id")
+      .single();
+    conversationId = conv?.id || null;
+  }
 
   if (conversationId) {
     await platform(supabase)
       .from("agent_messages")
       .insert({ conversation_id: conversationId, role: "user", content: message });
+  }
+
+  // Load conversation history for context (up to last 20 messages)
+  let priorMessages: { role: "user" | "assistant"; content: string }[] = [];
+  if (conversationId) {
+    const { data: history } = await platform(supabase)
+      .from("agent_messages")
+      .select("role, content")
+      .eq("conversation_id", conversationId)
+      .order("created_at", { ascending: true })
+      .limit(20);
+
+    if (history) {
+      for (const msg of history) {
+        if (msg.role === "user" || msg.role === "assistant") {
+          priorMessages.push({ role: msg.role as "user" | "assistant", content: msg.content });
+        }
+      }
+    }
+  }
+
+  // Ensure messages alternate correctly
+  priorMessages = ensureAlternation(priorMessages);
+
+  // If no history loaded, at least have the current message
+  if (priorMessages.length === 0) {
+    priorMessages = [{ role: "user", content: message }];
   }
 
   const tier = routeModel(message);
@@ -856,13 +909,16 @@ async function runAgent(
     max_tokens: MAX_RESPONSE_TOKENS,
     system: enrichedPrompt,
     tools: AGENT_TOOLS,
-    messages: [{ role: "user", content: message }],
+    messages: priorMessages,
   });
 
   let totalInputTokens = response.usage.input_tokens;
   let totalOutputTokens = response.usage.output_tokens;
   let toolRounds = 0;
   const toolNames: string[] = [];
+
+  // Accumulate full message chain for multi-round tool use
+  const accumulatedMessages: { role: string; content: unknown }[] = priorMessages.map(m => ({ ...m }));
 
   while (response.stop_reason === "tool_use" && toolRounds < MAX_TOOL_ROUNDS) {
     toolRounds++;
@@ -878,7 +934,7 @@ async function runAgent(
       const result = await executeTool(supabase, userId, toolCall.name, toolCall.input);
 
       if (conversationId) {
-        await platform(supabase)
+        Promise.resolve(platform(supabase)
           .from("agent_actions")
           .insert({
             conversation_id: conversationId,
@@ -886,7 +942,7 @@ async function runAgent(
             action_type: toolCall.name,
             summary: `${toolCall.name}(${JSON.stringify(toolCall.input).slice(0, 200)})`,
             channel,
-          });
+          })).catch(() => {});
       }
 
       toolResults.push({
@@ -896,16 +952,16 @@ async function runAgent(
       });
     }
 
+    // Accumulate context — previous rounds are preserved
+    accumulatedMessages.push({ role: "assistant", content: response.content });
+    accumulatedMessages.push({ role: "user", content: toolResults });
+
     response = await anthropic.messages.create({
       model,
       max_tokens: MAX_RESPONSE_TOKENS,
       system: enrichedPrompt,
       tools: AGENT_TOOLS,
-      messages: [
-        { role: "user", content: message },
-        { role: "assistant", content: response.content },
-        { role: "user", content: toolResults },
-      ],
+      messages: accumulatedMessages as Parameters<typeof anthropic.messages.create>[0]["messages"],
     });
 
     totalInputTokens += response.usage.input_tokens;
@@ -931,6 +987,13 @@ async function runAgent(
         model: tier,
         cost_cents: Math.round(costCents * 10000) / 10000,
       });
+
+    // Update conversation timestamp for continuity detection
+    Promise.resolve(platform(supabase)
+      .from("agent_conversations")
+      .update({ last_message_at: new Date().toISOString() })
+      .eq("id", conversationId)
+    ).catch(() => {});
 
     // Extract learnings (non-blocking)
     const convId = conversationId;
@@ -980,11 +1043,12 @@ async function handleCrawl(supabase: Supabase, userId: string, webhookUrl: strin
     .eq("status", "active")
     .gt("current_streak", 0);
 
-  // Get overdue tasks count
+  // Get overdue tasks count (for this user only)
   const { count: overdueCount } = await supabase
     .schema("platform")
     .from("tasks")
     .select("*", { count: "exact", head: true })
+    .eq("assigned_to", userId)
     .is("completed_at", null)
     .lt("due_date", new Date().toISOString().split("T")[0]);
 
@@ -1017,7 +1081,7 @@ async function handleCrawl(supabase: Supabase, userId: string, webhookUrl: strin
         { name: "⬆️ Buffs", value: `${streakCount || 0} active streaks`, inline: true },
         { name: "⬇️ Debuffs", value: `${overdueCount || 0} overdue tasks`, inline: true },
       ],
-      footer: { text: "The The Keep — So fun it hurts." },
+      footer: { text: "The Keep — So fun it hurts." },
     }],
   });
 }
@@ -1530,17 +1594,16 @@ async function handleModalSubmit(
 // ── Helpers ───────────────────────────────────────────────────────────
 
 async function resolveUser(supabase: Supabase, discordUserId: string): Promise<string | null> {
+  if (!discordUserId) return null;
+
   const { data } = await platform(supabase)
     .from("user_preferences")
     .select("user_id")
     .eq("preference_key", "discord_user_id")
     .eq("preference_value", JSON.stringify(discordUserId))
-    .single();
+    .maybeSingle();
 
-  if (data) return data.user_id;
-
-  // No fallback — user must have linked their Discord account
-  return null;
+  return data?.user_id || null;
 }
 
 async function sendWebhook(url: string, body: Record<string, unknown>) {
@@ -1557,6 +1620,62 @@ async function sendWebhook(url: string, body: Record<string, unknown>) {
 
 // For deferred interactions (type 5): send follow-up message
 const sendWebhookFollowup = sendWebhook;
+
+// Split long text for Discord's 2000-char limit
+function splitForDiscord(content: string, maxLength: number): string[] {
+  if (content.length <= maxLength) return [content];
+
+  const chunks: string[] = [];
+  let remaining = content;
+
+  while (remaining.length > 0) {
+    if (remaining.length <= maxLength) {
+      chunks.push(remaining);
+      break;
+    }
+
+    // Prefer splitting at paragraph breaks, then newlines, then spaces
+    let splitAt = remaining.lastIndexOf("\n\n", maxLength);
+    if (splitAt === -1 || splitAt < maxLength / 3) {
+      splitAt = remaining.lastIndexOf("\n", maxLength);
+    }
+    if (splitAt === -1 || splitAt < maxLength / 3) {
+      splitAt = remaining.lastIndexOf(" ", maxLength);
+    }
+    if (splitAt === -1 || splitAt < maxLength / 3) {
+      splitAt = maxLength;
+    }
+
+    chunks.push(remaining.slice(0, splitAt));
+    remaining = remaining.slice(splitAt).trimStart();
+  }
+
+  return chunks;
+}
+
+// Ensure messages alternate user/assistant correctly
+function ensureAlternation(messages: { role: "user" | "assistant"; content: string }[]) {
+  if (messages.length === 0) return messages;
+
+  const result: { role: "user" | "assistant"; content: string }[] = [];
+  for (const msg of messages) {
+    if (result.length === 0) {
+      result.push(msg);
+    } else if (result[result.length - 1].role === msg.role) {
+      // Merge consecutive same-role messages
+      result[result.length - 1].content += "\n" + msg.content;
+    } else {
+      result.push(msg);
+    }
+  }
+
+  // Ensure first message is from user
+  if (result.length > 0 && result[0].role !== "user") {
+    result.unshift({ role: "user", content: "(conversation resumed)" });
+  }
+
+  return result;
+}
 
 async function logToChannel(summary: string) {
   try {

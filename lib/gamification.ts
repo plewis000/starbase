@@ -1,5 +1,5 @@
 // Gamification Engine — XP, Levels, Achievements, Loot Boxes
-// Core logic for the The Keep progression system
+// Core logic for The Keep progression system
 
 import { SupabaseClient } from "@supabase/supabase-js";
 import { triggerNotification } from "@/lib/notify";

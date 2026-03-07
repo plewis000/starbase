@@ -51,7 +51,7 @@ jobs:
             --allowedTools Edit Write Read Grep Glob
             "Bash(git:*)" "Bash(npm:*)" "Bash(npx:*)"
           prompt: |
-            You are working on the The Keep codebase — a Next.js 14 app with Supabase, Discord integration, and gamification.
+            You are working on The Keep codebase — a Next.js 14 app with Supabase, Discord integration, and gamification.
 
             Implement this feedback item:
             TYPE: ${{ github.event.client_payload.type }}

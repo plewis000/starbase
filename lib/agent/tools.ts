@@ -2,7 +2,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 
 type Tool = Anthropic.Messages.Tool;
 
-// All tool definitions for the The Keep agent
+// All tool definitions for The Keep agent
 // Organized by domain. Each tool maps to an internal API call.
 
 export const AGENT_TOOLS: Tool[] = [

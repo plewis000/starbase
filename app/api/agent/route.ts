@@ -181,6 +181,9 @@ export const POST = withUser(async (request: NextRequest, { supabase, user }) =>
     let toolRounds = 0;
 
     // Tool use loop — let the agent call tools until it produces a text response
+    // Accumulate full message chain so multi-round tool use preserves context
+    const accumulatedMessages: { role: string; content: unknown }[] = cleanMessages.map(m => ({ ...m }));
+
     while (response.stop_reason === "tool_use" && toolRounds < MAX_TOOL_ROUNDS) {
       toolRounds++;
 
@@ -214,17 +217,17 @@ export const POST = withUser(async (request: NextRequest, { supabase, user }) =>
         });
       }
 
-      // Continue the conversation with tool results
+      // Accumulate context — previous rounds are preserved
+      accumulatedMessages.push({ role: "assistant", content: response.content });
+      accumulatedMessages.push({ role: "user", content: toolResults });
+
+      // Continue the conversation with full tool chain
       response = await anthropic.messages.create({
         model,
         max_tokens: MAX_RESPONSE_TOKENS,
         system: systemPrompt,
         tools: AGENT_TOOLS,
-        messages: [
-          ...cleanMessages,
-          { role: "assistant", content: response.content },
-          { role: "user", content: toolResults },
-        ],
+        messages: accumulatedMessages as Parameters<typeof anthropic.messages.create>[0]["messages"],
       });
 
       totalInputTokens += response.usage.input_tokens;
