@@ -157,7 +157,7 @@ export default function HabitList({ onSelectHabit, onCreateHabit, selectedHabitI
       toast.success("Check-in removed");
     } else {
       // Create check-in
-      await fetch(`/api/habits/${habitId}/check-in`, {
+      const res = await fetch(`/api/habits/${habitId}/check-in`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ check_date: today }),
@@ -169,18 +169,28 @@ export default function HabitList({ onSelectHabit, onCreateHabit, selectedHabitI
         body: JSON.stringify({ entity_type: "habit", entity_id: habitId }),
       }).catch(() => {});
 
+      // Calculate XP for toast (mirrors server formula)
+      const newStreak = res.ok ? ((await res.json()).streak?.current_streak ?? (habit.current_streak || 0) + 1) : (habit.current_streak || 0) + 1;
+      let xp = 15;
+      if (newStreak >= 90) xp += 50;
+      else if (newStreak >= 30) xp += 25;
+      else if (newStreak >= 7) xp += 10;
+
       // Check if all habits are now done → celebrate
       const willBeAllDone = habits.filter((h) => h.status === "active").every(
         (h) => h.checked_today || h.id === habitId
       );
       if (willBeAllDone && activeCount > 0) {
         setShowCelebration(true);
-        toast.success("All habits done today!");
+        toast.success("All habits done today! ⚡");
+      } else if (newStreak === 7) {
+        toast.success(`${habit.title} — 7-day streak! +${xp} XP`);
+      } else if (newStreak === 30) {
+        toast.success(`${habit.title} — 30-day streak! +${xp} XP`);
+      } else if (newStreak === 90) {
+        toast.success(`${habit.title} — 90-day streak! +${xp} XP`);
       } else {
-        const newStreak = (habit.current_streak || 0) + 1;
-        if (newStreak === 7) toast.success(`${habit.title} — 7-day streak!`);
-        else if (newStreak === 30) toast.success(`${habit.title} — 30-day streak!`);
-        else toast.success(`${habit.title} checked in`);
+        toast.success(`${habit.title} +${xp} XP`);
       }
     }
     fetchHabits();

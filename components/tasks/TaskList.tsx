@@ -270,7 +270,9 @@ export default function TaskList({
 
       if (!isCompleted) {
         setShowCelebration(true);
-        toast.success("Task complete!", {
+        const priorityXp: Record<string, number> = { Critical: 100, High: 50, Medium: 25, Low: 10 };
+        const xp = priorityXp[task.priority?.name || "Medium"] || 25;
+        toast.success(`Task complete! +${xp} XP`, {
           label: "Undo",
           onClick: () => handleQuickComplete(taskId),
         });
