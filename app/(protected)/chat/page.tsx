@@ -254,14 +254,15 @@ export default function ChatPage() {
                 </div>
                 <h2 className="text-lg font-semibold text-slate-100 mb-2">Talk to Zev</h2>
                 <p className="text-dungeon-400 text-sm mb-6">
-                  Your AI assistant for tasks, habits, goals, budget, and everything in between. Ask anything.
+                  Your household EA. Tasks, habits, goals, budget, coordination — ask anything.
                 </p>
                 <div className="flex flex-wrap gap-2 justify-center">
                   {[
                     "What's on my plate today?",
-                    "How's my crawler doing?",
+                    "How did we do this week?",
+                    "Who's more loaded right now?",
                     "Check my habit streaks",
-                    "Create a task for me",
+                    "How's my crawler doing?",
                   ].map((q) => (
                     <button
                       key={q}
