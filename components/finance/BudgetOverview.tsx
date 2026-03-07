@@ -194,7 +194,7 @@ function AddBudgetForm({ onAdded, onCancel }: { onAdded: (b: Budget) => void; on
         <button
           onClick={handleSubmit}
           disabled={submitting || !categoryId || !amount}
-          className="flex-1 px-3 py-2 text-sm bg-green-600 text-white rounded-md hover:bg-red-500 disabled:opacity-50"
+          className="flex-1 px-3 py-2 text-sm bg-green-600 text-white rounded-md hover:bg-green-500 disabled:opacity-50"
         >
           {submitting ? "Saving..." : "Save"}
         </button>

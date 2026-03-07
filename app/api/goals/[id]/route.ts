@@ -116,8 +116,9 @@ export const PATCH = withAuth(async (request, { supabase, user }, params) => {
     return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
+  const { habit_ids: habitIds, ...rest } = parsed.data as Record<string, unknown> & { habit_ids?: string[] };
   const updates: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(parsed.data)) {
+  for (const [key, value] of Object.entries(rest)) {
     if (value !== undefined) {
       updates[key] = value;
     }
@@ -162,6 +163,16 @@ export const PATCH = withAuth(async (request, { supabase, user }, params) => {
         console.error("[goals] Gamification error on completion:", err);
       }
     });
+  }
+
+  // Sync habit links if provided
+  if (habitIds !== undefined) {
+    await platform(supabase).from("goal_habits").delete().eq("goal_id", id);
+    if (habitIds.length > 0) {
+      await platform(supabase).from("goal_habits").insert(
+        habitIds.map((hid: string) => ({ goal_id: id, habit_id: hid }))
+      );
+    }
   }
 
   const lookups = await getGoalHabitLookups(supabase);

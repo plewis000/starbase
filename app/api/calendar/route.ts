@@ -71,13 +71,23 @@ export const GET = withUser(async (request: NextRequest, { supabase, user }) => 
     }
   } catch { /* silent */ }
 
-  // 3. Goal milestones
+  // 3. Goal milestones (scoped to user's goals)
   try {
-    const { data: milestones } = await platform(supabase)
-      .from("goal_milestones")
-      .select("id, title, target_date, completed_at, goal_id")
-      .gte("target_date", start)
-      .lte("target_date", end);
+    // Get user's goal IDs first, then filter milestones
+    const { data: userGoals } = await platform(supabase)
+      .from("goals")
+      .select("id")
+      .eq("owner_id", user.id);
+    const userGoalIds = (userGoals || []).map(g => g.id);
+
+    const { data: milestones } = userGoalIds.length > 0
+      ? await platform(supabase)
+          .from("goal_milestones")
+          .select("id, title, target_date, completed_at, goal_id")
+          .in("goal_id", userGoalIds)
+          .gte("target_date", start)
+          .lte("target_date", end)
+      : { data: [] };
 
     for (const m of milestones || []) {
       items.push({
