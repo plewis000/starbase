@@ -2,9 +2,27 @@ import { NextRequest, NextResponse } from "next/server";
 import { withUser } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
 import { isValidUUID } from "@/lib/validation";
+import { getHouseholdContext, getHouseholdMemberIds } from "@/lib/household";
 
-// GET /api/gamification/party-goals — List all party goals with progress
-export const GET = withUser(async (_request, { supabase }) => {
+// GET /api/gamification/party-goals — List household's party goals with progress
+export const GET = withUser(async (_request, { supabase, user }) => {
+  // Scope to household members' goals
+  const ctx = await getHouseholdContext(supabase, user.id);
+  const memberIds = ctx
+    ? await getHouseholdMemberIds(supabase, ctx.household_id)
+    : [user.id];
+
+  // Get household goals first
+  const { data: goals } = await platform(supabase)
+    .from("goals")
+    .select("id")
+    .in("owner_id", memberIds);
+  const goalIds = (goals || []).map(g => g.id);
+
+  if (goalIds.length === 0) {
+    return NextResponse.json({ partyGoals: [] });
+  }
+
   const { data: partyGoals, error } = await platform(supabase)
     .from("party_goals")
     .select(`
@@ -13,7 +31,8 @@ export const GET = withUser(async (_request, { supabase }) => {
       created_at,
       goal:goals(id, title, description, status, progress_value, target_date, created_at)
     `)
-    .eq("is_party_goal", true);
+    .eq("is_party_goal", true)
+    .in("goal_id", goalIds);
 
   if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 

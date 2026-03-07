@@ -2,25 +2,33 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { withUser } from "@/lib/api/withAuth";
+import { getHouseholdContext, getHouseholdMemberIds } from "@/lib/household";
 
 export const GET = withUser(async (request: NextRequest, { supabase, user }) => {
   const { searchParams } = new URL(request.url);
   const period = searchParams.get("period") || "alltime"; // alltime, weekly, monthly
 
+  // Scope leaderboard to household members
+  const ctx = await getHouseholdContext(supabase, user.id);
+  const memberIds = ctx
+    ? await getHouseholdMemberIds(supabase, ctx.household_id)
+    : [user.id];
+
   if (period === "alltime") {
-    // Get all crawler profiles
+    // Get household crawler profiles
     const { data: profiles } = await supabase
       .schema("platform")
       .from("crawler_profiles")
       .select("user_id, crawler_name, total_xp, current_level, current_floor_id, login_streak, title")
+      .in("user_id", memberIds)
       .order("total_xp", { ascending: false });
 
-    // Get achievement counts per user (bounded to household size)
+    // Get achievement counts for household members
     const { data: achievementCounts } = await supabase
       .schema("platform")
       .from("achievement_unlocks")
       .select("user_id")
-      .limit(5000);
+      .in("user_id", memberIds);
 
     const countMap = new Map<string, number>();
     for (const a of achievementCounts || []) {
@@ -54,11 +62,12 @@ export const GET = withUser(async (request: NextRequest, { supabase, user }) => 
     periodStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
   }
 
-  // Calculate from XP ledger for current period
+  // Calculate from XP ledger for current period (household-scoped)
   const { data: periodXp } = await supabase
     .schema("platform")
     .from("xp_ledger")
     .select("user_id, amount")
+    .in("user_id", memberIds)
     .gte("created_at", periodStart)
     .limit(10000);
 
@@ -67,11 +76,12 @@ export const GET = withUser(async (request: NextRequest, { supabase, user }) => 
     xpTotals.set(entry.user_id, (xpTotals.get(entry.user_id) || 0) + entry.amount);
   }
 
-  // Get crawler names
+  // Get crawler names (household-scoped)
   const { data: profiles } = await supabase
     .schema("platform")
     .from("crawler_profiles")
-    .select("user_id, crawler_name, current_level, title");
+    .select("user_id, crawler_name, current_level, title")
+    .in("user_id", memberIds);
 
   const nameMap = new Map<string, { name: string; level: number; title: string | null }>();
   for (const p of profiles || []) {

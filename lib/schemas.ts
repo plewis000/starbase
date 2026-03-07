@@ -85,7 +85,7 @@ export const updateHabitSchema = z.object({
 
 export const habitCheckInSchema = z.object({
   note: optionalTrimmedString(1000),
-  mood: z.number().int().min(1).max(5).optional(),
+  mood: z.enum(["great", "good", "neutral", "tough", "terrible"]).optional(),
   value: z.number().min(0).max(1000000).optional(),
   check_date: date.optional(),
 });
