@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { withUser } from "@/lib/api/withAuth";
-import { platform } from "@/lib/supabase/schemas";
+import { platform, config } from "@/lib/supabase/schemas";
 import { getHouseholdContext, getHouseholdMemberIds } from "@/lib/household";
 
 // ---- GET: Unified dashboard summary ----
@@ -144,7 +144,7 @@ export const GET = withUser(async (_request, { supabase, user }) => {
   const dueThisWeekCount = dueThisWeekRes.count || 0;
 
   // Count in-progress tasks by looking up the status name
-  const statusLookupRes = await platform(supabase)
+  const statusLookupRes = await config(supabase)
     .from("task_statuses")
     .select("id")
     .eq("name", "In Progress")
