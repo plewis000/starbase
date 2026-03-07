@@ -76,6 +76,7 @@ export const PATCH = withAuth(async (request, { supabase, user }, params) => {
           40,
           "goal_milestone",
           `Milestone: ${milestone.title}`,
+          "milestone",
           milestoneId
         );
         await checkAchievements(supabase, user.id, "goal_milestone", {

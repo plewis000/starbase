@@ -511,9 +511,9 @@ async function handleHabit(supabase: Supabase, userId: string, options: Record<s
   const achievementUnlocks = await checkAchievements(supabase, userId, "habit_streak", { current_streak: newStreak });
 
   // Check streak bonus XP
-  if (newStreak === 7) await awardXp(supabase, userId, 50, "habit_streak_7", `7-day streak: ${match.title}`, "habit", match.id);
-  if (newStreak === 30) await awardXp(supabase, userId, 200, "habit_streak_30", `30-day streak: ${match.title}`, "habit", match.id);
-  if (newStreak === 90) await awardXp(supabase, userId, 500, "habit_streak_90", `90-day streak: ${match.title}`, "habit", match.id);
+  if (newStreak === 7) await awardXp(supabase, userId, 10, "habit_streak_7", `7-day streak: ${match.title}`, "habit", match.id);
+  if (newStreak === 30) await awardXp(supabase, userId, 25, "habit_streak_30", `30-day streak: ${match.title}`, "habit", match.id);
+  if (newStreak === 90) await awardXp(supabase, userId, 50, "habit_streak_90", `90-day streak: ${match.title}`, "habit", match.id);
 
   const streakEmoji = newStreak >= 7 ? "🔥" : newStreak >= 3 ? "⚡" : "✓";
 

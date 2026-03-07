@@ -25,24 +25,22 @@ export const GET = withUser(async (_request, { supabase, user }) => {
   }
 
   // Refresh crawler stats + class only if stale (>6 hours) — throttled
-  if (profile.gamification_activated) {
-    const staleThreshold = 6 * 60 * 60 * 1000; // 6 hours
-    const lastUpdate = profile.stats_updated_at ? new Date(profile.stats_updated_at).getTime() : 0;
-    if (Date.now() - lastUpdate > staleThreshold) {
-      await Promise.allSettled([
-        supabase.schema("platform").rpc("calculate_crawler_stats", { p_user_id: user.id }),
-        supabase.schema("platform").rpc("calculate_crawler_class", { p_user_id: user.id }),
-      ]);
-      // Refetch updated stats
-      const { data: refreshed } = await supabase
-        .schema("platform")
-        .from("crawler_profiles")
-        .select("stat_str, stat_dex, stat_con, stat_int, stat_cha, crawler_class, class_description, stats_updated_at")
-        .eq("user_id", user.id)
-        .single();
-      if (refreshed) {
-        Object.assign(profile, refreshed);
-      }
+  const staleThreshold = 6 * 60 * 60 * 1000; // 6 hours
+  const lastUpdate = profile.stats_updated_at ? new Date(profile.stats_updated_at).getTime() : 0;
+  if (Date.now() - lastUpdate > staleThreshold) {
+    await Promise.allSettled([
+      supabase.schema("platform").rpc("calculate_crawler_stats", { p_user_id: user.id }),
+      supabase.schema("platform").rpc("calculate_crawler_class", { p_user_id: user.id }),
+    ]);
+    // Refetch updated stats
+    const { data: refreshed } = await supabase
+      .schema("platform")
+      .from("crawler_profiles")
+      .select("stat_str, stat_dex, stat_con, stat_int, stat_cha, crawler_class, class_description, stats_updated_at")
+      .eq("user_id", user.id)
+      .single();
+    if (refreshed) {
+      Object.assign(profile, refreshed);
     }
   }
 

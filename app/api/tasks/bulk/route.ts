@@ -143,7 +143,7 @@ export const PATCH = withAuth(async (request, { supabase, user, ctx }) => {
               taskId
             );
 
-            await checkAchievements(svc, user.id, "task_complete", {
+            await checkAchievements(svc, user.id, "task_count", {
               taskId,
               priority: priorityName,
             });

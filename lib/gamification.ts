@@ -210,14 +210,6 @@ export async function awardXp(
   multiplier: number = 1.0,
   _retried: boolean = false,
 ): Promise<XpAwardResult> {
-  // Gate: skip if gamification not activated (unless it's the "achievement" action from internal award)
-  if (actionType !== "achievement") {
-    const active = await isGamificationActive(supabase, userId);
-    if (!active) {
-      return { xpAwarded: 0, newTotal: 0, leveledUp: false, oldLevel: 1, newLevel: 1, newFloor: false, oldFloor: 1, newFloorNum: 1 };
-    }
-  }
-
   // Check for active season XP multiplier
   let seasonMultiplier = 1.0;
   const { data: activeSeason } = await supabase
@@ -340,10 +332,6 @@ export async function checkAchievements(
   triggerType: string,
   context: Record<string, unknown> = {},
 ): Promise<AchievementCheck[]> {
-  // Gate: skip if gamification not activated
-  const active = await isGamificationActive(supabase, userId);
-  if (!active) return [];
-
   // Get all active achievements matching this trigger type
   const { data: achievements } = await supabase
     .schema("config")
@@ -517,6 +505,17 @@ async function evaluateTrigger(
         .select("*", { count: "exact", head: true })
         .eq("checked_by", userId);
       return (count || 0) >= threshold;
+    }
+
+    case "goal_milestone": {
+      // Count completed milestones for this user's goals
+      const { count: milestoneCount } = await supabase
+        .schema("platform")
+        .from("goal_milestones")
+        .select("*", { count: "exact", head: true })
+        .not("completed_at", "is", null)
+        .in("goal_id", (await supabase.schema("platform").from("goals").select("id").eq("owner_id", userId)).data?.map(g => g.id) || []);
+      return (milestoneCount || 0) >= threshold;
     }
 
     case "goal_completed": {

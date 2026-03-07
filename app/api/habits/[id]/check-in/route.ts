@@ -139,6 +139,7 @@ export const POST = withAuth(async (request, { supabase, user }, params) => {
         xpAmount,
         "habit_check_in",
         `Habit check-in${streak > 1 ? ` (${streak}-day streak)` : ""}`,
+        "habit",
         habitId
       );
 

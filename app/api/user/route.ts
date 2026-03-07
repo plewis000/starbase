@@ -12,8 +12,10 @@ export const GET = withUser(async (_request, { supabase, user }) => {
     try {
       const { ensureProfile, updateLoginStreak, awardXp } = await import("@/lib/gamification");
       await ensureProfile(supabase, user.id);
-      await updateLoginStreak(supabase, user.id);
-      await awardXp(supabase, user.id, 5, "daily_login", "Daily login bonus");
+      const { isNew } = await updateLoginStreak(supabase, user.id);
+      if (isNew) {
+        await awardXp(supabase, user.id, 5, "daily_login", "Daily login bonus");
+      }
     } catch { /* gamification is non-critical */ }
   });
 
