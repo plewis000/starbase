@@ -103,7 +103,7 @@ export async function GET(request: NextRequest) {
         recipientUserId: user.id,
         title: `Weekly Review: ${data.tasksCompleted} tasks, ${data.habitsCompletionRate}% habits`,
         body: review.slice(0, 300),
-        event: "daily_digest", // reuse event type
+        event: "weekly_review",
       }).catch(() => {});
 
       results.push({ userId: user.id, sent: true });

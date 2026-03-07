@@ -15,5 +15,9 @@
 - Auth: Cookie-based Supabase (web), Discord bearer (Activity), PIPELINE_SECRET (worker)
 
 ## Deep Context
-For components, API routes, schemas, and architecture details, read:
-`~/.claude/projects/C--Users-Parker-Desktop-Sisyphus/memory/starbase.md`
+- **System map** (architecture, flows, cross-cutting): `~/.claude/projects/C--Users-Parker-Desktop-Sisyphus/memory/system-map.md`
+- **Components, hooks, design system**: `~/.claude/projects/C--Users-Parker-Desktop-Sisyphus/memory/starbase.md`
+- **API routes inventory**: `~/.claude/projects/C--Users-Parker-Desktop-Sisyphus/memory/api-routes.md`
+- **DB schema**: `~/.claude/projects/C--Users-Parker-Desktop-Sisyphus/memory/database-schema.md`
+
+When shipping changes that add routes, tables, crons, or agent tools — update system-map.md.
