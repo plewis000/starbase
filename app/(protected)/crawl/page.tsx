@@ -669,7 +669,7 @@ export default function CrawlPage() {
           <div className="space-y-4">
             {/* Filter */}
             <div className="flex gap-2 flex-wrap">
-              {["all", "unlocked", "productivity", "health", "streak", "finance", "party", "meta"].map(f => (
+              {["all", "unlocked", "productivity", "health", "streak", "finance", "social", "party", "meta", "seasonal"].map(f => (
                 <button
                   key={f}
                   onClick={() => setAchievementFilter(f)}

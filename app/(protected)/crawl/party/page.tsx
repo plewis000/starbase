@@ -88,7 +88,7 @@ export default function PartyGoalsPage() {
   if (loading) {
     return (
       <div className="p-6 max-w-4xl mx-auto">
-        <div className="text-slate-400">Loading party quests...</div>
+        <div className="text-dungeon-500 font-mono">Loading party quests...</div>
       </div>
     );
   }
@@ -115,29 +115,29 @@ export default function PartyGoalsPage() {
 
       {/* Goal Picker */}
       {showPicker && (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
+        <div className="dcc-card p-5 space-y-3">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-lg font-semibold text-slate-100">Select a Goal</h3>
+            <h3 className="text-lg font-semibold text-slate-100 dcc-heading">Select a Goal</h3>
             <button
               onClick={() => setShowPicker(false)}
-              className="text-slate-400 hover:text-slate-100 transition-colors text-sm"
+              className="text-dungeon-500 hover:text-slate-100 transition-colors text-sm"
             >
               Cancel
             </button>
           </div>
           {unlinkedGoals.length === 0 ? (
-            <p className="text-slate-500 text-sm">All your goals are already party quests or completed.</p>
+            <p className="text-dungeon-500 text-sm font-mono">All your goals are already party quests or completed.</p>
           ) : (
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {unlinkedGoals.map((goal) => (
                 <div
                   key={goal.id}
-                  className="flex items-center justify-between p-3 bg-slate-800 border border-slate-700 rounded-lg"
+                  className="flex items-center justify-between p-3 bg-dungeon-800 border border-dungeon-700 rounded-lg"
                 >
                   <div>
                     <div className="text-sm text-slate-100 font-medium">{goal.title}</div>
                     {goal.description && (
-                      <div className="text-xs text-slate-400 mt-0.5 line-clamp-1">{goal.description}</div>
+                      <div className="text-xs text-dungeon-500 mt-0.5 line-clamp-1">{goal.description}</div>
                     )}
                   </div>
                   <button
@@ -156,10 +156,10 @@ export default function PartyGoalsPage() {
 
       {/* Party Goals List */}
       {partyGoals.length === 0 ? (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 text-center">
+        <div className="dcc-card p-8 text-center">
           <div className="text-4xl mb-3">👥</div>
-          <p className="text-slate-400 mb-1">No party quests active.</p>
-          <p className="text-slate-500 text-sm">
+          <p className="text-dungeon-500 mb-1">No party quests active.</p>
+          <p className="text-dungeon-500 text-sm font-mono">
             Party quests are shared goals that both crawlers work toward together.
             Complete them as a team for 1.5x XP bonus.
           </p>
@@ -173,7 +173,7 @@ export default function PartyGoalsPage() {
             return (
               <div
                 key={pg.id}
-                className="bg-slate-900 border border-slate-800 rounded-xl p-5"
+                className="dcc-card p-5"
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
@@ -181,17 +181,17 @@ export default function PartyGoalsPage() {
                     <div>
                       <h3 className="text-slate-100 font-semibold">{goal.title}</h3>
                       {goal.description && (
-                        <p className="text-xs text-slate-400 mt-0.5 line-clamp-2">{goal.description}</p>
+                        <p className="text-xs text-dungeon-500 mt-0.5 line-clamp-2">{goal.description}</p>
                       )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded font-semibold">
+                    <span className="dcc-badge-gold text-xs">
                       +{pg.party_xp_bonus} XP bonus
                     </span>
                     <button
                       onClick={() => handleRemove(goal.id)}
-                      className="text-slate-500 hover:text-red-400 transition-colors p-1"
+                      className="text-dungeon-500 hover:text-crimson-400 transition-colors p-1"
                       title="Remove party status"
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -203,13 +203,13 @@ export default function PartyGoalsPage() {
                 </div>
 
                 {/* Progress bar */}
-                <div className="w-full bg-slate-800 rounded-full h-2.5 mb-1">
+                <div className="dcc-xp-bar h-2.5 mb-1">
                   <div
-                    className="bg-red-500 h-2.5 rounded-full transition-all duration-500"
+                    className="dcc-xp-fill h-2.5"
                     style={{ width: `${Math.min(progress, 100)}%` }}
                   />
                 </div>
-                <div className="flex justify-between text-xs text-slate-500">
+                <div className="flex justify-between text-xs text-dungeon-500 font-mono">
                   <span>{progress}% complete</span>
                   {goal.target_date && (
                     <span>Due {new Date(goal.target_date).toLocaleDateString()}</span>
@@ -222,8 +222,8 @@ export default function PartyGoalsPage() {
       )}
 
       {/* Info */}
-      <div className="bg-slate-900/50 border border-slate-800/50 rounded-lg p-4 text-xs text-slate-500">
-        <strong className="text-slate-400">How party quests work:</strong> Mark any goal as a party quest.
+      <div className="dcc-card p-4 text-xs text-dungeon-500 font-mono">
+        <strong className="text-slate-300">How party quests work:</strong> Mark any goal as a party quest.
         When the goal is completed, every crawler in the household earns the bonus XP. The System tracks
         completion and awards bonuses automatically. Teamwork is a survival strategy, not a feel-good exercise.
       </div>

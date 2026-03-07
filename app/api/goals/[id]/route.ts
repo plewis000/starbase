@@ -156,7 +156,7 @@ export const PATCH = withAuth(async (request, { supabase, user }, params) => {
   if (updates.status === "completed" && currentGoal.status !== "completed") {
     after(async () => {
       try {
-        await awardXp(supabase, user.id, 100, "goal_completed", `Goal completed: ${updated.title}`, id);
+        await awardXp(supabase, user.id, 100, "goal_completed", `Goal completed: ${updated.title}`, "goal", id);
         await checkAchievements(supabase, user.id, "goal_completed", { goalId: id });
       } catch (err) {
         console.error("[goals] Gamification error on completion:", err);
