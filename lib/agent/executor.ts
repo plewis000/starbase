@@ -1,5 +1,5 @@
 import { SupabaseClient } from "@supabase/supabase-js";
-import { finance, config, platform } from "@/lib/supabase/schemas";
+import { finance, config, platform, household } from "@/lib/supabase/schemas";
 import { getHouseholdContext, getHouseholdMemberIds } from "@/lib/household";
 import { sanitizeSearchInput } from "@/lib/validation";
 import { sendMessageWithButtons, ZEV_COLOR } from "@/lib/discord";
@@ -536,7 +536,7 @@ async function listShopping(supabase: Supabase, userId: string): Promise<ToolRes
   if (!ctx) return { success: false, error: "No household found" };
   const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
 
-  const { data, error } = await platform(supabase)
+  const { data, error } = await household(supabase)
     .from("shopping_lists")
     .select("id, name, store, is_default, created_at")
     .in("created_by", memberIds)
@@ -555,7 +555,7 @@ async function getShoppingList(supabase: Supabase, userId: string, input: Record
   if (!ctx) return { success: false, error: "No household found" };
   const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
 
-  const { data, error } = await platform(supabase)
+  const { data, error } = await household(supabase)
     .from("shopping_lists")
     .select("id, name, store, created_by, shopping_items(id, name, quantity, checked, category:shopping_categories(name))")
     .eq("id", id)
@@ -575,7 +575,7 @@ async function addShoppingItems(supabase: Supabase, userId: string, input: Recor
   const ctx = await getHouseholdContext(supabase, userId);
   if (!ctx) return { success: false, error: "No household found" };
   const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
-  const { data: listCheck } = await platform(supabase).from("shopping_lists").select("created_by").eq("id", listId).single();
+  const { data: listCheck } = await household(supabase).from("shopping_lists").select("created_by").eq("id", listId).single();
   if (!listCheck || !memberIds.includes(listCheck.created_by)) {
     return { success: false, error: "Shopping list not found" };
   }
@@ -586,7 +586,7 @@ async function addShoppingItems(supabase: Supabase, userId: string, input: Recor
     quantity: item.quantity || null,
   }));
 
-  const { data, error } = await platform(supabase)
+  const { data, error } = await household(supabase)
     .from("shopping_items")
     .insert(inserts)
     .select("id, name, quantity");
