@@ -9,6 +9,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { platform, config } from "@/lib/supabase/schemas";
 import { sendEmbed, SYSTEM_COLOR } from "@/lib/discord";
 import { checkAchievements } from "@/lib/gamification";
+import { triggerNotification } from "@/lib/notify";
 
 export async function GET(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
@@ -70,6 +71,23 @@ export async function GET(request: NextRequest) {
         min_length: habit.current_streak,
       }).catch(() => {});
     }
+  }
+
+  // Send in-app notifications per user for their at-risk habits
+  const missedByUser = new Map<string, typeof missed>();
+  for (const h of missed) {
+    if (!missedByUser.has(h.owner_id)) missedByUser.set(h.owner_id, []);
+    missedByUser.get(h.owner_id)!.push(h);
+  }
+  for (const [userId, habits] of missedByUser) {
+    const names = habits.slice(0, 3).map(h => h.title).join(", ");
+    const suffix = habits.length > 3 ? ` +${habits.length - 3} more` : "";
+    triggerNotification(supabase, {
+      recipientUserId: userId,
+      title: `${habits.length} streak${habits.length > 1 ? "s" : ""} at risk`,
+      body: `Check in today or lose: ${names}${suffix}`,
+      event: "streak_broken",
+    }).catch(() => {});
   }
 
   const channelId = process.env.PIPELINE_CHANNEL_ID;
