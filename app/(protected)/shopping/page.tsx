@@ -443,7 +443,7 @@ export default function ShoppingPage() {
                 className={`flex-shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                   activeListId === list.id
                     ? "bg-red-400/10 text-red-400 border border-red-400/30"
-                    : "bg-slate-900 text-slate-400 border border-slate-800 hover:text-slate-100 hover:border-slate-700"
+                    : "bg-dungeon-900 text-slate-400 border border-dungeon-800 hover:text-slate-100 hover:border-dungeon-700"
                 }`}
               >
                 <span>{list.name}</span>
@@ -480,7 +480,7 @@ export default function ShoppingPage() {
                   if (e.key === "Enter") handleAddItem();
                 }}
                 placeholder="Add item..."
-                className="flex-1 px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/30 transition-colors"
+                className="flex-1 px-4 py-2.5 bg-dungeon-900 border border-dungeon-800 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/30 transition-colors"
               />
               <input
                 type="text"
@@ -490,12 +490,12 @@ export default function ShoppingPage() {
                   if (e.key === "Enter") handleAddItem();
                 }}
                 placeholder="Qty"
-                className="w-20 px-3 py-2.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/30 transition-colors text-center"
+                className="w-20 px-3 py-2.5 bg-dungeon-900 border border-dungeon-800 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/30 transition-colors text-center"
               />
               <button
                 onClick={handleAddItem}
                 disabled={!newItemName.trim()}
-                className="px-4 py-2.5 bg-red-400 hover:bg-red-500 disabled:bg-slate-700 disabled:cursor-not-allowed text-slate-950 font-medium rounded-lg transition-colors"
+                className="px-4 py-2.5 bg-red-400 hover:bg-red-500 disabled:bg-dungeon-700 disabled:cursor-not-allowed text-slate-950 font-medium rounded-lg transition-colors"
               >
                 Add
               </button>
@@ -568,8 +568,8 @@ export default function ShoppingPage() {
                           key={item.id}
                           className={`flex items-center gap-3 p-3 rounded-lg border transition-all group ${
                             item.checked
-                              ? "bg-slate-900/50 border-slate-800/50"
-                              : "bg-slate-900 border-slate-800 hover:border-slate-700"
+                              ? "bg-dungeon-900/50 border-dungeon-800/50"
+                              : "bg-dungeon-900 border-dungeon-800 hover:border-dungeon-700"
                           }`}
                         >
                           {/* Checkbox */}
@@ -578,7 +578,7 @@ export default function ShoppingPage() {
                             className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
                               item.checked
                                 ? "border-red-400 bg-red-400/20"
-                                : "border-slate-600 hover:border-red-400"
+                                : "border-dungeon-600 hover:border-red-400"
                             }`}
                           >
                             {item.checked && (
@@ -597,7 +597,7 @@ export default function ShoppingPage() {
 
                           {/* Quantity */}
                           {item.quantity && (
-                            <span className="text-xs text-slate-400 bg-slate-800 px-2 py-0.5 rounded">
+                            <span className="text-xs text-slate-400 bg-dungeon-800 px-2 py-0.5 rounded">
                               {item.quantity}
                             </span>
                           )}
@@ -652,7 +652,7 @@ export default function ShoppingPage() {
                 ))}
 
                 {/* Footer actions */}
-                <div className="flex items-center justify-between pt-4 border-t border-slate-800">
+                <div className="flex items-center justify-between pt-4 border-t border-dungeon-800">
                   <span className="text-sm text-slate-400">
                     {uncheckedCount} remaining, {checkedCount} checked
                   </span>
@@ -660,7 +660,7 @@ export default function ShoppingPage() {
                     {checkedCount > 0 && (
                       <button
                         onClick={handleClearChecked}
-                        className="px-3 py-1.5 text-sm text-slate-400 hover:text-slate-100 bg-slate-900 border border-slate-800 rounded-lg hover:border-slate-700 transition-colors"
+                        className="px-3 py-1.5 text-sm text-slate-400 hover:text-slate-100 bg-dungeon-900 border border-dungeon-800 rounded-lg hover:border-dungeon-700 transition-colors"
                       >
                         Clear checked
                       </button>
@@ -676,7 +676,7 @@ export default function ShoppingPage() {
                         </button>
                         <button
                           onClick={() => setShowDeleteConfirm(false)}
-                          className="px-2 py-1 text-xs text-slate-400 border border-slate-700 rounded hover:bg-slate-800 transition-colors"
+                          className="px-2 py-1 text-xs text-slate-400 border border-dungeon-700 rounded hover:bg-dungeon-800 transition-colors"
                         >
                           Cancel
                         </button>
@@ -713,7 +713,7 @@ export default function ShoppingPage() {
               onKeyDown={(e) => { if (e.key === "Enter") handleCreateList(); }}
               placeholder="e.g., Weekly Groceries"
               autoFocus
-              className="w-full bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50"
+              className="w-full bg-dungeon-800 border border-dungeon-700 rounded px-4 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50"
             />
           </div>
           <div>
@@ -723,20 +723,20 @@ export default function ShoppingPage() {
               value={newListStore}
               onChange={(e) => setNewListStore(e.target.value)}
               placeholder="e.g., Costco, Trader Joe's"
-              className="w-full bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50"
+              className="w-full bg-dungeon-800 border border-dungeon-700 rounded px-4 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50"
             />
           </div>
           <div className="flex gap-3 justify-end pt-2">
             <button
               onClick={() => setShowNewListModal(false)}
-              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-100 font-medium rounded transition-colors"
+              className="px-4 py-2 bg-dungeon-800 hover:bg-dungeon-700 text-slate-100 font-medium rounded transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={handleCreateList}
               disabled={!newListName.trim()}
-              className="px-4 py-2 bg-red-400 hover:bg-red-500 disabled:bg-slate-700 disabled:cursor-not-allowed text-slate-950 font-medium rounded transition-colors"
+              className="px-4 py-2 bg-red-400 hover:bg-red-500 disabled:bg-dungeon-700 disabled:cursor-not-allowed text-slate-950 font-medium rounded transition-colors"
             >
               Create
             </button>

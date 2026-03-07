@@ -157,16 +157,16 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="h-screen bg-slate-950 flex">
+    <div className="h-screen bg-dungeon-950 flex">
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 w-72 bg-slate-900 border-r border-slate-800 z-40 transform transition-transform duration-200 lg:relative lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 w-72 bg-dungeon-900 border-r border-dungeon-800 z-40 transform transition-transform duration-200 lg:relative lg:translate-x-0 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         <div className="flex flex-col h-full">
           {/* Sidebar header */}
-          <div className="p-4 border-b border-slate-800">
+          <div className="p-4 border-b border-dungeon-800">
             <div className="flex items-center justify-between mb-3">
               <Link href="/dashboard" className="text-sm text-slate-400 hover:text-slate-200 transition-colors">
                 &larr; Dashboard
@@ -196,8 +196,8 @@ export default function ChatPage() {
                 onClick={() => loadConversation(conv.id)}
                 className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors ${
                   conversationId === conv.id
-                    ? "bg-slate-800 text-amber-400"
-                    : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-200"
+                    ? "bg-dungeon-800 text-amber-400"
+                    : "text-slate-400 hover:bg-dungeon-800/50 hover:text-slate-200"
                 }`}
               >
                 <div className="truncate font-medium">
@@ -226,7 +226,7 @@ export default function ChatPage() {
       {/* Main chat area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Chat header */}
-        <header className="flex items-center gap-3 px-4 py-3 border-b border-slate-800 bg-slate-900/80 backdrop-blur-sm">
+        <header className="flex items-center gap-3 px-4 py-3 border-b border-dungeon-800 bg-dungeon-900/80 backdrop-blur-sm">
           <button
             onClick={() => setSidebarOpen(true)}
             className="lg:hidden text-slate-400 hover:text-slate-100 p-1"
@@ -266,7 +266,7 @@ export default function ChatPage() {
                     <button
                       key={q}
                       onClick={() => setInput(q)}
-                      className="px-3 py-2 text-sm bg-slate-800 border border-slate-700 rounded-xl text-slate-300 hover:bg-slate-700 hover:text-slate-100 transition-colors"
+                      className="px-3 py-2 text-sm bg-dungeon-800 border border-dungeon-700 rounded-xl text-slate-300 hover:bg-dungeon-700 hover:text-slate-100 transition-colors"
                     >
                       {q}
                     </button>
@@ -290,7 +290,7 @@ export default function ChatPage() {
                 className={`max-w-[70%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                   msg.role === "user"
                     ? "bg-green-600/20 text-green-100 rounded-br-md"
-                    : "bg-slate-800 text-slate-200 rounded-bl-md"
+                    : "bg-dungeon-800 text-slate-200 rounded-bl-md"
                 }`}
               >
                 <div className="whitespace-pre-wrap break-words">{msg.content}</div>
@@ -309,11 +309,11 @@ export default function ChatPage() {
               <div className="w-7 h-7 rounded-full bg-amber-600/20 flex items-center justify-center text-xs font-bold text-amber-400 mr-2 mt-1 flex-shrink-0">
                 Z
               </div>
-              <div className="bg-slate-800 rounded-2xl rounded-bl-md px-4 py-3">
+              <div className="bg-dungeon-800 rounded-2xl rounded-bl-md px-4 py-3">
                 <div className="flex gap-1.5">
-                  <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                  <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                  <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                  <div className="w-2 h-2 bg-dungeon-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                  <div className="w-2 h-2 bg-dungeon-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                  <div className="w-2 h-2 bg-dungeon-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
                 </div>
               </div>
             </div>
@@ -323,7 +323,7 @@ export default function ChatPage() {
         </div>
 
         {/* Input area */}
-        <div className="border-t border-slate-800 p-4 bg-slate-900/50">
+        <div className="border-t border-dungeon-800 p-4 bg-dungeon-900/50">
           <div className="flex gap-3 max-w-3xl mx-auto">
             <textarea
               ref={inputRef}
@@ -333,12 +333,12 @@ export default function ChatPage() {
               placeholder="Talk to Zev..."
               disabled={loading}
               rows={1}
-              className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500/50 disabled:opacity-50 transition-colors resize-none"
+              className="flex-1 bg-dungeon-800 border border-dungeon-700 rounded-xl px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500/50 disabled:opacity-50 transition-colors resize-none"
             />
             <button
               onClick={sendMessage}
               disabled={!input.trim() || loading}
-              className="px-4 py-3 bg-amber-600 hover:bg-amber-500 disabled:bg-slate-700 disabled:text-slate-500 text-white rounded-xl transition-colors font-medium text-sm self-end"
+              className="px-4 py-3 bg-amber-600 hover:bg-amber-500 disabled:bg-dungeon-700 disabled:text-slate-500 text-white rounded-xl transition-colors font-medium text-sm self-end"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />

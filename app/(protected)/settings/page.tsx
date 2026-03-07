@@ -120,8 +120,8 @@ export default function SettingsPage() {
     return (
       <div className="p-6 max-w-3xl mx-auto">
         <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-slate-800 rounded w-48" />
-          <div className="h-64 bg-slate-800 rounded-lg" />
+          <div className="h-8 bg-dungeon-800 rounded w-48" />
+          <div className="h-64 bg-dungeon-800 rounded-lg" />
         </div>
       </div>
     );
@@ -156,7 +156,7 @@ export default function SettingsPage() {
             {user.avatar_url ? (
               <img src={user.avatar_url} alt={user.full_name} className="w-16 h-16 rounded-full" />
             ) : (
-              <div className="w-16 h-16 rounded-full bg-slate-700 flex items-center justify-center text-xl font-bold text-slate-300">
+              <div className="w-16 h-16 rounded-full bg-dungeon-700 flex items-center justify-center text-xl font-bold text-slate-300">
                 {user.full_name?.charAt(0) || "?"}
               </div>
             )}
@@ -169,7 +169,7 @@ export default function SettingsPage() {
           <div className="border-t border-slate-800 pt-4 space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-400 mb-1">User ID</label>
-              <p className="text-sm text-slate-300 font-mono bg-slate-800 px-3 py-2 rounded">{user.id}</p>
+              <p className="text-sm text-slate-300 font-mono bg-dungeon-800 px-3 py-2 rounded">{user.id}</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-400 mb-1">Auth Provider</label>
@@ -198,7 +198,7 @@ export default function SettingsPage() {
               </div>
             </div>
             <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-              integrations?.discord?.connected ? "bg-green-500/20 text-green-400" : "bg-slate-700 text-slate-400"
+              integrations?.discord?.connected ? "bg-green-500/20 text-green-400" : "bg-dungeon-700 text-slate-400"
             }`}>
               {integrations?.discord?.connected ? "Connected" : "Not connected"}
             </span>
@@ -213,7 +213,7 @@ export default function SettingsPage() {
               </div>
             </div>
             <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-              integrations?.plaid?.connected ? "bg-green-500/20 text-green-400" : "bg-slate-700 text-slate-400"
+              integrations?.plaid?.connected ? "bg-green-500/20 text-green-400" : "bg-dungeon-700 text-slate-400"
             }`}>
               {integrations?.plaid?.connected
                 ? `${integrations.plaid.accounts} account${integrations.plaid.accounts !== 1 ? "s" : ""}`
@@ -230,7 +230,7 @@ export default function SettingsPage() {
               </div>
             </div>
             <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-              integrations?.anthropic?.connected ? "bg-green-500/20 text-green-400" : "bg-slate-700 text-slate-400"
+              integrations?.anthropic?.connected ? "bg-green-500/20 text-green-400" : "bg-dungeon-700 text-slate-400"
             }`}>
               {integrations?.anthropic?.connected ? "Active" : "Not configured"}
             </span>
@@ -269,11 +269,11 @@ export default function SettingsPage() {
         <div className="grid grid-cols-2 gap-2 text-sm">
           <div className="flex items-center justify-between">
             <span className="text-slate-400">Command palette</span>
-            <kbd className="px-2 py-0.5 bg-slate-800 text-slate-300 rounded border border-slate-700 text-xs">Cmd+K</kbd>
+            <kbd className="px-2 py-0.5 bg-dungeon-800 text-slate-300 rounded border border-dungeon-700 text-xs">Cmd+K</kbd>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-slate-400">Close modal</span>
-            <kbd className="px-2 py-0.5 bg-slate-800 text-slate-300 rounded border border-slate-700 text-xs">Esc</kbd>
+            <kbd className="px-2 py-0.5 bg-dungeon-800 text-slate-300 rounded border border-dungeon-700 text-xs">Esc</kbd>
           </div>
         </div>
       </div>
@@ -346,7 +346,7 @@ function HouseholdTab() {
   };
 
   if (loading) {
-    return <div className="dcc-card p-4"><div className="animate-pulse h-32 bg-slate-800 rounded" /></div>;
+    return <div className="dcc-card p-4"><div className="animate-pulse h-32 bg-dungeon-800 rounded" /></div>;
   }
 
   if (!household) {
@@ -373,7 +373,7 @@ function HouseholdTab() {
               value={nameValue}
               onChange={(e) => setNameValue(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") handleUpdateName(); if (e.key === "Escape") setEditingName(false); }}
-              className="flex-1 bg-slate-800 border border-red-400 rounded px-3 py-2 text-sm text-slate-100 focus:outline-none"
+              className="flex-1 bg-dungeon-800 border border-red-400 rounded px-3 py-2 text-sm text-slate-100 focus:outline-none"
               autoFocus
             />
             <button onClick={handleUpdateName} className="text-xs text-green-400 hover:text-green-300">Save</button>
@@ -390,7 +390,7 @@ function HouseholdTab() {
           value={household.timezone || "America/Chicago"}
           onChange={(e) => handleTimezoneChange(e.target.value)}
           disabled={role !== "admin" || savingTz}
-          className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-red-400 disabled:opacity-50"
+          className="w-full bg-dungeon-800 border border-dungeon-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-red-400 disabled:opacity-50"
         >
           {TIMEZONE_OPTIONS.map((tz) => (
             <option key={tz} value={tz}>{tz.replace(/_/g, " ")}</option>
@@ -403,12 +403,12 @@ function HouseholdTab() {
         <h3 className="text-sm font-medium text-slate-400">Members</h3>
         <div className="space-y-2">
           {household.members.map((m) => (
-            <div key={m.id} className="flex items-center justify-between px-3 py-2 bg-slate-800/50 rounded-lg">
+            <div key={m.id} className="flex items-center justify-between px-3 py-2 bg-dungeon-800/50 rounded-lg">
               <div>
                 <span className="text-sm text-slate-200">{m.display_name || m.user_id}</span>
               </div>
               <span className={`px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded ${
-                m.role === "admin" ? "bg-red-900/30 text-red-400" : "bg-slate-700 text-slate-400"
+                m.role === "admin" ? "bg-red-900/30 text-red-400" : "bg-dungeon-700 text-slate-400"
               }`}>
                 {m.role}
               </span>
@@ -461,7 +461,7 @@ function SavedViewsManager() {
             type="checkbox"
             checked={showArchived}
             onChange={(e) => setShowArchived(e.target.checked)}
-            className="rounded border-slate-600 w-3.5 h-3.5"
+            className="rounded border-dungeon-600 w-3.5 h-3.5"
           />
           <span className="text-[10px] text-slate-500">Show archived</span>
         </label>
@@ -475,7 +475,7 @@ function SavedViewsManager() {
           {visibleViews.map(({ view, idx }) => {
             const isArchived = (view as SavedView & { archived?: boolean }).archived;
             return (
-            <div key={idx} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${isArchived ? "opacity-50" : "hover:bg-slate-800/50"}`}>
+            <div key={idx} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${isArchived ? "opacity-50" : "hover:bg-dungeon-800/50"}`}>
               <span className="text-sm">{view.icon || "📋"}</span>
               {editingIdx === idx ? (
                 <div className="flex-1 flex items-center gap-2">
@@ -484,7 +484,7 @@ function SavedViewsManager() {
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") handleRename(idx); if (e.key === "Escape") setEditingIdx(null); }}
-                    className="flex-1 bg-slate-800 border border-red-400 rounded px-2 py-1 text-sm text-slate-100 focus:outline-none"
+                    className="flex-1 bg-dungeon-800 border border-red-400 rounded px-2 py-1 text-sm text-slate-100 focus:outline-none"
                     autoFocus
                   />
                   <button onClick={() => handleRename(idx)} className="text-xs text-green-400">Save</button>
@@ -495,7 +495,7 @@ function SavedViewsManager() {
                   <div className="flex-1 flex items-center gap-2">
                     <span className="text-sm text-slate-200">{view.name}</span>
                     {isArchived && (
-                      <span className="px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider bg-slate-700 text-slate-400 rounded">
+                      <span className="px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider bg-dungeon-700 text-slate-400 rounded">
                         Archived
                       </span>
                     )}
@@ -617,7 +617,7 @@ function ConfigSection({ table, label }: { table: string; label: string }) {
   if (loading) {
     return (
       <div className="dcc-card p-4">
-        <div className="animate-pulse h-20 bg-slate-800 rounded" />
+        <div className="animate-pulse h-20 bg-dungeon-800 rounded" />
       </div>
     );
   }
@@ -632,7 +632,7 @@ function ConfigSection({ table, label }: { table: string; label: string }) {
               type="checkbox"
               checked={showInactive}
               onChange={(e) => setShowInactive(e.target.checked)}
-              className="rounded border-slate-600 w-3.5 h-3.5"
+              className="rounded border-dungeon-600 w-3.5 h-3.5"
             />
             <span className="text-[10px] text-slate-500">Show inactive</span>
           </label>
@@ -647,21 +647,21 @@ function ConfigSection({ table, label }: { table: string; label: string }) {
 
       {/* Add form */}
       {showAdd && (
-        <div className="flex items-center gap-2 p-3 bg-slate-800/50 rounded-lg">
+        <div className="flex items-center gap-2 p-3 bg-dungeon-800/50 rounded-lg">
           <input
             type="text"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); if (e.key === "Escape") setShowAdd(false); }}
             placeholder="Name..."
-            className="flex-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400"
+            className="flex-1 bg-dungeon-800 border border-dungeon-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400"
             autoFocus
           />
           <input
             type="color"
             value={newColor || "#64748b"}
             onChange={(e) => setNewColor(e.target.value)}
-            className="w-10 h-10 rounded border border-slate-700 bg-transparent cursor-pointer"
+            className="w-10 h-10 rounded border border-dungeon-700 bg-transparent cursor-pointer"
             title="Color"
           />
           <button onClick={handleAdd} className="px-3 py-2 bg-red-400 hover:bg-red-500 text-slate-950 text-sm font-medium rounded transition-colors">
@@ -681,7 +681,7 @@ function ConfigSection({ table, label }: { table: string; label: string }) {
           <div
             key={item.id}
             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-              isInactive ? "opacity-50" : "hover:bg-slate-800/50"
+              isInactive ? "opacity-50" : "hover:bg-dungeon-800/50"
             }`}
           >
             {/* Sort order indicator */}
@@ -689,7 +689,7 @@ function ConfigSection({ table, label }: { table: string; label: string }) {
 
             {/* Color swatch */}
             <div
-              className="w-4 h-4 rounded-full flex-shrink-0 border border-slate-600"
+              className="w-4 h-4 rounded-full flex-shrink-0 border border-dungeon-600"
               style={{ backgroundColor: item.display_color || "#64748b" }}
             />
 
@@ -701,7 +701,7 @@ function ConfigSection({ table, label }: { table: string; label: string }) {
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") handleUpdate(item.id); if (e.key === "Escape") setEditingId(null); }}
-                  className="flex-1 bg-slate-800 border border-red-400 rounded px-2 py-1 text-sm text-slate-100 focus:outline-none"
+                  className="flex-1 bg-dungeon-800 border border-red-400 rounded px-2 py-1 text-sm text-slate-100 focus:outline-none"
                   autoFocus
                 />
                 <input
@@ -709,13 +709,13 @@ function ConfigSection({ table, label }: { table: string; label: string }) {
                   value={editIcon}
                   onChange={(e) => setEditIcon(e.target.value)}
                   placeholder="Icon"
-                  className="w-12 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm text-center focus:outline-none focus:border-red-400"
+                  className="w-12 bg-dungeon-800 border border-dungeon-700 rounded px-2 py-1 text-sm text-center focus:outline-none focus:border-red-400"
                 />
                 <input
                   type="color"
                   value={editColor || item.display_color || "#64748b"}
                   onChange={(e) => setEditColor(e.target.value)}
-                  className="w-8 h-8 rounded border border-slate-700 bg-transparent cursor-pointer"
+                  className="w-8 h-8 rounded border border-dungeon-700 bg-transparent cursor-pointer"
                 />
                 <button onClick={() => handleUpdate(item.id)} className="text-xs text-green-400 hover:text-green-300">Save</button>
                 <button onClick={() => setEditingId(null)} className="text-xs text-slate-500 hover:text-slate-300">Cancel</button>
@@ -727,7 +727,7 @@ function ConfigSection({ table, label }: { table: string; label: string }) {
                   <span className={`text-sm ${isInactive ? "line-through text-slate-500" : "text-slate-200"}`}>{item.name}</span>
                   {item.slug && <span className="text-[10px] text-slate-600 font-mono">{item.slug}</span>}
                   {isInactive && (
-                    <span className="px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider bg-slate-700 text-slate-400 rounded">
+                    <span className="px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider bg-dungeon-700 text-slate-400 rounded">
                       Inactive
                     </span>
                   )}
@@ -875,7 +875,7 @@ function NotificationPreferences() {
               className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
                 pref.enabled
                   ? "bg-green-600/20 text-green-400 hover:bg-green-600/30"
-                  : "bg-slate-700 text-slate-400 hover:bg-slate-600"
+                  : "bg-dungeon-700 text-slate-400 hover:bg-dungeon-600"
               }`}
             >
               {pref.enabled ? "Enabled" : "Disabled"}
@@ -884,7 +884,7 @@ function NotificationPreferences() {
 
           {/* Discord-specific: webhook URL */}
           {pref.channel_slug === "discord" && (
-            <div className="mt-3 pt-3 border-t border-slate-700">
+            <div className="mt-3 pt-3 border-t border-dungeon-700">
               <label className="text-xs text-slate-400 block mb-1">
                 Discord Webhook URL (for task reminders)
               </label>
@@ -894,7 +894,7 @@ function NotificationPreferences() {
                   placeholder="https://discord.com/api/webhooks/..."
                   value={webhookUrl}
                   onChange={(e) => setWebhookUrl(e.target.value)}
-                  className="flex-1 bg-slate-800 border border-slate-600 rounded px-3 py-1.5 text-sm text-slate-100 placeholder:text-slate-500"
+                  className="flex-1 bg-dungeon-800 border border-dungeon-600 rounded px-3 py-1.5 text-sm text-slate-100 placeholder:text-slate-500"
                 />
                 <button
                   onClick={saveWebhook}
@@ -1029,7 +1029,7 @@ function ZevMemoryManager() {
   }
 
   if (loading) {
-    return <div className="dcc-card p-6"><div className="animate-pulse h-32 bg-slate-800 rounded" /></div>;
+    return <div className="dcc-card p-6"><div className="animate-pulse h-32 bg-dungeon-800 rounded" /></div>;
   }
 
   return (
@@ -1047,7 +1047,7 @@ function ZevMemoryManager() {
               type="checkbox"
               checked={showInactive}
               onChange={(e) => setShowInactive(e.target.checked)}
-              className="rounded border-slate-600 w-3.5 h-3.5"
+              className="rounded border-dungeon-600 w-3.5 h-3.5"
             />
             <span className="text-[10px] text-slate-500">Show removed</span>
           </label>
@@ -1096,7 +1096,7 @@ function ZevMemoryManager() {
                 <div
                   key={o.id}
                   className={`flex items-start gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-                    !o.is_active ? "opacity-40" : "hover:bg-slate-800/50"
+                    !o.is_active ? "opacity-40" : "hover:bg-dungeon-800/50"
                   }`}
                 >
                   {editingId === o.id ? (
@@ -1109,7 +1109,7 @@ function ZevMemoryManager() {
                           if (e.key === "Enter") handleUpdate(o.id);
                           if (e.key === "Escape") setEditingId(null);
                         }}
-                        className="flex-1 bg-slate-800 border border-red-400 rounded px-2 py-1 text-sm text-slate-100 focus:outline-none"
+                        className="flex-1 bg-dungeon-800 border border-red-400 rounded px-2 py-1 text-sm text-slate-100 focus:outline-none"
                         autoFocus
                       />
                       <button onClick={() => handleUpdate(o.id)} className="text-xs text-green-400">Save</button>

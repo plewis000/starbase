@@ -229,7 +229,7 @@ export default function RecipesPage() {
           <button
             onClick={() => setTab("recipes")}
             className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-              tab === "recipes" ? "bg-indigo-600 text-white" : "bg-slate-700 text-slate-300 hover:bg-slate-600"
+              tab === "recipes" ? "bg-crimson-600 text-white" : "bg-dungeon-700 text-slate-300 hover:bg-dungeon-600"
             }`}
           >
             Recipes
@@ -237,7 +237,7 @@ export default function RecipesPage() {
           <button
             onClick={() => setTab("meal-plan")}
             className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-              tab === "meal-plan" ? "bg-indigo-600 text-white" : "bg-slate-700 text-slate-300 hover:bg-slate-600"
+              tab === "meal-plan" ? "bg-crimson-600 text-white" : "bg-dungeon-700 text-slate-300 hover:bg-dungeon-600"
             }`}
           >
             Meal Plan
@@ -325,17 +325,17 @@ function RecipesTab({
           placeholder="Search recipes..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="flex-1 bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500"
+          className="flex-1 bg-dungeon-800 border border-dungeon-600 rounded px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500"
         />
         <button
           onClick={() => setShowImportModal(true)}
-          className="bg-slate-700 hover:bg-slate-600 text-slate-200 px-4 py-2 rounded text-sm font-medium"
+          className="bg-dungeon-700 hover:bg-dungeon-600 text-slate-200 px-4 py-2 rounded text-sm font-medium"
         >
           Import URL
         </button>
         <button
           onClick={() => { setEditingRecipe(null); setShowRecipeModal(true); }}
-          className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded text-sm font-medium"
+          className="bg-crimson-600 hover:bg-crimson-500 text-white px-4 py-2 rounded text-sm font-medium"
         >
           + New Recipe
         </button>
@@ -365,7 +365,7 @@ function RecipesTab({
               <button
                 key={recipe.id}
                 onClick={() => fetchRecipeDetail(recipe.id)}
-                className="bg-slate-800 border border-slate-700 rounded-lg p-4 text-left hover:border-indigo-500 transition-colors"
+                className="bg-dungeon-800 border border-dungeon-700 rounded-lg p-4 text-left hover:border-crimson-600 transition-colors"
               >
                 <h3 className="font-semibold text-slate-100 mb-1 truncate">{recipe.title}</h3>
                 <div className="flex items-center gap-3 text-xs text-slate-400 mb-2">
@@ -376,7 +376,7 @@ function RecipesTab({
                 {recipe.tags && recipe.tags.length > 0 && (
                   <div className="flex flex-wrap gap-1">
                     {recipe.tags.slice(0, 3).map((tag) => (
-                      <span key={tag} className="px-2 py-0.5 bg-slate-700 text-slate-300 rounded-full text-xs">
+                      <span key={tag} className="px-2 py-0.5 bg-dungeon-700 text-slate-300 rounded-full text-xs">
                         {tag}
                       </span>
                     ))}
@@ -431,7 +431,7 @@ function RecipeDetail({
   const totalTime = (recipe.prep_time_minutes || 0) + (recipe.cook_time_minutes || 0);
 
   return (
-    <div className="bg-slate-800 border border-slate-700 rounded-lg p-6 mb-4">
+    <div className="bg-dungeon-800 border border-dungeon-700 rounded-lg p-6 mb-4">
       <div className="flex items-start justify-between mb-4">
         <div>
           <h2 className="text-xl font-bold text-slate-100">{recipe.title}</h2>
@@ -446,20 +446,20 @@ function RecipeDetail({
           <button onClick={onAddToShopping} className="text-xs bg-green-600 hover:bg-green-500 text-white px-3 py-1.5 rounded">
             + Shopping List
           </button>
-          <button onClick={onEdit} className="text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 py-1.5 rounded">
+          <button onClick={onEdit} className="text-xs bg-dungeon-700 hover:bg-dungeon-600 text-slate-300 px-3 py-1.5 rounded">
             Edit
           </button>
           <button onClick={onDelete} className="text-xs bg-red-600/20 hover:bg-red-600/40 text-red-400 px-3 py-1.5 rounded">
             Delete
           </button>
-          <button onClick={onClose} className="text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 px-2 py-1.5 rounded">
+          <button onClick={onClose} className="text-xs bg-dungeon-700 hover:bg-dungeon-600 text-slate-300 px-2 py-1.5 rounded">
             X
           </button>
         </div>
       </div>
 
       {recipe.source_url && (
-        <a href={recipe.source_url} target="_blank" rel="noopener noreferrer" className="text-sm text-indigo-400 hover:text-indigo-300 block mb-3">
+        <a href={recipe.source_url} target="_blank" rel="noopener noreferrer" className="text-sm text-crimson-400 hover:text-crimson-300 block mb-3">
           Source link
         </a>
       )}
@@ -467,7 +467,7 @@ function RecipeDetail({
       {recipe.tags && recipe.tags.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-4">
           {recipe.tags.map((tag) => (
-            <span key={tag} className="px-2 py-0.5 bg-slate-700 text-slate-300 rounded-full text-xs">{tag}</span>
+            <span key={tag} className="px-2 py-0.5 bg-dungeon-700 text-slate-300 rounded-full text-xs">{tag}</span>
           ))}
         </div>
       )}
@@ -597,7 +597,7 @@ function RecipeFormModal({
           placeholder="Recipe title *"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="w-full bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm text-slate-100"
+          className="w-full bg-dungeon-800 border border-dungeon-600 rounded px-3 py-2 text-sm text-slate-100"
           required
         />
 
@@ -606,24 +606,24 @@ function RecipeFormModal({
           placeholder="Source URL (optional)"
           value={sourceUrl}
           onChange={(e) => setSourceUrl(e.target.value)}
-          className="w-full bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm text-slate-100"
+          className="w-full bg-dungeon-800 border border-dungeon-600 rounded px-3 py-2 text-sm text-slate-100"
         />
 
         <div className="grid grid-cols-3 gap-2">
           <div>
             <label className="text-xs text-slate-400 block mb-1">Servings</label>
             <input type="number" value={servings} onChange={(e) => setServings(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm text-slate-100" min="1" />
+              className="w-full bg-dungeon-800 border border-dungeon-600 rounded px-3 py-2 text-sm text-slate-100" min="1" />
           </div>
           <div>
             <label className="text-xs text-slate-400 block mb-1">Prep (min)</label>
             <input type="number" value={prepTime} onChange={(e) => setPrepTime(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm text-slate-100" min="0" />
+              className="w-full bg-dungeon-800 border border-dungeon-600 rounded px-3 py-2 text-sm text-slate-100" min="0" />
           </div>
           <div>
             <label className="text-xs text-slate-400 block mb-1">Cook (min)</label>
             <input type="number" value={cookTime} onChange={(e) => setCookTime(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm text-slate-100" min="0" />
+              className="w-full bg-dungeon-800 border border-dungeon-600 rounded px-3 py-2 text-sm text-slate-100" min="0" />
           </div>
         </div>
 
@@ -631,7 +631,7 @@ function RecipeFormModal({
         <div>
           <div className="flex items-center justify-between mb-2">
             <label className="text-sm font-medium text-slate-300">Ingredients</label>
-            <button type="button" onClick={addIngredient} className="text-xs text-indigo-400 hover:text-indigo-300">
+            <button type="button" onClick={addIngredient} className="text-xs text-crimson-400 hover:text-crimson-300">
               + Add ingredient
             </button>
           </div>
@@ -643,14 +643,14 @@ function RecipeFormModal({
                   placeholder="Qty (e.g., 2 cups)"
                   value={ing.quantity}
                   onChange={(e) => updateIngredient(idx, "quantity", e.target.value)}
-                  className="w-28 bg-slate-800 border border-slate-600 rounded px-2 py-1.5 text-sm text-slate-100"
+                  className="w-28 bg-dungeon-800 border border-dungeon-600 rounded px-2 py-1.5 text-sm text-slate-100"
                 />
                 <input
                   type="text"
                   placeholder="Ingredient name"
                   value={ing.name}
                   onChange={(e) => updateIngredient(idx, "name", e.target.value)}
-                  className="flex-1 bg-slate-800 border border-slate-600 rounded px-2 py-1.5 text-sm text-slate-100"
+                  className="flex-1 bg-dungeon-800 border border-dungeon-600 rounded px-2 py-1.5 text-sm text-slate-100"
                 />
                 <label className="flex items-center gap-1 text-xs text-slate-400">
                   <input
@@ -678,7 +678,7 @@ function RecipeFormModal({
             value={instructions}
             onChange={(e) => setInstructions(e.target.value)}
             rows={5}
-            className="w-full bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm text-slate-100"
+            className="w-full bg-dungeon-800 border border-dungeon-600 rounded px-3 py-2 text-sm text-slate-100"
           />
         </div>
 
@@ -687,7 +687,7 @@ function RecipeFormModal({
           placeholder="Tags (comma separated: quick, healthy, kid-friendly)"
           value={tags}
           onChange={(e) => setTags(e.target.value)}
-          className="w-full bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm text-slate-100"
+          className="w-full bg-dungeon-800 border border-dungeon-600 rounded px-3 py-2 text-sm text-slate-100"
         />
 
         <textarea
@@ -695,7 +695,7 @@ function RecipeFormModal({
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={2}
-          className="w-full bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm text-slate-100"
+          className="w-full bg-dungeon-800 border border-dungeon-600 rounded px-3 py-2 text-sm text-slate-100"
         />
 
         <div className="flex justify-end gap-2">
@@ -705,7 +705,7 @@ function RecipeFormModal({
           <button
             type="submit"
             disabled={saving || !title.trim()}
-            className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-4 py-2 rounded text-sm font-medium"
+            className="bg-crimson-600 hover:bg-crimson-500 disabled:opacity-50 text-white px-4 py-2 rounded text-sm font-medium"
           >
             {saving ? "Saving..." : recipe ? "Save Changes" : "Create Recipe"}
           </button>
@@ -775,7 +775,7 @@ function MealPlanTab({
       {!mealPlan ? (
         <div className="text-center py-12">
           <p className="text-slate-400 mb-4">No meal plan for this week</p>
-          <button onClick={createMealPlan} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded text-sm font-medium">
+          <button onClick={createMealPlan} className="bg-crimson-600 hover:bg-crimson-500 text-white px-4 py-2 rounded text-sm font-medium">
             Create Meal Plan
           </button>
         </div>
@@ -816,7 +816,7 @@ function MealPlanTab({
                       (e: MealPlanEntry) => e.day_of_week === dayIdx && e.meal_type === mealType
                     );
                     return (
-                      <div key={dayIdx} className="bg-slate-800/50 border border-slate-700/50 rounded p-1.5 min-h-[60px]">
+                      <div key={dayIdx} className="bg-dungeon-800/50 border border-dungeon-700/50 rounded p-1.5 min-h-[60px]">
                         {entries.map((entry: MealPlanEntry) => (
                           <div key={entry.id} className="flex items-start justify-between group mb-1">
                             <span className="text-xs text-slate-200 leading-tight">
@@ -832,7 +832,7 @@ function MealPlanTab({
                         ))}
                         <button
                           onClick={() => setAddingSlot({ day: dayIdx, type: mealType })}
-                          className="text-xs text-slate-600 hover:text-indigo-400 w-full text-left"
+                          className="text-xs text-slate-600 hover:text-crimson-400 w-full text-left"
                         >
                           +
                         </button>
@@ -851,13 +851,13 @@ function MealPlanTab({
                 <div className="flex gap-2">
                   <button
                     onClick={() => setAddMode("recipe")}
-                    className={`text-xs px-2 py-1 rounded ${addMode === "recipe" ? "bg-indigo-600 text-white" : "bg-slate-700 text-slate-300"}`}
+                    className={`text-xs px-2 py-1 rounded ${addMode === "recipe" ? "bg-crimson-600 text-white" : "bg-dungeon-700 text-slate-300"}`}
                   >
                     From Recipe
                   </button>
                   <button
                     onClick={() => setAddMode("label")}
-                    className={`text-xs px-2 py-1 rounded ${addMode === "label" ? "bg-indigo-600 text-white" : "bg-slate-700 text-slate-300"}`}
+                    className={`text-xs px-2 py-1 rounded ${addMode === "label" ? "bg-crimson-600 text-white" : "bg-dungeon-700 text-slate-300"}`}
                   >
                     Custom Label
                   </button>
@@ -867,7 +867,7 @@ function MealPlanTab({
                   <select
                     value={selectedRecipeId}
                     onChange={(e) => setSelectedRecipeId(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm text-slate-100"
+                    className="w-full bg-dungeon-800 border border-dungeon-600 rounded px-3 py-2 text-sm text-slate-100"
                   >
                     <option value="">Select a recipe...</option>
                     {recipes.map((r) => (
@@ -880,7 +880,7 @@ function MealPlanTab({
                     placeholder="e.g., Leftovers, Eat out, Order pizza..."
                     value={customLabel}
                     onChange={(e) => setCustomLabel(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm text-slate-100"
+                    className="w-full bg-dungeon-800 border border-dungeon-600 rounded px-3 py-2 text-sm text-slate-100"
                   />
                 )}
 
@@ -889,7 +889,7 @@ function MealPlanTab({
                   <button
                     onClick={handleAdd}
                     disabled={addMode === "recipe" ? !selectedRecipeId : !customLabel.trim()}
-                    className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-3 py-1.5 rounded text-xs"
+                    className="bg-crimson-600 hover:bg-crimson-500 disabled:opacity-50 text-white px-3 py-1.5 rounded text-xs"
                   >
                     Add
                   </button>
@@ -937,7 +937,7 @@ function ImportUrlModal({
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") handleImport(); }}
-          className="w-full bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500"
+          className="w-full bg-dungeon-800 border border-dungeon-600 rounded px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500"
           autoFocus
         />
         <div className="flex justify-end gap-2">
@@ -945,7 +945,7 @@ function ImportUrlModal({
           <button
             onClick={handleImport}
             disabled={!url.trim() || loading}
-            className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-4 py-2 rounded text-sm font-medium"
+            className="bg-crimson-600 hover:bg-crimson-500 disabled:opacity-50 text-white px-4 py-2 rounded text-sm font-medium"
           >
             {loading ? "Importing..." : "Import"}
           </button>

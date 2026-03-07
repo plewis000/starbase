@@ -83,8 +83,8 @@ export default function CalendarPage() {
             onClick={() => toggleType(tf.key)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
               activeTypes.has(tf.key)
-                ? "border-slate-600 bg-slate-800 text-slate-200"
-                : "border-slate-800 bg-slate-950 text-slate-600"
+                ? "border-dungeon-600 bg-dungeon-800 text-slate-200"
+                : "border-dungeon-800 bg-dungeon-950 text-dungeon-500"
             }`}
           >
             <span className="w-2 h-2 rounded-full" style={{ backgroundColor: tf.color }} />
@@ -97,7 +97,7 @@ export default function CalendarPage() {
       <div className="min-h-[500px]">
         {loading && items.length === 0 ? (
           <div className="flex items-center justify-center h-48">
-            <div className="animate-spin w-8 h-8 border-2 border-slate-700 border-t-red-500 rounded-full" />
+            <div className="animate-spin w-8 h-8 border-2 border-dungeon-700 border-t-crimson-500 rounded-full" />
           </div>
         ) : (
           <CalendarView

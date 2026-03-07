@@ -68,7 +68,7 @@ export default function TasksPage() {
 
         {/* Task detail slide-over panel — shrinks on smaller desktops */}
         {selectedTaskId && (
-          <div className="w-[360px] xl:w-[480px] flex-shrink-0 overflow-y-auto border-l border-slate-800 animate-in slide-in-from-right duration-200">
+          <div className="w-[360px] xl:w-[480px] flex-shrink-0 overflow-y-auto border-l border-dungeon-800 animate-in slide-in-from-right duration-200">
             <TaskDetail
               taskId={selectedTaskId}
               onClose={handleCloseTaskDetail}
@@ -89,13 +89,13 @@ export default function TasksPage() {
         {/* Mobile task detail — full-screen slide-up panel */}
         {selectedTaskId && (
           <div
-            className="fixed inset-0 z-50 bg-slate-950 flex flex-col"
+            className="fixed inset-0 z-50 bg-dungeon-950 flex flex-col"
             style={{ animation: "mobileSlideUp 0.3s ease-out" }}
           >
-            <div className="flex-shrink-0 flex items-center gap-3 px-4 py-3 bg-slate-950/95 backdrop-blur-sm border-b border-slate-800">
+            <div className="flex-shrink-0 flex items-center gap-3 px-4 py-3 bg-dungeon-950/95 backdrop-blur-sm border-b border-dungeon-800">
               <button
                 onClick={handleCloseTaskDetail}
-                className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+                className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-200 hover:bg-dungeon-800 transition-colors"
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="15 18 9 12 15 6" />
