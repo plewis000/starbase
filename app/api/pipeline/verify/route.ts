@@ -15,7 +15,7 @@ import { sendMessage, CHANNELS, ZEV_COLOR } from "@/lib/discord";
 import { isValidUUID, validateEnum } from "@/lib/validation";
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-const GITHUB_REPO = "plewis000/the-keep";
+const GITHUB_REPO = process.env.GITHUB_REPO || "plewis000/starbase";
 
 async function githubApi(path: string, method = "GET", body?: Record<string, unknown>) {
   const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}${path}`, {

@@ -29,12 +29,12 @@ if (existsSync(envPath)) {
 }
 
 const PIPELINE_SECRET = process.env.PIPELINE_SECRET;
-const PIPELINE_API_URL = process.env.PIPELINE_API_URL || "https://the-keep.vercel.app";
+const PIPELINE_API_URL = process.env.PIPELINE_API_URL || "https://starbase-green.vercel.app";
 const REPO_PATH = process.env.STARBASE_REPO_PATH || resolve(__dirname, "..");
 const POLL_INTERVAL = parseInt(process.env.POLL_INTERVAL_MS || "30000", 10);
 const JOB_TIMEOUT = parseInt(process.env.JOB_TIMEOUT_MS || "600000", 10); // 10 min default
 const CLAUDE_CMD = process.env.CLAUDE_CMD || "claude";
-const GITHUB_REPO = process.env.GITHUB_REPO || "plewis000/the-keep";
+const GITHUB_REPO = process.env.GITHUB_REPO || "plewis000/starbase";
 
 // Validate config
 if (isNaN(POLL_INTERVAL) || POLL_INTERVAL < 5000) {

@@ -238,9 +238,11 @@ async function processCommand(
     }
   } catch (err) {
     console.error("Discord command error:", err);
-    await sendWebhook(webhookUrl, {
-      content: "Something broke on my end. Not your fault. Try again in a sec.",
-    });
+    try {
+      await sendWebhook(webhookUrl, {
+        content: "Something broke on my end. Not your fault. Try again in a sec.",
+      });
+    } catch { /* webhook token may have expired */ }
   }
 }
 
@@ -445,10 +447,10 @@ async function handleTask(supabase: Supabase, userId: string, options: Record<st
 async function handleHabit(supabase: Supabase, userId: string, options: Record<string, unknown>, webhookUrl: string) {
   const searchName = (options.name as string).toLowerCase();
 
-  // Find habit by name (fuzzy match)
+  // Find habit by name (fuzzy match) — include frequency for streak engine
   const { data: habits } = await platform(supabase)
     .from("habits")
-    .select("id, title, current_streak, longest_streak")
+    .select("id, title, current_streak, longest_streak, frequency_id, target_count, started_on")
     .eq("owner_id", userId)
     .eq("status", "active");
 
@@ -499,25 +501,34 @@ async function handleHabit(supabase: Supabase, userId: string, options: Record<s
     return;
   }
 
-  // Update streak
-  const newStreak = (match.current_streak || 0) + 1;
-  const newLongest = Math.max(newStreak, match.longest_streak || 0);
-  await platform(supabase)
-    .from("habits")
-    .update({ current_streak: newStreak, longest_streak: newLongest, last_completed_at: new Date().toISOString() })
-    .eq("id", match.id);
+  // Recalculate streak using the proper engine (matches web behavior)
+  const { recalculateAndUpdateStreak } = await import("@/lib/streak-engine");
+  const { data: freq } = await config(supabase)
+    .from("habit_frequencies")
+    .select("target_type")
+    .eq("id", match.frequency_id)
+    .single();
+  const targetType = (freq?.target_type as "daily" | "weekly" | "monthly") || "daily";
+  const streakResult = await recalculateAndUpdateStreak(
+    supabase, match.id, match.target_count || 1, targetType, match.started_on || today
+  );
+  const newStreak = streakResult.current_streak;
 
-  // Award XP for habit check-in
+  // Award XP for habit check-in (matches web: base 15 + streak bonus combined)
   await ensureProfile(supabase, userId);
-  const xpResult = await awardXp(supabase, userId, 15, "habit_checkin", `Checked in: ${match.title}`, "habit", match.id);
+  let xpAmount = 15;
+  if (newStreak >= 90) xpAmount += 50;
+  else if (newStreak >= 30) xpAmount += 25;
+  else if (newStreak >= 7) xpAmount += 10;
+
+  const xpResult = await awardXp(
+    supabase, userId, xpAmount, "habit_check_in",
+    `Habit check-in${newStreak > 1 ? ` (${newStreak}-day streak)` : ""}`,
+    "habit", match.id
+  );
 
   // Check streak milestone achievements
   const achievementUnlocks = await checkAchievements(supabase, userId, "habit_streak", { current_streak: newStreak });
-
-  // Check streak bonus XP
-  if (newStreak === 7) await awardXp(supabase, userId, 10, "habit_streak_7", `7-day streak: ${match.title}`, "habit", match.id);
-  if (newStreak === 30) await awardXp(supabase, userId, 25, "habit_streak_30", `30-day streak: ${match.title}`, "habit", match.id);
-  if (newStreak === 90) await awardXp(supabase, userId, 50, "habit_streak_90", `90-day streak: ${match.title}`, "habit", match.id);
 
   const streakEmoji = newStreak >= 7 ? "🔥" : newStreak >= 3 ? "⚡" : "✓";
 
@@ -808,8 +819,23 @@ async function handleAsk(
   interaction: { token: string; application_id: string; channel_id: string },
   webhookUrl: string,
 ) {
+  // Rate limit: 10 /ask commands per minute per user (costs real money)
+  const { checkRateLimit } = await import("@/lib/rate-limit");
+  const rl = checkRateLimit(`discord_ask:${userId}`, 10, 60_000);
+  if (!rl.allowed) {
+    await sendWebhook(webhookUrl, {
+      content: `Slow down — you're sending too many requests. Try again in ${rl.retryAfter}s.`,
+    });
+    return;
+  }
+
   const message = options.message as string;
-  const response = await runAgent(supabase, userId, message, "discord", interaction.channel_id);
+  if (!message?.trim()) {
+    await sendWebhook(webhookUrl, { content: "You didn't ask me anything." });
+    return;
+  }
+
+  const response = await runAgent(supabase, userId, message.trim(), "discord", interaction.channel_id);
 
   const costStr = `$${(response.costCents / 100).toFixed(4)}`;
 
@@ -1241,7 +1267,7 @@ async function handleButtonInteraction(
       return;
     }
 
-    const GITHUB_REPO = process.env.GITHUB_REPO || "plewis000/the-keep";
+    const GITHUB_REPO = process.env.GITHUB_REPO || "plewis000/starbase";
 
     // Parse button custom_id — approve/wontfix now handled by modals (type 9 → handleModalSubmit)
     if (customId.startsWith("pipeline_ship_")) {
@@ -1329,7 +1355,7 @@ async function handleButtonInteraction(
         });
       }
 
-      await sendWebhookFollowup(webhookUrl, { content: `Shipped! Merged [PR #${feedback.pr_number}](https://github.com/${GITHUB_REPO}/pull/${feedback.pr_number}) to main.\n\n[View Production](https://the-keep.vercel.app) — deploying now (~1 min).` });
+      await sendWebhookFollowup(webhookUrl, { content: `Shipped! Merged [PR #${feedback.pr_number}](https://github.com/${GITHUB_REPO}/pull/${feedback.pr_number}) to main.\n\n[View Production](https://starbase-green.vercel.app) — deploying now (~1 min).` });
 
     } else if (customId.startsWith("pipeline_reject_")) {
       const feedbackId = customId.replace("pipeline_reject_", "");
@@ -1482,7 +1508,7 @@ async function handleModalSubmit(
 
       // Trigger GitHub Action via repository_dispatch
       const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-      const GITHUB_REPO = process.env.GITHUB_REPO || "plewis000/the-keep";
+      const GITHUB_REPO = process.env.GITHUB_REPO || "plewis000/starbase";
       if (GITHUB_TOKEN) {
         const dispatchRes = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/dispatches`, {
           method: "POST",
