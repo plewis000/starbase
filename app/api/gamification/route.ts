@@ -130,6 +130,17 @@ export const GET = withUser(async (_request, { supabase, user }) => {
     .lt("due_date", new Date().toISOString().split("T")[0])
     .or(`assigned_to.eq.${user.id},created_by.eq.${user.id}`);
 
+  // Get active season
+  const { data: activeSeason } = await supabase
+    .schema("config")
+    .from("seasons")
+    .select("name, slug, xp_multiplier, starts_at, ends_at, description")
+    .eq("active", true)
+    .lte("starts_at", new Date().toISOString().split("T")[0])
+    .gte("ends_at", new Date().toISOString().split("T")[0])
+    .limit(1)
+    .maybeSingle();
+
   // If not activated, include readiness info
   let activation = null;
   if (!profile.gamification_activated) {
@@ -164,6 +175,7 @@ export const GET = withUser(async (_request, { supabase, user }) => {
     })),
     recent_xp: recentXp || [],
     recent_achievements: recentAchievements,
+    active_season: activeSeason || null,
   });
 });
 

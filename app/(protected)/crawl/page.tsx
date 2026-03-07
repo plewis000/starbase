@@ -235,6 +235,7 @@ export default function CrawlPage() {
   const [debuffs, setDebuffs] = useState<Debuff[]>([]);
   const [recentXp, setRecentXp] = useState<XpLedgerEntry[]>([]);
   const [stats, setStats] = useState({ achievement_count: 0, unopened_boxes: 0 });
+  const [activeSeason, setActiveSeason] = useState<{ name: string; xp_multiplier: string; ends_at: string; description?: string } | null>(null);
 
   // Profile edit state
   const [editing, setEditing] = useState(false);
@@ -277,6 +278,7 @@ export default function CrawlPage() {
       setDebuffs(data.debuffs);
       setRecentXp(data.recent_xp);
       setStats(data.stats);
+      setActiveSeason(data.active_season || null);
     } catch {
       // Silently fail — gamification tables may not exist yet
     } finally {
@@ -450,6 +452,30 @@ export default function CrawlPage() {
           <h1 className="text-3xl font-bold text-slate-100 dcc-heading tracking-wider">The Crawl</h1>
           <p className="text-dungeon-500 text-sm mt-1 italic font-mono">So fun it hurts.</p>
         </div>
+
+        {/* Active Season Banner */}
+        {activeSeason && (
+          <div className="dcc-card-gold p-4 flex items-center gap-3 relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-gold-400 to-transparent opacity-80" />
+            <span className="text-2xl">⚔️</span>
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-gold-400">{activeSeason.name}</h3>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-gold-900/30 text-gold-400 border border-gold-800 font-mono">
+                  {activeSeason.xp_multiplier}x XP
+                </span>
+              </div>
+              {activeSeason.description && (
+                <p className="text-xs text-dungeon-500 mt-0.5">{activeSeason.description}</p>
+              )}
+            </div>
+            <div className="text-right flex-shrink-0">
+              <p className="text-[10px] text-dungeon-500 font-mono">
+                Ends {new Date(activeSeason.ends_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="flex gap-2 mb-6 border-b border-dungeon-700 overflow-x-auto">
