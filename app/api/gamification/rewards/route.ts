@@ -88,6 +88,7 @@ export const PATCH = withUser(async (request: NextRequest, { supabase, user }) =
   if (icon !== undefined) updates.icon = icon || null;
   if (is_household !== undefined) updates.is_household = !!is_household;
   if (active !== undefined) updates.active = !!active;
+  if (body.tier_id !== undefined && isValidUUID(body.tier_id)) updates.tier_id = body.tier_id;
 
   const { data: reward, error } = await supabase
     .schema("platform")
@@ -95,7 +96,7 @@ export const PATCH = withUser(async (request: NextRequest, { supabase, user }) =
     .update(updates)
     .eq("id", id)
     .eq("user_id", user.id)
-    .select()
+    .select("*, tier:tier_id(slug, name, color, icon)")
     .single();
 
   if (error) {

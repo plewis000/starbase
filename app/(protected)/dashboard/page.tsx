@@ -445,7 +445,7 @@ function MetricCell({
   accent?: string;
 }) {
   return (
-    <div className="text-center p-2 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors">
+    <div className="text-center p-2 rounded-lg bg-dungeon-800/50 hover:bg-dungeon-800 transition-colors">
       <div className={`text-2xl font-bold font-mono ${accent || "text-slate-100"}`}>
         {value}
       </div>
