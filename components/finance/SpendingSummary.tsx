@@ -38,8 +38,8 @@ export default function SpendingSummary() {
     fetchSummary();
   }, [period]);
 
-  if (loading) return <div className="text-slate-400 text-sm">Loading spending summary...</div>;
-  if (!data) return <div className="text-slate-400 text-sm">No data available.</div>;
+  if (loading) return <div className="text-dungeon-400 text-sm">Loading spending summary...</div>;
+  if (!data) return <div className="text-dungeon-400 text-sm">No data available.</div>;
 
   const fmt = (n: number) =>
     new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
@@ -55,7 +55,7 @@ export default function SpendingSummary() {
             className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
               period === p
                 ? "bg-dungeon-700 text-slate-100"
-                : "bg-dungeon-900 text-slate-400 hover:text-slate-200 border border-dungeon-800"
+                : "bg-dungeon-900 text-dungeon-400 hover:text-slate-200 border border-dungeon-800"
             }`}
           >
             {p.charAt(0).toUpperCase() + p.slice(1)}
@@ -73,7 +73,7 @@ export default function SpendingSummary() {
 
       {data.projected_monthly !== null && (
         <div className="bg-dungeon-900 border border-dungeon-800 rounded-xl p-4">
-          <span className="text-xs text-slate-400">Projected monthly: </span>
+          <span className="text-xs text-dungeon-400">Projected monthly: </span>
           <span className="text-sm font-semibold text-slate-100">{fmt(data.projected_monthly)}</span>
         </div>
       )}
@@ -89,7 +89,7 @@ export default function SpendingSummary() {
       <div className="space-y-2">
         <h3 className="text-sm font-semibold text-slate-300">By Category</h3>
         {data.breakdown.length === 0 ? (
-          <p className="text-sm text-slate-500">No categorized spending yet.</p>
+          <p className="text-sm text-dungeon-500">No categorized spending yet.</p>
         ) : (
           data.breakdown.map((item) => (
             <div key={item.category.id} className="bg-dungeon-900 border border-dungeon-800 rounded-lg p-3">
@@ -101,7 +101,7 @@ export default function SpendingSummary() {
                 <div className="text-right">
                   <span className="text-sm font-semibold text-slate-100">{fmt(item.amount)}</span>
                   {item.budget && (
-                    <span className={`text-xs ml-2 ${item.over_budget ? "text-red-400" : "text-slate-500"}`}>
+                    <span className={`text-xs ml-2 ${item.over_budget ? "text-red-400" : "text-dungeon-500"}`}>
                       / {fmt(item.budget)}
                     </span>
                   )}
@@ -117,7 +117,7 @@ export default function SpendingSummary() {
                   }}
                 />
               </div>
-              <div className="text-xs text-slate-500 mt-1">{item.percent}% of spending</div>
+              <div className="text-xs text-dungeon-500 mt-1">{item.percent}% of spending</div>
             </div>
           ))
         )}
@@ -129,7 +129,7 @@ export default function SpendingSummary() {
 function StatCard({ label, value, color }: { label: string; value: string; color: string }) {
   return (
     <div className="bg-dungeon-900 border border-dungeon-800 rounded-xl p-4">
-      <div className="text-xs text-slate-500">{label}</div>
+      <div className="text-xs text-dungeon-500">{label}</div>
       <div className={`text-lg font-bold mt-1 ${color}`}>{value}</div>
     </div>
   );

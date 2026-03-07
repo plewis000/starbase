@@ -134,7 +134,7 @@ export default function LinkPicker({
             placeholder={`Search ${displayLabel.toLowerCase()}...`}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full px-3 py-2 bg-dungeon-800 border border-dungeon-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-red-400"
+            className="w-full px-3 py-2 bg-dungeon-800 border border-dungeon-700 rounded-lg text-slate-100 placeholder-dungeon-500 focus:outline-none focus:ring-2 focus:ring-red-400"
           />
         </div>
 
@@ -156,13 +156,13 @@ export default function LinkPicker({
         {/* Entity List */}
         <div className="space-y-2 max-h-64 overflow-y-auto">
           {loading ? (
-            <div className="text-center py-4 text-slate-400 text-sm">
+            <div className="text-center py-4 text-dungeon-400 text-sm">
               Loading {displayLabel.toLowerCase()}...
             </div>
           ) : error ? (
             <div className="text-center py-4 text-red-400 text-sm">{error}</div>
           ) : filteredEntities.length === 0 ? (
-            <div className="text-center py-4 text-slate-400 text-sm">
+            <div className="text-center py-4 text-dungeon-400 text-sm">
               No {displayLabel.toLowerCase()} found
             </div>
           ) : (

@@ -123,15 +123,15 @@ export default function CalendarView({ items, timezone, onItemClick, initialDate
       {/* Month navigation */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <button onClick={prevMonth} className="px-2 py-1 rounded text-sm text-slate-400 hover:text-slate-100 hover:bg-dungeon-800 transition-colors">
+          <button onClick={prevMonth} className="px-2 py-1 rounded text-sm text-dungeon-400 hover:text-slate-100 hover:bg-dungeon-800 transition-colors">
             &lt;
           </button>
           <h2 className="text-lg font-bold text-slate-100 min-w-[180px] text-center">{monthLabel}</h2>
-          <button onClick={nextMonth} className="px-2 py-1 rounded text-sm text-slate-400 hover:text-slate-100 hover:bg-dungeon-800 transition-colors">
+          <button onClick={nextMonth} className="px-2 py-1 rounded text-sm text-dungeon-400 hover:text-slate-100 hover:bg-dungeon-800 transition-colors">
             &gt;
           </button>
         </div>
-        <button onClick={goToday} className="px-3 py-1 text-xs font-medium text-slate-400 border border-dungeon-700 rounded-lg hover:bg-dungeon-800 transition-colors">
+        <button onClick={goToday} className="px-3 py-1 text-xs font-medium text-dungeon-400 border border-dungeon-700 rounded-lg hover:bg-dungeon-800 transition-colors">
           Today
         </button>
       </div>
@@ -139,7 +139,7 @@ export default function CalendarView({ items, timezone, onItemClick, initialDate
       {/* Day headers */}
       <div className="grid grid-cols-7 gap-px mb-1">
         {DAYS.map((d) => (
-          <div key={d} className="text-center text-[10px] font-semibold text-slate-500 uppercase py-1">
+          <div key={d} className="text-center text-[10px] font-semibold text-dungeon-500 uppercase py-1">
             {d}
           </div>
         ))}
@@ -167,8 +167,8 @@ export default function CalendarView({ items, timezone, onItemClick, initialDate
                 isToday
                   ? "text-red-400 font-bold"
                   : inMonth
-                    ? "text-slate-400"
-                    : "text-slate-600"
+                    ? "text-dungeon-400"
+                    : "text-dungeon-600"
               }`}>
                 {date.getDate()}
               </span>
@@ -186,7 +186,7 @@ export default function CalendarView({ items, timezone, onItemClick, initialDate
                   </div>
                 ))}
                 {dayItems.length > 3 && (
-                  <span className="text-[9px] text-slate-500">+{dayItems.length - 3}</span>
+                  <span className="text-[9px] text-dungeon-500">+{dayItems.length - 3}</span>
                 )}
               </div>
 
@@ -197,7 +197,7 @@ export default function CalendarView({ items, timezone, onItemClick, initialDate
                   className="absolute z-40 top-full left-0 mt-1 bg-dungeon-800 border border-dungeon-700 rounded-lg shadow-xl p-2 min-w-[180px] max-w-[240px]"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div className="text-[10px] text-slate-500 font-semibold mb-1">
+                  <div className="text-[10px] text-dungeon-500 font-semibold mb-1">
                     {date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
                   </div>
                   <div className="space-y-1 max-h-[200px] overflow-auto">
@@ -210,7 +210,7 @@ export default function CalendarView({ items, timezone, onItemClick, initialDate
                         <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: item.color || "#64748b" }} />
                         <div className="min-w-0 flex-1">
                           <div className="text-xs text-slate-200 truncate">{item.title}</div>
-                          <div className="text-[9px] text-slate-500">{TYPE_LABELS[item.type] || item.type}</div>
+                          <div className="text-[9px] text-dungeon-500">{TYPE_LABELS[item.type] || item.type}</div>
                         </div>
                       </button>
                     ))}

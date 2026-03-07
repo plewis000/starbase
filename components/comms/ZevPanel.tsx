@@ -134,12 +134,12 @@ export default function ZevPanel() {
         </div>
         <div className="flex-1">
           <p className="text-sm font-semibold text-slate-100">Zev</p>
-          <p className="text-[10px] text-slate-500">AI Assistant</p>
+          <p className="text-[10px] text-dungeon-500">AI Assistant</p>
         </div>
         {(messages.length > 0 || resumedConversation) && (
           <button
             onClick={startNewChat}
-            className="text-[10px] text-slate-500 hover:text-slate-300 px-2 py-1 rounded border border-dungeon-700 hover:border-dungeon-600 transition-colors"
+            className="text-[10px] text-dungeon-500 hover:text-slate-300 px-2 py-1 rounded border border-dungeon-700 hover:border-dungeon-600 transition-colors"
           >
             New Chat
           </button>
@@ -153,7 +153,7 @@ export default function ZevPanel() {
             <div className="w-12 h-12 rounded-full bg-amber-600/20 flex items-center justify-center text-lg font-bold text-amber-400 mx-auto mb-3">
               Z
             </div>
-            <p className="text-sm text-slate-400">Ask Zev anything</p>
+            <p className="text-sm text-dungeon-400">Ask Zev anything</p>
           </div>
         )}
 
@@ -173,9 +173,9 @@ export default function ZevPanel() {
           <div className="flex justify-start">
             <div className="bg-dungeon-800 rounded-xl px-3 py-2">
               <div className="flex gap-1">
-                <div className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                <div className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                <div className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                <div className="w-1.5 h-1.5 bg-dungeon-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                <div className="w-1.5 h-1.5 bg-dungeon-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                <div className="w-1.5 h-1.5 bg-dungeon-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
               </div>
             </div>
           </div>
@@ -194,7 +194,7 @@ export default function ZevPanel() {
             placeholder="Ask Zev..."
             disabled={loading}
             rows={1}
-            className="flex-1 bg-dungeon-800 border border-dungeon-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500/50 disabled:opacity-50 resize-none"
+            className="flex-1 bg-dungeon-800 border border-dungeon-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-dungeon-500 focus:outline-none focus:border-amber-500/50 disabled:opacity-50 resize-none"
           />
           <button
             onClick={sendMessage}

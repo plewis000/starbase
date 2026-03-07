@@ -186,7 +186,7 @@ export default function NotificationInbox() {
               className={`px-4 py-3 font-medium transition-colors border-b-2 ${
                 filter === "all"
                   ? "text-red-400 border-red-400"
-                  : "text-slate-400 border-transparent hover:text-slate-100"
+                  : "text-dungeon-400 border-transparent hover:text-slate-100"
               }`}
             >
               All
@@ -196,7 +196,7 @@ export default function NotificationInbox() {
               className={`px-4 py-3 font-medium transition-colors border-b-2 ${
                 filter === "unread"
                   ? "text-red-400 border-red-400"
-                  : "text-slate-400 border-transparent hover:text-slate-100"
+                  : "text-dungeon-400 border-transparent hover:text-slate-100"
               }`}
             >
               Unread
@@ -208,7 +208,7 @@ export default function NotificationInbox() {
         <div>
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="text-slate-400">Loading notifications...</div>
+              <div className="text-dungeon-400">Loading notifications...</div>
             </div>
           ) : error ? (
             <div className="flex flex-col items-center justify-center py-12 gap-3">
@@ -220,7 +220,7 @@ export default function NotificationInbox() {
           ) : filteredNotifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12">
               <div className="text-4xl mb-3">📭</div>
-              <div className="text-slate-400 text-center">
+              <div className="text-dungeon-400 text-center">
                 {filter === "unread"
                   ? "No unread notifications"
                   : "No notifications yet"}
@@ -256,18 +256,18 @@ export default function NotificationInbox() {
                           <h3
                             className={`font-medium leading-tight ${
                               notification.read_at
-                                ? "text-slate-400"
+                                ? "text-dungeon-400"
                                 : "text-slate-100"
                             }`}
                           >
                             {notification.title}
                           </h3>
                           {notification.body && (
-                            <p className="text-sm text-slate-400 line-clamp-2 mt-1">
+                            <p className="text-sm text-dungeon-400 line-clamp-2 mt-1">
                               {notification.body}
                             </p>
                           )}
-                          <p className="text-xs text-slate-500 mt-2">
+                          <p className="text-xs text-dungeon-500 mt-2">
                             {timeAgo(notification.created_at)}
                           </p>
                         </div>
@@ -278,7 +278,7 @@ export default function NotificationInbox() {
                     {hoveredId === notification.id && (
                       <button
                         onClick={(e) => dismissNotification(notification.id, e)}
-                        className="flex-shrink-0 text-slate-500 hover:text-slate-300 transition-colors p-1.5 hover:bg-dungeon-800 rounded"
+                        className="flex-shrink-0 text-dungeon-500 hover:text-slate-300 transition-colors p-1.5 hover:bg-dungeon-800 rounded"
                         aria-label="Dismiss"
                       >
                         <svg

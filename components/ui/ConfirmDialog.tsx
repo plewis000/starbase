@@ -39,7 +39,7 @@ export default function ConfirmDialog({
         onClick={(e) => e.stopPropagation()}
       >
         <h3 id="confirm-title" className="text-lg font-semibold text-slate-100 mb-2">{title}</h3>
-        <p className="text-sm text-slate-400 mb-6">{message}</p>
+        <p className="text-sm text-dungeon-400 mb-6">{message}</p>
         <div className="flex items-center justify-end gap-3">
           <button
             onClick={onCancel}

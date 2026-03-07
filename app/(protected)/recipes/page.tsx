@@ -325,7 +325,7 @@ function RecipesTab({
           placeholder="Search recipes..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="flex-1 bg-dungeon-800 border border-dungeon-600 rounded px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500"
+          className="flex-1 bg-dungeon-800 border border-dungeon-600 rounded px-3 py-2 text-sm text-slate-100 placeholder:text-dungeon-500"
         />
         <button
           onClick={() => setShowImportModal(true)}
@@ -368,7 +368,7 @@ function RecipesTab({
                 className="bg-dungeon-800 border border-dungeon-700 rounded-lg p-4 text-left hover:border-crimson-600 transition-colors"
               >
                 <h3 className="font-semibold text-slate-100 mb-1 truncate">{recipe.title}</h3>
-                <div className="flex items-center gap-3 text-xs text-slate-400 mb-2">
+                <div className="flex items-center gap-3 text-xs text-dungeon-400 mb-2">
                   {recipe.servings && <span>Serves {recipe.servings}</span>}
                   {recipe.prep_time_minutes && <span>{recipe.prep_time_minutes}m prep</span>}
                   {recipe.cook_time_minutes && <span>{recipe.cook_time_minutes}m cook</span>}
@@ -381,7 +381,7 @@ function RecipesTab({
                       </span>
                     ))}
                     {recipe.tags.length > 3 && (
-                      <span className="text-xs text-slate-500">+{recipe.tags.length - 3}</span>
+                      <span className="text-xs text-dungeon-500">+{recipe.tags.length - 3}</span>
                     )}
                   </div>
                 )}
@@ -435,7 +435,7 @@ function RecipeDetail({
       <div className="flex items-start justify-between mb-4">
         <div>
           <h2 className="text-xl font-bold text-slate-100">{recipe.title}</h2>
-          <div className="flex items-center gap-4 text-sm text-slate-400 mt-1">
+          <div className="flex items-center gap-4 text-sm text-dungeon-400 mt-1">
             {recipe.servings && <span>Serves {recipe.servings}</span>}
             {recipe.prep_time_minutes && <span>{recipe.prep_time_minutes}m prep</span>}
             {recipe.cook_time_minutes && <span>{recipe.cook_time_minutes}m cook</span>}
@@ -479,15 +479,15 @@ function RecipeDetail({
           {recipe.ingredients && recipe.ingredients.length > 0 ? (
             <ul className="space-y-1">
               {recipe.ingredients.map((ing: RecipeIngredient) => (
-                <li key={ing.id} className={`text-sm ${ing.is_optional ? "text-slate-500 italic" : "text-slate-200"}`}>
-                  {ing.quantity && <span className="text-slate-400">{ing.quantity} </span>}
+                <li key={ing.id} className={`text-sm ${ing.is_optional ? "text-dungeon-500 italic" : "text-slate-200"}`}>
+                  {ing.quantity && <span className="text-dungeon-400">{ing.quantity} </span>}
                   {ing.name}
-                  {ing.is_optional && <span className="text-slate-600"> (optional)</span>}
+                  {ing.is_optional && <span className="text-dungeon-600"> (optional)</span>}
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-slate-500">No ingredients listed</p>
+            <p className="text-sm text-dungeon-500">No ingredients listed</p>
           )}
         </div>
 
@@ -497,7 +497,7 @@ function RecipeDetail({
           {recipe.instructions ? (
             <div className="text-sm text-slate-200 whitespace-pre-wrap">{recipe.instructions}</div>
           ) : (
-            <p className="text-sm text-slate-500">No instructions</p>
+            <p className="text-sm text-dungeon-500">No instructions</p>
           )}
         </div>
       </div>
@@ -505,7 +505,7 @@ function RecipeDetail({
       {recipe.notes && (
         <div className="mt-4">
           <h3 className="text-sm font-semibold text-slate-300 mb-1">Notes</h3>
-          <p className="text-sm text-slate-400">{recipe.notes}</p>
+          <p className="text-sm text-dungeon-400">{recipe.notes}</p>
         </div>
       )}
     </div>
@@ -611,17 +611,17 @@ function RecipeFormModal({
 
         <div className="grid grid-cols-3 gap-2">
           <div>
-            <label className="text-xs text-slate-400 block mb-1">Servings</label>
+            <label className="text-xs text-dungeon-400 block mb-1">Servings</label>
             <input type="number" value={servings} onChange={(e) => setServings(e.target.value)}
               className="w-full bg-dungeon-800 border border-dungeon-600 rounded px-3 py-2 text-sm text-slate-100" min="1" />
           </div>
           <div>
-            <label className="text-xs text-slate-400 block mb-1">Prep (min)</label>
+            <label className="text-xs text-dungeon-400 block mb-1">Prep (min)</label>
             <input type="number" value={prepTime} onChange={(e) => setPrepTime(e.target.value)}
               className="w-full bg-dungeon-800 border border-dungeon-600 rounded px-3 py-2 text-sm text-slate-100" min="0" />
           </div>
           <div>
-            <label className="text-xs text-slate-400 block mb-1">Cook (min)</label>
+            <label className="text-xs text-dungeon-400 block mb-1">Cook (min)</label>
             <input type="number" value={cookTime} onChange={(e) => setCookTime(e.target.value)}
               className="w-full bg-dungeon-800 border border-dungeon-600 rounded px-3 py-2 text-sm text-slate-100" min="0" />
           </div>
@@ -652,7 +652,7 @@ function RecipeFormModal({
                   onChange={(e) => updateIngredient(idx, "name", e.target.value)}
                   className="flex-1 bg-dungeon-800 border border-dungeon-600 rounded px-2 py-1.5 text-sm text-slate-100"
                 />
-                <label className="flex items-center gap-1 text-xs text-slate-400">
+                <label className="flex items-center gap-1 text-xs text-dungeon-400">
                   <input
                     type="checkbox"
                     checked={ing.is_optional}
@@ -699,7 +699,7 @@ function RecipeFormModal({
         />
 
         <div className="flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-400 hover:text-slate-200">
+          <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-dungeon-400 hover:text-slate-200">
             Cancel
           </button>
           <button
@@ -763,18 +763,18 @@ function MealPlanTab({
     <div>
       {/* Week Navigation */}
       <div className="flex items-center justify-between mb-4">
-        <button onClick={() => navigateWeek(-1)} className="text-slate-400 hover:text-slate-200 px-3 py-1">
+        <button onClick={() => navigateWeek(-1)} className="text-dungeon-400 hover:text-slate-200 px-3 py-1">
           &larr; Prev
         </button>
         <span className="text-sm font-medium text-slate-200">{weekLabel}</span>
-        <button onClick={() => navigateWeek(1)} className="text-slate-400 hover:text-slate-200 px-3 py-1">
+        <button onClick={() => navigateWeek(1)} className="text-dungeon-400 hover:text-slate-200 px-3 py-1">
           Next &rarr;
         </button>
       </div>
 
       {!mealPlan ? (
         <div className="text-center py-12">
-          <p className="text-slate-400 mb-4">No meal plan for this week</p>
+          <p className="text-dungeon-400 mb-4">No meal plan for this week</p>
           <button onClick={createMealPlan} className="bg-crimson-600 hover:bg-crimson-500 text-white px-4 py-2 rounded text-sm font-medium">
             Create Meal Plan
           </button>
@@ -792,14 +792,14 @@ function MealPlanTab({
             <div className="min-w-[700px]">
               {/* Header row */}
               <div className="grid grid-cols-8 gap-1 mb-1">
-                <div className="text-xs text-slate-500 p-2" />
+                <div className="text-xs text-dungeon-500 p-2" />
                 {DAYS.map((day, i) => {
                   const d = new Date(weekDate);
                   d.setDate(d.getDate() + i);
                   return (
                     <div key={day} className="text-center p-2">
                       <div className="text-xs font-medium text-slate-300">{day}</div>
-                      <div className="text-xs text-slate-500">{d.getDate()}</div>
+                      <div className="text-xs text-dungeon-500">{d.getDate()}</div>
                     </div>
                   );
                 })}
@@ -808,7 +808,7 @@ function MealPlanTab({
               {/* Meal rows */}
               {MEAL_TYPES.map((mealType) => (
                 <div key={mealType} className="grid grid-cols-8 gap-1 mb-1">
-                  <div className="text-xs text-slate-400 p-2 flex items-start font-medium">
+                  <div className="text-xs text-dungeon-400 p-2 flex items-start font-medium">
                     {MEAL_LABELS[mealType]}
                   </div>
                   {DAYS.map((_, dayIdx) => {
@@ -832,7 +832,7 @@ function MealPlanTab({
                         ))}
                         <button
                           onClick={() => setAddingSlot({ day: dayIdx, type: mealType })}
-                          className="text-xs text-slate-600 hover:text-crimson-400 w-full text-left"
+                          className="text-xs text-dungeon-600 hover:text-crimson-400 w-full text-left"
                         >
                           +
                         </button>
@@ -885,7 +885,7 @@ function MealPlanTab({
                 )}
 
                 <div className="flex justify-end gap-2">
-                  <button onClick={() => setAddingSlot(null)} className="text-xs text-slate-400 px-3 py-1.5">Cancel</button>
+                  <button onClick={() => setAddingSlot(null)} className="text-xs text-dungeon-400 px-3 py-1.5">Cancel</button>
                   <button
                     onClick={handleAdd}
                     disabled={addMode === "recipe" ? !selectedRecipeId : !customLabel.trim()}
@@ -928,7 +928,7 @@ function ImportUrlModal({
   return (
     <Modal isOpen={true} onClose={onClose} title="Import Recipe from URL">
       <div className="space-y-4">
-        <p className="text-sm text-slate-400">
+        <p className="text-sm text-dungeon-400">
           Paste a recipe URL to automatically extract ingredients, instructions, and more.
         </p>
         <input
@@ -937,11 +937,11 @@ function ImportUrlModal({
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") handleImport(); }}
-          className="w-full bg-dungeon-800 border border-dungeon-600 rounded px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500"
+          className="w-full bg-dungeon-800 border border-dungeon-600 rounded px-3 py-2 text-sm text-slate-100 placeholder:text-dungeon-500"
           autoFocus
         />
         <div className="flex justify-end gap-2">
-          <button onClick={onClose} className="text-xs text-slate-400 px-3 py-1.5">Cancel</button>
+          <button onClick={onClose} className="text-xs text-dungeon-400 px-3 py-1.5">Cancel</button>
           <button
             onClick={handleImport}
             disabled={!url.trim() || loading}

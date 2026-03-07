@@ -134,7 +134,7 @@ export default function TransactionQueue({ onUpdate }: Props) {
   };
 
   if (loading) {
-    return <div className="text-slate-400 text-sm">Loading transactions...</div>;
+    return <div className="text-dungeon-400 text-sm">Loading transactions...</div>;
   }
 
   return (
@@ -148,7 +148,7 @@ export default function TransactionQueue({ onUpdate }: Props) {
             className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
               filter === f
                 ? "bg-dungeon-700 text-slate-100"
-                : "bg-dungeon-900 text-slate-400 hover:text-slate-200 border border-dungeon-800"
+                : "bg-dungeon-900 text-dungeon-400 hover:text-slate-200 border border-dungeon-800"
             }`}
           >
             {f === "unreviewed" ? "Needs Review" : f === "all" ? "All" : "Excluded"}
@@ -158,7 +158,7 @@ export default function TransactionQueue({ onUpdate }: Props) {
 
       {transactions.length === 0 ? (
         <div className="bg-dungeon-900 border border-dungeon-800 rounded-xl p-8 text-center">
-          <p className="text-slate-400 text-sm">
+          <p className="text-dungeon-400 text-sm">
             {filter === "unreviewed"
               ? "All transactions reviewed! You're caught up."
               : "No transactions found."}
@@ -237,7 +237,7 @@ function TransactionCard({
             )}
           </div>
           <div className="flex items-center gap-2 mt-1">
-            <span className="text-xs text-slate-500">{tx.transaction_date}</span>
+            <span className="text-xs text-dungeon-500">{tx.transaction_date}</span>
             {tx.category && (
               <span
                 className="text-xs px-2 py-0.5 rounded-full"
@@ -284,7 +284,7 @@ function TransactionCard({
         <button
           onClick={() => onExclude(tx.id)}
           disabled={disabled}
-          className="text-xs px-3 py-1.5 text-slate-500 hover:text-red-400 transition-colors ml-auto disabled:opacity-50"
+          className="text-xs px-3 py-1.5 text-dungeon-500 hover:text-red-400 transition-colors ml-auto disabled:opacity-50"
         >
           Exclude
         </button>

@@ -58,7 +58,7 @@ function QuickAddHabit({ onCreated }: { onCreated: () => void }) {
       onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
       placeholder="Quick add habit... (e.g., 'drink water', 'exercise')"
       disabled={adding}
-      className="w-full bg-dungeon-900 border border-dungeon-800 rounded-lg px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-500/50 disabled:opacity-50 transition-colors"
+      className="w-full bg-dungeon-900 border border-dungeon-800 rounded-lg px-4 py-2.5 text-sm text-slate-100 placeholder-dungeon-500 focus:outline-none focus:border-red-500/50 disabled:opacity-50 transition-colors"
     />
   );
 }
@@ -105,7 +105,7 @@ function HabitSuggestions({ onCreated }: { onCreated: () => void }) {
             key={s.title}
             onClick={() => handleCreate(s.title)}
             disabled={creating === s.title}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-dungeon-900 border border-dungeon-700 text-slate-400 hover:text-slate-200 hover:border-crimson-700 disabled:opacity-50 transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-dungeon-900 border border-dungeon-700 text-dungeon-400 hover:text-slate-200 hover:border-crimson-700 disabled:opacity-50 transition-all"
           >
             <span>{s.icon}</span>
             {s.title}
@@ -210,7 +210,7 @@ export default function HabitList({ onSelectHabit, onCreateHabit, selectedHabitI
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-100">Habits</h1>
-          <p className="text-sm text-slate-400 mt-1">
+          <p className="text-sm text-dungeon-400 mt-1">
             {activeCount === 0
               ? "No habits yet"
               : `${checkedCount}/${activeCount} done today · ${completionRate}%`}
@@ -260,7 +260,7 @@ export default function HabitList({ onSelectHabit, onCreateHabit, selectedHabitI
             key={f}
             onClick={() => setFilter(f)}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors capitalize ${
-              filter === f ? "bg-dungeon-800 text-red-400" : "text-slate-400 hover:text-slate-100"
+              filter === f ? "bg-dungeon-800 text-red-400" : "text-dungeon-400 hover:text-slate-100"
             }`}
           >
             {f}

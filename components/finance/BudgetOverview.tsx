@@ -40,7 +40,7 @@ export default function BudgetOverview() {
   const fmt = (n: number) =>
     new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
 
-  if (loading) return <div className="text-slate-400 text-sm">Loading budgets...</div>;
+  if (loading) return <div className="text-dungeon-400 text-sm">Loading budgets...</div>;
 
   return (
     <div className="space-y-4">
@@ -66,7 +66,7 @@ export default function BudgetOverview() {
 
       {budgets.length === 0 ? (
         <div className="bg-dungeon-900 border border-dungeon-800 rounded-xl p-8 text-center">
-          <p className="text-slate-400 text-sm">No budgets set. Create one to start tracking spending limits.</p>
+          <p className="text-dungeon-400 text-sm">No budgets set. Create one to start tracking spending limits.</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -86,7 +86,7 @@ export default function BudgetOverview() {
                     <span className={`text-sm font-bold ${isOver ? "text-red-400" : "text-slate-100"}`}>
                       {fmt(b.spent)}
                     </span>
-                    <span className="text-sm text-slate-500"> / {fmt(b.monthly_amount)}</span>
+                    <span className="text-sm text-dungeon-500"> / {fmt(b.monthly_amount)}</span>
                   </div>
                 </div>
                 <div className="h-2 bg-dungeon-800 rounded-full overflow-hidden">
@@ -98,10 +98,10 @@ export default function BudgetOverview() {
                   />
                 </div>
                 <div className="flex justify-between mt-1">
-                  <span className={`text-xs ${isOver ? "text-red-400" : "text-slate-500"}`}>
+                  <span className={`text-xs ${isOver ? "text-red-400" : "text-dungeon-500"}`}>
                     {b.percent_used}% used
                   </span>
-                  <span className={`text-xs ${b.remaining < 0 ? "text-red-400" : "text-slate-400"}`}>
+                  <span className={`text-xs ${b.remaining < 0 ? "text-red-400" : "text-dungeon-400"}`}>
                     {b.remaining >= 0 ? `${fmt(b.remaining)} left` : `${fmt(Math.abs(b.remaining))} over`}
                   </span>
                 </div>

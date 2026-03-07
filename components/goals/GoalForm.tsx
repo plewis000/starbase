@@ -155,7 +155,7 @@ export default function GoalForm({ onSave, onCancel }: GoalFormProps) {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="What do you want to achieve?"
-          className="w-full px-4 py-2.5 bg-dungeon-800 border border-dungeon-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400/50"
+          className="w-full px-4 py-2.5 bg-dungeon-800 border border-dungeon-700 rounded-lg text-slate-100 placeholder-dungeon-500 focus:outline-none focus:border-red-400/50"
           autoFocus
         />
       </div>
@@ -168,7 +168,7 @@ export default function GoalForm({ onSave, onCancel }: GoalFormProps) {
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Why does this goal matter?"
           rows={3}
-          className="w-full px-4 py-2.5 bg-dungeon-800 border border-dungeon-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400/50 resize-none"
+          className="w-full px-4 py-2.5 bg-dungeon-800 border border-dungeon-700 rounded-lg text-slate-100 placeholder-dungeon-500 focus:outline-none focus:border-red-400/50 resize-none"
         />
       </div>
 
@@ -225,7 +225,7 @@ export default function GoalForm({ onSave, onCancel }: GoalFormProps) {
               <span className={`text-sm font-medium ${progressType === opt.value ? "text-red-400" : "text-slate-100"}`}>
                 {opt.label}
               </span>
-              <span className="block text-xs text-slate-400 mt-0.5">{opt.desc}</span>
+              <span className="block text-xs text-dungeon-400 mt-0.5">{opt.desc}</span>
             </button>
           ))}
         </div>
@@ -253,7 +253,7 @@ export default function GoalForm({ onSave, onCancel }: GoalFormProps) {
                 <button
                   type="button"
                   onClick={() => removeMilestone(i)}
-                  className="text-slate-500 hover:text-red-400 transition-colors"
+                  className="text-dungeon-500 hover:text-red-400 transition-colors"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -268,7 +268,7 @@ export default function GoalForm({ onSave, onCancel }: GoalFormProps) {
               value={newMilestone}
               onChange={(e) => setNewMilestone(e.target.value)}
               placeholder="Add a milestone..."
-              className="flex-1 px-4 py-2 bg-dungeon-800 border border-dungeon-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400/50 text-sm"
+              className="flex-1 px-4 py-2 bg-dungeon-800 border border-dungeon-700 rounded-lg text-slate-100 placeholder-dungeon-500 focus:outline-none focus:border-red-400/50 text-sm"
               onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addMilestone())}
             />
             <button
@@ -292,7 +292,7 @@ export default function GoalForm({ onSave, onCancel }: GoalFormProps) {
               value={targetValue}
               onChange={(e) => setTargetValue(e.target.value)}
               placeholder="100"
-              className="w-full px-4 py-2.5 bg-dungeon-800 border border-dungeon-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400/50"
+              className="w-full px-4 py-2.5 bg-dungeon-800 border border-dungeon-700 rounded-lg text-slate-100 placeholder-dungeon-500 focus:outline-none focus:border-red-400/50"
             />
           </div>
           <div>
@@ -302,7 +302,7 @@ export default function GoalForm({ onSave, onCancel }: GoalFormProps) {
               value={unit}
               onChange={(e) => setUnit(e.target.value)}
               placeholder="e.g., books, lbs, miles"
-              className="w-full px-4 py-2.5 bg-dungeon-800 border border-dungeon-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400/50"
+              className="w-full px-4 py-2.5 bg-dungeon-800 border border-dungeon-700 rounded-lg text-slate-100 placeholder-dungeon-500 focus:outline-none focus:border-red-400/50"
             />
           </div>
         </div>
@@ -312,7 +312,7 @@ export default function GoalForm({ onSave, onCancel }: GoalFormProps) {
       {progressType === "habit_driven" && (
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-2">Link Habits (optional)</label>
-          <p className="text-xs text-slate-400 mb-3">Select active habits to drive this goal's progress</p>
+          <p className="text-xs text-dungeon-400 mb-3">Select active habits to drive this goal's progress</p>
           {habits.length > 0 ? (
             <div className="space-y-2">
               {habits.map((h) => (
@@ -337,14 +337,14 @@ export default function GoalForm({ onSave, onCancel }: GoalFormProps) {
                       <span className={`text-sm font-medium ${selectedHabitIds.includes(h.id) ? "text-red-400" : "text-slate-100"}`}>
                         {h.title}
                       </span>
-                      <span className="block text-xs text-slate-400 mt-0.5">🔥 {h.current_streak}d streak</span>
+                      <span className="block text-xs text-dungeon-400 mt-0.5">🔥 {h.current_streak}d streak</span>
                     </div>
                   </div>
                 </button>
               ))}
             </div>
           ) : (
-            <p className="text-sm text-slate-400 p-3 bg-dungeon-800 rounded-lg">No active habits available. Create a habit first.</p>
+            <p className="text-sm text-dungeon-400 p-3 bg-dungeon-800 rounded-lg">No active habits available. Create a habit first.</p>
           )}
         </div>
       )}
@@ -361,7 +361,7 @@ export default function GoalForm({ onSave, onCancel }: GoalFormProps) {
         <button
           type="button"
           onClick={onCancel}
-          className="px-4 py-2 text-slate-400 hover:text-slate-100 transition-colors font-medium"
+          className="px-4 py-2 text-dungeon-400 hover:text-slate-100 transition-colors font-medium"
         >
           Cancel
         </button>

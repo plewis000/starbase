@@ -71,7 +71,7 @@ export default function CompletionCreditModal({
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
         <div className="bg-dungeon-900 border border-dungeon-700 rounded-xl p-6 w-full max-w-sm mx-4 shadow-2xl">
           <h3 className="text-lg font-bold text-slate-100 mb-1">Who did this?</h3>
-          <p className="text-sm text-slate-400 mb-5 truncate">{taskTitle}</p>
+          <p className="text-sm text-dungeon-400 mb-5 truncate">{taskTitle}</p>
 
           <div className="space-y-2">
             <button
@@ -96,7 +96,7 @@ export default function CompletionCreditModal({
 
           <button
             onClick={onCancel}
-            className="w-full mt-3 py-2 text-sm text-slate-500 hover:text-slate-300 transition-colors"
+            className="w-full mt-3 py-2 text-sm text-dungeon-500 hover:text-slate-300 transition-colors"
           >
             Cancel
           </button>
@@ -122,7 +122,7 @@ export default function CompletionCreditModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="bg-dungeon-900 border border-dungeon-700 rounded-xl p-6 w-full max-w-sm mx-4 shadow-2xl">
         <h3 className="text-lg font-bold text-slate-100 mb-1">Who gets credit?</h3>
-        <p className="text-sm text-slate-400 mb-5 truncate">{taskTitle}</p>
+        <p className="text-sm text-dungeon-400 mb-5 truncate">{taskTitle}</p>
 
         <div className="space-y-2 mb-5">
           {candidates.map((c) => (
@@ -132,7 +132,7 @@ export default function CompletionCreditModal({
               className={`w-full flex items-center gap-3 py-3 px-4 rounded-lg border transition-all ${
                 selected.has(c.id)
                   ? "bg-red-900/20 border-red-800/50 text-slate-100"
-                  : "bg-dungeon-800 border-dungeon-700 text-slate-400 hover:text-slate-200 hover:border-dungeon-600"
+                  : "bg-dungeon-800 border-dungeon-700 text-dungeon-400 hover:text-slate-200 hover:border-dungeon-600"
               }`}
             >
               {/* Checkbox */}
@@ -159,7 +159,7 @@ export default function CompletionCreditModal({
 
               <span className="font-medium">
                 {c.name}
-                {c.id === currentUserId && <span className="text-slate-500 ml-1">(you)</span>}
+                {c.id === currentUserId && <span className="text-dungeon-500 ml-1">(you)</span>}
               </span>
             </button>
           ))}
@@ -175,7 +175,7 @@ export default function CompletionCreditModal({
 
         <button
           onClick={onCancel}
-          className="w-full mt-2 py-2 text-sm text-slate-500 hover:text-slate-300 transition-colors"
+          className="w-full mt-2 py-2 text-sm text-dungeon-500 hover:text-slate-300 transition-colors"
         >
           Cancel
         </button>

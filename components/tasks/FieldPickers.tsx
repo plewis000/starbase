@@ -54,7 +54,7 @@ function PillPicker({ options, value, onChange, colorMap, allowDeselect = false,
             className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${colors} ${
               isSelected
                 ? "ring-2 ring-red-400/60 border-transparent"
-                : "border-transparent hover:ring-1 hover:ring-slate-500"
+                : "border-transparent hover:ring-1 hover:ring-dungeon-500"
             }`}
           >
             {opt.icon && <span className="mr-1">{opt.icon}</span>}
@@ -161,7 +161,7 @@ export function AssigneePicker({
         className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
           !value
             ? "bg-dungeon-600 text-slate-100 ring-2 ring-red-400/60 border-transparent"
-            : "bg-dungeon-700 text-slate-400 border-dungeon-600 hover:ring-1 hover:ring-slate-500"
+            : "bg-dungeon-700 text-dungeon-400 border-dungeon-600 hover:ring-1 hover:ring-dungeon-500"
         }`}
       >
         Unassigned
@@ -177,7 +177,7 @@ export function AssigneePicker({
             className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
               isSelected
                 ? "bg-blue-500/20 text-blue-300 ring-2 ring-red-400/60 border-transparent"
-                : "bg-dungeon-700 text-slate-300 border-dungeon-600 hover:ring-1 hover:ring-slate-500"
+                : "bg-dungeon-700 text-slate-300 border-dungeon-600 hover:ring-1 hover:ring-dungeon-500"
             }`}
           >
             <span className="w-5 h-5 rounded-full bg-dungeon-600 text-[9px] font-bold flex items-center justify-center text-slate-300">
@@ -226,7 +226,7 @@ export function OwnerPicker({
             className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
               isSelected
                 ? "bg-red-400/20 text-red-300 ring-2 ring-red-400/60 border-transparent"
-                : "bg-dungeon-700 text-slate-300 border-dungeon-600 hover:ring-1 hover:ring-slate-500"
+                : "bg-dungeon-700 text-slate-300 border-dungeon-600 hover:ring-1 hover:ring-dungeon-500"
             }`}
           >
             <span className="w-5 h-5 rounded-full bg-dungeon-600 text-[9px] font-bold flex items-center justify-center text-slate-300">
@@ -237,7 +237,7 @@ export function OwnerPicker({
         );
       })}
       {members.length === 0 && (
-        <span className="text-xs text-slate-500 italic">No members available</span>
+        <span className="text-xs text-dungeon-500 italic">No members available</span>
       )}
     </div>
   );
@@ -278,7 +278,7 @@ export function TagPicker({
             className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
               isSelected
                 ? "ring-2 ring-red-400/60 border-transparent"
-                : "border-dungeon-600 hover:ring-1 hover:ring-slate-500"
+                : "border-dungeon-600 hover:ring-1 hover:ring-dungeon-500"
             } ${isSelected ? "bg-dungeon-600" : "bg-dungeon-700"}`}
             style={tagColor ? {
               color: tagColor,
@@ -292,7 +292,7 @@ export function TagPicker({
         );
       })}
       {options.length === 0 && (
-        <span className="text-xs text-slate-500 italic">No tags available</span>
+        <span className="text-xs text-dungeon-500 italic">No tags available</span>
       )}
     </div>
   );

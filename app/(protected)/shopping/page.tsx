@@ -443,7 +443,7 @@ export default function ShoppingPage() {
                 className={`flex-shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                   activeListId === list.id
                     ? "bg-red-400/10 text-red-400 border border-red-400/30"
-                    : "bg-dungeon-900 text-slate-400 border border-dungeon-800 hover:text-slate-100 hover:border-dungeon-700"
+                    : "bg-dungeon-900 text-dungeon-400 border border-dungeon-800 hover:text-slate-100 hover:border-dungeon-700"
                 }`}
               >
                 <span>{list.name}</span>
@@ -480,7 +480,7 @@ export default function ShoppingPage() {
                   if (e.key === "Enter") handleAddItem();
                 }}
                 placeholder="Add item..."
-                className="flex-1 px-4 py-2.5 bg-dungeon-900 border border-dungeon-800 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/30 transition-colors"
+                className="flex-1 px-4 py-2.5 bg-dungeon-900 border border-dungeon-800 rounded-lg text-slate-100 placeholder-dungeon-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/30 transition-colors"
               />
               <input
                 type="text"
@@ -490,7 +490,7 @@ export default function ShoppingPage() {
                   if (e.key === "Enter") handleAddItem();
                 }}
                 placeholder="Qty"
-                className="w-20 px-3 py-2.5 bg-dungeon-900 border border-dungeon-800 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/30 transition-colors text-center"
+                className="w-20 px-3 py-2.5 bg-dungeon-900 border border-dungeon-800 rounded-lg text-slate-100 placeholder-dungeon-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/30 transition-colors text-center"
               />
               <button
                 onClick={handleAddItem}
@@ -511,7 +511,7 @@ export default function ShoppingPage() {
                 <div className="text-center py-8">
                   <div className="text-4xl mb-3">🛒</div>
                   <p className="text-slate-300 font-medium mb-1">This list is ready for items</p>
-                  <p className="text-slate-500 text-sm">Type an item above and press Enter — try &quot;2 lbs chicken&quot; or &quot;milk x3&quot;</p>
+                  <p className="text-dungeon-500 text-sm">Type an item above and press Enter — try &quot;2 lbs chicken&quot; or &quot;milk x3&quot;</p>
                 </div>
                 <div className="bg-dungeon-850 border border-dungeon-700 rounded-xl p-5">
                   <h3 className="text-sm font-semibold text-slate-300 mb-3">Common items — tap to add</h3>
@@ -533,7 +533,7 @@ export default function ShoppingPage() {
                             }
                           } catch { toast.error("Failed to add item"); }
                         }}
-                        className="px-3 py-1.5 rounded-full text-xs font-medium bg-dungeon-900 border border-dungeon-700 text-slate-400 hover:text-slate-200 hover:border-crimson-700 transition-all"
+                        className="px-3 py-1.5 rounded-full text-xs font-medium bg-dungeon-900 border border-dungeon-700 text-dungeon-400 hover:text-slate-200 hover:border-crimson-700 transition-all"
                       >
                         {item}
                       </button>
@@ -554,11 +554,11 @@ export default function ShoppingPage() {
                       )}
                       {category === "Checked" && <span className="text-sm">✓</span>}
                       <h3 className={`text-sm font-semibold ${
-                        category === "Checked" ? "text-slate-500" : "text-slate-300"
+                        category === "Checked" ? "text-dungeon-500" : "text-slate-300"
                       }`}>
                         {category}
                       </h3>
-                      <span className="text-xs text-slate-500">({categoryItems.length})</span>
+                      <span className="text-xs text-dungeon-500">({categoryItems.length})</span>
                     </div>
 
                     {/* Items */}
@@ -590,14 +590,14 @@ export default function ShoppingPage() {
 
                           {/* Item name */}
                           <span className={`flex-1 text-sm transition-all duration-300 ${
-                            item.checked ? "text-slate-500 line-through opacity-60" : "text-slate-100"
+                            item.checked ? "text-dungeon-500 line-through opacity-60" : "text-slate-100"
                           }`}>
                             {item.name}
                           </span>
 
                           {/* Quantity */}
                           {item.quantity && (
-                            <span className="text-xs text-slate-400 bg-dungeon-800 px-2 py-0.5 rounded">
+                            <span className="text-xs text-dungeon-400 bg-dungeon-800 px-2 py-0.5 rounded">
                               {item.quantity}
                             </span>
                           )}
@@ -621,7 +621,7 @@ export default function ShoppingPage() {
                             <button
                               onClick={() => handleTrackAsTask(item)}
                               disabled={trackingItemId === item.id}
-                              className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-blue-400 transition-all p-1 flex-shrink-0"
+                              className="opacity-0 group-hover:opacity-100 text-dungeon-500 hover:text-blue-400 transition-all p-1 flex-shrink-0"
                               title="Track as task"
                             >
                               {trackingItemId === item.id ? (
@@ -639,7 +639,7 @@ export default function ShoppingPage() {
                           {/* Delete button */}
                           <button
                             onClick={() => handleDeleteItem(item.id)}
-                            className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 transition-all p-1"
+                            className="opacity-0 group-hover:opacity-100 text-dungeon-500 hover:text-red-400 transition-all p-1"
                           >
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
@@ -653,21 +653,21 @@ export default function ShoppingPage() {
 
                 {/* Footer actions */}
                 <div className="flex items-center justify-between pt-4 border-t border-dungeon-800">
-                  <span className="text-sm text-slate-400">
+                  <span className="text-sm text-dungeon-400">
                     {uncheckedCount} remaining, {checkedCount} checked
                   </span>
                   <div className="flex gap-2">
                     {checkedCount > 0 && (
                       <button
                         onClick={handleClearChecked}
-                        className="px-3 py-1.5 text-sm text-slate-400 hover:text-slate-100 bg-dungeon-900 border border-dungeon-800 rounded-lg hover:border-dungeon-700 transition-colors"
+                        className="px-3 py-1.5 text-sm text-dungeon-400 hover:text-slate-100 bg-dungeon-900 border border-dungeon-800 rounded-lg hover:border-dungeon-700 transition-colors"
                       >
                         Clear checked
                       </button>
                     )}
                     {showDeleteConfirm ? (
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-slate-400">Delete this list?</span>
+                        <span className="text-xs text-dungeon-400">Delete this list?</span>
                         <button
                           onClick={handleDeleteList}
                           className="px-2 py-1 text-xs text-red-400 border border-red-400/30 rounded hover:bg-red-400/10 transition-colors"
@@ -676,7 +676,7 @@ export default function ShoppingPage() {
                         </button>
                         <button
                           onClick={() => setShowDeleteConfirm(false)}
-                          className="px-2 py-1 text-xs text-slate-400 border border-dungeon-700 rounded hover:bg-dungeon-800 transition-colors"
+                          className="px-2 py-1 text-xs text-dungeon-400 border border-dungeon-700 rounded hover:bg-dungeon-800 transition-colors"
                         >
                           Cancel
                         </button>
@@ -684,7 +684,7 @@ export default function ShoppingPage() {
                     ) : (
                       <button
                         onClick={() => setShowDeleteConfirm(true)}
-                        className="px-3 py-1.5 text-sm text-slate-500 hover:text-red-400 transition-colors"
+                        className="px-3 py-1.5 text-sm text-dungeon-500 hover:text-red-400 transition-colors"
                       >
                         Delete list
                       </button>
@@ -713,7 +713,7 @@ export default function ShoppingPage() {
               onKeyDown={(e) => { if (e.key === "Enter") handleCreateList(); }}
               placeholder="e.g., Weekly Groceries"
               autoFocus
-              className="w-full bg-dungeon-800 border border-dungeon-700 rounded px-4 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50"
+              className="w-full bg-dungeon-800 border border-dungeon-700 rounded px-4 py-2 text-slate-100 placeholder-dungeon-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50"
             />
           </div>
           <div>
@@ -723,7 +723,7 @@ export default function ShoppingPage() {
               value={newListStore}
               onChange={(e) => setNewListStore(e.target.value)}
               placeholder="e.g., Costco, Trader Joe's"
-              className="w-full bg-dungeon-800 border border-dungeon-700 rounded px-4 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50"
+              className="w-full bg-dungeon-800 border border-dungeon-700 rounded px-4 py-2 text-slate-100 placeholder-dungeon-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50"
             />
           </div>
           <div className="flex gap-3 justify-end pt-2">

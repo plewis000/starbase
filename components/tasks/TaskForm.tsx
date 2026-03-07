@@ -15,7 +15,7 @@ interface TaskFormProps {
   onCancel: () => void;
 }
 
-const SECTION_LABEL = "block text-xs text-slate-400 font-semibold uppercase tracking-wider mb-2";
+const SECTION_LABEL = "block text-xs text-dungeon-400 font-semibold uppercase tracking-wider mb-2";
 
 export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
   const isEditing = !!task;
@@ -145,7 +145,7 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
           placeholder="Enter task title..."
           disabled={submitting}
           autoFocus
-          className="w-full bg-dungeon-800 border border-dungeon-700 rounded px-4 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50"
+          className="w-full bg-dungeon-800 border border-dungeon-700 rounded px-4 py-2 text-slate-100 placeholder-dungeon-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50"
         />
       </div>
 
@@ -220,7 +220,7 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
         <label className={SECTION_LABEL}>
           Owners
           {members.length > 1 && (
-            <span className="text-xs text-slate-500 ml-2 font-normal normal-case tracking-normal">
+            <span className="text-xs text-dungeon-500 ml-2 font-normal normal-case tracking-normal">
               Everyone selected gets full XP on completion
             </span>
           )}
@@ -232,7 +232,7 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
           disabled={submitting}
         />
         {selectedOwnerIds.length === 0 && (
-          <p className="text-xs text-slate-500 mt-1 italic">
+          <p className="text-xs text-dungeon-500 mt-1 italic">
             No owner — will be unassigned
           </p>
         )}
@@ -260,7 +260,7 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
           placeholder="Add a detailed description..."
           disabled={submitting}
           rows={3}
-          className="w-full bg-dungeon-800 border border-dungeon-700 rounded px-4 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50 resize-none"
+          className="w-full bg-dungeon-800 border border-dungeon-700 rounded px-4 py-2 text-slate-100 placeholder-dungeon-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50 resize-none"
         />
       </div>
 
@@ -281,7 +281,7 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
                 type="button"
                 onClick={() => handleRemoveChecklistItem(item.id)}
                 disabled={submitting}
-                className="text-slate-500 hover:text-red-400 transition-colors disabled:opacity-50"
+                className="text-dungeon-500 hover:text-red-400 transition-colors disabled:opacity-50"
               >
                 ✕
               </button>
@@ -301,7 +301,7 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
             }}
             placeholder="Add checklist item..."
             disabled={submitting}
-            className="flex-1 bg-dungeon-800 border border-dungeon-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50"
+            className="flex-1 bg-dungeon-800 border border-dungeon-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-dungeon-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50"
           />
           <button
             type="button"

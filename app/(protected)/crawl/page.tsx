@@ -528,7 +528,7 @@ export default function CrawlPage() {
                     }`}>
                       <span className="text-lg">{mod.ready ? "✅" : "⬜"}</span>
                       <div className="flex-1">
-                        <span className={`text-sm ${mod.ready ? "text-green-400" : "text-slate-400"}`}>
+                        <span className={`text-sm ${mod.ready ? "text-green-400" : "text-dungeon-400"}`}>
                           {label?.name || key}
                         </span>
                         <span className="text-xs text-dungeon-500 ml-2 font-mono">
@@ -545,7 +545,7 @@ export default function CrawlPage() {
                   }`}>
                     <span className="text-lg">{activation.hasRewards ? "✅" : "⬜"}</span>
                     <div className="flex-1">
-                      <span className={`text-sm ${activation.hasRewards ? "text-green-400" : "text-slate-400"}`}>
+                      <span className={`text-sm ${activation.hasRewards ? "text-green-400" : "text-dungeon-400"}`}>
                         Set up loot box rewards
                       </span>
                       {!activation.hasRewards && (
@@ -820,7 +820,7 @@ export default function CrawlPage() {
                       </span>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <h4 className={`font-semibold text-sm ${a.unlocked ? "text-slate-100" : "text-slate-400"}`}>
+                          <h4 className={`font-semibold text-sm ${a.unlocked ? "text-slate-100" : "text-dungeon-400"}`}>
                             {isHiddenLocked ? "Hidden Achievement" : a.name}
                           </h4>
                           <span className={`text-xs font-mono px-1.5 py-0.5 rounded ${TIER_COLORS[a.tier]} border`}>
@@ -828,10 +828,10 @@ export default function CrawlPage() {
                           </span>
                           {a.is_party && <span className="text-xs">🤝</span>}
                         </div>
-                        <p className="text-xs text-slate-400 line-clamp-2">
+                        <p className="text-xs text-dungeon-400 line-clamp-2">
                           {isHiddenLocked ? "Keep crawling to discover this achievement..." : a.description}
                         </p>
-                        <div className="flex items-center gap-3 mt-2 text-xs text-slate-500">
+                        <div className="flex items-center gap-3 mt-2 text-xs text-dungeon-500">
                           <span>+{a.xp_reward} XP</span>
                           {a.loot_box_tier && <span>📦 {a.loot_box_tier}</span>}
                           {a.unlocked && a.unlock_count > 1 && <span>x{a.unlock_count}</span>}
@@ -877,7 +877,7 @@ export default function CrawlPage() {
                         <h4 className={`font-semibold text-sm text-center ${style.text}`}>
                           {box.tier?.name || "Box"}
                         </h4>
-                        <p className="text-xs text-slate-400 text-center mt-1 mb-3">{box.source_description}</p>
+                        <p className="text-xs text-dungeon-400 text-center mt-1 mb-3">{box.source_description}</p>
                         <button
                           onClick={() => handleOpenBox(box.id)}
                           disabled={openingBox === box.id}

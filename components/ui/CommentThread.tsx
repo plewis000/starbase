@@ -131,13 +131,13 @@ function ReactionBar({
           className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-dungeon-800 hover:bg-dungeon-700 border border-dungeon-700 text-xs transition-colors"
         >
           <span>{emoji}</span>
-          <span className="text-slate-400">{count}</span>
+          <span className="text-dungeon-400">{count}</span>
         </button>
       ))}
       <div className="relative">
         <button
           onClick={() => setShowPicker(!showPicker)}
-          className="w-6 h-6 rounded-full bg-dungeon-800 hover:bg-dungeon-700 border border-dungeon-700 text-xs flex items-center justify-center text-slate-400 transition-colors"
+          className="w-6 h-6 rounded-full bg-dungeon-800 hover:bg-dungeon-700 border border-dungeon-700 text-xs flex items-center justify-center text-dungeon-400 transition-colors"
           title="Add reaction"
         >
           +
@@ -229,8 +229,8 @@ function SingleComment({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-0.5">
           <span className="text-sm font-medium text-slate-100">{authorName}</span>
-          <span className="text-xs text-slate-500">{formatRelativeTime(comment.created_at)}</span>
-          {comment.is_edited && <span className="text-xs text-slate-600">(edited)</span>}
+          <span className="text-xs text-dungeon-500">{formatRelativeTime(comment.created_at)}</span>
+          {comment.is_edited && <span className="text-xs text-dungeon-600">(edited)</span>}
           {comment.is_pinned && <span className="text-xs text-amber-400">pinned</span>}
         </div>
 
@@ -252,7 +252,7 @@ function SingleComment({
               </button>
               <button
                 onClick={() => { setEditing(false); setEditBody(comment.body); }}
-                className="px-3 py-1 text-slate-400 hover:text-slate-100 text-xs font-medium transition-colors"
+                className="px-3 py-1 text-dungeon-400 hover:text-slate-100 text-xs font-medium transition-colors"
               >
                 Cancel
               </button>
@@ -282,7 +282,7 @@ function SingleComment({
               {!isReply && (
                 <button
                   onClick={() => onReply(comment.id)}
-                  className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+                  className="text-xs text-dungeon-500 hover:text-slate-300 transition-colors"
                 >
                   Reply
                 </button>
@@ -290,7 +290,7 @@ function SingleComment({
               {isOwnComment && (
                 <button
                   onClick={() => { setEditing(true); setEditBody(comment.body); }}
-                  className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+                  className="text-xs text-dungeon-500 hover:text-slate-300 transition-colors"
                 >
                   Edit
                 </button>
@@ -298,7 +298,7 @@ function SingleComment({
               {isOwnComment && (
                 <button
                   onClick={handleDelete}
-                  className="text-xs text-slate-500 hover:text-red-400 transition-colors"
+                  className="text-xs text-dungeon-500 hover:text-red-400 transition-colors"
                 >
                   Delete
                 </button>
@@ -512,21 +512,21 @@ export default function CommentThread({
           ))}
         </div>
       ) : (
-        <p className="text-sm text-slate-400 text-center py-4">
+        <p className="text-sm text-dungeon-400 text-center py-4">
           No comments yet. Start a discussion!
         </p>
       )}
 
       {/* Reply indicator */}
       {replyingTo && replyingToComment && (
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-dungeon-800/50 rounded text-xs text-slate-400">
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-dungeon-800/50 rounded text-xs text-dungeon-400">
           <span>Replying to</span>
           <span className="text-slate-200 font-medium">
             {replyingToComment.author?.full_name || "Unknown"}
           </span>
           <button
             onClick={() => setReplyingTo(null)}
-            className="ml-auto text-slate-500 hover:text-slate-300 transition-colors"
+            className="ml-auto text-dungeon-500 hover:text-slate-300 transition-colors"
           >
             Cancel
           </button>
@@ -569,7 +569,7 @@ export default function CommentThread({
             }
             disabled={submitting}
             rows={2}
-            className="w-full bg-dungeon-800 border border-dungeon-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50 resize-none"
+            className="w-full bg-dungeon-800 border border-dungeon-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-dungeon-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50 resize-none"
           />
 
           {/* @mention autocomplete dropdown */}
@@ -590,7 +590,7 @@ export default function CommentThread({
                   <div>
                     <div className="text-slate-100 font-medium">{member.display_name}</div>
                     {member.display_name !== member.full_name && (
-                      <div className="text-slate-400 text-xs">{member.full_name}</div>
+                      <div className="text-dungeon-400 text-xs">{member.full_name}</div>
                     )}
                   </div>
                 </button>

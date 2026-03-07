@@ -168,7 +168,7 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
   };
 
   if (loading) return <div className="flex justify-center py-12"><LoadingSpinner size="lg" /></div>;
-  if (!habit) return <div className="p-6 text-center text-slate-400">Habit not found</div>;
+  if (!habit) return <div className="p-6 text-center text-dungeon-400">Habit not found</div>;
 
   // Build last 7 days grid
   const last7Days = Array.from({ length: 7 }, (_, i) => {
@@ -186,13 +186,13 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             {habit.category && (
-              <span className="text-xs text-slate-400">{habit.category.icon} {habit.category.name}</span>
+              <span className="text-xs text-dungeon-400">{habit.category.icon} {habit.category.name}</span>
             )}
             {habit.frequency && (
-              <span className="text-xs text-slate-500">{habit.frequency.name}</span>
+              <span className="text-xs text-dungeon-500">{habit.frequency.name}</span>
             )}
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-100 transition-colors p-1">
+          <button onClick={onClose} className="text-dungeon-400 hover:text-slate-100 transition-colors p-1">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
             </svg>
@@ -206,15 +206,15 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
         <div className="grid grid-cols-3 gap-3">
           <div className="bg-dungeon-800/50 rounded-lg p-3 text-center">
             <div className="text-2xl font-bold text-amber-400">🔥 {habit.current_streak}</div>
-            <div className="text-xs text-slate-400 mt-1">Current</div>
+            <div className="text-xs text-dungeon-400 mt-1">Current</div>
           </div>
           <div className="bg-dungeon-800/50 rounded-lg p-3 text-center">
             <div className="text-2xl font-bold text-slate-100">{habit.longest_streak}</div>
-            <div className="text-xs text-slate-400 mt-1">Best</div>
+            <div className="text-xs text-dungeon-400 mt-1">Best</div>
           </div>
           <div className="bg-dungeon-800/50 rounded-lg p-3 text-center">
             <div className="text-2xl font-bold text-slate-100">{habit.total_completions}</div>
-            <div className="text-xs text-slate-400 mt-1">Total</div>
+            <div className="text-xs text-dungeon-400 mt-1">Total</div>
           </div>
         </div>
 
@@ -228,7 +228,7 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
               const isToday = date === new Date().toISOString().split("T")[0];
               return (
                 <div key={date} className="flex flex-col items-center gap-1">
-                  <span className={`text-xs ${isToday ? "text-red-400 font-bold" : "text-slate-500"}`}>
+                  <span className={`text-xs ${isToday ? "text-red-400 font-bold" : "text-dungeon-500"}`}>
                     {dayName}
                   </span>
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
@@ -271,7 +271,7 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
               value={checkInNote}
               onChange={(e) => setCheckInNote(e.target.value)}
               placeholder="Quick note (optional)..."
-              className="w-full px-3 py-2 bg-dungeon-800 border border-dungeon-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400/50 text-sm"
+              className="w-full px-3 py-2 bg-dungeon-800 border border-dungeon-700 rounded-lg text-slate-100 placeholder-dungeon-500 focus:outline-none focus:border-red-400/50 text-sm"
             />
             <button
               onClick={handleCheckIn}
@@ -303,7 +303,7 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
               <h3 className="text-sm font-semibold text-slate-100">
                 {habit.linked_goals && habit.linked_goals.length > 0 ? (
                   <>
-                    Linked Goals <span className="text-slate-400">This habit drives {habit.linked_goals.length} {habit.linked_goals.length === 1 ? "goal" : "goals"}</span>
+                    Linked Goals <span className="text-dungeon-400">This habit drives {habit.linked_goals.length} {habit.linked_goals.length === 1 ? "goal" : "goals"}</span>
                   </>
                 ) : (
                   "Linked Goals"
@@ -313,7 +313,7 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
             {showGoalPicker && (
               <div className="bg-dungeon-800/50 rounded-lg p-4 mb-3 space-y-3">
                 {pickerLoading ? (
-                  <p className="text-sm text-slate-400">Loading goals...</p>
+                  <p className="text-sm text-dungeon-400">Loading goals...</p>
                 ) : availableGoals.length > 0 ? (
                   <>
                     <div className="space-y-2">
@@ -346,7 +346,7 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
                     <div className="flex gap-2">
                       <button
                         onClick={() => setShowGoalPicker(false)}
-                        className="flex-1 px-3 py-2 text-slate-400 hover:text-slate-100 transition-colors text-sm font-medium"
+                        className="flex-1 px-3 py-2 text-dungeon-400 hover:text-slate-100 transition-colors text-sm font-medium"
                       >
                         Cancel
                       </button>
@@ -361,10 +361,10 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
                   </>
                 ) : (
                   <>
-                    <p className="text-sm text-slate-400">No more goals available to link</p>
+                    <p className="text-sm text-dungeon-400">No more goals available to link</p>
                     <button
                       onClick={() => setShowGoalPicker(false)}
-                      className="w-full px-3 py-2 text-slate-400 hover:text-slate-100 transition-colors text-sm font-medium"
+                      className="w-full px-3 py-2 text-dungeon-400 hover:text-slate-100 transition-colors text-sm font-medium"
                     >
                       Close
                     </button>
@@ -382,7 +382,7 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
                         g.status === "completed" ? "bg-blue-400/10 text-blue-400" :
                         g.status === "active" ? "bg-red-400/10 text-red-400" :
                         g.status === "paused" ? "bg-amber-400/10 text-amber-400" :
-                        "bg-slate-400/10 text-slate-400"
+                        "bg-dungeon-400/10 text-dungeon-400"
                       }`}>
                         {g.status}
                       </span>
@@ -393,7 +393,7 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
                         style={{ width: `${Math.round(g.progress_value)}%` }}
                       />
                     </div>
-                    <div className="text-xs text-slate-400">{Math.round(g.progress_value)}% complete</div>
+                    <div className="text-xs text-dungeon-400">{Math.round(g.progress_value)}% complete</div>
                   </div>
                 ))}
                 {!showGoalPicker && (
@@ -428,7 +428,7 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
             </button>
             <button
               onClick={() => handleStatusChange("retired")}
-              className="px-4 py-2 text-slate-500 hover:text-red-400 font-medium rounded-lg transition-colors text-sm"
+              className="px-4 py-2 text-dungeon-500 hover:text-red-400 font-medium rounded-lg transition-colors text-sm"
             >
               Retire
             </button>
@@ -460,12 +460,12 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
             <div className="space-y-1.5">
               {habit.check_in_history.slice(0, 10).map((c) => (
                 <div key={c.id} className="flex items-center gap-3 text-sm py-1.5">
-                  <span className="text-slate-500 text-xs w-20 flex-shrink-0">
+                  <span className="text-dungeon-500 text-xs w-20 flex-shrink-0">
                     {new Date(c.check_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                   </span>
                   {c.mood && <span>{MOOD_EMOJI[c.mood] || ""}</span>}
-                  {c.note && <span className="text-slate-400 truncate">{c.note}</span>}
-                  {!c.mood && !c.note && <span className="text-slate-600">—</span>}
+                  {c.note && <span className="text-dungeon-400 truncate">{c.note}</span>}
+                  {!c.mood && !c.note && <span className="text-dungeon-600">—</span>}
                 </div>
               ))}
             </div>

@@ -83,13 +83,13 @@ export default function SlashCommandMenu({ isOpen, onClose, onSwitchView, onCrea
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Type a command..."
-            className="w-full bg-transparent text-sm text-slate-100 placeholder-slate-500 focus:outline-none"
+            className="w-full bg-transparent text-sm text-slate-100 placeholder-dungeon-500 focus:outline-none"
           />
         </div>
 
         <div className="max-h-64 overflow-y-auto py-1">
           {filtered.length === 0 ? (
-            <p className="px-4 py-3 text-xs text-slate-500">No commands found</p>
+            <p className="px-4 py-3 text-xs text-dungeon-500">No commands found</p>
           ) : (
             filtered.map((cmd, i) => (
               <button
@@ -103,7 +103,7 @@ export default function SlashCommandMenu({ isOpen, onClose, onSwitchView, onCrea
                 <span className="text-xs font-mono text-red-400/70 w-24 flex-shrink-0">{cmd.command}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-slate-200">{cmd.label}</p>
-                  <p className="text-[10px] text-slate-500">{cmd.description}</p>
+                  <p className="text-[10px] text-dungeon-500">{cmd.description}</p>
                 </div>
               </button>
             ))

@@ -91,7 +91,7 @@ const formatRelativeDate = (dateString?: string): string => {
 
 // Get date display color
 const getDateColor = (dateString?: string): string => {
-  if (!dateString) return "text-slate-400";
+  if (!dateString) return "text-dungeon-400";
 
   const date = new Date(dateString);
   const today = new Date();
@@ -103,7 +103,7 @@ const getDateColor = (dateString?: string): string => {
 
   if (diffDays < 0) return "text-red-400"; // Overdue
   if (diffDays === 0 || diffDays === 1) return "text-amber-400"; // Today or Tomorrow
-  return "text-slate-400";
+  return "text-dungeon-400";
 };
 
 // Get initials for avatar
@@ -199,7 +199,7 @@ export default function TaskCard({
       <div className="flex-1 min-w-0">
         {/* Title */}
         <h3 className={`font-medium truncate mb-1 transition-all duration-300 ${
-          isCompleted ? "text-slate-500 line-through" : "text-slate-100"
+          isCompleted ? "text-dungeon-500 line-through" : "text-slate-100"
         }`}>
           {task.recurrence_rule && (
             <span className="text-blue-400 mr-1.5" title="Recurring task">🔄</span>
@@ -240,7 +240,7 @@ export default function TaskCard({
                 </span>
               ))}
               {hiddenTagsCount > 0 && (
-                <span className="px-2 py-0.5 rounded-full text-xs font-medium text-slate-400">
+                <span className="px-2 py-0.5 rounded-full text-xs font-medium text-dungeon-400">
                   +{hiddenTagsCount}
                 </span>
               )}
@@ -249,14 +249,14 @@ export default function TaskCard({
 
           {/* Subtask progress */}
           {task.subtask_progress && task.subtask_progress.total > 0 && (
-            <span className="px-2 py-0.5 rounded text-xs font-medium text-slate-400 bg-dungeon-800/50">
+            <span className="px-2 py-0.5 rounded text-xs font-medium text-dungeon-400 bg-dungeon-800/50">
               {task.subtask_progress.done}/{task.subtask_progress.total} subtasks
             </span>
           )}
 
           {/* Checklist progress */}
           {hasChecklist && (
-            <span className="px-2 py-0.5 rounded text-xs font-medium text-slate-400 bg-dungeon-800/50">
+            <span className="px-2 py-0.5 rounded text-xs font-medium text-dungeon-400 bg-dungeon-800/50">
               {completedChecklist}/{checklist.length} ✓
             </span>
           )}
@@ -303,7 +303,7 @@ export default function TaskCard({
           {/* Owner popover */}
           {showOwnerPopover && members && members.length > 1 && (
             <div className="absolute right-0 top-full mt-2 bg-dungeon-900 border border-dungeon-700 rounded-lg shadow-xl z-50 py-1.5 min-w-[160px]">
-              <p className="px-3 py-1 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Owners</p>
+              <p className="px-3 py-1 text-[10px] font-semibold text-dungeon-500 uppercase tracking-wider">Owners</p>
               {members.map((m) => {
                 const name = m.user?.full_name || m.display_name || m.user_id;
                 const currentIds = task.owner_ids || allOwners.map((o) => o.id);
@@ -315,7 +315,7 @@ export default function TaskCard({
                     className={`w-full text-left px-3 py-1.5 text-xs flex items-center gap-2 transition-colors ${
                       isOwner
                         ? "text-red-300 bg-red-900/20 hover:bg-red-900/30"
-                        : "text-slate-400 hover:text-slate-200 hover:bg-dungeon-800"
+                        : "text-dungeon-400 hover:text-slate-200 hover:bg-dungeon-800"
                     }`}
                   >
                     <span className="w-4 h-4 rounded-full bg-dungeon-700 flex items-center justify-center text-[8px] font-semibold flex-shrink-0">
@@ -332,7 +332,7 @@ export default function TaskCard({
 
         {/* Chevron */}
         <svg
-          className="w-5 h-5 text-slate-500 flex-shrink-0"
+          className="w-5 h-5 text-dungeon-500 flex-shrink-0"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"

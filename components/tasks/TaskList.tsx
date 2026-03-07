@@ -382,7 +382,7 @@ export default function TaskList({
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-100">Tasks</h1>
-          <p className="text-sm text-slate-400 mt-1">
+          <p className="text-sm text-dungeon-400 mt-1">
             {total === 0 ? "No tasks yet" : `${total} total tasks`}
           </p>
         </div>
@@ -411,7 +411,7 @@ export default function TaskList({
           onKeyDown={(e) => { if (e.key === "Enter") handleQuickAdd(); }}
           placeholder="Quick add task... (press Enter)"
           disabled={quickAdding}
-          className="flex-1 bg-dungeon-900 border border-dungeon-800 rounded-lg px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-500/50 disabled:opacity-50 transition-colors"
+          className="flex-1 bg-dungeon-900 border border-dungeon-800 rounded-lg px-4 py-2.5 text-sm text-slate-100 placeholder-dungeon-500 focus:outline-none focus:border-red-500/50 disabled:opacity-50 transition-colors"
         />
       </div>
 

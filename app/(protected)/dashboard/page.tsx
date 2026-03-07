@@ -548,7 +548,7 @@ export default function DashboardPage() {
                      entry.entity_type === "goal" ? "🎯" : "📝"}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <span className={`text-sm ${entry.is_current_user ? "text-slate-400" : "text-slate-200 font-medium"}`}>
+                    <span className={`text-sm ${entry.is_current_user ? "text-dungeon-400" : "text-slate-200 font-medium"}`}>
                       {entry.performer}
                     </span>
                     <span className="text-sm text-dungeon-500"> {entry.description}</span>
@@ -606,7 +606,7 @@ function Legend({ color, label }: { color: string; label: string }) {
   return (
     <div className="flex items-center gap-1">
       <div className={`w-1.5 h-1.5 rounded-full ${color}`} />
-      <span className="text-[9px] text-slate-500">{label}</span>
+      <span className="text-[9px] text-dungeon-500">{label}</span>
     </div>
   );
 }

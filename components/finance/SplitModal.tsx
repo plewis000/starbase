@@ -104,14 +104,14 @@ export default function SplitModal({ transaction, categories, onClose, onSplit }
       <div className="bg-dungeon-900 border border-dungeon-700 rounded-xl w-full max-w-lg p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-slate-100">Split Transaction</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-100 transition-colors">
+          <button onClick={onClose} className="text-dungeon-400 hover:text-slate-100 transition-colors">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
             </svg>
           </button>
         </div>
 
-        <div className="text-sm text-slate-400">
+        <div className="text-sm text-dungeon-400">
           {transaction.merchant_name || transaction.description} — {formatCurrency(transaction.amount)}
         </div>
 
@@ -141,7 +141,7 @@ export default function SplitModal({ transaction, categories, onClose, onSplit }
               {rows.length > 2 && (
                 <button
                   onClick={() => removeRow(i)}
-                  className="text-slate-500 hover:text-red-400 transition-colors p-2"
+                  className="text-dungeon-500 hover:text-red-400 transition-colors p-2"
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <line x1="5" y1="12" x2="19" y2="12" />

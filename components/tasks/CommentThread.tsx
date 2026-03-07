@@ -230,7 +230,7 @@ export default function CommentThread({
                   <span className="text-sm font-medium text-slate-100">
                     {comment.user?.full_name || "Unknown User"}
                   </span>
-                  <span className="text-xs text-slate-500">
+                  <span className="text-xs text-dungeon-500">
                     {formatRelativeTime(comment.created_at)}
                   </span>
                 </div>
@@ -243,7 +243,7 @@ export default function CommentThread({
           <div ref={threadsEndRef} />
         </div>
       ) : (
-        <p className="text-sm text-slate-400 text-center py-4">
+        <p className="text-sm text-dungeon-400 text-center py-4">
           No comments yet. Start a discussion!
         </p>
       )}
@@ -280,7 +280,7 @@ export default function CommentThread({
             placeholder="Add a comment... Use @name to mention someone (Ctrl+Enter to submit)"
             disabled={submitting}
             rows={3}
-            className="w-full bg-dungeon-800 border border-dungeon-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50 resize-none"
+            className="w-full bg-dungeon-800 border border-dungeon-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-dungeon-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50 resize-none"
           />
 
           {/* @mention autocomplete dropdown */}
@@ -301,7 +301,7 @@ export default function CommentThread({
                   <div>
                     <div className="text-slate-100 font-medium">{member.display_name}</div>
                     {member.display_name !== member.full_name && (
-                      <div className="text-slate-400 text-xs">{member.full_name}</div>
+                      <div className="text-dungeon-400 text-xs">{member.full_name}</div>
                     )}
                   </div>
                 </button>

@@ -61,12 +61,12 @@ export default function ThreadList({ threads, activeThreadId, onSelectThread, on
             onChange={(e) => setNewTitle(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); if (e.key === "Escape") setShowNew(false); }}
             placeholder="Thread title..."
-            className="w-full bg-dungeon-800 border border-dungeon-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400"
+            className="w-full bg-dungeon-800 border border-dungeon-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-dungeon-500 focus:outline-none focus:border-red-400"
             autoFocus
           />
           <div className="flex gap-2">
             <button onClick={handleCreate} className="px-3 py-1.5 bg-red-600 text-white text-xs rounded font-medium">Create</button>
-            <button onClick={() => setShowNew(false)} className="px-3 py-1.5 text-xs text-slate-500">Cancel</button>
+            <button onClick={() => setShowNew(false)} className="px-3 py-1.5 text-xs text-dungeon-500">Cancel</button>
           </div>
         </div>
       )}
@@ -78,7 +78,7 @@ export default function ThreadList({ threads, activeThreadId, onSelectThread, on
             <div className="animate-spin w-6 h-6 border-2 border-dungeon-700 border-t-red-500 rounded-full" />
           </div>
         ) : threads.length === 0 ? (
-          <p className="text-xs text-slate-500 text-center py-8">No threads yet</p>
+          <p className="text-xs text-dungeon-500 text-center py-8">No threads yet</p>
         ) : (
           threads.map((thread) => (
             <button
@@ -92,10 +92,10 @@ export default function ThreadList({ threads, activeThreadId, onSelectThread, on
             >
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-slate-200 truncate">{thread.title}</span>
-                <span className="text-[10px] text-slate-600 flex-shrink-0 ml-2">{formatTime(thread.updated_at)}</span>
+                <span className="text-[10px] text-dungeon-600 flex-shrink-0 ml-2">{formatTime(thread.updated_at)}</span>
               </div>
               {thread.entity_type && (
-                <span className="text-[10px] text-slate-500 mt-0.5 inline-block">
+                <span className="text-[10px] text-dungeon-500 mt-0.5 inline-block">
                   Linked to {thread.entity_type}
                 </span>
               )}

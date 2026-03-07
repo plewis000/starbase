@@ -38,7 +38,7 @@ export default function HabitCard({ habit, onSelect, onCheckIn, isSelected = fal
         className={`w-10 h-10 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
           habit.checked_today
             ? "border-red-400 bg-red-400/20 text-red-400"
-            : "border-dungeon-600 hover:border-red-400/50 text-slate-600 hover:text-red-400/50"
+            : "border-dungeon-600 hover:border-red-400/50 text-dungeon-600 hover:text-red-400/50"
         }`}
       >
         {habit.checked_today ? (
@@ -57,10 +57,10 @@ export default function HabitCard({ habit, onSelect, onCheckIn, isSelected = fal
         <h3 className="text-slate-100 font-medium truncate">{habit.title}</h3>
         <div className="flex items-center gap-3 mt-1">
           {habit.frequency && (
-            <span className="text-xs text-slate-400">{habit.frequency.name}</span>
+            <span className="text-xs text-dungeon-400">{habit.frequency.name}</span>
           )}
           {habit.category && (
-            <span className="text-xs text-slate-500">
+            <span className="text-xs text-dungeon-500">
               {habit.category.icon} {habit.category.name}
             </span>
           )}

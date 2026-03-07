@@ -21,7 +21,7 @@ const STATUS_COLORS: Record<string, string> = {
   active: "text-red-400 bg-red-400/10 border-red-400/30",
   completed: "text-blue-400 bg-blue-400/10 border-blue-400/30",
   paused: "text-amber-400 bg-amber-400/10 border-amber-400/30",
-  abandoned: "text-slate-400 bg-slate-400/10 border-slate-400/30",
+  abandoned: "text-dungeon-400 bg-dungeon-400/10 border-dungeon-400/30",
 };
 
 const PROGRESS_COLORS: Record<string, string> = {
@@ -64,7 +64,7 @@ export default function GoalCard({ goal, onSelect, isSelected = false }: GoalCar
               {goal.status}
             </span>
             {goal.category && (
-              <span className="text-xs text-slate-400">
+              <span className="text-xs text-dungeon-400">
                 {goal.category.icon && <span className="mr-1">{goal.category.icon}</span>}
                 {goal.category.name}
               </span>
@@ -75,7 +75,7 @@ export default function GoalCard({ goal, onSelect, isSelected = false }: GoalCar
           <span className={`text-xs font-medium flex-shrink-0 ${
             goal.target_date && new Date(goal.target_date) < new Date() && goal.status === "active"
               ? "text-red-400"
-              : "text-slate-400"
+              : "text-dungeon-400"
           }`}>
             {formatRelativeDate(goal.target_date)}
           </span>
@@ -85,12 +85,12 @@ export default function GoalCard({ goal, onSelect, isSelected = false }: GoalCar
       {/* Progress bar */}
       <div className="space-y-1">
         <div className="flex items-center justify-between text-xs">
-          <span className="text-slate-400">
+          <span className="text-dungeon-400">
             {goal.progress_type === "milestone" && milestonesTotal > 0
               ? `${milestonesCompleted}/${milestonesTotal} milestones`
               : `${progressPercent}%`}
           </span>
-          <span className="text-slate-500">{goal.progress_type.replace("_", " ")}</span>
+          <span className="text-dungeon-500">{goal.progress_type.replace("_", " ")}</span>
         </div>
         <div className="w-full bg-dungeon-800 rounded-full h-1.5">
           <div

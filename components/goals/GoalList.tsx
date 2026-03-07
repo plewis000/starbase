@@ -54,7 +54,7 @@ function QuickAddGoal({ onCreated }: { onCreated: () => void }) {
       onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
       placeholder="Quick add goal... (press Enter)"
       disabled={adding}
-      className="w-full bg-dungeon-900 border border-dungeon-800 rounded-lg px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-500/50 disabled:opacity-50 transition-colors"
+      className="w-full bg-dungeon-900 border border-dungeon-800 rounded-lg px-4 py-2.5 text-sm text-slate-100 placeholder-dungeon-500 focus:outline-none focus:border-red-500/50 disabled:opacity-50 transition-colors"
     />
   );
 }
@@ -100,7 +100,7 @@ export default function GoalList({ onSelectGoal, onCreateGoal, selectedGoalId }:
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-100">Goals</h1>
-          <p className="text-sm text-slate-400 mt-1">
+          <p className="text-sm text-dungeon-400 mt-1">
             {goals.length === 0 ? "No goals yet" : `${activeCount} active · ${avgProgress}% avg progress`}
           </p>
         </div>
@@ -127,7 +127,7 @@ export default function GoalList({ onSelectGoal, onCreateGoal, selectedGoalId }:
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
               activeTab === tab
                 ? "bg-dungeon-800 text-red-400"
-                : "text-slate-400 hover:text-slate-100"
+                : "text-dungeon-400 hover:text-slate-100"
             }`}
           >
             {tab}
@@ -137,7 +137,7 @@ export default function GoalList({ onSelectGoal, onCreateGoal, selectedGoalId }:
 
       {/* Search */}
       <div className="relative">
-        <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dungeon-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
         </svg>
         <input
@@ -145,7 +145,7 @@ export default function GoalList({ onSelectGoal, onCreateGoal, selectedGoalId }:
           placeholder="Search goals..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 bg-dungeon-900 border border-dungeon-800 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400/50 transition-colors"
+          className="w-full pl-10 pr-4 py-2.5 bg-dungeon-900 border border-dungeon-800 rounded-lg text-slate-100 placeholder-dungeon-500 focus:outline-none focus:border-red-400/50 transition-colors"
         />
       </div>
 

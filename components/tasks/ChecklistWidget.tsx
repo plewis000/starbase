@@ -40,7 +40,7 @@ function AssigneeButton({ item, members, onAssign }: {
             </span>
           )
         ) : (
-          <span className="bg-dungeon-800 text-slate-600 border-dungeon-700 border-dashed w-full h-full rounded-full flex items-center justify-center hover:text-slate-400">
+          <span className="bg-dungeon-800 text-dungeon-600 border-dungeon-700 border-dashed w-full h-full rounded-full flex items-center justify-center hover:text-dungeon-400">
             +
           </span>
         )}
@@ -49,7 +49,7 @@ function AssigneeButton({ item, members, onAssign }: {
         <div className="absolute right-0 top-full mt-1 z-20 bg-dungeon-800 border border-dungeon-700 rounded-lg shadow-xl py-1 min-w-[140px]">
           <button
             onClick={() => { onAssign(item.id, null); setShowDropdown(false); }}
-            className="w-full text-left px-3 py-1.5 text-xs text-slate-400 hover:bg-dungeon-700 transition-colors"
+            className="w-full text-left px-3 py-1.5 text-xs text-dungeon-400 hover:bg-dungeon-700 transition-colors"
           >
             Unassigned
           </button>
@@ -222,7 +222,7 @@ export default function ChecklistWidget({
       {itemsState.length > 0 && (
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-slate-400">Progress</span>
+            <span className="text-dungeon-400">Progress</span>
             <span className="text-slate-100 font-medium">
               {checkedCount} of {itemsState.length} complete
             </span>
@@ -269,7 +269,7 @@ export default function ChecklistWidget({
                   }}
                   className={`flex-1 text-sm cursor-pointer hover:text-red-300 transition-colors ${
                     item.checked
-                      ? "text-slate-500 line-through"
+                      ? "text-dungeon-500 line-through"
                       : "text-slate-100"
                   }`}
                 >
@@ -288,7 +288,7 @@ export default function ChecklistWidget({
 
               <button
                 onClick={() => handleDeleteItem(item.id)}
-                className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 transition-all p-1"
+                className="opacity-0 group-hover:opacity-100 text-dungeon-500 hover:text-red-400 transition-all p-1"
                 title="Delete item"
               >
                 ✕
@@ -309,7 +309,7 @@ export default function ChecklistWidget({
           }}
           placeholder="Add item..."
           disabled={addingItem}
-          className="flex-1 bg-dungeon-800 border border-dungeon-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50"
+          className="flex-1 bg-dungeon-800 border border-dungeon-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-dungeon-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50"
         />
         <button
           onClick={handleAddItem}

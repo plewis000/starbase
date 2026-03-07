@@ -55,14 +55,14 @@ export default function MultiSelect({ label, options, selected, onChange, placeh
 
   return (
     <div ref={ref} className="relative">
-      <label className="block text-[10px] font-semibold text-slate-500 mb-0.5 uppercase tracking-wider">{label}</label>
+      <label className="block text-[10px] font-semibold text-dungeon-500 mb-0.5 uppercase tracking-wider">{label}</label>
       <button
         type="button"
         onClick={() => setOpen(!open)}
         className="w-full px-2 py-1.5 bg-dungeon-900 border border-dungeon-800 rounded text-xs text-slate-200 focus:outline-none focus:border-crimson-500 cursor-pointer text-left flex items-center justify-between gap-1"
       >
         <span className="truncate">{displayText}</span>
-        <span className="text-slate-500 text-[10px] flex-shrink-0">{open ? "▲" : "▼"}</span>
+        <span className="text-dungeon-500 text-[10px] flex-shrink-0">{open ? "▲" : "▼"}</span>
       </button>
 
       {open && (
@@ -92,7 +92,7 @@ export default function MultiSelect({ label, options, selected, onChange, placeh
             <button
               type="button"
               onClick={() => onChange([])}
-              className="w-full text-center px-2 py-1.5 text-[10px] text-slate-500 hover:text-slate-300 border-t border-dungeon-800 mt-1"
+              className="w-full text-center px-2 py-1.5 text-[10px] text-dungeon-500 hover:text-slate-300 border-t border-dungeon-800 mt-1"
             >
               Clear all
             </button>

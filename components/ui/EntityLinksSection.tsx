@@ -204,7 +204,7 @@ export default function EntityLinksSection({
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-semibold text-slate-100">Linked Items</h3>
           </div>
-          <p className="text-xs text-slate-500 mb-3">
+          <p className="text-xs text-dungeon-500 mb-3">
             No linked items. Link to tasks, habits, or goals.
           </p>
           <div className="flex gap-2">
@@ -212,7 +212,7 @@ export default function EntityLinksSection({
               <button
                 key={t}
                 onClick={() => openPicker(t)}
-                className="px-3 py-1.5 text-xs text-slate-400 hover:text-red-400 bg-dungeon-900 border border-dungeon-700 hover:border-red-400/30 rounded-lg transition-colors"
+                className="px-3 py-1.5 text-xs text-dungeon-400 hover:text-red-400 bg-dungeon-900 border border-dungeon-700 hover:border-red-400/30 rounded-lg transition-colors"
               >
                 {ENTITY_TYPE_ICONS[t]} Link {ENTITY_TYPE_LABELS[t]}
               </button>
@@ -236,14 +236,14 @@ export default function EntityLinksSection({
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-slate-100">
             Linked Items{" "}
-            <span className="text-xs text-slate-400 font-normal">({links.length})</span>
+            <span className="text-xs text-dungeon-400 font-normal">({links.length})</span>
           </h3>
           <div className="flex gap-1">
             {availableTypes.map((t) => (
               <button
                 key={t}
                 onClick={() => openPicker(t)}
-                className="text-xs text-slate-500 hover:text-red-400 transition-colors px-1.5 py-0.5"
+                className="text-xs text-dungeon-500 hover:text-red-400 transition-colors px-1.5 py-0.5"
                 title={`Link ${ENTITY_TYPE_LABELS[t]}`}
               >
                 + {ENTITY_TYPE_LABELS[t]}
@@ -263,8 +263,8 @@ export default function EntityLinksSection({
               </span>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-500">{label}</span>
-                  <span className="text-xs px-1.5 py-0.5 bg-dungeon-800 rounded text-slate-400">
+                  <span className="text-xs text-dungeon-500">{label}</span>
+                  <span className="text-xs px-1.5 py-0.5 bg-dungeon-800 rounded text-dungeon-400">
                     {ENTITY_TYPE_LABELS[linkedType]}
                   </span>
                   {link.sync_completion && (
@@ -288,7 +288,7 @@ export default function EntityLinksSection({
               </div>
               <button
                 onClick={() => handleRemoveLink(link.id)}
-                className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 transition-all p-1 flex-shrink-0"
+                className="opacity-0 group-hover:opacity-100 text-dungeon-500 hover:text-red-400 transition-all p-1 flex-shrink-0"
               >
                 <svg
                   width="12"

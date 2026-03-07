@@ -42,7 +42,7 @@ const formatRelativeDate = (dateString?: string): string => {
 };
 
 const getDateColor = (dateString?: string): string => {
-  if (!dateString) return "text-slate-400";
+  if (!dateString) return "text-dungeon-400";
   const date = new Date(dateString);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -51,7 +51,7 @@ const getDateColor = (dateString?: string): string => {
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   if (diffDays < 0) return "text-red-400";
   if (diffDays === 0 || diffDays === 1) return "text-amber-400";
-  return "text-slate-400";
+  return "text-dungeon-400";
 };
 
 const formatRelativeTime = (dateString: string): string => {
@@ -221,7 +221,7 @@ export default function TaskDetail({
       <div className="bg-dungeon-900 border-l border-dungeon-800 w-full h-full overflow-y-auto p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-semibold text-slate-100">Task Details</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-100 transition-colors">
+          <button onClick={onClose} className="text-dungeon-400 hover:text-slate-100 transition-colors">
             ✕
           </button>
         </div>
@@ -264,7 +264,7 @@ export default function TaskDetail({
               </h1>
             )}
           </div>
-          <button onClick={onClose} className="flex-shrink-0 text-slate-400 hover:text-slate-100 transition-colors p-1">
+          <button onClick={onClose} className="flex-shrink-0 text-dungeon-400 hover:text-slate-100 transition-colors p-1">
             ✕
           </button>
         </div>
@@ -304,7 +304,7 @@ export default function TaskDetail({
         {/* Inline Status Picker */}
         {config && (
           <div>
-            <p className="text-xs text-slate-400 mb-2 font-semibold uppercase tracking-wider">Status</p>
+            <p className="text-xs text-dungeon-400 mb-2 font-semibold uppercase tracking-wider">Status</p>
             <InlineStatusPicker
               taskId={task.id}
               currentValue={task.status_id}
@@ -327,7 +327,7 @@ export default function TaskDetail({
         {/* Inline Priority Picker */}
         {config && (
           <div>
-            <p className="text-xs text-slate-400 mb-2 font-semibold uppercase tracking-wider">Priority</p>
+            <p className="text-xs text-dungeon-400 mb-2 font-semibold uppercase tracking-wider">Priority</p>
             <InlinePriorityPicker
               taskId={task.id}
               currentValue={task.priority_id}
@@ -341,7 +341,7 @@ export default function TaskDetail({
         {/* Inline Type Picker */}
         {config && config.task_types.length > 0 && (
           <div>
-            <p className="text-xs text-slate-400 mb-2 font-semibold uppercase tracking-wider">Type</p>
+            <p className="text-xs text-dungeon-400 mb-2 font-semibold uppercase tracking-wider">Type</p>
             <InlineTypePicker
               taskId={task.id}
               currentValue={(task as any).task_type_id}
@@ -356,9 +356,9 @@ export default function TaskDetail({
         <div className="bg-dungeon-800 border border-dungeon-700 rounded-lg p-4 space-y-4">
           {/* Due date — inline editable */}
           <div className="flex items-center gap-3">
-            <span className="text-slate-500 text-sm">📅</span>
+            <span className="text-dungeon-500 text-sm">📅</span>
             <div className="flex-1">
-              <p className="text-xs text-slate-400 mb-1">Due date</p>
+              <p className="text-xs text-dungeon-400 mb-1">Due date</p>
               <div className="flex items-center gap-3">
                 <InlineDatePicker
                   taskId={task.id}
@@ -377,9 +377,9 @@ export default function TaskDetail({
           {/* Owners — multi-select toggle picker */}
           {config && (
             <div className="flex items-start gap-3">
-              <span className="text-slate-500 text-sm mt-1">👥</span>
+              <span className="text-dungeon-500 text-sm mt-1">👥</span>
               <div className="flex-1">
-                <p className="text-xs text-slate-400 mb-1.5">Owners</p>
+                <p className="text-xs text-dungeon-400 mb-1.5">Owners</p>
                 <div className="flex flex-wrap gap-1.5">
                   {config.members.map((m: any) => {
                     const name = m.user?.full_name || m.display_name || m.user_id;
@@ -422,7 +422,7 @@ export default function TaskDetail({
                         className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium border transition-all ${
                           isOwner
                             ? "bg-crimson-900/30 border-crimson-700 text-crimson-300"
-                            : "bg-dungeon-800 border-dungeon-700 text-slate-400 hover:text-slate-200 hover:border-dungeon-600"
+                            : "bg-dungeon-800 border-dungeon-700 text-dungeon-400 hover:text-slate-200 hover:border-dungeon-600"
                         }`}
                       >
                         <span className="w-4 h-4 rounded-full bg-dungeon-600 flex items-center justify-center text-[8px] font-semibold flex-shrink-0">
@@ -440,9 +440,9 @@ export default function TaskDetail({
           {/* Creator */}
           {task.creator && (
             <div className="flex items-center gap-3">
-              <span className="text-slate-500 text-sm">✏️</span>
+              <span className="text-dungeon-500 text-sm">✏️</span>
               <div>
-                <p className="text-xs text-slate-400">Created by</p>
+                <p className="text-xs text-dungeon-400">Created by</p>
                 <p className="text-sm font-medium text-slate-100">{task.creator.full_name}</p>
               </div>
             </div>
@@ -450,9 +450,9 @@ export default function TaskDetail({
 
           {/* Recurrence — inline editable */}
           <div className="flex items-start gap-3">
-            <span className="text-slate-500 text-sm mt-0.5">🔄</span>
+            <span className="text-dungeon-500 text-sm mt-0.5">🔄</span>
             <div className="flex-1">
-              <p className="text-xs text-slate-400 mb-1">Recurrence</p>
+              <p className="text-xs text-dungeon-400 mb-1">Recurrence</p>
               {editingRecurrence ? (
                 <div className="space-y-3">
                   <RecurrenceEditor
@@ -463,7 +463,7 @@ export default function TaskDetail({
                   />
                   <button
                     onClick={() => setEditingRecurrence(false)}
-                    className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+                    className="text-xs text-dungeon-500 hover:text-slate-300 transition-colors"
                   >
                     Done
                   </button>
@@ -476,13 +476,13 @@ export default function TaskDetail({
                   <p className="text-sm font-medium text-slate-100">
                     {describeRRule(task.recurrence_rule)}
                     {task.recurrence_context?.occurrence_count && (
-                      <span className="text-xs text-slate-400 ml-2">
+                      <span className="text-xs text-dungeon-400 ml-2">
                         (occurrence #{task.recurrence_context.occurrence_count})
                       </span>
                     )}
                   </p>
                   {task.recurrence_context?.next_due_date && (
-                    <p className="text-xs text-slate-400 mt-0.5">
+                    <p className="text-xs text-dungeon-400 mt-0.5">
                       Next: {formatRelativeDate(task.recurrence_context.next_due_date)}
                     </p>
                   )}
@@ -490,7 +490,7 @@ export default function TaskDetail({
               ) : (
                 <button
                   onClick={() => setEditingRecurrence(true)}
-                  className="text-sm text-slate-500 hover:text-red-400 transition-colors italic"
+                  className="text-sm text-dungeon-500 hover:text-red-400 transition-colors italic"
                 >
                   Add recurrence...
                 </button>
@@ -500,9 +500,9 @@ export default function TaskDetail({
 
           {/* Tags — inline editable */}
           <div className="flex items-start gap-3">
-            <span className="text-slate-500 text-sm mt-1">🏷️</span>
+            <span className="text-dungeon-500 text-sm mt-1">🏷️</span>
             <div className="flex-1">
-              <p className="text-xs text-slate-400 mb-2">Tags</p>
+              <p className="text-xs text-dungeon-400 mb-2">Tags</p>
               <InlineTagEditor
                 taskId={task.id}
                 currentTags={task.tags}
@@ -533,7 +533,7 @@ export default function TaskDetail({
               className="text-sm text-slate-300 whitespace-pre-wrap cursor-pointer hover:bg-dungeon-700/50 rounded px-2 py-1.5 -mx-2 -my-1.5 transition-colors"
             >
               {task.description || (
-                <span className="text-slate-500 italic">Click to add description...</span>
+                <span className="text-dungeon-500 italic">Click to add description...</span>
               )}
             </div>
           )}
@@ -568,7 +568,7 @@ export default function TaskDetail({
               className="flex items-center justify-between w-full mb-3"
             >
               <h3 className="text-sm font-semibold text-slate-100">Activity</h3>
-              <span className="text-slate-400 text-xs">{showActivityLog ? "▼" : "▶"}</span>
+              <span className="text-dungeon-400 text-xs">{showActivityLog ? "▼" : "▶"}</span>
             </button>
             {showActivityLog && (
               <div className="space-y-2 text-sm">
@@ -593,7 +593,7 @@ export default function TaskDetail({
 
                   return (
                     <div key={idx} className="flex items-start gap-3">
-                      <span className="text-slate-500 mt-0.5">→</span>
+                      <span className="text-dungeon-500 mt-0.5">→</span>
                       <div className="flex-1">
                         {hasFieldChange ? (
                           <p className="text-slate-300">
@@ -603,7 +603,7 @@ export default function TaskDetail({
                             {oldVal && (
                               <>
                                 {" from "}
-                                <span className="text-slate-400">{oldVal}</span>
+                                <span className="text-dungeon-400">{oldVal}</span>
                               </>
                             )}
                             {newVal && (
@@ -619,7 +619,7 @@ export default function TaskDetail({
                             {entry.action}
                           </p>
                         )}
-                        <p className="text-xs text-slate-500">
+                        <p className="text-xs text-dungeon-500">
                           {formatRelativeTime(entry.performed_at)}
                         </p>
                       </div>

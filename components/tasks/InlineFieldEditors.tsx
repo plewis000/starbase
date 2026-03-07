@@ -91,7 +91,7 @@ export function InlineStatusPicker({
             key={opt.id}
             onClick={() => handleSelect(opt.id)}
             className={`min-h-[44px] px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${colors} ${
-              opt.id === currentValue ? "ring-2 ring-red-400/60 border-transparent" : "border-transparent hover:ring-1 hover:ring-slate-500"
+              opt.id === currentValue ? "ring-2 ring-red-400/60 border-transparent" : "border-transparent hover:ring-1 hover:ring-dungeon-500"
             }`}
           >
             {opt.icon && <span className="mr-1">{opt.icon}</span>}
@@ -114,7 +114,7 @@ export function InlineStatusPicker({
       ) : (
         <button
           onClick={() => setShowAdd(true)}
-          className="min-h-[44px] px-3 py-1.5 rounded-full text-xs text-slate-500 border border-dashed border-dungeon-700 hover:text-slate-300 hover:border-slate-500 transition-all"
+          className="min-h-[44px] px-3 py-1.5 rounded-full text-xs text-dungeon-500 border border-dashed border-dungeon-700 hover:text-slate-300 hover:border-dungeon-500 transition-all"
         >
           +
         </button>
@@ -178,7 +178,7 @@ export function InlinePriorityPicker({
             key={opt.id}
             onClick={() => handleSelect(opt.id)}
             className={`min-h-[44px] px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${colors} ${
-              opt.id === currentValue ? "ring-2 ring-red-400/60 border-transparent" : "hover:ring-1 hover:ring-slate-500"
+              opt.id === currentValue ? "ring-2 ring-red-400/60 border-transparent" : "hover:ring-1 hover:ring-dungeon-500"
             }`}
           >
             {opt.icon && <span className="mr-1">{opt.icon}</span>}
@@ -199,7 +199,7 @@ export function InlinePriorityPicker({
       ) : (
         <button
           onClick={() => setShowAdd(true)}
-          className="min-h-[44px] px-3 py-1.5 rounded-full text-xs text-slate-500 border border-dashed border-dungeon-700 hover:text-slate-300 hover:border-slate-500 transition-all"
+          className="min-h-[44px] px-3 py-1.5 rounded-full text-xs text-dungeon-500 border border-dashed border-dungeon-700 hover:text-slate-300 hover:border-dungeon-500 transition-all"
         >
           +
         </button>
@@ -256,7 +256,7 @@ export function InlineTypePicker({
           className={`min-h-[44px] px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
             opt.id === currentValue
               ? "bg-red-500/20 text-red-300 ring-2 ring-red-400/60 border-transparent"
-              : "bg-dungeon-700 text-slate-300 border-dungeon-600 hover:ring-1 hover:ring-slate-500"
+              : "bg-dungeon-700 text-slate-300 border-dungeon-600 hover:ring-1 hover:ring-dungeon-500"
           }`}
         >
           {opt.icon && <span className="mr-1">{opt.icon}</span>}
@@ -276,7 +276,7 @@ export function InlineTypePicker({
       ) : (
         <button
           onClick={() => setShowAdd(true)}
-          className="min-h-[44px] px-3 py-1.5 rounded-full text-xs text-slate-500 border border-dashed border-dungeon-700 hover:text-slate-300 hover:border-slate-500 transition-all"
+          className="min-h-[44px] px-3 py-1.5 rounded-full text-xs text-dungeon-500 border border-dashed border-dungeon-700 hover:text-slate-300 hover:border-dungeon-500 transition-all"
         >
           +
         </button>
@@ -417,7 +417,7 @@ export function InlineTagEditor({
           {tagAssoc.tag.name}
           <button
             onClick={() => handleRemoveTag(tagAssoc.tag_id)}
-            className="ml-0.5 text-slate-400 hover:text-red-400 transition-colors"
+            className="ml-0.5 text-dungeon-400 hover:text-red-400 transition-colors"
           >
             ×
           </button>
@@ -426,7 +426,7 @@ export function InlineTagEditor({
       <div className="relative">
         <button
           onClick={() => setShowDropdown(!showDropdown)}
-          className="min-h-[32px] px-2 py-1 rounded-full text-xs text-slate-500 border border-dashed border-dungeon-700 hover:text-slate-300 hover:border-slate-500 transition-all"
+          className="min-h-[32px] px-2 py-1 rounded-full text-xs text-dungeon-500 border border-dashed border-dungeon-700 hover:text-slate-300 hover:border-dungeon-500 transition-all"
         >
           + Tag
         </button>

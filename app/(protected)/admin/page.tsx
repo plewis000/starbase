@@ -133,7 +133,7 @@ export default function AdminPage() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-3xl font-bold text-slate-100">Admin Config</h1>
-            <p className="text-sm text-slate-400 mt-1">Manage lookup tables for statuses, priorities, categories, and more.</p>
+            <p className="text-sm text-dungeon-400 mt-1">Manage lookup tables for statuses, priorities, categories, and more.</p>
           </div>
         </div>
 
@@ -146,7 +146,7 @@ export default function AdminPage() {
               className={`flex-shrink-0 px-3 py-2 text-sm font-medium transition-colors border-b-2 ${
                 activeTable === t.key
                   ? "text-red-400 border-red-400"
-                  : "text-slate-400 border-transparent hover:text-slate-100"
+                  : "text-dungeon-400 border-transparent hover:text-slate-100"
               }`}
             >
               {t.label}
@@ -186,28 +186,28 @@ export default function AdminPage() {
                     value={newRow.name || ""}
                     onChange={(e) => setNewRow({ ...newRow, name: e.target.value })}
                     placeholder="Name *"
-                    className="bg-dungeon-800 border border-dungeon-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 col-span-2 md:col-span-1"
+                    className="bg-dungeon-800 border border-dungeon-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-dungeon-500 focus:outline-none focus:border-red-400 col-span-2 md:col-span-1"
                   />
                   <input
                     type="text"
                     value={newRow.icon || ""}
                     onChange={(e) => setNewRow({ ...newRow, icon: e.target.value })}
                     placeholder="Icon (emoji)"
-                    className="bg-dungeon-800 border border-dungeon-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400"
+                    className="bg-dungeon-800 border border-dungeon-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-dungeon-500 focus:outline-none focus:border-red-400"
                   />
                   <input
                     type="text"
                     value={newRow.display_color || ""}
                     onChange={(e) => setNewRow({ ...newRow, display_color: e.target.value })}
                     placeholder="Color (#hex)"
-                    className="bg-dungeon-800 border border-dungeon-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400"
+                    className="bg-dungeon-800 border border-dungeon-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-dungeon-500 focus:outline-none focus:border-red-400"
                   />
                   <input
                     type="number"
                     value={newRow.sort_order ?? 0}
                     onChange={(e) => setNewRow({ ...newRow, sort_order: parseInt(e.target.value) || 0 })}
                     placeholder="Sort order"
-                    className="bg-dungeon-800 border border-dungeon-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400"
+                    className="bg-dungeon-800 border border-dungeon-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-dungeon-500 focus:outline-none focus:border-red-400"
                   />
                   <button
                     onClick={handleAddRow}
@@ -225,12 +225,12 @@ export default function AdminPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-dungeon-800">
-                    <th className="text-left text-xs font-semibold text-slate-400 px-4 py-3">Icon</th>
-                    <th className="text-left text-xs font-semibold text-slate-400 px-4 py-3">Name</th>
-                    <th className="text-left text-xs font-semibold text-slate-400 px-4 py-3">Color</th>
-                    <th className="text-left text-xs font-semibold text-slate-400 px-4 py-3">Order</th>
-                    <th className="text-left text-xs font-semibold text-slate-400 px-4 py-3">Active</th>
-                    <th className="text-right text-xs font-semibold text-slate-400 px-4 py-3">Actions</th>
+                    <th className="text-left text-xs font-semibold text-dungeon-400 px-4 py-3">Icon</th>
+                    <th className="text-left text-xs font-semibold text-dungeon-400 px-4 py-3">Name</th>
+                    <th className="text-left text-xs font-semibold text-dungeon-400 px-4 py-3">Color</th>
+                    <th className="text-left text-xs font-semibold text-dungeon-400 px-4 py-3">Order</th>
+                    <th className="text-left text-xs font-semibold text-dungeon-400 px-4 py-3">Active</th>
+                    <th className="text-right text-xs font-semibold text-dungeon-400 px-4 py-3">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -278,7 +278,7 @@ export default function AdminPage() {
                           <td className="px-4 py-3">
                             <button
                               onClick={() => setEditData({ ...editData, active: !editData.active })}
-                              className={`px-2 py-1 rounded text-xs font-medium ${editData.active ? "bg-red-400/10 text-red-400" : "bg-dungeon-800 text-slate-500"}`}
+                              className={`px-2 py-1 rounded text-xs font-medium ${editData.active ? "bg-red-400/10 text-red-400" : "bg-dungeon-800 text-dungeon-500"}`}
                             >
                               {editData.active ? "Active" : "Inactive"}
                             </button>
@@ -294,7 +294,7 @@ export default function AdminPage() {
                               </button>
                               <button
                                 onClick={() => { setEditingId(null); setEditData({}); }}
-                                className="px-3 py-1 text-slate-400 hover:text-slate-100 text-xs font-medium transition-colors"
+                                className="px-3 py-1 text-dungeon-400 hover:text-slate-100 text-xs font-medium transition-colors"
                               >
                                 Cancel
                               </button>
@@ -305,7 +305,7 @@ export default function AdminPage() {
                         <>
                           <td className="px-4 py-3 text-lg">{row.icon || "—"}</td>
                           <td className="px-4 py-3">
-                            <span className={`text-sm font-medium ${row.active ? "text-slate-100" : "text-slate-500"}`}>
+                            <span className={`text-sm font-medium ${row.active ? "text-slate-100" : "text-dungeon-500"}`}>
                               {row.name}
                             </span>
                           </td>
@@ -314,21 +314,21 @@ export default function AdminPage() {
                               {row.display_color ? (
                                 <>
                                   <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: row.display_color }} />
-                                  <span className="text-xs text-slate-400 font-mono">{row.display_color}</span>
+                                  <span className="text-xs text-dungeon-400 font-mono">{row.display_color}</span>
                                 </>
                               ) : (
-                                <span className="text-xs text-slate-600">—</span>
+                                <span className="text-xs text-dungeon-600">—</span>
                               )}
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-sm text-slate-400 text-center">{row.sort_order}</td>
+                          <td className="px-4 py-3 text-sm text-dungeon-400 text-center">{row.sort_order}</td>
                           <td className="px-4 py-3">
                             <button
                               onClick={() => handleToggleActive(row)}
                               className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
                                 row.active
                                   ? "bg-red-400/10 text-red-400 hover:bg-red-400/20"
-                                  : "bg-dungeon-800 text-slate-500 hover:text-slate-300"
+                                  : "bg-dungeon-800 text-dungeon-500 hover:text-slate-300"
                               }`}
                             >
                               {row.active ? "Active" : "Inactive"}
@@ -337,7 +337,7 @@ export default function AdminPage() {
                           <td className="px-4 py-3 text-right">
                             <button
                               onClick={() => handleEdit(row)}
-                              className="px-3 py-1 text-slate-400 hover:text-slate-100 text-xs font-medium transition-colors"
+                              className="px-3 py-1 text-dungeon-400 hover:text-slate-100 text-xs font-medium transition-colors"
                             >
                               Edit
                             </button>
@@ -348,7 +348,7 @@ export default function AdminPage() {
                   ))}
                   {rows.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-slate-400 text-sm">
+                      <td colSpan={6} className="px-4 py-8 text-center text-dungeon-400 text-sm">
                         No rows found for this table.
                       </td>
                     </tr>
@@ -357,7 +357,7 @@ export default function AdminPage() {
               </table>
             </div>
 
-            <p className="text-xs text-slate-500 mt-4">
+            <p className="text-xs text-dungeon-500 mt-4">
               {rows.length} rows total. Changes are saved immediately.
             </p>
           </div>

@@ -64,7 +64,7 @@ export default function OutcomesPanel({ data: externalData }: { data?: any } = {
 
   if (!data) {
     return (
-      <div className="bg-dungeon-900 rounded-xl border border-dungeon-800 p-6 text-center text-slate-400">
+      <div className="bg-dungeon-900 rounded-xl border border-dungeon-800 p-6 text-center text-dungeon-400">
         Failed to load dashboard data
       </div>
     );
@@ -88,11 +88,11 @@ export default function OutcomesPanel({ data: externalData }: { data?: any } = {
       <div className="flex items-center gap-4 flex-wrap">
         <div className="flex items-center gap-2 bg-dungeon-900 rounded-lg border border-dungeon-800 px-4 py-2.5">
           <span className="text-red-400 text-lg font-bold">{habits_summary.checked_today}</span>
-          <span className="text-slate-400 text-sm">/{habits_summary.active_count} habits today</span>
+          <span className="text-dungeon-400 text-sm">/{habits_summary.active_count} habits today</span>
         </div>
         <div className="flex items-center gap-2 bg-dungeon-900 rounded-lg border border-dungeon-800 px-4 py-2.5">
           <span className="text-red-400 text-lg font-bold">{goals_summary.active_count}</span>
-          <span className="text-slate-400 text-sm">active goals</span>
+          <span className="text-dungeon-400 text-sm">active goals</span>
         </div>
         {tasks_summary.overdue > 0 && (
           <div className="flex items-center gap-2 bg-red-400/10 rounded-lg border border-red-400/30 px-4 py-2.5">
@@ -122,7 +122,7 @@ export default function OutcomesPanel({ data: externalData }: { data?: any } = {
                 {/* Goal header + progress */}
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-sm font-semibold text-slate-100">{goal.title}</h3>
-                  <span className="text-xs text-slate-400 font-medium">
+                  <span className="text-xs text-dungeon-400 font-medium">
                     {Math.round(goal.progress_value)}%
                   </span>
                 </div>
@@ -137,8 +137,8 @@ export default function OutcomesPanel({ data: externalData }: { data?: any } = {
                 {goalHabits.length > 0 && (
                   <div className="space-y-1.5 pt-3 border-t border-dungeon-800">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-slate-500 uppercase tracking-wider">Driving Habits</span>
-                      <span className="text-xs text-slate-400">
+                      <span className="text-xs text-dungeon-500 uppercase tracking-wider">Driving Habits</span>
+                      <span className="text-xs text-dungeon-400">
                         {doneCount}/{goalHabits.length} today
                       </span>
                     </div>
@@ -149,7 +149,7 @@ export default function OutcomesPanel({ data: externalData }: { data?: any } = {
                             ? "bg-red-400"
                             : "border-2 border-dungeon-600"
                         }`} />
-                        <span className={`text-sm flex-1 ${h.checked_today ? "text-slate-300" : "text-slate-400"}`}>
+                        <span className={`text-sm flex-1 ${h.checked_today ? "text-slate-300" : "text-dungeon-400"}`}>
                           {h.title}
                         </span>
                         {h.current_streak > 0 && (
@@ -170,7 +170,7 @@ export default function OutcomesPanel({ data: externalData }: { data?: any } = {
                 )}
 
                 {goalHabits.length === 0 && (
-                  <p className="text-xs text-slate-500 pt-2 border-t border-dungeon-800">No linked habits</p>
+                  <p className="text-xs text-dungeon-500 pt-2 border-t border-dungeon-800">No linked habits</p>
                 )}
               </div>
             );
@@ -178,21 +178,21 @@ export default function OutcomesPanel({ data: externalData }: { data?: any } = {
         </div>
       ) : (
         <div className="bg-dungeon-900 rounded-xl border border-dungeon-800 p-6 text-center">
-          <p className="text-slate-400 text-sm">No active goals. Create one to start tracking progress.</p>
+          <p className="text-dungeon-400 text-sm">No active goals. Create one to start tracking progress.</p>
         </div>
       )}
 
       {/* Standalone habits */}
       {standaloneHabits.length > 0 && (
         <div className="bg-dungeon-900 rounded-xl border border-dungeon-800 p-5">
-          <h3 className="text-xs text-slate-500 uppercase tracking-wider mb-3">Standalone Habits</h3>
+          <h3 className="text-xs text-dungeon-500 uppercase tracking-wider mb-3">Standalone Habits</h3>
           <div className="space-y-1.5">
             {standaloneHabits.map((h) => (
               <div key={h.id} className="flex items-center gap-2.5 py-1">
                 <div className={`w-3.5 h-3.5 rounded-full flex-shrink-0 ${
                   h.checked_today ? "bg-red-400" : "border-2 border-dungeon-600"
                 }`} />
-                <span className={`text-sm flex-1 ${h.checked_today ? "text-slate-300" : "text-slate-400"}`}>
+                <span className={`text-sm flex-1 ${h.checked_today ? "text-slate-300" : "text-dungeon-400"}`}>
                   {h.title}
                 </span>
                 {h.current_streak > 0 && (
@@ -207,7 +207,7 @@ export default function OutcomesPanel({ data: externalData }: { data?: any } = {
       {/* Streaks leaderboard */}
       {streaks_leaderboard.length > 0 && (
         <div className="bg-dungeon-900 rounded-xl border border-dungeon-800 p-5">
-          <h3 className="text-xs text-slate-500 uppercase tracking-wider mb-3">Top Streaks</h3>
+          <h3 className="text-xs text-dungeon-500 uppercase tracking-wider mb-3">Top Streaks</h3>
           <div className="space-y-2">
             {streaks_leaderboard.map((s, i) => (
               <div key={i} className="flex items-center justify-between">

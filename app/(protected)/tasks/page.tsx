@@ -95,14 +95,14 @@ export default function TasksPage() {
             <div className="flex-shrink-0 flex items-center gap-3 px-4 py-3 bg-dungeon-950/95 backdrop-blur-sm border-b border-dungeon-800">
               <button
                 onClick={handleCloseTaskDetail}
-                className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-200 hover:bg-dungeon-800 transition-colors"
+                className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-dungeon-400 hover:text-slate-200 hover:bg-dungeon-800 transition-colors"
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="15 18 9 12 15 6" />
                 </svg>
                 <span className="text-sm ml-1">Back</span>
               </button>
-              <span className="text-sm font-medium text-slate-400">Task Details</span>
+              <span className="text-sm font-medium text-dungeon-400">Task Details</span>
             </div>
             <div className="flex-1 overflow-y-auto">
               <TaskDetail

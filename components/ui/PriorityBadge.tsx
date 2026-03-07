@@ -12,7 +12,7 @@ const colorMap: Record<string, string> = {
   Critical: "text-red-500",
   High: "text-amber-500",
   Medium: "text-blue-400",
-  Low: "text-slate-400",
+  Low: "text-dungeon-400",
   None: "text-transparent",
 };
 
@@ -21,7 +21,7 @@ export default function PriorityBadge({ priority }: PriorityBadgeProps) {
     return null;
   }
 
-  const colorClass = colorMap[priority.name] || "text-slate-400";
+  const colorClass = colorMap[priority.name] || "text-dungeon-400";
 
   return (
     <span className="inline-flex items-center gap-1">

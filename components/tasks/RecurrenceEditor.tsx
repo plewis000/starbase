@@ -82,7 +82,7 @@ export default function RecurrenceEditor({ value, onChange }: RecurrenceEditorPr
     <div className="space-y-4">
       {/* Frequency buttons */}
       <div>
-        <p className="text-xs text-slate-400 mb-2 font-semibold uppercase tracking-wider">Frequency</p>
+        <p className="text-xs text-dungeon-400 mb-2 font-semibold uppercase tracking-wider">Frequency</p>
         <div className="flex gap-1.5">
           {(["NONE", "DAILY", "WEEKLY", "MONTHLY"] as Frequency[]).map((freq) => (
             <button
@@ -91,7 +91,7 @@ export default function RecurrenceEditor({ value, onChange }: RecurrenceEditorPr
               className={`px-3 py-2 rounded-lg text-xs font-medium transition-all min-h-[44px] ${
                 parsed.freq === freq
                   ? "bg-red-500 text-white"
-                  : "bg-dungeon-800 text-slate-400 hover:text-slate-200 border border-dungeon-700"
+                  : "bg-dungeon-800 text-dungeon-400 hover:text-slate-200 border border-dungeon-700"
               }`}
             >
               {freq === "NONE" ? "None" : freq.charAt(0) + freq.slice(1).toLowerCase()}
@@ -103,7 +103,7 @@ export default function RecurrenceEditor({ value, onChange }: RecurrenceEditorPr
       {/* Interval */}
       {parsed.freq !== "NONE" && (
         <div>
-          <p className="text-xs text-slate-400 mb-2 font-semibold uppercase tracking-wider">Interval</p>
+          <p className="text-xs text-dungeon-400 mb-2 font-semibold uppercase tracking-wider">Interval</p>
           <div className="flex items-center gap-2">
             <span className="text-sm text-slate-300">Every</span>
             <input
@@ -122,7 +122,7 @@ export default function RecurrenceEditor({ value, onChange }: RecurrenceEditorPr
       {/* Weekday picker (Weekly only) — reuses habit day-of-week pattern */}
       {parsed.freq === "WEEKLY" && (
         <div>
-          <p className="text-xs text-slate-400 mb-2 font-semibold uppercase tracking-wider">Days</p>
+          <p className="text-xs text-dungeon-400 mb-2 font-semibold uppercase tracking-wider">Days</p>
           <div className="flex gap-2 flex-wrap">
             {DAY_OPTIONS.map((day) => (
               <button
@@ -131,7 +131,7 @@ export default function RecurrenceEditor({ value, onChange }: RecurrenceEditorPr
                 className={`w-10 h-10 rounded-full text-sm font-semibold transition-all ${
                   parsed.byDay.includes(day.value)
                     ? "bg-red-400 text-slate-950"
-                    : "bg-dungeon-800 text-slate-400 hover:text-slate-200 border border-dungeon-700"
+                    : "bg-dungeon-800 text-dungeon-400 hover:text-slate-200 border border-dungeon-700"
                 }`}
               >
                 {day.label}
@@ -144,7 +144,7 @@ export default function RecurrenceEditor({ value, onChange }: RecurrenceEditorPr
       {/* Monthly day picker */}
       {parsed.freq === "MONTHLY" && (
         <div>
-          <p className="text-xs text-slate-400 mb-2 font-semibold uppercase tracking-wider">Day of month</p>
+          <p className="text-xs text-dungeon-400 mb-2 font-semibold uppercase tracking-wider">Day of month</p>
           <div className="flex items-center gap-2">
             <span className="text-sm text-slate-300">On day</span>
             <input

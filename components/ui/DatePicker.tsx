@@ -34,7 +34,7 @@ function daysInMonth(year: number, month: number): number {
 // ─── Relative label ──────────────────────────────────────────────────────
 
 function relativeLabel(dateStr: string): { text: string; color: string } {
-  if (!dateStr) return { text: "No date", color: "text-slate-500" };
+  if (!dateStr) return { text: "No date", color: "text-dungeon-500" };
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const target = parseDate(dateStr);
@@ -46,8 +46,8 @@ function relativeLabel(dateStr: string): { text: string; color: string } {
   if (diffDays === 0) return { text: "Today", color: "text-amber-400" };
   if (diffDays === 1) return { text: "Tomorrow", color: "text-amber-300" };
   if (diffDays <= 7) return { text: `In ${diffDays}d`, color: "text-slate-300" };
-  if (diffDays <= 30) return { text: `In ${Math.floor(diffDays / 7)}w`, color: "text-slate-400" };
-  return { text: `In ${Math.floor(diffDays / 30)}mo`, color: "text-slate-500" };
+  if (diffDays <= 30) return { text: `In ${Math.floor(diffDays / 7)}w`, color: "text-dungeon-400" };
+  return { text: `In ${Math.floor(diffDays / 30)}mo`, color: "text-dungeon-500" };
 }
 
 // ─── Presets ─────────────────────────────────────────────────────────────
@@ -97,11 +97,11 @@ function CalendarGrid({
     <div className="mt-2 p-2 bg-dungeon-800/80 border border-dungeon-700 rounded-lg w-[260px]">
       {/* Month/Year nav */}
       <div className="flex items-center justify-between mb-2 px-1">
-        <button type="button" onClick={prevMonth} className="p-1 text-slate-400 hover:text-slate-100 transition-colors">
+        <button type="button" onClick={prevMonth} className="p-1 text-dungeon-400 hover:text-slate-100 transition-colors">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6" /></svg>
         </button>
         <span className="text-xs font-semibold text-slate-200">{MONTHS[month]} {year}</span>
-        <button type="button" onClick={nextMonth} className="p-1 text-slate-400 hover:text-slate-100 transition-colors">
+        <button type="button" onClick={nextMonth} className="p-1 text-dungeon-400 hover:text-slate-100 transition-colors">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6" /></svg>
         </button>
       </div>
@@ -109,7 +109,7 @@ function CalendarGrid({
       {/* Day headers */}
       <div className="grid grid-cols-7 gap-0.5 mb-1">
         {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
-          <div key={d} className="text-center text-[10px] font-medium text-slate-500 py-0.5">{d}</div>
+          <div key={d} className="text-center text-[10px] font-medium text-dungeon-500 py-0.5">{d}</div>
         ))}
       </div>
 
@@ -201,7 +201,7 @@ export default function DatePicker({ value, onChange, showRelative = true }: Dat
             className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
               value === p.value
                 ? "bg-red-500/20 text-red-300 ring-2 ring-red-400/60 border-transparent"
-                : "bg-dungeon-700 text-slate-300 border-dungeon-600 hover:ring-1 hover:ring-slate-500"
+                : "bg-dungeon-700 text-slate-300 border-dungeon-600 hover:ring-1 hover:ring-dungeon-500"
             }`}
           >
             {p.label}
@@ -214,7 +214,7 @@ export default function DatePicker({ value, onChange, showRelative = true }: Dat
           className={`p-1.5 rounded-full border transition-all ${
             showCalendar
               ? "bg-red-500/20 text-red-300 ring-2 ring-red-400/60 border-transparent"
-              : "bg-dungeon-700 text-slate-400 border-dungeon-600 hover:text-slate-200 hover:ring-1 hover:ring-slate-500"
+              : "bg-dungeon-700 text-dungeon-400 border-dungeon-600 hover:text-slate-200 hover:ring-1 hover:ring-dungeon-500"
           }`}
           aria-label="Toggle calendar"
         >

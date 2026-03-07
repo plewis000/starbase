@@ -162,22 +162,22 @@ export default function SettingsPage() {
             )}
             <div>
               <h2 className="text-lg font-semibold text-slate-100">{user.full_name}</h2>
-              <p className="text-sm text-slate-400">{user.email}</p>
+              <p className="text-sm text-dungeon-400">{user.email}</p>
             </div>
           </div>
 
-          <div className="border-t border-slate-800 pt-4 space-y-4">
+          <div className="border-t border-dungeon-800 pt-4 space-y-4">
             <div>
-              <label className="block text-sm font-medium text-slate-400 mb-1">User ID</label>
+              <label className="block text-sm font-medium text-dungeon-400 mb-1">User ID</label>
               <p className="text-sm text-slate-300 font-mono bg-dungeon-800 px-3 py-2 rounded">{user.id}</p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-400 mb-1">Auth Provider</label>
+              <label className="block text-sm font-medium text-dungeon-400 mb-1">Auth Provider</label>
               <p className="text-sm text-slate-300">Google OAuth</p>
             </div>
           </div>
 
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-dungeon-500">
             Profile details are managed through your Google account.
           </p>
         </div>
@@ -194,11 +194,11 @@ export default function SettingsPage() {
               <div className="w-10 h-10 rounded-lg bg-indigo-600/20 flex items-center justify-center text-lg">💬</div>
               <div>
                 <h3 className="text-sm font-semibold text-slate-100">Discord (Zev)</h3>
-                <p className="text-xs text-slate-400">AI assistant in your Discord server</p>
+                <p className="text-xs text-dungeon-400">AI assistant in your Discord server</p>
               </div>
             </div>
             <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-              integrations?.discord?.connected ? "bg-green-500/20 text-green-400" : "bg-dungeon-700 text-slate-400"
+              integrations?.discord?.connected ? "bg-green-500/20 text-green-400" : "bg-dungeon-700 text-dungeon-400"
             }`}>
               {integrations?.discord?.connected ? "Connected" : "Not connected"}
             </span>
@@ -209,11 +209,11 @@ export default function SettingsPage() {
               <div className="w-10 h-10 rounded-lg bg-emerald-600/20 flex items-center justify-center text-lg">🏦</div>
               <div>
                 <h3 className="text-sm font-semibold text-slate-100">Plaid</h3>
-                <p className="text-xs text-slate-400">Bank account sync & transaction import</p>
+                <p className="text-xs text-dungeon-400">Bank account sync & transaction import</p>
               </div>
             </div>
             <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-              integrations?.plaid?.connected ? "bg-green-500/20 text-green-400" : "bg-dungeon-700 text-slate-400"
+              integrations?.plaid?.connected ? "bg-green-500/20 text-green-400" : "bg-dungeon-700 text-dungeon-400"
             }`}>
               {integrations?.plaid?.connected
                 ? `${integrations.plaid.accounts} account${integrations.plaid.accounts !== 1 ? "s" : ""}`
@@ -226,11 +226,11 @@ export default function SettingsPage() {
               <div className="w-10 h-10 rounded-lg bg-amber-600/20 flex items-center justify-center text-lg font-bold text-amber-400">Z</div>
               <div>
                 <h3 className="text-sm font-semibold text-slate-100">Claude API (Zev&apos;s Brain)</h3>
-                <p className="text-xs text-slate-400">Powers AI responses and tool execution</p>
+                <p className="text-xs text-dungeon-400">Powers AI responses and tool execution</p>
               </div>
             </div>
             <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-              integrations?.anthropic?.connected ? "bg-green-500/20 text-green-400" : "bg-dungeon-700 text-slate-400"
+              integrations?.anthropic?.connected ? "bg-green-500/20 text-green-400" : "bg-dungeon-700 text-dungeon-400"
             }`}>
               {integrations?.anthropic?.connected ? "Active" : "Not configured"}
             </span>
@@ -246,7 +246,7 @@ export default function SettingsPage() {
         <div className="space-y-8">
           {CONFIG_SECTIONS.map((group) => (
             <div key={group.group}>
-              <h2 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">{group.group}</h2>
+              <h2 className="text-sm font-bold text-dungeon-400 uppercase tracking-wider mb-3">{group.group}</h2>
               <div className="space-y-4">
                 {group.items.map((section) => (
                   <ConfigSection key={section.table} table={section.table} label={section.label} />
@@ -268,11 +268,11 @@ export default function SettingsPage() {
         <h3 className="text-sm font-semibold text-slate-100 mb-3">Keyboard Shortcuts</h3>
         <div className="grid grid-cols-2 gap-2 text-sm">
           <div className="flex items-center justify-between">
-            <span className="text-slate-400">Command palette</span>
+            <span className="text-dungeon-400">Command palette</span>
             <kbd className="px-2 py-0.5 bg-dungeon-800 text-slate-300 rounded border border-dungeon-700 text-xs">Cmd+K</kbd>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-slate-400">Close modal</span>
+            <span className="text-dungeon-400">Close modal</span>
             <kbd className="px-2 py-0.5 bg-dungeon-800 text-slate-300 rounded border border-dungeon-700 text-xs">Esc</kbd>
           </div>
         </div>
@@ -352,7 +352,7 @@ function HouseholdTab() {
   if (!household) {
     return (
       <div className="dcc-card p-6 text-center">
-        <p className="text-slate-400 text-sm">No household found.</p>
+        <p className="text-dungeon-400 text-sm">No household found.</p>
       </div>
     );
   }
@@ -361,9 +361,9 @@ function HouseholdTab() {
     <div className="space-y-4">
       <div className="dcc-card p-5 space-y-4">
         <div className="flex items-center justify-between">
-          <label className="text-sm font-medium text-slate-400">Household Name</label>
+          <label className="text-sm font-medium text-dungeon-400">Household Name</label>
           {role === "admin" && !editingName && (
-            <button onClick={() => setEditingName(true)} className="text-xs text-slate-500 hover:text-slate-300">Edit</button>
+            <button onClick={() => setEditingName(true)} className="text-xs text-dungeon-500 hover:text-slate-300">Edit</button>
           )}
         </div>
         {editingName ? (
@@ -377,7 +377,7 @@ function HouseholdTab() {
               autoFocus
             />
             <button onClick={handleUpdateName} className="text-xs text-green-400 hover:text-green-300">Save</button>
-            <button onClick={() => setEditingName(false)} className="text-xs text-slate-500">Cancel</button>
+            <button onClick={() => setEditingName(false)} className="text-xs text-dungeon-500">Cancel</button>
           </div>
         ) : (
           <p className="text-lg font-semibold text-slate-100">{household.name}</p>
@@ -385,7 +385,7 @@ function HouseholdTab() {
       </div>
 
       <div className="dcc-card p-5 space-y-3">
-        <label className="block text-sm font-medium text-slate-400">Timezone</label>
+        <label className="block text-sm font-medium text-dungeon-400">Timezone</label>
         <select
           value={household.timezone || "America/Chicago"}
           onChange={(e) => handleTimezoneChange(e.target.value)}
@@ -396,11 +396,11 @@ function HouseholdTab() {
             <option key={tz} value={tz}>{tz.replace(/_/g, " ")}</option>
           ))}
         </select>
-        {savingTz && <span className="text-xs text-slate-500">Saving...</span>}
+        {savingTz && <span className="text-xs text-dungeon-500">Saving...</span>}
       </div>
 
       <div className="dcc-card p-5 space-y-3">
-        <h3 className="text-sm font-medium text-slate-400">Members</h3>
+        <h3 className="text-sm font-medium text-dungeon-400">Members</h3>
         <div className="space-y-2">
           {household.members.map((m) => (
             <div key={m.id} className="flex items-center justify-between px-3 py-2 bg-dungeon-800/50 rounded-lg">
@@ -408,7 +408,7 @@ function HouseholdTab() {
                 <span className="text-sm text-slate-200">{m.display_name || m.user_id}</span>
               </div>
               <span className={`px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded ${
-                m.role === "admin" ? "bg-red-900/30 text-red-400" : "bg-dungeon-700 text-slate-400"
+                m.role === "admin" ? "bg-red-900/30 text-red-400" : "bg-dungeon-700 text-dungeon-400"
               }`}>
                 {m.role}
               </span>
@@ -463,11 +463,11 @@ function SavedViewsManager() {
             onChange={(e) => setShowArchived(e.target.checked)}
             className="rounded border-dungeon-600 w-3.5 h-3.5"
           />
-          <span className="text-[10px] text-slate-500">Show archived</span>
+          <span className="text-[10px] text-dungeon-500">Show archived</span>
         </label>
       </div>
       {visibleViews.length === 0 ? (
-        <p className="text-sm text-slate-500 text-center py-4">
+        <p className="text-sm text-dungeon-500 text-center py-4">
           {showArchived ? "No archived views." : "No saved views yet. Save a filter from the Task Board."}
         </p>
       ) : (
@@ -488,14 +488,14 @@ function SavedViewsManager() {
                     autoFocus
                   />
                   <button onClick={() => handleRename(idx)} className="text-xs text-green-400">Save</button>
-                  <button onClick={() => setEditingIdx(null)} className="text-xs text-slate-500">Cancel</button>
+                  <button onClick={() => setEditingIdx(null)} className="text-xs text-dungeon-500">Cancel</button>
                 </div>
               ) : (
                 <>
                   <div className="flex-1 flex items-center gap-2">
                     <span className="text-sm text-slate-200">{view.name}</span>
                     {isArchived && (
-                      <span className="px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider bg-dungeon-700 text-slate-400 rounded">
+                      <span className="px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider bg-dungeon-700 text-dungeon-400 rounded">
                         Archived
                       </span>
                     )}
@@ -503,7 +503,7 @@ function SavedViewsManager() {
                   {!isArchived && (
                     <button
                       onClick={() => { setEditingIdx(idx); setEditName(view.name); }}
-                      className="text-xs text-slate-500 hover:text-slate-300"
+                      className="text-xs text-dungeon-500 hover:text-slate-300"
                     >
                       Rename
                     </button>
@@ -518,7 +518,7 @@ function SavedViewsManager() {
                   ) : (
                     <button
                       onClick={() => handleArchive(idx)}
-                      className="text-xs text-slate-500 hover:text-amber-400"
+                      className="text-xs text-dungeon-500 hover:text-amber-400"
                     >
                       Archive
                     </button>
@@ -634,7 +634,7 @@ function ConfigSection({ table, label }: { table: string; label: string }) {
               onChange={(e) => setShowInactive(e.target.checked)}
               className="rounded border-dungeon-600 w-3.5 h-3.5"
             />
-            <span className="text-[10px] text-slate-500">Show inactive</span>
+            <span className="text-[10px] text-dungeon-500">Show inactive</span>
           </label>
           <button
             onClick={() => setShowAdd(!showAdd)}
@@ -654,7 +654,7 @@ function ConfigSection({ table, label }: { table: string; label: string }) {
             onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); if (e.key === "Escape") setShowAdd(false); }}
             placeholder="Name..."
-            className="flex-1 bg-dungeon-800 border border-dungeon-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400"
+            className="flex-1 bg-dungeon-800 border border-dungeon-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-dungeon-500 focus:outline-none focus:border-red-400"
             autoFocus
           />
           <input
@@ -667,7 +667,7 @@ function ConfigSection({ table, label }: { table: string; label: string }) {
           <button onClick={handleAdd} className="px-3 py-2 bg-red-400 hover:bg-red-500 text-slate-950 text-sm font-medium rounded transition-colors">
             Add
           </button>
-          <button onClick={() => setShowAdd(false)} className="px-3 py-2 text-slate-400 text-sm">
+          <button onClick={() => setShowAdd(false)} className="px-3 py-2 text-dungeon-400 text-sm">
             Cancel
           </button>
         </div>
@@ -685,7 +685,7 @@ function ConfigSection({ table, label }: { table: string; label: string }) {
             }`}
           >
             {/* Sort order indicator */}
-            <span className="text-[10px] text-slate-600 font-mono w-4">{idx + 1}</span>
+            <span className="text-[10px] text-dungeon-600 font-mono w-4">{idx + 1}</span>
 
             {/* Color swatch */}
             <div
@@ -718,16 +718,16 @@ function ConfigSection({ table, label }: { table: string; label: string }) {
                   className="w-8 h-8 rounded border border-dungeon-700 bg-transparent cursor-pointer"
                 />
                 <button onClick={() => handleUpdate(item.id)} className="text-xs text-green-400 hover:text-green-300">Save</button>
-                <button onClick={() => setEditingId(null)} className="text-xs text-slate-500 hover:text-slate-300">Cancel</button>
+                <button onClick={() => setEditingId(null)} className="text-xs text-dungeon-500 hover:text-slate-300">Cancel</button>
               </div>
             ) : (
               <>
                 <div className="flex-1 flex items-center gap-2">
                   {item.icon && <span className="text-sm">{item.icon}</span>}
-                  <span className={`text-sm ${isInactive ? "line-through text-slate-500" : "text-slate-200"}`}>{item.name}</span>
-                  {item.slug && <span className="text-[10px] text-slate-600 font-mono">{item.slug}</span>}
+                  <span className={`text-sm ${isInactive ? "line-through text-dungeon-500" : "text-slate-200"}`}>{item.name}</span>
+                  {item.slug && <span className="text-[10px] text-dungeon-600 font-mono">{item.slug}</span>}
                   {isInactive && (
-                    <span className="px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider bg-dungeon-700 text-slate-400 rounded">
+                    <span className="px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider bg-dungeon-700 text-dungeon-400 rounded">
                       Inactive
                     </span>
                   )}
@@ -741,7 +741,7 @@ function ConfigSection({ table, label }: { table: string; label: string }) {
                     setEditColor(item.display_color || "");
                     setEditIcon(item.icon || "");
                   }}
-                  className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+                  className="text-xs text-dungeon-500 hover:text-slate-300 transition-colors"
                 >
                   Edit
                 </button>
@@ -750,7 +750,7 @@ function ConfigSection({ table, label }: { table: string; label: string }) {
                   className={`text-xs transition-colors ${
                     item.active === false
                       ? "text-green-500 hover:text-green-400"
-                      : "text-slate-500 hover:text-red-400"
+                      : "text-dungeon-500 hover:text-red-400"
                   }`}
                 >
                   {item.active === false ? "Enable" : "Disable"}
@@ -763,7 +763,7 @@ function ConfigSection({ table, label }: { table: string; label: string }) {
       </div>
 
       {items.length === 0 && (
-        <p className="text-sm text-slate-500 text-center py-4">No items configured</p>
+        <p className="text-sm text-dungeon-500 text-center py-4">No items configured</p>
       )}
     </div>
   );
@@ -854,7 +854,7 @@ function NotificationPreferences() {
   };
 
   if (loading) {
-    return <div className="dcc-card p-6"><p className="text-sm text-slate-400">Loading preferences...</p></div>;
+    return <div className="dcc-card p-6"><p className="text-sm text-dungeon-400">Loading preferences...</p></div>;
   }
 
   return (
@@ -866,7 +866,7 @@ function NotificationPreferences() {
               <span className="text-xl">{pref.channel_icon}</span>
               <div>
                 <h3 className="text-sm font-semibold text-slate-100">{pref.channel_name}</h3>
-                <p className="text-xs text-slate-500">{pref.channel_slug}</p>
+                <p className="text-xs text-dungeon-500">{pref.channel_slug}</p>
               </div>
             </div>
             <button
@@ -875,7 +875,7 @@ function NotificationPreferences() {
               className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
                 pref.enabled
                   ? "bg-green-600/20 text-green-400 hover:bg-green-600/30"
-                  : "bg-dungeon-700 text-slate-400 hover:bg-dungeon-600"
+                  : "bg-dungeon-700 text-dungeon-400 hover:bg-dungeon-600"
               }`}
             >
               {pref.enabled ? "Enabled" : "Disabled"}
@@ -885,7 +885,7 @@ function NotificationPreferences() {
           {/* Discord-specific: webhook URL */}
           {pref.channel_slug === "discord" && (
             <div className="mt-3 pt-3 border-t border-dungeon-700">
-              <label className="text-xs text-slate-400 block mb-1">
+              <label className="text-xs text-dungeon-400 block mb-1">
                 Discord Webhook URL (for task reminders)
               </label>
               <div className="flex gap-2">
@@ -894,7 +894,7 @@ function NotificationPreferences() {
                   placeholder="https://discord.com/api/webhooks/..."
                   value={webhookUrl}
                   onChange={(e) => setWebhookUrl(e.target.value)}
-                  className="flex-1 bg-dungeon-800 border border-dungeon-600 rounded px-3 py-1.5 text-sm text-slate-100 placeholder:text-slate-500"
+                  className="flex-1 bg-dungeon-800 border border-dungeon-600 rounded px-3 py-1.5 text-sm text-slate-100 placeholder:text-dungeon-500"
                 />
                 <button
                   onClick={saveWebhook}
@@ -904,7 +904,7 @@ function NotificationPreferences() {
                   Save
                 </button>
               </div>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-dungeon-500 mt-1">
                 Create a webhook in your Discord server settings and paste the URL here to receive daily task reminders.
               </p>
             </div>
@@ -914,7 +914,7 @@ function NotificationPreferences() {
 
       {prefs.length === 0 && (
         <div className="dcc-card p-6 text-center">
-          <p className="text-sm text-slate-400">No notification channels configured.</p>
+          <p className="text-sm text-dungeon-400">No notification channels configured.</p>
         </div>
       )}
     </div>
@@ -1038,7 +1038,7 @@ function ZevMemoryManager() {
         <div className="flex items-center justify-between mb-3">
           <div>
             <h3 className="text-sm font-semibold text-slate-100">What Zev Knows About You</h3>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-xs text-dungeon-500 mt-0.5">
               {total} observation{total !== 1 ? "s" : ""} — Zev learns from every conversation
             </p>
           </div>
@@ -1049,14 +1049,14 @@ function ZevMemoryManager() {
               onChange={(e) => setShowInactive(e.target.checked)}
               className="rounded border-dungeon-600 w-3.5 h-3.5"
             />
-            <span className="text-[10px] text-slate-500">Show removed</span>
+            <span className="text-[10px] text-dungeon-500">Show removed</span>
           </label>
         </div>
         <div className="flex items-center gap-1 overflow-x-auto pb-1">
           <button
             onClick={() => setFilterType("all")}
             className={`px-3 py-1.5 rounded text-xs font-medium whitespace-nowrap transition-colors ${
-              filterType === "all" ? "bg-dungeon-800 text-crimson-400" : "text-slate-500 hover:text-slate-300"
+              filterType === "all" ? "bg-dungeon-800 text-crimson-400" : "text-dungeon-500 hover:text-slate-300"
             }`}
           >
             All
@@ -1066,7 +1066,7 @@ function ZevMemoryManager() {
               key={key}
               onClick={() => setFilterType(key)}
               className={`px-3 py-1.5 rounded text-xs font-medium whitespace-nowrap transition-colors ${
-                filterType === key ? "bg-dungeon-800 text-crimson-400" : "text-slate-500 hover:text-slate-300"
+                filterType === key ? "bg-dungeon-800 text-crimson-400" : "text-dungeon-500 hover:text-slate-300"
               }`}
             >
               {TYPE_ICONS[key]} {label}
@@ -1077,7 +1077,7 @@ function ZevMemoryManager() {
 
       {Object.keys(grouped).length === 0 ? (
         <div className="dcc-card p-8 text-center">
-          <p className="text-slate-400 text-sm">
+          <p className="text-dungeon-400 text-sm">
             {filterType === "all"
               ? "Zev hasn't learned anything yet. Start chatting to build up memory."
               : `No ${TYPE_LABELS[filterType] || filterType} observations yet.`}
@@ -1086,10 +1086,10 @@ function ZevMemoryManager() {
       ) : (
         Object.entries(grouped).map(([type, obs]) => (
           <div key={type} className="dcc-card p-4 space-y-2">
-            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+            <h4 className="text-xs font-bold text-dungeon-400 uppercase tracking-wider flex items-center gap-1.5">
               <span>{TYPE_ICONS[type] || "📝"}</span>
               {TYPE_LABELS[type] || type}
-              <span className="text-slate-600 font-normal">({obs.length})</span>
+              <span className="text-dungeon-600 font-normal">({obs.length})</span>
             </h4>
             <div className="space-y-1">
               {obs.map((o) => (
@@ -1113,7 +1113,7 @@ function ZevMemoryManager() {
                         autoFocus
                       />
                       <button onClick={() => handleUpdate(o.id)} className="text-xs text-green-400">Save</button>
-                      <button onClick={() => setEditingId(null)} className="text-xs text-slate-500">Cancel</button>
+                      <button onClick={() => setEditingId(null)} className="text-xs text-dungeon-500">Cancel</button>
                     </div>
                   ) : (
                     <>
@@ -1127,10 +1127,10 @@ function ZevMemoryManager() {
                           }`}>
                             {o.source_layer}
                           </span>
-                          <span className="text-[10px] text-slate-600">
+                          <span className="text-[10px] text-dungeon-600">
                             {Math.round(o.confidence * 100)}% confidence
                           </span>
-                          <span className="text-[10px] text-slate-600">
+                          <span className="text-[10px] text-dungeon-600">
                             {new Date(o.created_at).toLocaleDateString()}
                           </span>
                         </div>
@@ -1139,13 +1139,13 @@ function ZevMemoryManager() {
                         <div className="flex items-center gap-1 flex-shrink-0">
                           <button
                             onClick={() => { setEditingId(o.id); setEditContent(o.observation); }}
-                            className="text-xs text-slate-500 hover:text-slate-300 px-1.5 py-1"
+                            className="text-xs text-dungeon-500 hover:text-slate-300 px-1.5 py-1"
                           >
                             Edit
                           </button>
                           <button
                             onClick={() => handleDelete(o.id)}
-                            className="text-xs text-slate-500 hover:text-red-400 px-1.5 py-1"
+                            className="text-xs text-dungeon-500 hover:text-red-400 px-1.5 py-1"
                           >
                             Remove
                           </button>

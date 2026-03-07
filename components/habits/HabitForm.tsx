@@ -151,7 +151,7 @@ export default function HabitForm({ onSave, onCancel }: HabitFormProps) {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="e.g., Read for 30 minutes"
-          className="w-full px-4 py-2.5 bg-dungeon-800 border border-dungeon-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400/50"
+          className="w-full px-4 py-2.5 bg-dungeon-800 border border-dungeon-700 rounded-lg text-slate-100 placeholder-dungeon-500 focus:outline-none focus:border-red-400/50"
           autoFocus
         />
       </div>
@@ -163,7 +163,7 @@ export default function HabitForm({ onSave, onCancel }: HabitFormProps) {
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Why is this habit important?"
           rows={2}
-          className="w-full px-4 py-2.5 bg-dungeon-800 border border-dungeon-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400/50 resize-none"
+          className="w-full px-4 py-2.5 bg-dungeon-800 border border-dungeon-700 rounded-lg text-slate-100 placeholder-dungeon-500 focus:outline-none focus:border-red-400/50 resize-none"
         />
       </div>
 
@@ -234,7 +234,7 @@ export default function HabitForm({ onSave, onCancel }: HabitFormProps) {
               className={`w-10 h-10 rounded-full text-sm font-medium transition-colors ${
                 specificDays.includes(d.value)
                   ? "bg-red-400 text-slate-950"
-                  : "bg-dungeon-800 text-slate-400 hover:bg-dungeon-700"
+                  : "bg-dungeon-800 text-dungeon-400 hover:bg-dungeon-700"
               }`}
             >
               {d.label}
@@ -246,7 +246,7 @@ export default function HabitForm({ onSave, onCancel }: HabitFormProps) {
       {/* Link to goals */}
       <div>
         <label className="block text-sm font-medium text-slate-300 mb-2">Link to Goal (optional)</label>
-        <p className="text-xs text-slate-400 mb-3">Select active goals this habit will help you achieve</p>
+        <p className="text-xs text-dungeon-400 mb-3">Select active goals this habit will help you achieve</p>
         {goals.length > 0 ? (
           <div className="space-y-2">
             {goals.map((g) => (
@@ -271,19 +271,19 @@ export default function HabitForm({ onSave, onCancel }: HabitFormProps) {
                     <span className={`text-sm font-medium ${selectedGoalIds.includes(g.id) ? "text-red-400" : "text-slate-100"}`}>
                       {g.title}
                     </span>
-                    <span className="block text-xs text-slate-400 mt-0.5">{g.progress_type.replace("_", " ")} • {Math.round(g.progress_value)}%</span>
+                    <span className="block text-xs text-dungeon-400 mt-0.5">{g.progress_type.replace("_", " ")} • {Math.round(g.progress_value)}%</span>
                   </div>
                 </div>
               </button>
             ))}
           </div>
         ) : (
-          <p className="text-sm text-slate-400 p-3 bg-dungeon-800 rounded-lg">No active goals available. Create a goal first.</p>
+          <p className="text-sm text-dungeon-400 p-3 bg-dungeon-800 rounded-lg">No active goals available. Create a goal first.</p>
         )}
       </div>
 
       <div className="flex items-center justify-end gap-3 pt-4 border-t border-dungeon-800">
-        <button type="button" onClick={onCancel} className="px-4 py-2 text-slate-400 hover:text-slate-100 transition-colors font-medium">
+        <button type="button" onClick={onCancel} className="px-4 py-2 text-dungeon-400 hover:text-slate-100 transition-colors font-medium">
           Cancel
         </button>
         <button

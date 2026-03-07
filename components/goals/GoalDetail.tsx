@@ -69,7 +69,7 @@ const STATUS_COLORS: Record<string, string> = {
   active: "text-red-400 bg-red-400/10",
   completed: "text-blue-400 bg-blue-400/10",
   paused: "text-amber-400 bg-amber-400/10",
-  abandoned: "text-slate-400 bg-slate-400/10",
+  abandoned: "text-dungeon-400 bg-dungeon-400/10",
 };
 
 export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetailProps) {
@@ -245,7 +245,7 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
 
   if (!goal) {
     return (
-      <div className="p-6 text-center text-slate-400">Goal not found</div>
+      <div className="p-6 text-center text-dungeon-400">Goal not found</div>
     );
   }
 
@@ -265,12 +265,12 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
               {goal.status}
             </span>
             {goal.category && (
-              <span className="text-xs text-slate-400">
+              <span className="text-xs text-dungeon-400">
                 {goal.category.icon} {goal.category.name}
               </span>
             )}
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-100 transition-colors p-1">
+          <button onClick={onClose} className="text-dungeon-400 hover:text-slate-100 transition-colors p-1">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
@@ -290,7 +290,7 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
         <div className="bg-dungeon-800/50 rounded-lg p-4 space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-slate-100">Progress</span>
-            <span className="text-sm text-slate-400">{progressPercent}%</span>
+            <span className="text-sm text-dungeon-400">{progressPercent}%</span>
           </div>
           <div className="w-full bg-dungeon-700 rounded-full h-2.5">
             <div
@@ -310,7 +310,7 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
               />
             </div>
           )}
-          <div className="flex items-center gap-4 text-xs text-slate-400">
+          <div className="flex items-center gap-4 text-xs text-dungeon-400">
             <span>Type: {goal.progress_type.replace("_", " ")}</span>
             {goal.timeframe && <span>Timeframe: {goal.timeframe.name}</span>}
             {goal.target_date && (
@@ -343,12 +343,12 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <span className={`text-sm ${m.completed_at ? "text-slate-400 line-through" : "text-slate-100"}`}>
+                    <span className={`text-sm ${m.completed_at ? "text-dungeon-400 line-through" : "text-slate-100"}`}>
                       {m.title}
                     </span>
                   </div>
                   {m.target_date && (
-                    <span className="text-xs text-slate-500 flex-shrink-0">
+                    <span className="text-xs text-dungeon-500 flex-shrink-0">
                       {new Date(m.target_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                     </span>
                   )}
@@ -382,7 +382,7 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
             {showHabitPicker && (
               <div className="bg-dungeon-800/50 rounded-lg p-4 mb-3 space-y-3">
                 {pickerLoading ? (
-                  <p className="text-sm text-slate-400">Loading habits...</p>
+                  <p className="text-sm text-dungeon-400">Loading habits...</p>
                 ) : availableHabits.length > 0 ? (
                   <>
                     <div className="space-y-2">
@@ -415,7 +415,7 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
                     <div className="flex gap-2">
                       <button
                         onClick={() => setShowHabitPicker(false)}
-                        className="flex-1 px-3 py-2 text-slate-400 hover:text-slate-100 transition-colors text-sm font-medium"
+                        className="flex-1 px-3 py-2 text-dungeon-400 hover:text-slate-100 transition-colors text-sm font-medium"
                       >
                         Cancel
                       </button>
@@ -430,10 +430,10 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
                   </>
                 ) : (
                   <>
-                    <p className="text-sm text-slate-400">No more habits available to link</p>
+                    <p className="text-sm text-dungeon-400">No more habits available to link</p>
                     <button
                       onClick={() => setShowHabitPicker(false)}
-                      className="w-full px-3 py-2 text-slate-400 hover:text-slate-100 transition-colors text-sm font-medium"
+                      className="w-full px-3 py-2 text-dungeon-400 hover:text-slate-100 transition-colors text-sm font-medium"
                     >
                       Close
                     </button>
@@ -464,7 +464,7 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
                         ))}
                       </div>
                       {goal.progress_type === "habit_driven" && (
-                        <div className="text-xs text-slate-400">
+                        <div className="text-xs text-dungeon-400">
                           Weight: <span className="text-slate-300 font-medium">{(h.weight * 100).toFixed(0)}%</span>
                         </div>
                       )}
@@ -494,7 +494,7 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
                   <div className={`w-4 h-4 rounded-full flex-shrink-0 ${
                     t.completed_at ? "bg-red-400" : "bg-dungeon-600"
                   }`} />
-                  <span className={`text-sm ${t.completed_at ? "text-slate-400 line-through" : "text-slate-100"}`}>
+                  <span className={`text-sm ${t.completed_at ? "text-dungeon-400 line-through" : "text-slate-100"}`}>
                     {t.title}
                   </span>
                 </div>
@@ -526,7 +526,7 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
             <button
               onClick={() => setConfirmAbandoned(true)}
               disabled={updating}
-              className="px-4 py-2 text-slate-500 hover:text-red-400 font-medium rounded-lg transition-colors text-sm disabled:opacity-50"
+              className="px-4 py-2 text-dungeon-500 hover:text-red-400 font-medium rounded-lg transition-colors text-sm disabled:opacity-50"
             >
               Abandon
             </button>
@@ -557,10 +557,10 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
             <h3 className="text-sm font-semibold text-slate-100 mb-3">Activity</h3>
             <div className="space-y-2">
               {goal.activity.slice(0, 10).map((a, i) => (
-                <div key={i} className="flex items-center gap-3 text-xs text-slate-400">
+                <div key={i} className="flex items-center gap-3 text-xs text-dungeon-400">
                   <span className="w-1.5 h-1.5 rounded-full bg-dungeon-600 flex-shrink-0" />
                   <span>{a.action}</span>
-                  <span className="ml-auto text-slate-500">
+                  <span className="ml-auto text-dungeon-500">
                     {new Date(a.performed_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                   </span>
                 </div>

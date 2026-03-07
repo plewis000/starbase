@@ -176,10 +176,10 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
             placeholder="Search tasks..."
             value={filters.search || ""}
             onChange={(e) => handleSearchChange(e.target.value)}
-            className="w-full px-4 py-2 bg-dungeon-900 border border-dungeon-800 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/30 transition-colors"
+            className="w-full px-4 py-2 bg-dungeon-900 border border-dungeon-800 rounded-lg text-slate-100 placeholder:text-dungeon-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/30 transition-colors"
           />
           <svg
-            className="absolute right-3 top-2.5 w-4 h-4 text-slate-500"
+            className="absolute right-3 top-2.5 w-4 h-4 text-dungeon-500"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -212,7 +212,7 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
       >
         {/* Status filter */}
         <div>
-          <label className="block text-xs font-semibold text-slate-400 mb-1.5">
+          <label className="block text-xs font-semibold text-dungeon-400 mb-1.5">
             Status
           </label>
           <select
@@ -230,7 +230,7 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
 
         {/* Priority filter */}
         <div>
-          <label className="block text-xs font-semibold text-slate-400 mb-1.5">
+          <label className="block text-xs font-semibold text-dungeon-400 mb-1.5">
             Priority
           </label>
           <select
@@ -248,7 +248,7 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
 
         {/* Due date filter */}
         <div>
-          <label className="block text-xs font-semibold text-slate-400 mb-1.5">
+          <label className="block text-xs font-semibold text-dungeon-400 mb-1.5">
             Due Date
           </label>
           <select
@@ -266,7 +266,7 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
 
         {/* Sort dropdown */}
         <div>
-          <label className="block text-xs font-semibold text-slate-400 mb-1.5">
+          <label className="block text-xs font-semibold text-dungeon-400 mb-1.5">
             Sort
           </label>
           <select
@@ -297,7 +297,7 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
         {showMobileFilters && (
           <button
             onClick={() => setShowMobileFilters(false)}
-            className="lg:hidden col-span-2 sm:col-span-3 px-3 py-1.5 bg-dungeon-900 border border-dungeon-800 rounded-lg text-slate-400 text-sm hover:bg-dungeon-800 transition-colors"
+            className="lg:hidden col-span-2 sm:col-span-3 px-3 py-1.5 bg-dungeon-900 border border-dungeon-800 rounded-lg text-dungeon-400 text-sm hover:bg-dungeon-800 transition-colors"
           >
             Close
           </button>

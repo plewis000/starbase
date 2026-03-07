@@ -85,7 +85,7 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number)
       )}
       <button
         onClick={() => { setExiting(true); setTimeout(() => onDismiss(toast.id), 200); }}
-        className="text-slate-400 hover:text-slate-200 transition-colors shrink-0"
+        className="text-dungeon-400 hover:text-slate-200 transition-colors shrink-0"
         aria-label="Dismiss"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
