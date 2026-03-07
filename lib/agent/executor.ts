@@ -557,7 +557,7 @@ async function getShoppingList(supabase: Supabase, userId: string, input: Record
 
   const { data, error } = await household(supabase)
     .from("shopping_lists")
-    .select("id, name, store, created_by, shopping_items(id, name, quantity, checked, category:shopping_categories(name))")
+    .select("id, name, store, created_by, shopping_items(id, name, quantity, checked, category_id)")
     .eq("id", id)
     .in("created_by", memberIds)
     .single();
