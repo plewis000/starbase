@@ -3,7 +3,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { withUser } from "@/lib/api/withAuth";
-import { ensureProfile, updateLoginStreak, calculateLevel, getFloorForLevel, checkActivationReadiness, activateGamification } from "@/lib/gamification";
+import { ensureProfile, updateLoginStreak, calculateLevel, getFloorForLevel, checkActivationReadiness, activateGamification, checkAchievements } from "@/lib/gamification";
 
 export const GET = withUser(async (_request, { supabase, user }) => {
   // Ensure profile exists
@@ -41,6 +41,10 @@ export const GET = withUser(async (_request, { supabase, user }) => {
       .single();
     if (refreshed) {
       Object.assign(profile, refreshed);
+      // Fire class_unlocked achievement if class was just assigned
+      if (refreshed.crawler_class) {
+        checkAchievements(supabase, user.id, "custom", { custom_type: "class_assigned" }).catch(() => {});
+      }
     }
   }
 

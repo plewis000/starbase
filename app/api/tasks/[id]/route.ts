@@ -401,6 +401,25 @@ export const PATCH = withAuth(async (request, { supabase, user, ctx }, params) =
               completed_at: new Date().toISOString(),
             });
           }
+
+          // Time-based custom achievements
+          const now = new Date();
+          const hour = now.getUTCHours() - 6; // CT = UTC-6
+          const ctHour = hour < 0 ? hour + 24 : hour;
+          const dayOfWeek = now.getDay(); // 0=Sun, 5=Fri, 6=Sat
+
+          if (ctHour >= 22 || ctHour < 4) {
+            await checkAchievements(svc, creditedUserId, "custom", { custom_type: "night_complete" });
+            if (ctHour >= 0 && ctHour < 4) {
+              await checkAchievements(svc, creditedUserId, "custom", { custom_type: "late_night_complete" });
+            }
+          }
+          if (dayOfWeek === 5) {
+            await checkAchievements(svc, creditedUserId, "custom", { custom_type: "all_tasks_friday" });
+          }
+          if (dayOfWeek === 0 || dayOfWeek === 6) {
+            await checkAchievements(svc, creditedUserId, "custom", { custom_type: "weekend_warrior" });
+          }
         }
 
         // Notify credited users who aren't the completer

@@ -200,7 +200,8 @@ function checkApiExports() {
     const content = fs.readFileSync(filePath, "utf-8");
     const relPath = path.relative(ROOT, filePath);
 
-    const exports = content.matchAll(/export\s+(?:async\s+)?function\s+(\w+)/g);
+    // Match both `export async function GET` and `export const GET = withUser(...)`
+    const exports = content.matchAll(/export\s+(?:async\s+)?(?:function|const)\s+(\w+)/g);
     let hasValidExport = false;
 
     for (const match of exports) {
