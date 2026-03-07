@@ -30,6 +30,18 @@ interface BriefingData {
   partnerHabitsUnchecked: number;
   // Recent wins
   recentCompletions: string[];
+  // Behavioral trends (week-over-week comparison)
+  trends: TrendData | null;
+}
+
+interface TrendData {
+  habitRateThis: number; // % this week
+  habitRateLast: number; // % last week
+  tasksCompletedThis: number;
+  tasksCompletedLast: number;
+  xpThis: number;
+  xpLast: number;
+  alert: string | null; // human-readable trend alert
 }
 
 interface WeeklyData {
@@ -345,6 +357,9 @@ async function gatherBriefingData(
     }
   }
 
+  // Behavioral trends: compare last 7 days vs prior 7 days
+  const trends = await gatherTrendData(supabase, userId);
+
   return {
     userName,
     partnerName,
@@ -364,7 +379,115 @@ async function gatherBriefingData(
     partnerTodayTasks,
     partnerHabitsUnchecked,
     recentCompletions: (completionsRes.data || []).map((t) => t.title),
+    trends,
   };
+}
+
+export async function gatherTrendData(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<TrendData | null> {
+  try {
+    const now = new Date();
+    const weekAgo = new Date(now);
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    const twoWeeksAgo = new Date(now);
+    twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+
+    const weekAgoStr = weekAgo.toISOString().slice(0, 10);
+    const twoWeeksAgoStr = twoWeeksAgo.toISOString().slice(0, 10);
+    const todayStr = now.toISOString().slice(0, 10);
+
+    // Fetch behavioral aggregates for both periods
+    const [thisWeekRes, lastWeekRes, tasksThisRes, tasksLastRes] = await Promise.all([
+      platform(supabase)
+        .from("behavioral_aggregates")
+        .select("habits_checked, habits_missed, xp_earned")
+        .eq("user_id", userId)
+        .gte("date", weekAgoStr)
+        .lt("date", todayStr),
+      platform(supabase)
+        .from("behavioral_aggregates")
+        .select("habits_checked, habits_missed, xp_earned")
+        .eq("user_id", userId)
+        .gte("date", twoWeeksAgoStr)
+        .lt("date", weekAgoStr),
+      platform(supabase)
+        .from("tasks")
+        .select("id", { count: "exact", head: true })
+        .contains("owner_ids", [userId])
+        .gte("completed_at", weekAgoStr)
+        .not("completed_at", "is", null),
+      platform(supabase)
+        .from("tasks")
+        .select("id", { count: "exact", head: true })
+        .contains("owner_ids", [userId])
+        .gte("completed_at", twoWeeksAgoStr)
+        .lt("completed_at", weekAgoStr)
+        .not("completed_at", "is", null),
+    ]);
+
+    const thisAgg = thisWeekRes.data || [];
+    const lastAgg = lastWeekRes.data || [];
+
+    const thisChecked = thisAgg.reduce((s, a) => s + (a.habits_checked || 0), 0);
+    const thisMissed = thisAgg.reduce((s, a) => s + (a.habits_missed || 0), 0);
+    const thisTotal = thisChecked + thisMissed;
+    const habitRateThis = thisTotal > 0 ? Math.round((thisChecked / thisTotal) * 100) : 0;
+
+    const lastChecked = lastAgg.reduce((s, a) => s + (a.habits_checked || 0), 0);
+    const lastMissed = lastAgg.reduce((s, a) => s + (a.habits_missed || 0), 0);
+    const lastTotal = lastChecked + lastMissed;
+    const habitRateLast = lastTotal > 0 ? Math.round((lastChecked / lastTotal) * 100) : 0;
+
+    const xpThis = thisAgg.reduce((s, a) => s + (a.xp_earned || 0), 0);
+    const xpLast = lastAgg.reduce((s, a) => s + (a.xp_earned || 0), 0);
+
+    const tasksCompletedThis = tasksThisRes.count || 0;
+    const tasksCompletedLast = tasksLastRes.count || 0;
+
+    // Generate alert if significant changes detected
+    const alerts: string[] = [];
+
+    if (lastTotal > 0 && thisTotal > 0) {
+      const habitDelta = habitRateThis - habitRateLast;
+      if (habitDelta <= -20) {
+        alerts.push(`Habit check-ins dropped ${Math.abs(habitDelta)}% from last week (${habitRateLast}% -> ${habitRateThis}%)`);
+      } else if (habitDelta >= 15) {
+        alerts.push(`Habit consistency up ${habitDelta}% from last week — nice momentum`);
+      }
+    }
+
+    if (tasksCompletedLast > 0) {
+      const taskDelta = tasksCompletedThis - tasksCompletedLast;
+      const taskPct = Math.round((taskDelta / tasksCompletedLast) * 100);
+      if (taskPct <= -40 && tasksCompletedLast >= 3) {
+        alerts.push(`Task completions down ${Math.abs(taskPct)}% vs last week (${tasksCompletedLast} -> ${tasksCompletedThis})`);
+      } else if (taskPct >= 30 && tasksCompletedThis >= 3) {
+        alerts.push(`Task throughput up ${taskPct}% — crushing it`);
+      }
+    }
+
+    if (xpLast > 0) {
+      const xpDelta = xpThis - xpLast;
+      const xpPct = Math.round((xpDelta / xpLast) * 100);
+      if (xpPct <= -50 && xpLast >= 50) {
+        alerts.push(`XP earning slowed significantly (${xpLast} -> ${xpThis})`);
+      }
+    }
+
+    return {
+      habitRateThis,
+      habitRateLast,
+      tasksCompletedThis,
+      tasksCompletedLast,
+      xpThis,
+      xpLast,
+      alert: alerts.length > 0 ? alerts.join(". ") : null,
+    };
+  } catch {
+    return null;
+  }
 }
 
 async function gatherWeeklyData(
@@ -595,6 +718,11 @@ function formatBriefingContext(data: BriefingData): string {
 
   if (data.pendingSuggestions.length > 0) {
     parts.push(`\nPending suggestion: ${data.pendingSuggestions[0].title}`);
+  }
+
+  // Behavioral trends — week-over-week signals
+  if (data.trends?.alert) {
+    parts.push(`\nTREND ALERT: ${data.trends.alert}`);
   }
 
   return parts.join("\n");

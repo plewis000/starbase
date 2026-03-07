@@ -258,11 +258,11 @@ export default function ChatPage() {
                 </p>
                 <div className="flex flex-wrap gap-2 justify-center">
                   {[
-                    "What's on my plate today?",
+                    "What should I focus on right now?",
+                    "How am I trending this week?",
                     "How did we do this week?",
                     "Who's more loaded right now?",
                     "Check my habit streaks",
-                    "How's my crawler doing?",
                   ].map((q) => (
                     <button
                       key={q}

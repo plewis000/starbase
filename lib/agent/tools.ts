@@ -478,6 +478,44 @@ export const AGENT_TOOLS: Tool[] = [
     },
   },
 
+  // ── SMART PRIORITIZATION ──
+  {
+    name: "get_focus_tasks",
+    description: "Get a prioritized 'what to do right now' list. Ranks tasks by: streak-at-risk habits needing attention, overdue urgency, blocks partner's work, deadline proximity, and effort vs available time. Use when someone asks 'what should I focus on' or 'what's most important right now'.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        hours_available: { type: "number", description: "Hours available to work (helps filter by effort). Default: no filter." },
+      },
+      required: [],
+    },
+  },
+
+  // ── SMART RESCHEDULE ──
+  {
+    name: "smart_reschedule",
+    description: "Suggest an optimal new due date for a task based on the user's completion patterns — which days they tend to get things done, how many tasks are already due that day, and partner's load. Use when a task is overdue and user wants to reschedule, or when they ask 'when should I do this'.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        task_id: { type: "string", description: "Task ID to reschedule (required)" },
+        apply: { type: "boolean", description: "If true, actually update the due date. If false (default), just suggest." },
+      },
+      required: ["task_id"],
+    },
+  },
+
+  // ── TREND REPORT ──
+  {
+    name: "get_trend_report",
+    description: "Get a week-over-week behavioral trend report — habit consistency change, task throughput delta, XP trajectory, activity patterns. Use when someone asks 'how am I trending', 'am I improving', or 'what changed this week'.",
+    input_schema: {
+      type: "object" as const,
+      properties: {},
+      required: [],
+    },
+  },
+
   // ── GAMIFICATION (THE CRAWL) ──
   {
     name: "get_crawler_stats",

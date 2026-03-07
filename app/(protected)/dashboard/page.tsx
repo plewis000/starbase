@@ -5,6 +5,28 @@ import Link from "next/link";
 import OutcomesPanel from "@/components/dashboard/OutcomesPanel";
 import { DashboardSkeleton } from "@/components/ui/Skeleton";
 
+interface HouseholdMember {
+  id: string;
+  name: string;
+  is_current_user: boolean;
+  tasks: { overdue: number; open: number; completed_this_week: number };
+  habits: { total: number; checked_today: number; rate: number; top_streaks: { title: string; streak: number }[] };
+  crawler: { level: number; xp: number } | null;
+}
+
+interface HouseholdData {
+  members: HouseholdMember[];
+  household: {
+    total_overdue: number;
+    total_open: number;
+    completed_this_week: number;
+    habit_rate: number;
+    workload_imbalance: number;
+    balance_status: string;
+  };
+  weekly_trend: { date: string; tasks: number; habits_rate: number; xp: number }[];
+}
+
 interface Suggestion {
   id: string;
   category: string;
@@ -134,6 +156,8 @@ const getWelcomeMessage = (displayName: string) => {
   return welcomeMessages[hash % welcomeMessages.length];
 };
 
+type DashView = "personal" | "household";
+
 export default function DashboardPage() {
   const [displayName, setDisplayName] = useState("there");
   const [todayDate, setTodayDate] = useState("");
@@ -141,8 +165,10 @@ export default function DashboardPage() {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [totalTaskCount, setTotalTaskCount] = useState<number | null>(null);
   const [dashData, setDashData] = useState<DashboardData | null>(null);
+  const [householdData, setHouseholdData] = useState<HouseholdData | null>(null);
   const [shoppingLists, setShoppingLists] = useState<ShoppingListSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [view, setView] = useState<DashView>("personal");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -157,12 +183,13 @@ export default function DashboardPage() {
           setDisplayName(u.full_name || u.email || "there");
         }
 
-        const [dashRes, allTasksRes, crawlRes, suggestionsRes, shoppingRes] = await Promise.all([
+        const [dashRes, allTasksRes, crawlRes, suggestionsRes, shoppingRes, householdRes] = await Promise.all([
           fetch("/api/dashboard"),
           fetch("/api/tasks?limit=1"),
           fetch("/api/gamification"),
           fetch("/api/ai/suggestions?status=pending&limit=3"),
           fetch("/api/shopping"),
+          fetch("/api/dashboard/household"),
         ]);
 
         if (dashRes.ok) {
@@ -181,6 +208,9 @@ export default function DashboardPage() {
         if (shoppingRes.ok) {
           const sd = await shoppingRes.json();
           setShoppingLists(sd.lists || []);
+        }
+        if (householdRes.ok) {
+          setHouseholdData(await householdRes.json());
         }
 
         setTodayDate(
@@ -248,12 +278,38 @@ export default function DashboardPage() {
   return (
     <div className="p-6">
       <div className="max-w-4xl mx-auto space-y-6">
-        {/* Greeting */}
-        <div>
-          <h1 className="text-3xl font-bold text-slate-100 dcc-heading tracking-wide">
-            {getWelcomeMessage(displayName)}
-          </h1>
-          <p className="text-sm text-dungeon-500 mt-1 font-mono">{todayDate}</p>
+        {/* Greeting + View Toggle */}
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-100 dcc-heading tracking-wide">
+              {getWelcomeMessage(displayName)}
+            </h1>
+            <p className="text-sm text-dungeon-500 mt-1 font-mono">{todayDate}</p>
+          </div>
+          {householdData && householdData.members.length > 1 && (
+            <div className="flex gap-1 bg-dungeon-900 rounded-lg p-1 border border-dungeon-800">
+              <button
+                onClick={() => setView("personal")}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                  view === "personal"
+                    ? "bg-dungeon-800 text-slate-100"
+                    : "text-dungeon-400 hover:text-slate-200"
+                }`}
+              >
+                Personal
+              </button>
+              <button
+                onClick={() => setView("household")}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                  view === "household"
+                    ? "bg-dungeon-800 text-slate-100"
+                    : "text-dungeon-400 hover:text-slate-200"
+                }`}
+              >
+                Household
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Setup nudge for new users with zero tasks */}
@@ -275,8 +331,141 @@ export default function DashboardPage() {
           </Link>
         )}
 
+        {/* ── HOUSEHOLD VIEW ── */}
+        {view === "household" && householdData && (
+          <>
+            {/* Household Combined Stats */}
+            <section className="space-y-3">
+              <h2 className="text-lg font-semibold text-slate-100 dcc-heading tracking-wide">Household Pulse</h2>
+              <div className="dcc-card p-5">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                  <MetricCell label="Combined Open" value={householdData.household.total_open} />
+                  <MetricCell label="Overdue" value={householdData.household.total_overdue} accent="text-red-400" />
+                  <MetricCell label="Done This Week" value={householdData.household.completed_this_week} accent="text-green-400" />
+                  <MetricCell label="Habit Rate" value={householdData.household.habit_rate} accent={householdData.household.habit_rate >= 80 ? "text-green-400" : householdData.household.habit_rate >= 50 ? "text-amber-400" : "text-red-400"} />
+                  <div className="text-center p-2 rounded-lg bg-dungeon-800/50">
+                    <div className={`text-2xl font-bold font-mono ${
+                      householdData.household.balance_status === "balanced" ? "text-green-400" :
+                      householdData.household.balance_status === "slightly_off" ? "text-amber-400" : "text-red-400"
+                    }`}>
+                      {householdData.household.balance_status === "balanced" ? "=" :
+                       householdData.household.balance_status === "slightly_off" ? "~" : "!"}
+                    </div>
+                    <div className="text-[10px] text-dungeon-500 font-semibold uppercase tracking-wider mt-1">
+                      Balance
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* Per-Member Cards */}
+            <section className="space-y-3">
+              <h2 className="text-lg font-semibold text-slate-100 dcc-heading tracking-wide">Members</h2>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {householdData.members.map((member) => (
+                  <div key={member.id} className={`dcc-card p-5 ${member.is_current_user ? "border-amber-600/30" : ""}`}>
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${
+                        member.is_current_user ? "bg-amber-600/20 text-amber-400" : "bg-dungeon-800 text-slate-300"
+                      }`}>
+                        {member.name[0]}
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-100">
+                          {member.name} {member.is_current_user && <span className="text-dungeon-500 font-normal">(you)</span>}
+                        </p>
+                        {member.crawler && (
+                          <p className="text-xs text-dungeon-500 font-mono">Lv.{member.crawler.level} — {member.crawler.xp.toLocaleString()} XP</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Task metrics */}
+                    <div className="grid grid-cols-3 gap-2 mb-3">
+                      <div className="text-center p-1.5 rounded bg-dungeon-800/40">
+                        <div className="text-lg font-bold font-mono text-slate-100">{member.tasks.open}</div>
+                        <div className="text-[9px] text-dungeon-500 uppercase">Open</div>
+                      </div>
+                      <div className="text-center p-1.5 rounded bg-dungeon-800/40">
+                        <div className={`text-lg font-bold font-mono ${member.tasks.overdue > 0 ? "text-red-400" : "text-slate-100"}`}>
+                          {member.tasks.overdue}
+                        </div>
+                        <div className="text-[9px] text-dungeon-500 uppercase">Overdue</div>
+                      </div>
+                      <div className="text-center p-1.5 rounded bg-dungeon-800/40">
+                        <div className="text-lg font-bold font-mono text-green-400">{member.tasks.completed_this_week}</div>
+                        <div className="text-[9px] text-dungeon-500 uppercase">Done/wk</div>
+                      </div>
+                    </div>
+
+                    {/* Habit progress */}
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1">
+                        <div className="flex justify-between text-xs mb-1">
+                          <span className="text-dungeon-400">Habits</span>
+                          <span className="text-slate-200 font-mono">{member.habits.checked_today}/{member.habits.total}</span>
+                        </div>
+                        <div className="w-full h-2 bg-dungeon-800 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${member.habits.rate >= 80 ? "bg-green-500" : member.habits.rate >= 50 ? "bg-amber-500" : "bg-red-500"}`}
+                            style={{ width: `${member.habits.rate}%` }}
+                          />
+                        </div>
+                      </div>
+                      <span className="text-xs font-bold font-mono text-slate-200">{member.habits.rate}%</span>
+                    </div>
+
+                    {/* Top streaks */}
+                    {member.habits.top_streaks.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-1.5">
+                        {member.habits.top_streaks.map((s, i) => (
+                          <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-dungeon-800 border border-dungeon-700 text-amber-400 font-mono">
+                            {s.title} {s.streak}d
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* Weekly Trend Sparkline */}
+            {householdData.weekly_trend.length > 0 && (
+              <section className="space-y-3">
+                <h2 className="text-lg font-semibold text-slate-100 dcc-heading tracking-wide">This Week</h2>
+                <div className="dcc-card p-5">
+                  <div className="grid grid-cols-7 gap-1">
+                    {householdData.weekly_trend.map((day) => {
+                      const dayName = new Date(day.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short" });
+                      return (
+                        <div key={day.date} className="text-center">
+                          <div className="text-[9px] text-dungeon-500 mb-1">{dayName}</div>
+                          <div className={`text-xs font-bold font-mono ${day.tasks > 0 ? "text-green-400" : "text-dungeon-600"}`}>
+                            {day.tasks}
+                          </div>
+                          <div className="text-[9px] text-dungeon-500">tasks</div>
+                          <div className="w-full h-1.5 bg-dungeon-800 rounded-full mt-1 overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${day.habits_rate >= 80 ? "bg-green-500" : day.habits_rate >= 50 ? "bg-amber-500" : "bg-red-500"}`}
+                              style={{ width: `${day.habits_rate}%` }}
+                            />
+                          </div>
+                          <div className="text-[8px] text-dungeon-600 mt-0.5 font-mono">+{day.xp}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </section>
+            )}
+          </>
+        )}
+
+        {/* ── PERSONAL VIEW ── */}
         {/* Crawler Status Card */}
-        {crawler && (
+        {view === "personal" && crawler && (
           <div className="space-y-3">
             <Link href="/crawl" className="block">
               <div className="dcc-card-hover p-5 relative overflow-hidden">
@@ -352,7 +541,7 @@ export default function DashboardPage() {
         )}
 
         {/* Recent XP Activity */}
-        {crawler && crawler.recent_xp && crawler.recent_xp.length > 0 && (
+        {view === "personal" && crawler && crawler.recent_xp && crawler.recent_xp.length > 0 && (
           <div className="dcc-card p-4">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-xs font-semibold text-dungeon-500 uppercase tracking-wider font-mono">Recent XP</h3>
@@ -372,13 +561,13 @@ export default function DashboardPage() {
         )}
 
         {/* Outcomes Panel */}
-        <section>
+        {view === "personal" && <section>
           <h2 className="text-lg font-semibold text-slate-100 mb-4 dcc-heading tracking-wide">Your Outcomes</h2>
           <OutcomesPanel data={dashData} />
-        </section>
+        </section>}
 
         {/* AI Suggestions */}
-        {suggestions.length > 0 && (
+        {view === "personal" && suggestions.length > 0 && (
           <section className="space-y-3">
             <h2 className="text-lg font-semibold text-slate-100 dcc-heading tracking-wide">Zev&apos;s Intel</h2>
             <div className="space-y-2">
@@ -405,7 +594,7 @@ export default function DashboardPage() {
         )}
 
         {/* Task Metrics Card */}
-        {ts && (
+        {view === "personal" && ts && (
           <section className="space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-slate-100 dcc-heading tracking-wide">Task Overview</h2>
@@ -464,7 +653,7 @@ export default function DashboardPage() {
         )}
 
         {/* Habit Metrics Card */}
-        {hs && habitsTotal > 0 && (
+        {view === "personal" && hs && habitsTotal > 0 && (
           <section className="space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-slate-100 dcc-heading tracking-wide">Habits</h2>
@@ -517,7 +706,7 @@ export default function DashboardPage() {
         )}
 
         {/* Shopping Summary */}
-        {shoppingLists.length > 0 && (
+        {view === "personal" && shoppingLists.length > 0 && (
           <Link href="/shopping" className="block">
             <div className="dcc-card-hover p-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -534,7 +723,7 @@ export default function DashboardPage() {
         )}
 
         {/* Household Activity Feed */}
-        {dashData?.recent_activity && dashData.recent_activity.length > 0 && (
+        {view === "personal" && dashData?.recent_activity && dashData.recent_activity.length > 0 && (
           <section className="space-y-3">
             <h2 className="text-lg font-semibold text-slate-100 dcc-heading tracking-wide">Recent Activity</h2>
             <div className="dcc-card p-4 space-y-1">

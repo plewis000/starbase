@@ -128,6 +128,18 @@ export async function executeTool(
       case "get_workload_balance":
         return await getWorkloadBalance(supabase, userId);
 
+      // ── SMART PRIORITIZATION ──
+      case "get_focus_tasks":
+        return await getFocusTasks(supabase, userId, input);
+
+      // ── SMART RESCHEDULE ──
+      case "smart_reschedule":
+        return await smartReschedule(supabase, userId, input);
+
+      // ── TREND REPORT ──
+      case "get_trend_report":
+        return await getTrendReport(supabase, userId);
+
       // ── GAMIFICATION ──
       case "get_crawler_stats":
         return await getCrawlerStats(supabase, userId);
@@ -1972,6 +1984,353 @@ async function getWorkloadBalance(supabase: Supabase, userId: string): Promise<T
       recommendation: imbalance > 5
         ? `Workload is unbalanced (${imbalance} task gap). Consider delegating from the more loaded member.`
         : "Workload is reasonably balanced.",
+    },
+  };
+}
+
+// ── SMART PRIORITIZATION ──
+
+async function getFocusTasks(supabase: Supabase, userId: string, input: Record<string, unknown>): Promise<ToolResult> {
+  const ctx = await getHouseholdContext(supabase, userId);
+  if (!ctx) return { success: false, error: "No household found" };
+  const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
+  const todayStr = new Date().toISOString().slice(0, 10);
+
+  // Get open status IDs
+  const { data: statuses } = await config(supabase)
+    .from("task_statuses")
+    .select("id, name")
+    .eq("active", true);
+
+  const terminalNames = new Set(["done", "shipped", "completed", "abandoned", "cancelled"]);
+  const openStatusIds = (statuses || [])
+    .filter((s) => !terminalNames.has(s.name.toLowerCase()))
+    .map((s) => s.id);
+
+  if (openStatusIds.length === 0) return { success: true, data: { focus_items: [], message: "No open tasks" } };
+
+  // Get user's open tasks with details
+  const { data: tasks } = await platform(supabase)
+    .from("tasks")
+    .select("id, title, description, due_date, owner_ids, status:task_statuses(name), priority:task_priorities(name, sort_order)")
+    .in("status_id", openStatusIds)
+    .contains("owner_ids", [userId])
+    .order("due_date", { ascending: true, nullsFirst: false })
+    .limit(30);
+
+  if (!tasks || tasks.length === 0) return { success: true, data: { focus_items: [], message: "No open tasks — you're clear!" } };
+
+  // Get habits at risk (unchecked today with active streaks)
+  const { data: habits } = await platform(supabase)
+    .from("habits")
+    .select("id, title, current_streak")
+    .eq("owner_id", userId)
+    .eq("status", "active");
+
+  const { data: checkIns } = await platform(supabase)
+    .from("habit_check_ins")
+    .select("habit_id")
+    .eq("checked_by", userId)
+    .eq("check_date", todayStr);
+
+  const checkedIds = new Set((checkIns || []).map((c) => c.habit_id));
+  const atRiskHabits = (habits || [])
+    .filter((h) => !checkedIds.has(h.id) && h.current_streak > 0)
+    .sort((a, b) => b.current_streak - a.current_streak);
+
+  // Get partner's tasks to identify shared/blocking items
+  const otherIds = memberIds.filter((id) => id !== userId);
+  const partnerTasks = new Set<string>();
+  if (otherIds.length > 0) {
+    const { data: pTasks } = await platform(supabase)
+      .from("tasks")
+      .select("id")
+      .in("status_id", openStatusIds)
+      .contains("owner_ids", otherIds);
+    for (const t of pTasks || []) partnerTasks.add(t.id);
+  }
+
+  // Score and rank tasks
+  interface ScoredTask {
+    id: string;
+    title: string;
+    due_date: string | null;
+    priority: string;
+    score: number;
+    reasons: string[];
+  }
+
+  const scored: ScoredTask[] = tasks.map((t) => {
+    let score = 0;
+    const reasons: string[] = [];
+    const priorityRaw = t.priority as unknown as { name: string; sort_order: number } | { name: string; sort_order: number }[] | null;
+    const priorityObj = Array.isArray(priorityRaw) ? priorityRaw[0] : priorityRaw;
+    const priorityName = priorityObj?.name || "medium";
+    const priorityOrder = priorityObj?.sort_order ?? 2;
+
+    // Overdue — highest urgency
+    if (t.due_date && t.due_date < todayStr) {
+      const daysOverdue = Math.floor((Date.now() - new Date(t.due_date).getTime()) / 86400000);
+      score += 100 + daysOverdue * 10;
+      reasons.push(`${daysOverdue}d overdue`);
+    }
+
+    // Due today
+    if (t.due_date === todayStr) {
+      score += 80;
+      reasons.push("due today");
+    }
+
+    // Due tomorrow
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    if (t.due_date === tomorrow.toISOString().slice(0, 10)) {
+      score += 40;
+      reasons.push("due tomorrow");
+    }
+
+    // Priority boost
+    if (priorityOrder === 1 || priorityName.toLowerCase() === "high") {
+      score += 30;
+      reasons.push("high priority");
+    } else if (priorityOrder === 3 || priorityName.toLowerCase() === "low") {
+      score -= 10;
+    }
+
+    // Shared with partner (coordination value)
+    const ownerIds = (t.owner_ids as string[]) || [];
+    const isShared = ownerIds.some(id => id !== userId && memberIds.includes(id));
+    if (isShared) {
+      score += 15;
+      reasons.push("shared task");
+    }
+
+    return {
+      id: t.id,
+      title: t.title,
+      due_date: t.due_date,
+      priority: priorityName,
+      score,
+      reasons,
+    };
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+
+  // Build focus list
+  const focusItems: { type: string; title: string; urgency: string; reasons: string[] }[] = [];
+
+  // Add habit alerts first
+  for (const h of atRiskHabits.slice(0, 3)) {
+    focusItems.push({
+      type: "habit",
+      title: `Check in: ${h.title}`,
+      urgency: h.current_streak >= 14 ? "critical" : h.current_streak >= 7 ? "high" : "medium",
+      reasons: [`${h.current_streak}-day streak at risk`],
+    });
+  }
+
+  // Add top tasks
+  const hoursAvailable = Number(input.hours_available) || 0;
+  const taskLimit = hoursAvailable > 0 ? Math.min(Math.ceil(hoursAvailable * 2), 8) : 7;
+  for (const t of scored.slice(0, taskLimit)) {
+    focusItems.push({
+      type: "task",
+      title: t.title,
+      urgency: t.score >= 100 ? "critical" : t.score >= 60 ? "high" : t.score >= 30 ? "medium" : "low",
+      reasons: t.reasons.length > 0 ? t.reasons : ["on the list"],
+    });
+  }
+
+  return {
+    success: true,
+    data: {
+      focus_items: focusItems,
+      total_open_tasks: tasks.length,
+      overdue_count: tasks.filter(t => t.due_date && t.due_date < todayStr).length,
+      habits_at_risk: atRiskHabits.length,
+      message: focusItems.length === 0
+        ? "All clear — nothing urgent!"
+        : `${focusItems.length} items need your attention.`,
+    },
+  };
+}
+
+// ── SMART RESCHEDULE ──
+
+async function smartReschedule(supabase: Supabase, userId: string, input: Record<string, unknown>): Promise<ToolResult> {
+  const taskId = input.task_id as string;
+  const shouldApply = input.apply === true;
+
+  if (!taskId) return { success: false, error: "task_id is required" };
+
+  // Get the task
+  const { data: task } = await platform(supabase)
+    .from("tasks")
+    .select("id, title, due_date, owner_ids")
+    .eq("id", taskId)
+    .single();
+
+  if (!task) return { success: false, error: "Task not found" };
+
+  // Get open status IDs for counting existing load
+  const { data: statuses } = await config(supabase)
+    .from("task_statuses")
+    .select("id, name")
+    .eq("active", true);
+
+  const terminalNames = new Set(["done", "shipped", "completed", "abandoned", "cancelled"]);
+  const openStatusIds = (statuses || [])
+    .filter((s) => !terminalNames.has(s.name.toLowerCase()))
+    .map((s) => s.id);
+
+  // Analyze completion patterns: which days of week does user complete most tasks?
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  const { data: completedTasks } = await platform(supabase)
+    .from("tasks")
+    .select("completed_at")
+    .contains("owner_ids", [userId])
+    .gte("completed_at", thirtyDaysAgo.toISOString())
+    .not("completed_at", "is", null)
+    .limit(100);
+
+  // Count completions by day of week (0=Sun, 6=Sat)
+  const dayCompletions = [0, 0, 0, 0, 0, 0, 0];
+  for (const t of completedTasks || []) {
+    if (t.completed_at) {
+      const day = new Date(t.completed_at).getDay();
+      dayCompletions[day]++;
+    }
+  }
+
+  // Find the next 7 days, score each
+  const candidates: { date: string; dayName: string; score: number; reasons: string[] }[] = [];
+
+  for (let i = 1; i <= 7; i++) {
+    const candidate = new Date();
+    candidate.setDate(candidate.getDate() + i);
+    const dateStr = candidate.toISOString().slice(0, 10);
+    const dayOfWeek = candidate.getDay();
+    const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+    let score = 50;
+    const reasons: string[] = [];
+
+    // Boost days user historically completes more tasks
+    const completionRate = dayCompletions[dayOfWeek];
+    if (completionRate > 3) {
+      score += 20;
+      reasons.push(`strong completion day (${completionRate} tasks in last 30d)`);
+    } else if (completionRate > 0) {
+      score += 10;
+    }
+
+    // Check existing task load on that date
+    const { count: existingLoad } = await platform(supabase)
+      .from("tasks")
+      .select("id", { count: "exact", head: true })
+      .eq("due_date", dateStr)
+      .in("status_id", openStatusIds.length > 0 ? openStatusIds : ["__none__"])
+      .contains("owner_ids", [userId]);
+
+    const load = existingLoad || 0;
+    if (load === 0) {
+      score += 30;
+      reasons.push("no other tasks due");
+    } else if (load <= 2) {
+      score += 15;
+      reasons.push(`light day (${load} tasks)`);
+    } else {
+      score -= load * 5;
+      reasons.push(`busy day (${load} tasks already)`);
+    }
+
+    // Weekend bonus for personal tasks (more free time)
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      score += 10;
+      reasons.push("weekend");
+    }
+
+    // Sooner is slightly better (don't keep pushing)
+    score += Math.max(0, 7 - i) * 2;
+
+    candidates.push({ date: dateStr, dayName: dayNames[dayOfWeek], score, reasons });
+  }
+
+  candidates.sort((a, b) => b.score - a.score);
+  const best = candidates[0];
+
+  if (shouldApply && best) {
+    const { error: updateErr } = await platform(supabase)
+      .from("tasks")
+      .update({ due_date: best.date })
+      .eq("id", taskId);
+
+    if (updateErr) return { success: false, error: updateErr.message };
+  }
+
+  return {
+    success: true,
+    data: {
+      task: { id: task.id, title: task.title, current_due: task.due_date },
+      recommendation: best,
+      alternatives: candidates.slice(1, 3),
+      applied: shouldApply,
+      completion_patterns: {
+        best_days: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+          .map((name, i) => ({ day: name, completions: dayCompletions[i] }))
+          .sort((a, b) => b.completions - a.completions)
+          .slice(0, 3),
+      },
+    },
+  };
+}
+
+// ── TREND REPORT ──
+
+async function getTrendReport(supabase: Supabase, userId: string): Promise<ToolResult> {
+  const { gatherTrendData } = await import("@/lib/briefing-engine");
+
+  const trends = await gatherTrendData(supabase, userId);
+  if (!trends) return { success: true, data: { message: "Not enough data yet for trends. Need at least 2 weeks of activity." } };
+
+  const insights: string[] = [];
+
+  // Habit analysis
+  if (trends.habitRateLast > 0) {
+    const delta = trends.habitRateThis - trends.habitRateLast;
+    if (delta > 0) insights.push(`Habits trending UP: ${trends.habitRateLast}% -> ${trends.habitRateThis}% (+${delta}%)`);
+    else if (delta < 0) insights.push(`Habits trending DOWN: ${trends.habitRateLast}% -> ${trends.habitRateThis}% (${delta}%)`);
+    else insights.push(`Habits steady at ${trends.habitRateThis}%`);
+  }
+
+  // Task throughput
+  if (trends.tasksCompletedLast > 0 || trends.tasksCompletedThis > 0) {
+    insights.push(`Tasks completed: ${trends.tasksCompletedLast} last week -> ${trends.tasksCompletedThis} this week`);
+  }
+
+  // XP trajectory
+  if (trends.xpLast > 0 || trends.xpThis > 0) {
+    insights.push(`XP: ${trends.xpLast} last week -> ${trends.xpThis} this week`);
+  }
+
+  return {
+    success: true,
+    data: {
+      this_week: {
+        habit_rate: trends.habitRateThis,
+        tasks_completed: trends.tasksCompletedThis,
+        xp_earned: trends.xpThis,
+      },
+      last_week: {
+        habit_rate: trends.habitRateLast,
+        tasks_completed: trends.tasksCompletedLast,
+        xp_earned: trends.xpLast,
+      },
+      insights,
+      alert: trends.alert,
     },
   };
 }

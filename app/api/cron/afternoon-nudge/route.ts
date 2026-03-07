@@ -61,10 +61,29 @@ export async function GET(request: NextRequest) {
       const unchecked = (activeHabits || []).filter((h) => !checkedIds.has(h.id));
 
       if (unchecked.length > 0) {
-        const atRisk = unchecked.filter((h) => h.current_streak > 0);
+        // Sort by streak length descending — longest streaks are most precious
+        const atRisk = unchecked
+          .filter((h) => h.current_streak > 0)
+          .sort((a, b) => b.current_streak - a.current_streak);
+
         if (atRisk.length > 0) {
-          const names = atRisk.slice(0, 3).map((h) => `${h.title} (${h.current_streak}-day streak)`).join(", ");
-          nudges.push(`Streaks at risk: ${names}. Check in before midnight.`);
+          // Urgency tiers based on streak length
+          const critical = atRisk.filter((h) => h.current_streak >= 14);
+          const important = atRisk.filter((h) => h.current_streak >= 7 && h.current_streak < 14);
+          const moderate = atRisk.filter((h) => h.current_streak > 0 && h.current_streak < 7);
+
+          if (critical.length > 0) {
+            const names = critical.map((h) => `${h.title} (${h.current_streak}d)`).join(", ");
+            nudges.push(`CRITICAL — Don't lose these streaks: ${names}. Check in NOW.`);
+          }
+          if (important.length > 0) {
+            const names = important.map((h) => `${h.title} (${h.current_streak}d)`).join(", ");
+            nudges.push(`Streaks at risk: ${names}. Check in before midnight.`);
+          }
+          if (moderate.length > 0 && critical.length === 0) {
+            const names = moderate.slice(0, 3).map((h) => `${h.title} (${h.current_streak}d)`).join(", ");
+            nudges.push(`${moderate.length} habit${moderate.length > 1 ? "s" : ""} building momentum: ${names}`);
+          }
         } else {
           nudges.push(`${unchecked.length} habit${unchecked.length > 1 ? "s" : ""} unchecked today.`);
         }
