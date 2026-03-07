@@ -114,7 +114,7 @@ export default function NotificationBell() {
           setIsOpen(!isOpen);
           if (!isOpen) fetchNotifications();
         }}
-        className="relative text-slate-400 hover:text-white transition-colors p-1"
+        className="relative text-dungeon-400 hover:text-white transition-colors p-1"
         aria-label="Notifications"
       >
         <svg
@@ -139,7 +139,7 @@ export default function NotificationBell() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-80 bg-dungeon-900 border border-dungeon-700 rounded-xl shadow-2xl z-50 overflow-hidden">
+        <div className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] sm:w-80 bg-dungeon-900 border border-dungeon-700 rounded-xl shadow-2xl z-50 overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-dungeon-700">
             <span className="text-sm font-semibold text-white">
@@ -158,11 +158,11 @@ export default function NotificationBell() {
           {/* List */}
           <div className="max-h-80 overflow-y-auto">
             {loading && notifications.length === 0 ? (
-              <div className="px-4 py-6 text-center text-slate-500 text-sm">
+              <div className="px-4 py-6 text-center text-dungeon-500 text-sm">
                 Loading...
               </div>
             ) : notifications.length === 0 ? (
-              <div className="px-4 py-6 text-center text-slate-500 text-sm">
+              <div className="px-4 py-6 text-center text-dungeon-500 text-sm">
                 No notifications yet
               </div>
             ) : (
@@ -184,18 +184,18 @@ export default function NotificationBell() {
                       <p
                         className={`text-sm truncate ${
                           n.read_at
-                            ? "text-slate-400"
+                            ? "text-dungeon-400"
                             : "text-white font-medium"
                         }`}
                       >
                         {n.title}
                       </p>
                       {n.body && (
-                        <p className="text-xs text-slate-500 truncate mt-0.5">
+                        <p className="text-xs text-dungeon-500 truncate mt-0.5">
                           {n.body}
                         </p>
                       )}
-                      <p className="text-xs text-slate-600 mt-1">
+                      <p className="text-xs text-dungeon-600 mt-1">
                         {timeAgo(n.created_at)}
                       </p>
                     </div>

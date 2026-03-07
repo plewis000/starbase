@@ -58,10 +58,33 @@ export default function CommsView() {
     setActiveThread(thread || null);
   };
 
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   return (
     <div className="flex h-full">
+      {/* Mobile toggle button */}
+      <button
+        onClick={() => setSidebarOpen(!sidebarOpen)}
+        className="md:hidden fixed bottom-4 left-4 z-50 bg-crimson-600 hover:bg-crimson-500 text-white p-3 rounded-full shadow-lg"
+        aria-label="Toggle sidebar"
+      >
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+
+      {/* Mobile backdrop */}
+      {sidebarOpen && (
+        <div
+          className="md:hidden fixed inset-0 bg-black/50 z-40"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Left panel: tabs + content */}
-      <div className="w-80 flex-shrink-0 border-r border-dungeon-800 flex flex-col bg-dungeon-950/50">
+      <div className={`w-80 flex-shrink-0 border-r border-dungeon-800 flex flex-col bg-dungeon-950/50 ${
+        sidebarOpen ? "fixed inset-y-0 left-0 z-50" : "hidden"
+      } md:relative md:flex`}>
         {/* Tab switcher */}
         <div className="flex border-b border-dungeon-800">
           <button
@@ -69,7 +92,7 @@ export default function CommsView() {
             className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors ${
               activeTab === "threads"
                 ? "text-red-400 border-b-2 border-red-500"
-                : "text-slate-500 hover:text-slate-300"
+                : "text-dungeon-500 hover:text-slate-300"
             }`}
           >
             Threads
@@ -79,7 +102,7 @@ export default function CommsView() {
             className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors ${
               activeTab === "zev"
                 ? "text-amber-400 border-b-2 border-amber-500"
-                : "text-slate-500 hover:text-slate-300"
+                : "text-dungeon-500 hover:text-slate-300"
             }`}
           >
             Zev
@@ -113,8 +136,8 @@ export default function CommsView() {
           <div className="flex items-center justify-center h-full text-center">
             <div>
               <div className="text-4xl mb-3">💬</div>
-              <p className="text-slate-400 text-sm">Select a thread or create a new one</p>
-              <p className="text-slate-600 text-xs mt-1">Threads let you discuss tasks, goals, and ideas</p>
+              <p className="text-dungeon-400 text-sm">Select a thread or create a new one</p>
+              <p className="text-dungeon-600 text-xs mt-1">Threads let you discuss tasks, goals, and ideas</p>
             </div>
           </div>
         ) : null}
