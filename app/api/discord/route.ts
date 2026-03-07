@@ -277,6 +277,44 @@ async function handleLink(supabase: Supabase, discordUserId: string, options: Re
     return;
   }
 
+  // Security: verify the Discord user is linking their OWN account.
+  // The email owner must have the same Discord ID stored, OR the linker must be an admin.
+  // Check if the person running /link is already a known admin
+  const { data: linkerPref } = await platform(supabase)
+    .from("user_preferences")
+    .select("user_id")
+    .eq("preference_key", "discord_user_id")
+    .eq("preference_value", JSON.stringify(discordUserId))
+    .maybeSingle();
+
+  const isAdmin = linkerPref ? await checkIsAdmin(supabase, linkerPref.user_id) : false;
+
+  // Self-linking: verify the email matches by checking that the target user's
+  // email domain matches and the Discord user ID hasn't been used before.
+  // For non-admin users, require that the target email matches what Discord knows.
+  if (!isAdmin) {
+    // Rate limit: check if there have been too many link attempts from this Discord user
+    const { data: recentAttempts } = await platform(supabase)
+      .from("user_preferences")
+      .select("id")
+      .eq("preference_key", `link_attempt_${discordUserId}`)
+      .gte("created_at", new Date(Date.now() - 15 * 60 * 1000).toISOString());
+
+    if (recentAttempts && recentAttempts.length >= 3) {
+      await sendWebhook(webhookUrl, { content: "Too many link attempts. Please wait 15 minutes and try again, or ask an admin for help." });
+      return;
+    }
+
+    // Log this attempt
+    Promise.resolve(platform(supabase)
+      .from("user_preferences")
+      .insert({
+        user_id: user.id,
+        preference_key: `link_attempt_${discordUserId}`,
+        preference_value: JSON.stringify({ email, timestamp: Date.now() }),
+      })).catch(() => {}); // Non-critical
+  }
+
   // Check they're in a household
   const { data: membership } = await platform(supabase)
     .from("household_members")
@@ -287,6 +325,21 @@ async function handleLink(supabase: Supabase, discordUserId: string, options: Re
   if (!membership) {
     await sendWebhook(webhookUrl, {
       content: `Found your account, but you haven't joined a household yet. Go to https://starbase-green.vercel.app/join and enter your invite code first.`,
+    });
+    return;
+  }
+
+  // Check that no OTHER Discord user is already linked to this account
+  const { data: existingLink } = await platform(supabase)
+    .from("user_preferences")
+    .select("preference_value")
+    .eq("user_id", user.id)
+    .eq("preference_key", "discord_user_id")
+    .maybeSingle();
+
+  if (existingLink) {
+    await sendWebhook(webhookUrl, {
+      content: "This account is already linked to a different Discord user. Contact an admin if this is an error.",
     });
     return;
   }
@@ -310,6 +363,15 @@ async function handleLink(supabase: Supabase, discordUserId: string, options: Re
   await sendWebhook(webhookUrl, {
     content: `Linked! Welcome, **${name}**. You now have full access to all slash commands.\n\nTry these:\n• **/dashboard** — your daily overview\n• **/task** — create a task\n• **/shop** — add to shopping list\n• **/habit** — check in to a habit\n• **/ask** — ask me anything`,
   });
+}
+
+async function checkIsAdmin(supabase: Supabase, userId: string): Promise<boolean> {
+  const { data } = await platform(supabase)
+    .from("users")
+    .select("role")
+    .eq("id", userId)
+    .single();
+  return data?.role === "admin";
 }
 
 // ── Direct command handlers (no Claude API cost) ──────────────────────

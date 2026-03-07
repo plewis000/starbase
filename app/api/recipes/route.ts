@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { withAuth } from "@/lib/api/withAuth";
 import { household } from "@/lib/supabase/schemas";
 import { logActivity } from "@/lib/activity-log";
+import { sanitizeSearchInput } from "@/lib/validation";
 
 // GET /api/recipes — List all recipes
 export const GET = withAuth(async (request: NextRequest, { supabase }) => {
@@ -19,7 +20,8 @@ export const GET = withAuth(async (request: NextRequest, { supabase }) => {
   }
 
   if (search) {
-    query = query.ilike("title", `%${search}%`);
+    const sanitized = sanitizeSearchInput(search);
+    query = query.ilike("title", `%${sanitized}%`);
   }
 
   const { data: recipes, error } = await query;

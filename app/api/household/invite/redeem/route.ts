@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { withUser } from "@/lib/api/withAuth";
 import { createServiceClient } from "@/lib/supabase/service";
 import { platform } from "@/lib/supabase/schemas";
-import { validateRequiredString } from "@/lib/validation";
+import { validateRequiredString, validateOptionalString } from "@/lib/validation";
 
 // POST /api/household/invite/redeem — join household using invite code
 // Uses service role for DB operations because new users have no household
@@ -77,6 +77,12 @@ export const POST = withUser(async (request: NextRequest, { user }) => {
     return NextResponse.json({ error: "This invite code has reached its usage limit" }, { status: 410 });
   }
 
+  // Validate display name if provided
+  const nameCheck = validateOptionalString(body.display_name, "display_name", 100);
+  if (!nameCheck.valid) {
+    return NextResponse.json({ error: nameCheck.error }, { status: 400 });
+  }
+
   // Add user to household
   const { error: memberErr } = await platform(adminDb)
     .from("household_members")
@@ -84,7 +90,7 @@ export const POST = withUser(async (request: NextRequest, { user }) => {
       household_id: invite.household_id,
       user_id: user.id,
       role: invite.role,
-      display_name: body.display_name || null,
+      display_name: nameCheck.value || null,
     });
 
   if (memberErr) {

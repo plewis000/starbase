@@ -18,6 +18,11 @@ export async function createClient() {
         auth: { persistSession: false, autoRefreshToken: false },
       },
     );
+    // Validate token immediately — reject invalid/expired tokens at the boundary
+    const { data: { user }, error } = await client.auth.getUser();
+    if (error || !user) {
+      throw new Error("Invalid or expired token");
+    }
     return client;
   }
 

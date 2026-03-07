@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { finance } from "@/lib/supabase/schemas";
 import { syncTransactions } from "@/app/api/plaid/exchange/route";
 import { verifyPlaidWebhook } from "@/lib/plaid-webhook-verify";
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ received: true });
   }
 
-  const supabase = await createClient();
+  const supabase = createServiceClient();
 
   // Look up the item
   const { data: plaidItem } = await finance(supabase)
