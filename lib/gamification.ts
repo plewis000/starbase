@@ -627,17 +627,26 @@ export async function openLootBox(
   userId: string,
   lootBoxId: string,
 ): Promise<LootBoxOpenResult | null> {
-  // Get the loot box
+  // Get the loot box (tier FK is cross-schema, fetch separately)
   const { data: box } = await supabase
     .schema("platform")
     .from("loot_boxes")
-    .select("*, tier:tier_id(slug, name)")
+    .select("*")
     .eq("id", lootBoxId)
     .eq("user_id", userId)
     .eq("opened", false)
     .single();
 
   if (!box) return null;
+
+  // Enrich with tier from config schema
+  const { data: tierData } = await supabase
+    .schema("config")
+    .from("loot_box_tiers")
+    .select("slug, name")
+    .eq("id", box.tier_id)
+    .single();
+  box.tier = tierData || null;
 
   // Get available rewards for this tier
   const { data: rewards } = await supabase

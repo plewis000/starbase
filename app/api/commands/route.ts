@@ -63,7 +63,7 @@ async function executeCommand(
     const filter = lower.replace("tasks", "").trim();
     let query = platform(supabase)
       .from("tasks")
-      .select("id, title, due_date, completed_at, priority:priority_id(name), task_status:status_id(name)")
+      .select("id, title, due_date, completed_at, priority_id, status_id")
       .or(`created_by.eq.${userId},assigned_to.eq.${userId}`)
       .is("completed_at", null)
       .order("due_date", { ascending: true, nullsFirst: false })
@@ -82,8 +82,16 @@ async function executeCommand(
       return { response: filter === "today" ? "No tasks due today. Suspiciously quiet." : "No open tasks. The System is skeptical." };
     }
 
+    // Enrich with priority names from config schema (cross-schema FK join not supported)
+    const priIds = [...new Set(tasks.map((t: any) => t.priority_id).filter(Boolean))];
+    let priMap = new Map<string, string>();
+    if (priIds.length > 0) {
+      const { data: priorities } = await config(supabase).from("task_priorities").select("id, name").in("id", priIds);
+      priMap = new Map((priorities || []).map(p => [p.id, p.name]));
+    }
+
     const lines = tasks.map((t: any) => {
-      const priName = (t.priority?.name || "").toLowerCase();
+      const priName = (priMap.get(t.priority_id) || "").toLowerCase();
       const pri = priName === "critical" ? "🔴" : priName === "high" ? "🟠" : priName === "medium" ? "🟡" : "⚪";
       const due = t.due_date ? ` (due ${t.due_date})` : "";
       return `${pri} ${t.title}${due}`;

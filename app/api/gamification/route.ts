@@ -12,16 +12,29 @@ export const GET = withUser(async (_request, { supabase, user }) => {
   // Update login streak
   const { streak } = await updateLoginStreak(supabase, user.id);
 
-  // Get profile
+  // Get profile (floor FK is cross-schema platform→config, fetch separately)
   const { data: profile } = await supabase
     .schema("platform")
     .from("crawler_profiles")
-    .select("*, floor:current_floor_id(floor_number, name, icon, color)")
+    .select("*")
     .eq("user_id", user.id)
     .single();
 
   if (!profile) {
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+  }
+
+  // Enrich with floor data from config
+  if (profile.current_floor_id) {
+    const { data: floor } = await supabase
+      .schema("config")
+      .from("floors")
+      .select("floor_number, name, icon, color")
+      .eq("id", profile.current_floor_id)
+      .single();
+    profile.floor = floor || null;
+  } else {
+    profile.floor = null;
   }
 
   // Refresh crawler stats + class only if stale (>6 hours) — throttled

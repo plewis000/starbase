@@ -14,7 +14,7 @@ export const GET = withUser(async (request: NextRequest, { supabase, user }) => 
   let query = supabase
     .schema("platform")
     .from("loot_box_rewards")
-    .select("*, tier:tier_id(slug, name, color, icon)")
+    .select("*")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
 
@@ -28,14 +28,17 @@ export const GET = withUser(async (request: NextRequest, { supabase, user }) => 
     console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
-  // Also get tiers for reference
+  // Tiers are in config schema — fetch separately (cross-schema FK join not supported)
   const { data: tiers } = await supabase
     .schema("config")
     .from("loot_box_tiers")
     .select("*")
     .order("sort_order");
 
-  return NextResponse.json({ rewards: rewards || [], tiers: tiers || [] });
+  const tiersMap = new Map((tiers || []).map(t => [t.id, { slug: t.slug, name: t.name, color: t.color, icon: t.icon }]));
+  const enrichedRewards = (rewards || []).map(r => ({ ...r, tier: tiersMap.get(r.tier_id) || null }));
+
+  return NextResponse.json({ rewards: enrichedRewards, tiers: tiers || [] });
 });
 
 export const POST = withUser(async (request: NextRequest, { supabase, user }) => {
@@ -62,14 +65,17 @@ export const POST = withUser(async (request: NextRequest, { supabase, user }) =>
       icon: icon || null,
       is_household: !!is_household,
     })
-    .select("*, tier:tier_id(slug, name, color, icon)")
+    .select("*")
     .single();
 
   if (error) {
     console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
-  return NextResponse.json({ reward }, { status: 201 });
+  // Enrich with tier data
+  const { data: tier } = await supabase.schema("config").from("loot_box_tiers").select("slug, name, color, icon").eq("id", tier_id).single();
+
+  return NextResponse.json({ reward: { ...reward, tier: tier || null } }, { status: 201 });
 });
 
 export const PATCH = withUser(async (request: NextRequest, { supabase, user }) => {
@@ -96,14 +102,17 @@ export const PATCH = withUser(async (request: NextRequest, { supabase, user }) =
     .update(updates)
     .eq("id", id)
     .eq("user_id", user.id)
-    .select("*, tier:tier_id(slug, name, color, icon)")
+    .select("*")
     .single();
 
   if (error) {
     console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
-  return NextResponse.json({ reward });
+  // Enrich with tier data
+  const { data: tier } = await supabase.schema("config").from("loot_box_tiers").select("slug, name, color, icon").eq("id", reward.tier_id).single();
+
+  return NextResponse.json({ reward: { ...reward, tier: tier || null } });
 });
 
 export const DELETE = withUser(async (request: NextRequest, { supabase, user }) => {

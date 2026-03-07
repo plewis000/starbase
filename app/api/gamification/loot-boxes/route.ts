@@ -5,15 +5,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { withUser } from "@/lib/api/withAuth";
 import { openLootBox } from "@/lib/gamification";
 import { isValidUUID } from "@/lib/validation";
+import { config } from "@/lib/supabase/schemas";
 
 export const GET = withUser(async (request: NextRequest, { supabase, user }) => {
   const { searchParams } = new URL(request.url);
   const unopenedOnly = searchParams.get("unopened") === "true";
 
+  // tier FK is cross-schema (platform→config), so fetch separately
   let query = supabase
     .schema("platform")
     .from("loot_boxes")
-    .select("*, tier:tier_id(slug, name, color, icon), reward:reward_id(name, description, icon)")
+    .select("*, reward:reward_id(name, description, icon)")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
 
@@ -27,9 +29,25 @@ export const GET = withUser(async (request: NextRequest, { supabase, user }) => 
     console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
+  // Enrich with tier data from config schema
+  const tierIds = [...new Set((boxes || []).map(b => b.tier_id).filter(Boolean))];
+  let tiersMap = new Map<string, { slug: string; name: string; color: string; icon: string }>();
+  if (tierIds.length > 0) {
+    const { data: tiers } = await config(supabase)
+      .from("loot_box_tiers")
+      .select("id, slug, name, color, icon")
+      .in("id", tierIds);
+    tiersMap = new Map((tiers || []).map(t => [t.id, { slug: t.slug, name: t.name, color: t.color, icon: t.icon }]));
+  }
+
+  const enrichedBoxes = (boxes || []).map(b => ({
+    ...b,
+    tier: tiersMap.get(b.tier_id) || null,
+  }));
+
   return NextResponse.json({
-    loot_boxes: boxes || [],
-    unopened_count: (boxes || []).filter(b => !b.opened).length,
+    loot_boxes: enrichedBoxes,
+    unopened_count: enrichedBoxes.filter(b => !b.opened).length,
   });
 });
 
