@@ -32,16 +32,14 @@ interface CrawlerData {
   profile: {
     crawler_name: string;
     total_xp: number;
-    current_floor: number;
+    floor_number: number;
     login_streak: number;
-  };
-  level: {
     level: number;
-    xpToNext: number;
-    xpInLevel: number;
-    progress: number;
+    xp_progress: number;
+    xp_to_next: number;
+    xp_in_level: number;
   };
-  recentXp: { action_type: string; amount: number; description: string }[];
+  recent_xp: { action_type: string; amount: number; description: string }[];
 }
 
 interface TasksSummary {
@@ -232,11 +230,11 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-full border-2 border-crimson-600 flex items-center justify-center bg-dungeon-950">
-                    <span className="text-lg font-bold text-crimson-400 font-mono">{crawler.level.level}</span>
+                    <span className="text-lg font-bold text-crimson-400 font-mono">{crawler.profile.level}</span>
                   </div>
                   <div>
                     <div className="text-slate-100 font-bold">{crawler.profile.crawler_name || displayName}</div>
-                    <div className="text-xs text-dungeon-500 font-mono">Floor {crawler.profile.current_floor} — Level {crawler.level.level}</div>
+                    <div className="text-xs text-dungeon-500 font-mono">Floor {crawler.profile.floor_number} — Level {crawler.profile.level}</div>
                   </div>
                 </div>
                 <div className="text-right">
@@ -247,11 +245,11 @@ export default function DashboardPage() {
                 </div>
               </div>
               <div className="dcc-xp-bar">
-                <div className="dcc-xp-fill" style={{ width: `${Math.min(crawler.level.progress, 100)}%` }} />
+                <div className="dcc-xp-fill" style={{ width: `${Math.min(crawler.profile.xp_progress || 0, 100)}%` }} />
               </div>
               <div className="flex justify-between text-xs text-dungeon-500 mt-1 font-mono">
-                <span>Level {crawler.level.level}</span>
-                <span>{crawler.level.xpToNext.toLocaleString()} XP to next</span>
+                <span>Level {crawler.profile.level}</span>
+                <span>{(crawler.profile.xp_to_next || 0).toLocaleString()} XP to next</span>
               </div>
             </div>
           </Link>
