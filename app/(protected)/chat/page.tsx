@@ -168,12 +168,12 @@ export default function ChatPage() {
           {/* Sidebar header */}
           <div className="p-4 border-b border-dungeon-800">
             <div className="flex items-center justify-between mb-3">
-              <Link href="/dashboard" className="text-sm text-slate-400 hover:text-slate-200 transition-colors">
+              <Link href="/dashboard" className="text-sm text-dungeon-400 hover:text-slate-200 transition-colors">
                 &larr; Dashboard
               </Link>
               <button
                 onClick={() => setSidebarOpen(false)}
-                className="lg:hidden text-slate-400 hover:text-slate-100 p-1"
+                className="lg:hidden text-dungeon-400 hover:text-slate-100 p-1"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
@@ -197,19 +197,19 @@ export default function ChatPage() {
                 className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors ${
                   conversationId === conv.id
                     ? "bg-dungeon-800 text-amber-400"
-                    : "text-slate-400 hover:bg-dungeon-800/50 hover:text-slate-200"
+                    : "text-dungeon-400 hover:bg-dungeon-800/50 hover:text-slate-200"
                 }`}
               >
                 <div className="truncate font-medium">
                   {conv.id.slice(0, 8)}...
                 </div>
-                <div className="text-xs text-slate-500 mt-0.5">
+                <div className="text-xs text-dungeon-500 mt-0.5">
                   {formatTime(conv.last_message_at || conv.started_at)}
                 </div>
               </button>
             ))}
             {conversations.length === 0 && (
-              <p className="text-slate-500 text-xs text-center py-8">No conversations yet</p>
+              <p className="text-dungeon-500 text-xs text-center py-8">No conversations yet</p>
             )}
           </div>
         </div>
@@ -229,7 +229,7 @@ export default function ChatPage() {
         <header className="flex items-center gap-3 px-4 py-3 border-b border-dungeon-800 bg-dungeon-900/80 backdrop-blur-sm">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="lg:hidden text-slate-400 hover:text-slate-100 p-1"
+            className="lg:hidden text-dungeon-400 hover:text-slate-100 p-1"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
@@ -240,7 +240,7 @@ export default function ChatPage() {
           </div>
           <div>
             <h1 className="text-base font-semibold text-slate-100">Zev</h1>
-            <p className="text-xs text-slate-500">Outreach Associate — The Keep</p>
+            <p className="text-xs text-dungeon-500">Outreach Associate — The Keep</p>
           </div>
         </header>
 
@@ -253,13 +253,13 @@ export default function ChatPage() {
                   Z
                 </div>
                 <h2 className="text-lg font-semibold text-slate-100 mb-2">Talk to Zev</h2>
-                <p className="text-slate-400 text-sm mb-6">
+                <p className="text-dungeon-400 text-sm mb-6">
                   Your AI assistant for tasks, habits, goals, budget, and everything in between. Ask anything.
                 </p>
                 <div className="flex flex-wrap gap-2 justify-center">
                   {[
                     "What's on my plate today?",
-                    "How's my budget looking?",
+                    "How's my crawler doing?",
                     "Check my habit streaks",
                     "Create a task for me",
                   ].map((q) => (
@@ -296,9 +296,9 @@ export default function ChatPage() {
                 <div className="whitespace-pre-wrap break-words">{msg.content}</div>
                 <div className="flex items-center justify-end gap-2 mt-1">
                   {msg.cost_cents !== undefined && msg.cost_cents > 0 && (
-                    <span className="text-xs text-slate-500">${(msg.cost_cents / 100).toFixed(4)}</span>
+                    <span className="text-xs text-dungeon-500">${(msg.cost_cents / 100).toFixed(4)}</span>
                   )}
-                  <span className="text-xs text-slate-600">{formatTime(msg.timestamp)}</span>
+                  <span className="text-xs text-dungeon-600">{formatTime(msg.timestamp)}</span>
                 </div>
               </div>
             </div>
@@ -333,12 +333,12 @@ export default function ChatPage() {
               placeholder="Talk to Zev..."
               disabled={loading}
               rows={1}
-              className="flex-1 bg-dungeon-800 border border-dungeon-700 rounded-xl px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500/50 disabled:opacity-50 transition-colors resize-none"
+              className="flex-1 bg-dungeon-800 border border-dungeon-700 rounded-xl px-4 py-3 text-sm text-slate-100 placeholder-dungeon-500 focus:outline-none focus:border-amber-500/50 disabled:opacity-50 transition-colors resize-none"
             />
             <button
               onClick={sendMessage}
               disabled={!input.trim() || loading}
-              className="px-4 py-3 bg-amber-600 hover:bg-amber-500 disabled:bg-dungeon-700 disabled:text-slate-500 text-white rounded-xl transition-colors font-medium text-sm self-end"
+              className="px-4 py-3 bg-amber-600 hover:bg-amber-500 disabled:bg-dungeon-700 disabled:text-dungeon-500 text-white rounded-xl transition-colors font-medium text-sm self-end"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />

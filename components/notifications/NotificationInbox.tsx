@@ -35,6 +35,11 @@ export default function NotificationInbox() {
     habit_streak: "🔥",
     habit_check_in: "✓",
     mention: "📣",
+    level_up: "⬆️",
+    achievement_unlocked: "🏆",
+    loot_box: "📦",
+    daily_digest: "📋",
+    streak_broken: "💀",
   };
 
   const fetchNotifications = useCallback(async () => {
@@ -114,8 +119,10 @@ export default function NotificationInbox() {
       } as React.MouseEvent);
     }
 
-    // Navigate based on entity type
-    if (notification.entity_type && notification.entity_id) {
+    // Navigate based on entity type or event type
+    if (notification.event_type === "level_up" || notification.event_type === "achievement_unlocked" || notification.event_type === "loot_box") {
+      router.push("/crawl");
+    } else if (notification.entity_type && notification.entity_id) {
       switch (notification.entity_type) {
         case "task":
           router.push(`/tasks?selected=${notification.entity_id}`);
@@ -204,8 +211,11 @@ export default function NotificationInbox() {
               <div className="text-slate-400">Loading notifications...</div>
             </div>
           ) : error ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="text-red-400">Error: {error}</div>
+            <div className="flex flex-col items-center justify-center py-12 gap-3">
+              <div className="text-red-400 text-sm">{error}</div>
+              <button onClick={fetchNotifications} className="text-xs text-crimson-400 hover:text-crimson-300 font-mono">
+                Retry
+              </button>
             </div>
           ) : filteredNotifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12">
