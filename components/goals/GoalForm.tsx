@@ -155,7 +155,7 @@ export default function GoalForm({ onSave, onCancel }: GoalFormProps) {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="What do you want to achieve?"
-          className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400/50"
+          className="w-full px-4 py-2.5 bg-dungeon-800 border border-dungeon-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400/50"
           autoFocus
         />
       </div>
@@ -168,7 +168,7 @@ export default function GoalForm({ onSave, onCancel }: GoalFormProps) {
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Why does this goal matter?"
           rows={3}
-          className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400/50 resize-none"
+          className="w-full px-4 py-2.5 bg-dungeon-800 border border-dungeon-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400/50 resize-none"
         />
       </div>
 
@@ -179,7 +179,7 @@ export default function GoalForm({ onSave, onCancel }: GoalFormProps) {
           <select
             value={categoryId}
             onChange={(e) => setCategoryId(e.target.value)}
-            className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:border-red-400/50"
+            className="w-full px-4 py-2.5 bg-dungeon-800 border border-dungeon-700 rounded-lg text-slate-100 focus:outline-none focus:border-red-400/50"
           >
             <option value="">None</option>
             {categories.map((c) => (
@@ -192,7 +192,7 @@ export default function GoalForm({ onSave, onCancel }: GoalFormProps) {
           <select
             value={timeframeId}
             onChange={(e) => setTimeframeId(e.target.value)}
-            className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:border-red-400/50"
+            className="w-full px-4 py-2.5 bg-dungeon-800 border border-dungeon-700 rounded-lg text-slate-100 focus:outline-none focus:border-red-400/50"
           >
             <option value="">None</option>
             {timeframes.map((t) => (
@@ -219,7 +219,7 @@ export default function GoalForm({ onSave, onCancel }: GoalFormProps) {
               className={`p-3 rounded-lg border text-left transition-colors ${
                 progressType === opt.value
                   ? "border-red-400 bg-red-400/10"
-                  : "border-slate-700 bg-slate-800 hover:border-slate-600"
+                  : "border-dungeon-700 bg-dungeon-800 hover:border-dungeon-600"
               }`}
             >
               <span className={`text-sm font-medium ${progressType === opt.value ? "text-red-400" : "text-slate-100"}`}>
@@ -238,7 +238,7 @@ export default function GoalForm({ onSave, onCancel }: GoalFormProps) {
           type="date"
           value={targetDate}
           onChange={(e) => setTargetDate(e.target.value)}
-          className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:border-red-400/50"
+          className="w-full px-4 py-2.5 bg-dungeon-800 border border-dungeon-700 rounded-lg text-slate-100 focus:outline-none focus:border-red-400/50"
         />
       </div>
 
@@ -248,7 +248,7 @@ export default function GoalForm({ onSave, onCancel }: GoalFormProps) {
           <label className="block text-sm font-medium text-slate-300 mb-1">Milestones</label>
           <div className="space-y-2 mb-2">
             {milestones.map((m, i) => (
-              <div key={i} className="flex items-center gap-2 p-2 bg-slate-800 rounded-lg">
+              <div key={i} className="flex items-center gap-2 p-2 bg-dungeon-800 rounded-lg">
                 <span className="text-sm text-slate-100 flex-1">{m.title}</span>
                 <button
                   type="button"
@@ -268,13 +268,13 @@ export default function GoalForm({ onSave, onCancel }: GoalFormProps) {
               value={newMilestone}
               onChange={(e) => setNewMilestone(e.target.value)}
               placeholder="Add a milestone..."
-              className="flex-1 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400/50 text-sm"
+              className="flex-1 px-4 py-2 bg-dungeon-800 border border-dungeon-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400/50 text-sm"
               onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addMilestone())}
             />
             <button
               type="button"
               onClick={addMilestone}
-              className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-300 hover:bg-slate-700 transition-colors text-sm"
+              className="px-3 py-2 bg-dungeon-800 border border-dungeon-700 rounded-lg text-slate-300 hover:bg-dungeon-700 transition-colors text-sm"
             >
               Add
             </button>
@@ -292,7 +292,7 @@ export default function GoalForm({ onSave, onCancel }: GoalFormProps) {
               value={targetValue}
               onChange={(e) => setTargetValue(e.target.value)}
               placeholder="100"
-              className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400/50"
+              className="w-full px-4 py-2.5 bg-dungeon-800 border border-dungeon-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400/50"
             />
           </div>
           <div>
@@ -302,7 +302,7 @@ export default function GoalForm({ onSave, onCancel }: GoalFormProps) {
               value={unit}
               onChange={(e) => setUnit(e.target.value)}
               placeholder="e.g., books, lbs, miles"
-              className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400/50"
+              className="w-full px-4 py-2.5 bg-dungeon-800 border border-dungeon-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400/50"
             />
           </div>
         </div>
@@ -323,7 +323,7 @@ export default function GoalForm({ onSave, onCancel }: GoalFormProps) {
                   className={`w-full p-3 rounded-lg border text-left transition-colors ${
                     selectedHabitIds.includes(h.id)
                       ? "border-red-400 bg-red-400/10"
-                      : "border-slate-700 bg-slate-800 hover:border-slate-600"
+                      : "border-dungeon-700 bg-dungeon-800 hover:border-dungeon-600"
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -344,7 +344,7 @@ export default function GoalForm({ onSave, onCancel }: GoalFormProps) {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-slate-400 p-3 bg-slate-800 rounded-lg">No active habits available. Create a habit first.</p>
+            <p className="text-sm text-slate-400 p-3 bg-dungeon-800 rounded-lg">No active habits available. Create a habit first.</p>
           )}
         </div>
       )}
@@ -357,7 +357,7 @@ export default function GoalForm({ onSave, onCancel }: GoalFormProps) {
       )}
 
       {/* Actions */}
-      <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
+      <div className="flex items-center justify-end gap-3 pt-4 border-t border-dungeon-800">
         <button
           type="button"
           onClick={onCancel}

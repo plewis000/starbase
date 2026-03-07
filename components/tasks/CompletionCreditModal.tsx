@@ -69,20 +69,20 @@ export default function CompletionCreditModal({
 
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-        <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-sm mx-4 shadow-2xl">
+        <div className="bg-dungeon-900 border border-dungeon-700 rounded-xl p-6 w-full max-w-sm mx-4 shadow-2xl">
           <h3 className="text-lg font-bold text-slate-100 mb-1">Who did this?</h3>
           <p className="text-sm text-slate-400 mb-5 truncate">{taskTitle}</p>
 
           <div className="space-y-2">
             <button
               onClick={() => onConfirm([currentUserId])}
-              className="w-full py-3 px-4 rounded-lg bg-slate-800 border border-slate-700 text-slate-100 font-medium hover:border-red-500/50 hover:bg-slate-800/80 transition-all"
+              className="w-full py-3 px-4 rounded-lg bg-dungeon-800 border border-dungeon-700 text-slate-100 font-medium hover:border-red-500/50 hover:bg-dungeon-800/80 transition-all"
             >
               I did
             </button>
             <button
               onClick={() => onConfirm([other.id])}
-              className="w-full py-3 px-4 rounded-lg bg-slate-800 border border-slate-700 text-slate-100 font-medium hover:border-red-500/50 hover:bg-slate-800/80 transition-all"
+              className="w-full py-3 px-4 rounded-lg bg-dungeon-800 border border-dungeon-700 text-slate-100 font-medium hover:border-red-500/50 hover:bg-dungeon-800/80 transition-all"
             >
               {firstName} did
             </button>
@@ -120,7 +120,7 @@ export default function CompletionCreditModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-sm mx-4 shadow-2xl">
+      <div className="bg-dungeon-900 border border-dungeon-700 rounded-xl p-6 w-full max-w-sm mx-4 shadow-2xl">
         <h3 className="text-lg font-bold text-slate-100 mb-1">Who gets credit?</h3>
         <p className="text-sm text-slate-400 mb-5 truncate">{taskTitle}</p>
 
@@ -132,14 +132,14 @@ export default function CompletionCreditModal({
               className={`w-full flex items-center gap-3 py-3 px-4 rounded-lg border transition-all ${
                 selected.has(c.id)
                   ? "bg-red-900/20 border-red-800/50 text-slate-100"
-                  : "bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600"
+                  : "bg-dungeon-800 border-dungeon-700 text-slate-400 hover:text-slate-200 hover:border-dungeon-600"
               }`}
             >
               {/* Checkbox */}
               <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
                 selected.has(c.id)
                   ? "bg-red-500 border-red-500 text-white"
-                  : "border-slate-600"
+                  : "border-dungeon-600"
               }`}>
                 {selected.has(c.id) && (
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -152,7 +152,7 @@ export default function CompletionCreditModal({
               {c.avatar_url ? (
                 <img src={c.avatar_url} alt={c.name} className="w-7 h-7 rounded-full object-cover" />
               ) : (
-                <div className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-semibold text-slate-200">
+                <div className="w-7 h-7 rounded-full bg-dungeon-700 flex items-center justify-center text-[10px] font-semibold text-slate-200">
                   {getInitials(c.name)}
                 </div>
               )}

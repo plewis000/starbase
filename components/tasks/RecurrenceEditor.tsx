@@ -91,7 +91,7 @@ export default function RecurrenceEditor({ value, onChange }: RecurrenceEditorPr
               className={`px-3 py-2 rounded-lg text-xs font-medium transition-all min-h-[44px] ${
                 parsed.freq === freq
                   ? "bg-red-500 text-white"
-                  : "bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-700"
+                  : "bg-dungeon-800 text-slate-400 hover:text-slate-200 border border-dungeon-700"
               }`}
             >
               {freq === "NONE" ? "None" : freq.charAt(0) + freq.slice(1).toLowerCase()}
@@ -112,7 +112,7 @@ export default function RecurrenceEditor({ value, onChange }: RecurrenceEditorPr
               max={99}
               value={parsed.interval}
               onChange={(e) => update({ interval: Math.max(1, parseInt(e.target.value) || 1) })}
-              className="w-16 bg-slate-800 border border-slate-700 rounded px-2 py-2 text-sm text-slate-100 text-center focus:outline-none focus:border-red-400 min-h-[44px]"
+              className="w-16 bg-dungeon-800 border border-dungeon-700 rounded px-2 py-2 text-sm text-slate-100 text-center focus:outline-none focus:border-red-400 min-h-[44px]"
             />
             <span className="text-sm text-slate-300">{freqLabel[parsed.freq] || ""}</span>
           </div>
@@ -131,7 +131,7 @@ export default function RecurrenceEditor({ value, onChange }: RecurrenceEditorPr
                 className={`w-10 h-10 rounded-full text-sm font-semibold transition-all ${
                   parsed.byDay.includes(day.value)
                     ? "bg-red-400 text-slate-950"
-                    : "bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-700"
+                    : "bg-dungeon-800 text-slate-400 hover:text-slate-200 border border-dungeon-700"
                 }`}
               >
                 {day.label}
@@ -153,7 +153,7 @@ export default function RecurrenceEditor({ value, onChange }: RecurrenceEditorPr
               max={31}
               value={parsed.byMonthDay || 1}
               onChange={(e) => update({ byMonthDay: Math.max(1, Math.min(31, parseInt(e.target.value) || 1)) })}
-              className="w-16 bg-slate-800 border border-slate-700 rounded px-2 py-2 text-sm text-slate-100 text-center focus:outline-none focus:border-red-400 min-h-[44px]"
+              className="w-16 bg-dungeon-800 border border-dungeon-700 rounded px-2 py-2 text-sm text-slate-100 text-center focus:outline-none focus:border-red-400 min-h-[44px]"
             />
           </div>
         </div>

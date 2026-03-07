@@ -147,8 +147,8 @@ export default function TransactionQueue({ onUpdate }: Props) {
             onClick={() => setFilter(f)}
             className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
               filter === f
-                ? "bg-slate-700 text-slate-100"
-                : "bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800"
+                ? "bg-dungeon-700 text-slate-100"
+                : "bg-dungeon-900 text-slate-400 hover:text-slate-200 border border-dungeon-800"
             }`}
           >
             {f === "unreviewed" ? "Needs Review" : f === "all" ? "All" : "Excluded"}
@@ -157,7 +157,7 @@ export default function TransactionQueue({ onUpdate }: Props) {
       </div>
 
       {transactions.length === 0 ? (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 text-center">
+        <div className="bg-dungeon-900 border border-dungeon-800 rounded-xl p-8 text-center">
           <p className="text-slate-400 text-sm">
             {filter === "unreviewed"
               ? "All transactions reviewed! You're caught up."
@@ -217,7 +217,7 @@ function TransactionCard({
   const [showCategories, setShowCategories] = useState(false);
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+    <div className="bg-dungeon-900 border border-dungeon-800 rounded-xl p-4">
       <div className="flex items-start justify-between gap-3">
         {/* Left: transaction info */}
         <div className="flex-1 min-w-0">
@@ -259,7 +259,7 @@ function TransactionCard({
       </div>
 
       {/* Action buttons */}
-      <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-800">
+      <div className="flex items-center gap-2 mt-3 pt-3 border-t border-dungeon-800">
         <button
           onClick={() => setShowCategories(!showCategories)}
           disabled={disabled}
@@ -277,7 +277,7 @@ function TransactionCard({
         <button
           onClick={() => onReview(tx.id)}
           disabled={disabled}
-          className="text-xs px-3 py-1.5 bg-slate-700 text-slate-300 rounded-md hover:bg-slate-600 transition-colors disabled:opacity-50"
+          className="text-xs px-3 py-1.5 bg-dungeon-700 text-slate-300 rounded-md hover:bg-dungeon-600 transition-colors disabled:opacity-50"
         >
           {disabled ? "Saving..." : "Accept"}
         </button>
@@ -300,7 +300,7 @@ function TransactionCard({
                 onCategorize(tx.id, cat.id);
                 setShowCategories(false);
               }}
-              className="text-xs px-2 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors text-left truncate"
+              className="text-xs px-2 py-2 rounded-md bg-dungeon-800 hover:bg-dungeon-700 text-slate-300 transition-colors text-left truncate"
             >
               {cat.icon} {cat.name}
             </button>

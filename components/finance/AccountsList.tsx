@@ -73,7 +73,7 @@ export default function AccountsList({ onLink }: Props) {
             <button
               onClick={handleSync}
               disabled={syncing}
-              className="text-xs px-3 py-1.5 bg-slate-700 text-slate-300 rounded-md hover:bg-slate-600 transition-colors disabled:opacity-50"
+              className="text-xs px-3 py-1.5 bg-dungeon-700 text-slate-300 rounded-md hover:bg-dungeon-600 transition-colors disabled:opacity-50"
             >
               {syncing ? "Syncing..." : "Sync Now"}
             </button>
@@ -83,7 +83,7 @@ export default function AccountsList({ onLink }: Props) {
       </div>
 
       {items.length === 0 ? (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 text-center space-y-3">
+        <div className="bg-dungeon-900 border border-dungeon-800 rounded-xl p-8 text-center space-y-3">
           <p className="text-slate-400 text-sm">No bank accounts linked yet.</p>
           <p className="text-slate-500 text-xs">
             Connect your bank to automatically import transactions and track spending.
@@ -91,14 +91,14 @@ export default function AccountsList({ onLink }: Props) {
         </div>
       ) : (
         items.map((item) => (
-          <div key={item.id} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-            <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+          <div key={item.id} className="bg-dungeon-900 border border-dungeon-800 rounded-xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-dungeon-800 flex items-center justify-between">
               <div>
                 <span className="text-sm font-medium text-slate-100">{item.institution_name}</span>
                 <span className={`ml-2 text-xs px-2 py-0.5 rounded ${
                   item.status === "active" ? "bg-red-500/20 text-red-400" :
                   item.status === "error" ? "bg-red-500/20 text-red-400" :
-                  "bg-slate-700 text-slate-400"
+                  "bg-dungeon-700 text-slate-400"
                 }`}>
                   {item.status}
                 </span>

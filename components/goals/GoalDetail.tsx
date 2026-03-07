@@ -258,7 +258,7 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
   return (
     <div className="h-full overflow-y-auto">
       {/* Header */}
-      <div className="sticky top-0 bg-slate-900 border-b border-slate-800 px-6 py-4 z-10">
+      <div className="sticky top-0 bg-dungeon-900 border-b border-dungeon-800 px-6 py-4 z-10">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <span className={`px-2 py-1 rounded-md text-xs font-medium ${STATUS_COLORS[goal.status] || ""}`}>
@@ -287,12 +287,12 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
         )}
 
         {/* Progress section */}
-        <div className="bg-slate-800/50 rounded-lg p-4 space-y-3">
+        <div className="bg-dungeon-800/50 rounded-lg p-4 space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-slate-100">Progress</span>
             <span className="text-sm text-slate-400">{progressPercent}%</span>
           </div>
-          <div className="w-full bg-slate-700 rounded-full h-2.5">
+          <div className="w-full bg-dungeon-700 rounded-full h-2.5">
             <div
               className="bg-red-400 h-2.5 rounded-full transition-all"
               style={{ width: `${progressPercent}%` }}
@@ -331,10 +331,10 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
                   key={m.id}
                   onClick={() => handleToggleMilestone(m)}
                   disabled={togglingMilestone === m.id}
-                  className="w-full flex items-center gap-3 p-3 bg-slate-900 rounded-lg border border-slate-800 hover:border-slate-600 transition-colors text-left disabled:opacity-50"
+                  className="w-full flex items-center gap-3 p-3 bg-dungeon-900 rounded-lg border border-dungeon-800 hover:border-dungeon-600 transition-colors text-left disabled:opacity-50"
                 >
                   <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                    m.completed_at ? "border-red-400 bg-red-400/20" : "border-slate-600"
+                    m.completed_at ? "border-red-400 bg-red-400/20" : "border-dungeon-600"
                   }`}>
                     {m.completed_at && (
                       <svg className="w-3 h-3 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -380,7 +380,7 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
               </button>
             )}
             {showHabitPicker && (
-              <div className="bg-slate-800/50 rounded-lg p-4 mb-3 space-y-3">
+              <div className="bg-dungeon-800/50 rounded-lg p-4 mb-3 space-y-3">
                 {pickerLoading ? (
                   <p className="text-sm text-slate-400">Loading habits...</p>
                 ) : availableHabits.length > 0 ? (
@@ -394,7 +394,7 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
                           className={`w-full p-2 rounded-lg border text-left transition-colors text-sm ${
                             selectedHabitsToAdd.includes(h.id)
                               ? "border-red-400 bg-red-400/10"
-                              : "border-slate-700 bg-slate-800 hover:border-slate-600"
+                              : "border-dungeon-700 bg-dungeon-800 hover:border-dungeon-600"
                           }`}
                         >
                           <div className="flex items-center gap-2">
@@ -446,7 +446,7 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
                 {linkedHabits.map((h) => {
                   const grid = get7DayGrid(h);
                   return (
-                    <div key={h.id} className="p-3 bg-slate-900 rounded-lg border border-slate-800 space-y-2">
+                    <div key={h.id} className="p-3 bg-dungeon-900 rounded-lg border border-dungeon-800 space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium text-slate-100">{h.title}</span>
                         <span className="text-xs text-amber-400 font-medium">🔥 {h.current_streak}d</span>
@@ -456,7 +456,7 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
                           <div
                             key={i}
                             className={`w-5 h-5 rounded-sm text-xs flex items-center justify-center transition-colors ${
-                              completed ? "bg-red-400" : "bg-slate-800 border border-slate-700"
+                              completed ? "bg-red-400" : "bg-dungeon-800 border border-dungeon-700"
                             }`}
                           >
                             {completed && <span className="text-slate-950 font-bold">✓</span>}
@@ -474,7 +474,7 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
                 {goal.progress_type === "habit_driven" && !showHabitPicker && (
                   <button
                     onClick={openHabitPicker}
-                    className="w-full px-3 py-2 border border-slate-700 hover:bg-slate-800 text-slate-300 font-medium rounded-lg transition-colors text-sm"
+                    className="w-full px-3 py-2 border border-dungeon-700 hover:bg-dungeon-800 text-slate-300 font-medium rounded-lg transition-colors text-sm"
                   >
                     Link More Habits
                   </button>
@@ -490,9 +490,9 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
             <h3 className="text-sm font-semibold text-slate-100 mb-3">Linked Tasks</h3>
             <div className="space-y-2">
               {linkedTasks.map((t) => (
-                <div key={t.id} className="flex items-center gap-3 p-3 bg-slate-900 rounded-lg border border-slate-800">
+                <div key={t.id} className="flex items-center gap-3 p-3 bg-dungeon-900 rounded-lg border border-dungeon-800">
                   <div className={`w-4 h-4 rounded-full flex-shrink-0 ${
-                    t.completed_at ? "bg-red-400" : "bg-slate-600"
+                    t.completed_at ? "bg-red-400" : "bg-dungeon-600"
                   }`} />
                   <span className={`text-sm ${t.completed_at ? "text-slate-400 line-through" : "text-slate-100"}`}>
                     {t.title}
@@ -508,7 +508,7 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
 
         {/* Status actions */}
         {goal.status === "active" && (
-          <div className="flex items-center gap-2 pt-4 border-t border-slate-800">
+          <div className="flex items-center gap-2 pt-4 border-t border-dungeon-800">
             <button
               onClick={() => handleStatusChange("completed")}
               disabled={updating}
@@ -519,7 +519,7 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
             <button
               onClick={() => handleStatusChange("paused")}
               disabled={updating}
-              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium rounded-lg transition-colors text-sm disabled:opacity-50"
+              className="px-4 py-2 bg-dungeon-800 hover:bg-dungeon-700 text-slate-300 font-medium rounded-lg transition-colors text-sm disabled:opacity-50"
             >
               Pause
             </button>
@@ -533,7 +533,7 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
           </div>
         )}
         {goal.status === "paused" && (
-          <div className="flex items-center gap-2 pt-4 border-t border-slate-800">
+          <div className="flex items-center gap-2 pt-4 border-t border-dungeon-800">
             <button
               onClick={() => handleStatusChange("active")}
               className="px-4 py-2 bg-red-400 hover:bg-red-500 text-slate-950 font-medium rounded-lg transition-colors text-sm"
@@ -546,7 +546,7 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
         {/* Comments */}
         <div>
           <h3 className="text-sm font-semibold text-slate-100 mb-3">Comments</h3>
-          <div className="bg-slate-800/50 rounded-lg p-4">
+          <div className="bg-dungeon-800/50 rounded-lg p-4">
             <CommentThread entityType="goal" entityId={goalId} />
           </div>
         </div>
@@ -558,7 +558,7 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
             <div className="space-y-2">
               {goal.activity.slice(0, 10).map((a, i) => (
                 <div key={i} className="flex items-center gap-3 text-xs text-slate-400">
-                  <span className="w-1.5 h-1.5 rounded-full bg-slate-600 flex-shrink-0" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-dungeon-600 flex-shrink-0" />
                   <span>{a.action}</span>
                   <span className="ml-auto text-slate-500">
                     {new Date(a.performed_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}

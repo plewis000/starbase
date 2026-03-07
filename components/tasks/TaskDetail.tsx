@@ -218,7 +218,7 @@ export default function TaskDetail({
 
   if (error || !task) {
     return (
-      <div className="bg-slate-900 border-l border-slate-800 w-full h-full overflow-y-auto p-6">
+      <div className="bg-dungeon-900 border-l border-dungeon-800 w-full h-full overflow-y-auto p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-semibold text-slate-100">Task Details</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-100 transition-colors">
@@ -227,7 +227,7 @@ export default function TaskDetail({
         </div>
         <div className="text-center py-12">
           <p className="text-red-400">{error || "Task not found"}</p>
-          <button onClick={onClose} className="mt-4 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-100 rounded transition-colors">
+          <button onClick={onClose} className="mt-4 px-4 py-2 bg-dungeon-800 hover:bg-dungeon-700 text-slate-100 rounded transition-colors">
             Close
           </button>
         </div>
@@ -238,7 +238,7 @@ export default function TaskDetail({
   const allOwners = task.owners || (task.assignee ? [task.assignee] : []);
 
   return (
-    <div className="bg-slate-900 border-l border-slate-800 w-full h-full overflow-y-auto">
+    <div className="bg-dungeon-900 border-l border-dungeon-800 w-full h-full overflow-y-auto">
       <div className="p-6 space-y-6 max-w-full">
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
@@ -253,7 +253,7 @@ export default function TaskDetail({
                   if (e.key === "Escape") setEditingTitle(false);
                 }}
                 autoFocus
-                className="w-full bg-slate-800 border border-red-400 rounded px-3 py-2 text-xl font-semibold text-slate-100 focus:outline-none"
+                className="w-full bg-dungeon-800 border border-red-400 rounded px-3 py-2 text-xl font-semibold text-slate-100 focus:outline-none"
               />
             ) : (
               <h1
@@ -353,7 +353,7 @@ export default function TaskDetail({
         )}
 
         {/* Meta information card */}
-        <div className="bg-slate-800 border border-slate-700 rounded-lg p-4 space-y-4">
+        <div className="bg-dungeon-800 border border-dungeon-700 rounded-lg p-4 space-y-4">
           {/* Due date — inline editable */}
           <div className="flex items-center gap-3">
             <span className="text-slate-500 text-sm">📅</span>
@@ -422,10 +422,10 @@ export default function TaskDetail({
                         className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium border transition-all ${
                           isOwner
                             ? "bg-crimson-900/30 border-crimson-700 text-crimson-300"
-                            : "bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600"
+                            : "bg-dungeon-800 border-dungeon-700 text-slate-400 hover:text-slate-200 hover:border-dungeon-600"
                         }`}
                       >
-                        <span className="w-4 h-4 rounded-full bg-slate-600 flex items-center justify-center text-[8px] font-semibold flex-shrink-0">
+                        <span className="w-4 h-4 rounded-full bg-dungeon-600 flex items-center justify-center text-[8px] font-semibold flex-shrink-0">
                           {getInitials(name)}
                         </span>
                         {isOwner ? "- " : "+ "}{name.split(" ")[0]}
@@ -471,7 +471,7 @@ export default function TaskDetail({
               ) : task.recurrence_rule ? (
                 <div
                   onClick={() => setEditingRecurrence(true)}
-                  className="cursor-pointer hover:bg-slate-700/50 rounded px-2 py-1 -mx-2 -my-1 transition-colors"
+                  className="cursor-pointer hover:bg-dungeon-700/50 rounded px-2 py-1 -mx-2 -my-1 transition-colors"
                 >
                   <p className="text-sm font-medium text-slate-100">
                     {describeRRule(task.recurrence_rule)}
@@ -514,7 +514,7 @@ export default function TaskDetail({
         </div>
 
         {/* Description */}
-        <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
+        <div className="bg-dungeon-800 border border-dungeon-700 rounded-lg p-4">
           <h3 className="text-sm font-semibold text-slate-100 mb-3">Description</h3>
           {editingDescription ? (
             <textarea
@@ -525,12 +525,12 @@ export default function TaskDetail({
               }}
               autoFocus
               rows={4}
-              className="w-full bg-slate-700 border border-red-400 rounded px-3 py-2 text-sm text-slate-100 focus:outline-none resize-none"
+              className="w-full bg-dungeon-700 border border-red-400 rounded px-3 py-2 text-sm text-slate-100 focus:outline-none resize-none"
             />
           ) : (
             <div
               onClick={() => setEditingDescription(true)}
-              className="text-sm text-slate-300 whitespace-pre-wrap cursor-pointer hover:bg-slate-700/50 rounded px-2 py-1.5 -mx-2 -my-1.5 transition-colors"
+              className="text-sm text-slate-300 whitespace-pre-wrap cursor-pointer hover:bg-dungeon-700/50 rounded px-2 py-1.5 -mx-2 -my-1.5 transition-colors"
             >
               {task.description || (
                 <span className="text-slate-500 italic">Click to add description...</span>
@@ -540,7 +540,7 @@ export default function TaskDetail({
         </div>
 
         {/* Checklist */}
-        <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
+        <div className="bg-dungeon-800 border border-dungeon-700 rounded-lg p-4">
           <h3 className="text-sm font-semibold text-slate-100 mb-3">
             Checklist
           </h3>
@@ -555,14 +555,14 @@ export default function TaskDetail({
         <EntityLinksSection entityType="task" entityId={task.id} />
 
         {/* Comments */}
-        <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
+        <div className="bg-dungeon-800 border border-dungeon-700 rounded-lg p-4">
           <h3 className="text-sm font-semibold text-slate-100 mb-3">Comments</h3>
           <CommentThread entityType="task" entityId={task.id} />
         </div>
 
         {/* Activity Log */}
         {task.activity.length > 0 && (
-          <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
+          <div className="bg-dungeon-800 border border-dungeon-700 rounded-lg p-4">
             <button
               onClick={() => setShowActivityLog(!showActivityLog)}
               className="flex items-center justify-between w-full mb-3"

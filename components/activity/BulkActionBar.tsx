@@ -54,18 +54,18 @@ function BulkSelect({
         disabled={disabled}
         className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all ${
           disabled
-            ? "border-slate-700/50 text-slate-600 cursor-not-allowed"
-            : "border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-slate-100 cursor-pointer"
+            ? "border-dungeon-700/50 text-slate-600 cursor-not-allowed"
+            : "border-dungeon-600 text-slate-300 hover:bg-dungeon-700 hover:text-slate-100 cursor-pointer"
         }`}
       >
         {label}
       </button>
       {open && (
-        <div className="absolute bottom-full left-0 mb-2 z-[60] bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 min-w-[130px] max-h-48 overflow-y-auto">
+        <div className="absolute bottom-full left-0 mb-2 z-[60] bg-dungeon-800 border border-dungeon-700 rounded-lg shadow-xl py-1 min-w-[130px] max-h-48 overflow-y-auto">
           {allowNone && (
             <button
               onClick={() => { onSelect(null); setOpen(false); }}
-              className="w-full text-left px-3 py-1.5 text-xs text-slate-400 italic hover:bg-slate-700 transition-colors"
+              className="w-full text-left px-3 py-1.5 text-xs text-slate-400 italic hover:bg-dungeon-700 transition-colors"
             >
               {allowNone}
             </button>
@@ -74,7 +74,7 @@ function BulkSelect({
             <button
               key={opt.id}
               onClick={() => { onSelect(opt.id); setOpen(false); }}
-              className="w-full text-left px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-700 transition-colors"
+              className="w-full text-left px-3 py-1.5 text-xs text-slate-200 hover:bg-dungeon-700 transition-colors"
             >
               {opt.name}
             </button>
@@ -128,24 +128,24 @@ function BulkDatePicker({
         disabled={disabled}
         className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all ${
           disabled
-            ? "border-slate-700/50 text-slate-600 cursor-not-allowed"
-            : "border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-slate-100 cursor-pointer"
+            ? "border-dungeon-700/50 text-slate-600 cursor-not-allowed"
+            : "border-dungeon-600 text-slate-300 hover:bg-dungeon-700 hover:text-slate-100 cursor-pointer"
         }`}
       >
         Due
       </button>
       {open && (
-        <div className="absolute bottom-full left-0 mb-2 z-[60] bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 min-w-[140px]">
+        <div className="absolute bottom-full left-0 mb-2 z-[60] bg-dungeon-800 border border-dungeon-700 rounded-lg shadow-xl py-1 min-w-[140px]">
           {presets.map((p) => (
             <button
               key={p.label}
               onClick={() => { p.action(); setOpen(false); }}
-              className="w-full text-left px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-700 transition-colors"
+              className="w-full text-left px-3 py-1.5 text-xs text-slate-200 hover:bg-dungeon-700 transition-colors"
             >
               {p.label}
             </button>
           ))}
-          <div className="border-t border-slate-700 mt-1 pt-1 px-2 pb-1">
+          <div className="border-t border-dungeon-700 mt-1 pt-1 px-2 pb-1">
             <input
               type="date"
               onChange={(e) => {
@@ -154,7 +154,7 @@ function BulkDatePicker({
                   setOpen(false);
                 }
               }}
-              className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none"
+              className="w-full bg-dungeon-700 border border-dungeon-600 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none"
             />
           </div>
         </div>
@@ -192,19 +192,19 @@ function BulkTagPicker({
         disabled={disabled}
         className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all ${
           disabled
-            ? "border-slate-700/50 text-slate-600 cursor-not-allowed"
-            : "border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-slate-100 cursor-pointer"
+            ? "border-dungeon-700/50 text-slate-600 cursor-not-allowed"
+            : "border-dungeon-600 text-slate-300 hover:bg-dungeon-700 hover:text-slate-100 cursor-pointer"
         }`}
       >
         Tags
       </button>
       {open && (
-        <div className="absolute bottom-full left-0 mb-2 z-[60] bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 min-w-[200px] max-h-48 overflow-y-auto">
+        <div className="absolute bottom-full left-0 mb-2 z-[60] bg-dungeon-800 border border-dungeon-700 rounded-lg shadow-xl py-1 min-w-[200px] max-h-48 overflow-y-auto">
           {tags.length === 0 && (
             <span className="px-3 py-1.5 text-xs text-slate-500">No tags configured</span>
           )}
           {tags.map((tag) => (
-            <div key={tag.id} className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-700/50 transition-colors">
+            <div key={tag.id} className="flex items-center gap-2 px-3 py-1.5 hover:bg-dungeon-700/50 transition-colors">
               <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: tag.display_color || "#64748b" }} />
               <span className="text-xs text-slate-200 flex-1 truncate">{tag.name}</span>
               <button
@@ -295,13 +295,13 @@ export default function BulkActionBar({
   const disabled = selectedCount === 0;
 
   return (
-    <div className="fixed bottom-20 lg:bottom-4 left-1/2 -translate-x-1/2 z-50 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl px-4 py-2.5 flex items-center gap-2 animate-in slide-in-from-bottom duration-200 overflow-x-auto max-w-[95vw]">
+    <div className="fixed bottom-20 lg:bottom-4 left-1/2 -translate-x-1/2 z-50 bg-dungeon-900 border border-dungeon-700 rounded-xl shadow-2xl px-4 py-2.5 flex items-center gap-2 animate-in slide-in-from-bottom duration-200 overflow-x-auto max-w-[95vw]">
       {/* Count */}
       <span className="text-sm font-medium text-slate-200 whitespace-nowrap">
         {selectedCount} of {totalCount}
       </span>
 
-      <div className="w-px h-6 bg-slate-700 flex-shrink-0" />
+      <div className="w-px h-6 bg-dungeon-700 flex-shrink-0" />
 
       {/* Status */}
       {config?.statuses && (
@@ -337,7 +337,7 @@ export default function BulkActionBar({
         />
       )}
 
-      <div className="w-px h-6 bg-slate-700 flex-shrink-0" />
+      <div className="w-px h-6 bg-dungeon-700 flex-shrink-0" />
 
       {/* Type */}
       {config?.task_types && config.task_types.length > 0 && (
@@ -361,7 +361,7 @@ export default function BulkActionBar({
         />
       )}
 
-      <div className="w-px h-6 bg-slate-700 flex-shrink-0" />
+      <div className="w-px h-6 bg-dungeon-700 flex-shrink-0" />
 
       {/* Due date */}
       <BulkDatePicker onBulkUpdate={onBulkUpdate} disabled={disabled} />
@@ -375,7 +375,7 @@ export default function BulkActionBar({
         />
       )}
 
-      <div className="w-px h-6 bg-slate-700 flex-shrink-0" />
+      <div className="w-px h-6 bg-dungeon-700 flex-shrink-0" />
 
       {/* Archive */}
       <ArchiveButton
@@ -384,7 +384,7 @@ export default function BulkActionBar({
         disabled={disabled}
       />
 
-      <div className="w-px h-6 bg-slate-700 flex-shrink-0" />
+      <div className="w-px h-6 bg-dungeon-700 flex-shrink-0" />
 
       {/* Clear selection */}
       <button
@@ -400,7 +400,7 @@ export default function BulkActionBar({
       {/* Exit bulk mode */}
       <button
         onClick={onExitBulkMode}
-        className="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-slate-100 transition-all whitespace-nowrap"
+        className="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-dungeon-700 text-slate-300 hover:bg-dungeon-600 hover:text-slate-100 transition-all whitespace-nowrap"
       >
         Exit
       </button>

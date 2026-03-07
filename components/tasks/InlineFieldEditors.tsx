@@ -29,7 +29,7 @@ async function addConfigOption(table: string, name: string, color?: string) {
 // ─── Status Picker ──────────────────────────────────────────────────────
 
 const STATUS_COLORS: Record<string, string> = {
-  "To Do": "bg-slate-600 text-slate-100",
+  "To Do": "bg-dungeon-600 text-slate-100",
   "In Progress": "bg-blue-500/20 text-blue-300 border-blue-500/40",
   "Blocked": "bg-red-500/20 text-red-300 border-red-500/40",
   "Done": "bg-green-500/20 text-green-300 border-green-500/40",
@@ -85,7 +85,7 @@ export function InlineStatusPicker({
   return (
     <div className={`flex flex-wrap gap-1.5 ${saving ? "opacity-60 pointer-events-none" : ""}`}>
       {options.map((opt) => {
-        const colors = STATUS_COLORS[opt.name] || "bg-slate-700 text-slate-300";
+        const colors = STATUS_COLORS[opt.name] || "bg-dungeon-700 text-slate-300";
         return (
           <button
             key={opt.id}
@@ -107,14 +107,14 @@ export function InlineStatusPicker({
             onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); if (e.key === "Escape") setShowAdd(false); }}
             placeholder="New status..."
-            className="min-h-[44px] px-2 py-1 bg-slate-800 border border-slate-600 rounded text-xs text-slate-100 focus:outline-none focus:border-red-400 w-24"
+            className="min-h-[44px] px-2 py-1 bg-dungeon-800 border border-dungeon-600 rounded text-xs text-slate-100 focus:outline-none focus:border-red-400 w-24"
             autoFocus
           />
         </div>
       ) : (
         <button
           onClick={() => setShowAdd(true)}
-          className="min-h-[44px] px-3 py-1.5 rounded-full text-xs text-slate-500 border border-dashed border-slate-700 hover:text-slate-300 hover:border-slate-500 transition-all"
+          className="min-h-[44px] px-3 py-1.5 rounded-full text-xs text-slate-500 border border-dashed border-dungeon-700 hover:text-slate-300 hover:border-slate-500 transition-all"
         >
           +
         </button>
@@ -129,7 +129,7 @@ const PRIORITY_COLORS: Record<string, string> = {
   "Urgent": "bg-red-500/20 text-red-300 border-red-500/40",
   "High": "bg-orange-500/20 text-orange-300 border-orange-500/40",
   "Medium": "bg-amber-500/20 text-amber-300 border-amber-500/40",
-  "Low": "bg-slate-700 text-slate-300 border-slate-600",
+  "Low": "bg-dungeon-700 text-slate-300 border-dungeon-600",
 };
 
 export function InlinePriorityPicker({
@@ -172,7 +172,7 @@ export function InlinePriorityPicker({
   return (
     <div className={`flex flex-wrap gap-1.5 ${saving ? "opacity-60 pointer-events-none" : ""}`}>
       {options.map((opt) => {
-        const colors = PRIORITY_COLORS[opt.name] || "bg-slate-700 text-slate-300 border-slate-600";
+        const colors = PRIORITY_COLORS[opt.name] || "bg-dungeon-700 text-slate-300 border-dungeon-600";
         return (
           <button
             key={opt.id}
@@ -193,13 +193,13 @@ export function InlinePriorityPicker({
           onChange={(e) => setNewName(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); if (e.key === "Escape") setShowAdd(false); }}
           placeholder="New priority..."
-          className="min-h-[44px] px-2 py-1 bg-slate-800 border border-slate-600 rounded text-xs text-slate-100 focus:outline-none focus:border-red-400 w-24"
+          className="min-h-[44px] px-2 py-1 bg-dungeon-800 border border-dungeon-600 rounded text-xs text-slate-100 focus:outline-none focus:border-red-400 w-24"
           autoFocus
         />
       ) : (
         <button
           onClick={() => setShowAdd(true)}
-          className="min-h-[44px] px-3 py-1.5 rounded-full text-xs text-slate-500 border border-dashed border-slate-700 hover:text-slate-300 hover:border-slate-500 transition-all"
+          className="min-h-[44px] px-3 py-1.5 rounded-full text-xs text-slate-500 border border-dashed border-dungeon-700 hover:text-slate-300 hover:border-slate-500 transition-all"
         >
           +
         </button>
@@ -256,7 +256,7 @@ export function InlineTypePicker({
           className={`min-h-[44px] px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
             opt.id === currentValue
               ? "bg-red-500/20 text-red-300 ring-2 ring-red-400/60 border-transparent"
-              : "bg-slate-700 text-slate-300 border-slate-600 hover:ring-1 hover:ring-slate-500"
+              : "bg-dungeon-700 text-slate-300 border-dungeon-600 hover:ring-1 hover:ring-slate-500"
           }`}
         >
           {opt.icon && <span className="mr-1">{opt.icon}</span>}
@@ -270,13 +270,13 @@ export function InlineTypePicker({
           onChange={(e) => setNewName(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); if (e.key === "Escape") setShowAdd(false); }}
           placeholder="New type..."
-          className="min-h-[44px] px-2 py-1 bg-slate-800 border border-slate-600 rounded text-xs text-slate-100 focus:outline-none focus:border-red-400 w-24"
+          className="min-h-[44px] px-2 py-1 bg-dungeon-800 border border-dungeon-600 rounded text-xs text-slate-100 focus:outline-none focus:border-red-400 w-24"
           autoFocus
         />
       ) : (
         <button
           onClick={() => setShowAdd(true)}
-          className="min-h-[44px] px-3 py-1.5 rounded-full text-xs text-slate-500 border border-dashed border-slate-700 hover:text-slate-300 hover:border-slate-500 transition-all"
+          className="min-h-[44px] px-3 py-1.5 rounded-full text-xs text-slate-500 border border-dashed border-dungeon-700 hover:text-slate-300 hover:border-slate-500 transition-all"
         >
           +
         </button>
@@ -347,7 +347,7 @@ export function InlineAssigneePicker({
       value={currentValue || ""}
       onChange={(e) => handleChange(e.target.value)}
       disabled={saving}
-      className="min-h-[44px] bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-red-400 cursor-pointer disabled:opacity-50"
+      className="min-h-[44px] bg-dungeon-800 border border-dungeon-700 rounded px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-red-400 cursor-pointer disabled:opacity-50"
     >
       <option value="">Unassigned</option>
       {members.map((m) => (
@@ -406,7 +406,7 @@ export function InlineTagEditor({
       {currentTags.map((tagAssoc) => (
         <span
           key={tagAssoc.id}
-          className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-slate-700"
+          className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-dungeon-700"
           style={{
             color: tagAssoc.tag.display_color || undefined,
             borderColor: tagAssoc.tag.display_color || undefined,
@@ -426,17 +426,17 @@ export function InlineTagEditor({
       <div className="relative">
         <button
           onClick={() => setShowDropdown(!showDropdown)}
-          className="min-h-[32px] px-2 py-1 rounded-full text-xs text-slate-500 border border-dashed border-slate-700 hover:text-slate-300 hover:border-slate-500 transition-all"
+          className="min-h-[32px] px-2 py-1 rounded-full text-xs text-slate-500 border border-dashed border-dungeon-700 hover:text-slate-300 hover:border-slate-500 transition-all"
         >
           + Tag
         </button>
         {showDropdown && unselected.length > 0 && (
-          <div className="absolute top-full left-0 mt-1 z-20 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 min-w-[140px]">
+          <div className="absolute top-full left-0 mt-1 z-20 bg-dungeon-800 border border-dungeon-700 rounded-lg shadow-xl py-1 min-w-[140px]">
             {unselected.map((tag) => (
               <button
                 key={tag.id}
                 onClick={() => handleAddTag(tag.id)}
-                className="w-full text-left px-3 py-2 text-xs text-slate-200 hover:bg-slate-700 transition-colors"
+                className="w-full text-left px-3 py-2 text-xs text-slate-200 hover:bg-dungeon-700 transition-colors"
               >
                 {tag.icon && <span className="mr-1">{tag.icon}</span>}
                 {tag.name}

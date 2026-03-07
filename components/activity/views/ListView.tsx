@@ -99,8 +99,8 @@ function priorityColor(name?: string): string {
     case "Urgent": return "text-red-400 bg-red-900/20 border-red-800/50";
     case "High": return "text-orange-400 bg-orange-900/20 border-orange-800/50";
     case "Medium": return "text-amber-400 bg-amber-900/20 border-amber-800/50";
-    case "Low": return "text-slate-400 bg-slate-800 border-slate-700";
-    default: return "text-slate-500 bg-slate-900 border-slate-800";
+    case "Low": return "text-slate-400 bg-dungeon-800 border-dungeon-700";
+    default: return "text-slate-500 bg-dungeon-900 border-dungeon-800";
   }
 }
 
@@ -110,7 +110,7 @@ function statusIndicator(name?: string): string {
     case "In Progress": return "border-blue-400 bg-blue-400/20";
     case "Blocked": return "border-red-500 bg-red-500/20";
     case "Done": return "border-green-500 bg-green-500";
-    default: return "border-slate-600";
+    default: return "border-dungeon-600";
   }
 }
 
@@ -151,17 +151,17 @@ function InlineCellPicker({
       <button
         onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
         className={`px-1.5 py-0.5 rounded text-[10px] font-medium border truncate max-w-full ${
-          colorFn ? colorFn(current?.name || "") : "bg-slate-800 border-slate-700 text-slate-300"
+          colorFn ? colorFn(current?.name || "") : "bg-dungeon-800 border-dungeon-700 text-slate-300"
         }`}
       >
         {current?.name || "—"}
       </button>
       {open && (
-        <div className="absolute top-full left-0 mt-1 z-30 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 min-w-[100px]">
+        <div className="absolute top-full left-0 mt-1 z-30 bg-dungeon-800 border border-dungeon-700 rounded-lg shadow-xl py-1 min-w-[100px]">
           {allowDeselect && currentId && (
             <button
               onClick={(e) => { e.stopPropagation(); onSelect(null); setOpen(false); }}
-              className="w-full text-left px-3 py-1.5 text-xs text-slate-400 italic hover:bg-slate-700 transition-colors"
+              className="w-full text-left px-3 py-1.5 text-xs text-slate-400 italic hover:bg-dungeon-700 transition-colors"
             >
               None
             </button>
@@ -170,7 +170,7 @@ function InlineCellPicker({
             <button
               key={opt.id}
               onClick={(e) => { e.stopPropagation(); onSelect(opt.id); setOpen(false); }}
-              className={`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-700 transition-colors ${
+              className={`w-full text-left px-3 py-1.5 text-xs hover:bg-dungeon-700 transition-colors ${
                 opt.id === currentId ? "text-red-400 font-medium" : "text-slate-200"
               }`}
             >
@@ -209,11 +209,11 @@ function InlineCellAssignee({
     <div className="relative" ref={ref}>
       <button
         onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
-        className="flex items-center gap-1 hover:bg-slate-800 rounded px-1 py-0.5 transition-colors"
+        className="flex items-center gap-1 hover:bg-dungeon-800 rounded px-1 py-0.5 transition-colors"
       >
         {task.assignee ? (
           <>
-            <div className="w-5 h-5 rounded-full bg-slate-800 flex items-center justify-center text-[8px] font-bold text-slate-300 border border-slate-700" title={task.assignee.full_name}>
+            <div className="w-5 h-5 rounded-full bg-dungeon-800 flex items-center justify-center text-[8px] font-bold text-slate-300 border border-dungeon-700" title={task.assignee.full_name}>
               {task.assignee.avatar_url ? (
                 <img src={task.assignee.avatar_url} alt="" className="w-full h-full rounded-full object-cover" />
               ) : initials(task.assignee.full_name)}
@@ -225,10 +225,10 @@ function InlineCellAssignee({
         )}
       </button>
       {open && (
-        <div className="absolute top-full left-0 mt-1 z-30 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 min-w-[120px]">
+        <div className="absolute top-full left-0 mt-1 z-30 bg-dungeon-800 border border-dungeon-700 rounded-lg shadow-xl py-1 min-w-[120px]">
           <button
             onClick={(e) => { e.stopPropagation(); onUpdate(task.id, { owner_ids: [] }); setOpen(false); }}
-            className={`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-700 transition-colors ${
+            className={`w-full text-left px-3 py-1.5 text-xs hover:bg-dungeon-700 transition-colors ${
               !task.assigned_to && (!task.owner_ids || task.owner_ids.length === 0) ? "text-red-400 font-medium" : "text-slate-400 italic"
             }`}
           >
@@ -250,11 +250,11 @@ function InlineCellAssignee({
                   onUpdate(task.id, { owner_ids: nextIds });
                   setOpen(false);
                 }}
-                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-700 transition-colors flex items-center gap-2 ${
+                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-dungeon-700 transition-colors flex items-center gap-2 ${
                   isOwner ? "text-red-400 font-medium" : "text-slate-200"
                 }`}
               >
-                <div className="w-4 h-4 rounded-full bg-slate-700 flex items-center justify-center text-[7px] font-bold text-slate-300">
+                <div className="w-4 h-4 rounded-full bg-dungeon-700 flex items-center justify-center text-[7px] font-bold text-slate-300">
                   {initials(name)}
                 </div>
                 {name}
@@ -305,7 +305,7 @@ function InlineCellDate({
     <div className="relative" ref={ref}>
       <button
         onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
-        className="hover:bg-slate-800 rounded px-1 py-0.5 transition-colors"
+        className="hover:bg-dungeon-800 rounded px-1 py-0.5 transition-colors"
       >
         {task.due_date ? (
           <span className={`text-[10px] font-mono ${dateColor(task.due_date)}`}>{formatRelDate(task.due_date)}</span>
@@ -314,7 +314,7 @@ function InlineCellDate({
         )}
       </button>
       {open && (
-        <div className="absolute top-full left-0 mt-1 z-30 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 min-w-[100px]">
+        <div className="absolute top-full left-0 mt-1 z-30 bg-dungeon-800 border border-dungeon-700 rounded-lg shadow-xl py-1 min-w-[100px]">
           {presets.map((p) => (
             <button
               key={p.label}
@@ -323,12 +323,12 @@ function InlineCellDate({
                 onUpdate(task.id, { due_date: getDateStr(p.days) });
                 setOpen(false);
               }}
-              className="w-full text-left px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-700 transition-colors"
+              className="w-full text-left px-3 py-1.5 text-xs text-slate-200 hover:bg-dungeon-700 transition-colors"
             >
               {p.label}
             </button>
           ))}
-          <div className="border-t border-slate-700 mt-1 pt-1 px-2 pb-1">
+          <div className="border-t border-dungeon-700 mt-1 pt-1 px-2 pb-1">
             <input
               type="date"
               defaultValue={task.due_date || ""}
@@ -337,7 +337,7 @@ function InlineCellDate({
                 onUpdate(task.id, { due_date: e.target.value || null });
                 setOpen(false);
               }}
-              className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none"
+              className="w-full bg-dungeon-700 border border-dungeon-600 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none"
             />
           </div>
         </div>
@@ -374,7 +374,7 @@ function InlineCellTags({
     <div className="relative" ref={ref}>
       <button
         onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
-        className="flex gap-1 overflow-hidden hover:bg-slate-800 rounded px-1 py-0.5 transition-colors min-w-[20px]"
+        className="flex gap-1 overflow-hidden hover:bg-dungeon-800 rounded px-1 py-0.5 transition-colors min-w-[20px]"
       >
         {task.tags && task.tags.length > 0 ? (
           task.tags.slice(0, 2).map((tag: any) => tag.tag && (
@@ -387,7 +387,7 @@ function InlineCellTags({
         )}
       </button>
       {open && (
-        <div className="absolute top-full left-0 mt-1 z-30 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 min-w-[140px]">
+        <div className="absolute top-full left-0 mt-1 z-30 bg-dungeon-800 border border-dungeon-700 rounded-lg shadow-xl py-1 min-w-[140px]">
           {availableTags.map((tag: any) => {
             const isActive = currentTagIds.includes(tag.id);
             const assoc = (task.tags || []).find((t: any) => t.tag_id === tag.id);
@@ -402,7 +402,7 @@ function InlineCellTags({
                     onUpdate(task.id, { type: "addTag", tagId: tag.id });
                   }
                 }}
-                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-700 transition-colors flex items-center gap-2 ${
+                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-dungeon-700 transition-colors flex items-center gap-2 ${
                   isActive ? "text-red-400 font-medium" : "text-slate-200"
                 }`}
               >
@@ -453,7 +453,7 @@ function InlineCellTitle({
           }
           if (e.key === "Escape") setEditing(false);
         }}
-        className="w-full bg-slate-800 border border-red-400 rounded px-2 py-0.5 text-sm font-medium text-slate-100 focus:outline-none"
+        className="w-full bg-dungeon-800 border border-red-400 rounded px-2 py-0.5 text-sm font-medium text-slate-100 focus:outline-none"
       />
     );
   }
@@ -560,12 +560,12 @@ export default function ListView({ tasks, onQuickComplete, completedTaskId, conf
               onSelect={(id) => handleInlineUpdate(task.id, { status_id: id })}
               colorFn={(name) => {
                 const colors: Record<string, string> = {
-                  "To Do": "bg-slate-700 border-slate-600 text-slate-300",
+                  "To Do": "bg-dungeon-700 border-dungeon-600 text-slate-300",
                   "In Progress": "bg-blue-900/30 border-blue-700 text-blue-300",
                   "Blocked": "bg-red-900/30 border-red-700 text-red-300",
                   "Done": "bg-green-900/30 border-green-700 text-green-300",
                 };
-                return colors[name] || "bg-slate-800 border-slate-700 text-slate-300";
+                return colors[name] || "bg-dungeon-800 border-dungeon-700 text-slate-300";
               }}
             />
           );
@@ -595,7 +595,7 @@ export default function ListView({ tasks, onQuickComplete, completedTaskId, conf
         }
         return task.assignee ? (
           <div className="flex items-center gap-1">
-            <div className="w-5 h-5 rounded-full bg-slate-800 flex items-center justify-center text-[8px] font-bold text-slate-300 border border-slate-700" title={task.assignee.full_name}>
+            <div className="w-5 h-5 rounded-full bg-dungeon-800 flex items-center justify-center text-[8px] font-bold text-slate-300 border border-dungeon-700" title={task.assignee.full_name}>
               {task.assignee.avatar_url ? (
                 <img src={task.assignee.avatar_url} alt="" className="w-full h-full rounded-full object-cover" />
               ) : initials(task.assignee.full_name)}
@@ -656,7 +656,7 @@ export default function ListView({ tasks, onQuickComplete, completedTaskId, conf
       <div
         key={task.id}
         onClick={() => onSelect?.(task.id)}
-        className={`flex items-center gap-3 px-3 py-3 rounded-lg transition-all hover:bg-slate-900/80 cursor-pointer active:bg-slate-800/60 ${
+        className={`flex items-center gap-3 px-3 py-3 rounded-lg transition-all hover:bg-dungeon-900/80 cursor-pointer active:bg-dungeon-800/60 ${
           justCompleted ? "bg-green-900/10 ring-1 ring-green-500/20" : ""
         } ${isCompleted ? "opacity-50" : ""}`}
       >
@@ -754,7 +754,7 @@ export default function ListView({ tasks, onQuickComplete, completedTaskId, conf
             </svg>
           </button>
           {showColumnPicker && (
-            <div className="absolute right-0 top-full mt-1 z-30 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 min-w-[160px]">
+            <div className="absolute right-0 top-full mt-1 z-30 bg-dungeon-800 border border-dungeon-700 rounded-lg shadow-xl py-1 min-w-[160px]">
               {columnOrder.map((key, idx) => {
                 const col = ALL_COLUMNS.find((c) => c.key === key);
                 if (!col) return null;
@@ -765,8 +765,8 @@ export default function ListView({ tasks, onQuickComplete, completedTaskId, conf
                     onDragStart={() => handleDragStart(idx)}
                     onDragOver={(e) => handleDragOver(e, idx)}
                     onDragEnd={handleDragEnd}
-                    className={`flex items-center gap-2 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-700 cursor-grab ${
-                      dragIdx === idx ? "bg-slate-700/50" : ""
+                    className={`flex items-center gap-2 px-3 py-1.5 text-xs text-slate-200 hover:bg-dungeon-700 cursor-grab ${
+                      dragIdx === idx ? "bg-dungeon-700/50" : ""
                     }`}
                   >
                     <span className="text-slate-500 text-[10px] select-none cursor-grab">⠿</span>
@@ -775,7 +775,7 @@ export default function ListView({ tasks, onQuickComplete, completedTaskId, conf
                         type="checkbox"
                         checked={visibleColumns.includes(col.key)}
                         onChange={() => toggleColumn(col.key)}
-                        className="rounded border-slate-600"
+                        className="rounded border-dungeon-600"
                       />
                       {col.label}
                     </label>
@@ -788,7 +788,7 @@ export default function ListView({ tasks, onQuickComplete, completedTaskId, conf
       </div>
 
       {/* Header row */}
-      <div className="flex items-center gap-2 px-3 py-1.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-800/50">
+      <div className="flex items-center gap-2 px-3 py-1.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wider border-b border-dungeon-800/50">
         {onToggleSelect && (
           <div className="w-5 flex-shrink-0 flex items-center justify-center">
             <input
@@ -802,7 +802,7 @@ export default function ListView({ tasks, onQuickComplete, completedTaskId, conf
               }}
               checked={selectedTaskIds?.size === (totalCount ?? 0) && (totalCount ?? 0) > 0}
               onChange={() => onSelectAll?.()}
-              className="w-4 h-4 rounded border-slate-600 cursor-pointer"
+              className="w-4 h-4 rounded border-dungeon-600 cursor-pointer"
             />
           </div>
         )}
@@ -835,7 +835,7 @@ export default function ListView({ tasks, onQuickComplete, completedTaskId, conf
             <div
               key={task.id}
               onClick={() => onSelect?.(task.id)}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all hover:bg-slate-900/80 group cursor-pointer ${
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all hover:bg-dungeon-900/80 group cursor-pointer ${
                 justCompleted ? "bg-green-900/10 ring-1 ring-green-500/20" : ""
               } ${isCompleted ? "opacity-50" : ""} ${isSelected ? "bg-red-900/10 ring-1 ring-red-500/20" : ""}`}
             >
@@ -846,7 +846,7 @@ export default function ListView({ tasks, onQuickComplete, completedTaskId, conf
                   checked={isSelected || false}
                   onChange={() => {}}
                   onClick={(e) => { e.stopPropagation(); onToggleSelect(task.id, e.shiftKey); }}
-                  className="flex-shrink-0 w-4 h-4 rounded border-slate-600 cursor-pointer"
+                  className="flex-shrink-0 w-4 h-4 rounded border-dungeon-600 cursor-pointer"
                 />
               )}
 

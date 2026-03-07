@@ -26,7 +26,7 @@ function priorityBarColor(name?: string): string {
     case "High": return "bg-orange-500";
     case "Medium": return "bg-amber-500";
     case "Low": return "bg-slate-500";
-    default: return "bg-slate-600";
+    default: return "bg-dungeon-600";
   }
 }
 
@@ -111,12 +111,12 @@ export default function TimelineView({ tasks, onQuickComplete, completedTaskId, 
       {groups.map((group) => (
         <div key={group.key}>
           {/* Date header */}
-          <div className="sticky top-0 z-10 flex items-center gap-3 py-1.5 bg-slate-950/95 backdrop-blur-sm">
+          <div className="sticky top-0 z-10 flex items-center gap-3 py-1.5 bg-dungeon-950/95 backdrop-blur-sm">
             <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
               group.key === "overdue" ? "bg-red-500" :
               group.key === "today" ? "bg-amber-400" :
               group.key === "tomorrow" ? "bg-blue-400" :
-              "bg-slate-700"
+              "bg-dungeon-700"
             }`} />
             <span className={`text-xs font-bold uppercase tracking-wider ${
               group.key === "overdue" ? "text-red-400" :
@@ -126,7 +126,7 @@ export default function TimelineView({ tasks, onQuickComplete, completedTaskId, 
               {group.label}
             </span>
             <span className="text-[10px] text-slate-700 font-mono">{group.tasks.length}</span>
-            <div className="flex-1 border-b border-slate-800/50" />
+            <div className="flex-1 border-b border-dungeon-800/50" />
           </div>
 
           {/* Gantt-style bars */}
@@ -147,7 +147,7 @@ export default function TimelineView({ tasks, onQuickComplete, completedTaskId, 
                     className={`flex-shrink-0 w-4 h-4 rounded-full border transition-all flex items-center justify-center ${
                       isCompleted
                         ? "bg-green-500 border-green-500 text-white"
-                        : "border-slate-700 hover:border-green-400 group-hover:border-slate-500"
+                        : "border-dungeon-700 hover:border-green-400 group-hover:border-slate-500"
                     }`}
                   >
                     {isCompleted && (
@@ -178,7 +178,7 @@ export default function TimelineView({ tasks, onQuickComplete, completedTaskId, 
                     {/* Assignee */}
                     {task.assignee && (
                       <div
-                        className="flex-shrink-0 w-4 h-4 rounded-full bg-slate-800 flex items-center justify-center text-[7px] font-bold text-slate-500 border border-slate-700"
+                        className="flex-shrink-0 w-4 h-4 rounded-full bg-dungeon-800 flex items-center justify-center text-[7px] font-bold text-slate-500 border border-dungeon-700"
                         title={task.assignee.full_name}
                       >
                         {task.assignee.full_name?.split(" ").map((w) => w[0]).join("").slice(0, 2)}

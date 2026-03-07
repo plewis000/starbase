@@ -81,11 +81,11 @@ function Avatar({ name, url, size = "sm" }: { name?: string; url?: string | null
 
   if (url) {
     return (
-      <img src={url} alt={name || "User"} className={`${sizeClass} rounded-full bg-slate-800 object-cover flex-shrink-0`} />
+      <img src={url} alt={name || "User"} className={`${sizeClass} rounded-full bg-dungeon-800 object-cover flex-shrink-0`} />
     );
   }
   return (
-    <div className={`${sizeClass} rounded-full bg-slate-700 flex items-center justify-center ${textClass} font-semibold text-slate-200 flex-shrink-0`}>
+    <div className={`${sizeClass} rounded-full bg-dungeon-700 flex items-center justify-center ${textClass} font-semibold text-slate-200 flex-shrink-0`}>
       {getInitials(name)}
     </div>
   );
@@ -128,7 +128,7 @@ function ReactionBar({
         <button
           key={emoji}
           onClick={() => toggleReaction(emoji)}
-          className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs transition-colors"
+          className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-dungeon-800 hover:bg-dungeon-700 border border-dungeon-700 text-xs transition-colors"
         >
           <span>{emoji}</span>
           <span className="text-slate-400">{count}</span>
@@ -137,18 +137,18 @@ function ReactionBar({
       <div className="relative">
         <button
           onClick={() => setShowPicker(!showPicker)}
-          className="w-6 h-6 rounded-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs flex items-center justify-center text-slate-400 transition-colors"
+          className="w-6 h-6 rounded-full bg-dungeon-800 hover:bg-dungeon-700 border border-dungeon-700 text-xs flex items-center justify-center text-slate-400 transition-colors"
           title="Add reaction"
         >
           +
         </button>
         {showPicker && (
-          <div className="absolute left-0 bottom-full mb-1 bg-slate-800 border border-slate-700 rounded-lg p-1.5 flex gap-1 z-20 shadow-lg">
+          <div className="absolute left-0 bottom-full mb-1 bg-dungeon-800 border border-dungeon-700 rounded-lg p-1.5 flex gap-1 z-20 shadow-lg">
             {QUICK_REACTIONS.map((emoji) => (
               <button
                 key={emoji}
                 onClick={() => toggleReaction(emoji)}
-                className="w-7 h-7 rounded hover:bg-slate-700 flex items-center justify-center text-sm transition-colors"
+                className="w-7 h-7 rounded hover:bg-dungeon-700 flex items-center justify-center text-sm transition-colors"
               >
                 {emoji}
               </button>
@@ -240,7 +240,7 @@ function SingleComment({
               value={editBody}
               onChange={(e) => setEditBody(e.target.value)}
               rows={2}
-              className="w-full bg-slate-800 border border-red-400/50 rounded px-3 py-2 text-sm text-slate-100 focus:outline-none resize-none"
+              className="w-full bg-dungeon-800 border border-red-400/50 rounded px-3 py-2 text-sm text-slate-100 focus:outline-none resize-none"
               autoFocus
             />
             <div className="flex gap-2">
@@ -519,7 +519,7 @@ export default function CommentThread({
 
       {/* Reply indicator */}
       {replyingTo && replyingToComment && (
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-800/50 rounded text-xs text-slate-400">
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-dungeon-800/50 rounded text-xs text-slate-400">
           <span>Replying to</span>
           <span className="text-slate-200 font-medium">
             {replyingToComment.author?.full_name || "Unknown"}
@@ -534,7 +534,7 @@ export default function CommentThread({
       )}
 
       {/* Add comment form */}
-      <div className="pt-3 border-t border-slate-800 space-y-2">
+      <div className="pt-3 border-t border-dungeon-800 space-y-2">
         <div className="relative">
           <textarea
             ref={inputRef}
@@ -569,22 +569,22 @@ export default function CommentThread({
             }
             disabled={submitting}
             rows={2}
-            className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50 resize-none"
+            className="w-full bg-dungeon-800 border border-dungeon-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50 resize-none"
           />
 
           {/* @mention autocomplete dropdown */}
           {showMentionSuggestions && mentionSuggestions.length > 0 && (
-            <div className="absolute bottom-full left-0 mb-1 w-64 bg-slate-800 border border-slate-700 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
+            <div className="absolute bottom-full left-0 mb-1 w-64 bg-dungeon-800 border border-dungeon-700 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
               {mentionSuggestions.map((member, index) => (
                 <button
                   key={member.id}
                   type="button"
                   onClick={() => insertMention(member)}
-                  className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-slate-700 transition-colors ${
-                    index === selectedSuggestionIndex ? "bg-slate-700" : ""
+                  className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-dungeon-700 transition-colors ${
+                    index === selectedSuggestionIndex ? "bg-dungeon-700" : ""
                   }`}
                 >
-                  <div className="w-6 h-6 rounded-full bg-slate-600 flex items-center justify-center text-[10px] font-semibold text-slate-200">
+                  <div className="w-6 h-6 rounded-full bg-dungeon-600 flex items-center justify-center text-[10px] font-semibold text-slate-200">
                     {getInitials(member.full_name)}
                   </div>
                   <div>
@@ -602,7 +602,7 @@ export default function CommentThread({
           <button
             onClick={handleSubmit}
             disabled={submitting || !newComment.trim()}
-            className="px-3 py-1.5 bg-red-400 hover:bg-red-500 disabled:bg-slate-700 disabled:cursor-not-allowed text-slate-950 text-sm font-medium rounded transition-colors flex items-center gap-2"
+            className="px-3 py-1.5 bg-red-400 hover:bg-red-500 disabled:bg-dungeon-700 disabled:cursor-not-allowed text-slate-950 text-sm font-medium rounded transition-colors flex items-center gap-2"
           >
             {submitting ? <LoadingSpinner size="sm" /> : replyingTo ? "Reply" : "Post"}
           </button>

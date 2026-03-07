@@ -54,8 +54,8 @@ export default function SpendingSummary() {
             onClick={() => setPeriod(p)}
             className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
               period === p
-                ? "bg-slate-700 text-slate-100"
-                : "bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800"
+                ? "bg-dungeon-700 text-slate-100"
+                : "bg-dungeon-900 text-slate-400 hover:text-slate-200 border border-dungeon-800"
             }`}
           >
             {p.charAt(0).toUpperCase() + p.slice(1)}
@@ -72,7 +72,7 @@ export default function SpendingSummary() {
       </div>
 
       {data.projected_monthly !== null && (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+        <div className="bg-dungeon-900 border border-dungeon-800 rounded-xl p-4">
           <span className="text-xs text-slate-400">Projected monthly: </span>
           <span className="text-sm font-semibold text-slate-100">{fmt(data.projected_monthly)}</span>
         </div>
@@ -92,7 +92,7 @@ export default function SpendingSummary() {
           <p className="text-sm text-slate-500">No categorized spending yet.</p>
         ) : (
           data.breakdown.map((item) => (
-            <div key={item.category.id} className="bg-slate-900 border border-slate-800 rounded-lg p-3">
+            <div key={item.category.id} className="bg-dungeon-900 border border-dungeon-800 rounded-lg p-3">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <span>{item.category.icon}</span>
@@ -108,7 +108,7 @@ export default function SpendingSummary() {
                 </div>
               </div>
               {/* Progress bar */}
-              <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+              <div className="h-1.5 bg-dungeon-800 rounded-full overflow-hidden">
                 <div
                   className="h-full rounded-full transition-all"
                   style={{
@@ -128,7 +128,7 @@ export default function SpendingSummary() {
 
 function StatCard({ label, value, color }: { label: string; value: string; color: string }) {
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+    <div className="bg-dungeon-900 border border-dungeon-800 rounded-xl p-4">
       <div className="text-xs text-slate-500">{label}</div>
       <div className={`text-lg font-bold mt-1 ${color}`}>{value}</div>
     </div>

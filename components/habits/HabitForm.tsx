@@ -151,7 +151,7 @@ export default function HabitForm({ onSave, onCancel }: HabitFormProps) {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="e.g., Read for 30 minutes"
-          className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400/50"
+          className="w-full px-4 py-2.5 bg-dungeon-800 border border-dungeon-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400/50"
           autoFocus
         />
       </div>
@@ -163,7 +163,7 @@ export default function HabitForm({ onSave, onCancel }: HabitFormProps) {
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Why is this habit important?"
           rows={2}
-          className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400/50 resize-none"
+          className="w-full px-4 py-2.5 bg-dungeon-800 border border-dungeon-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400/50 resize-none"
         />
       </div>
 
@@ -173,7 +173,7 @@ export default function HabitForm({ onSave, onCancel }: HabitFormProps) {
           <select
             value={categoryId}
             onChange={(e) => setCategoryId(e.target.value)}
-            className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:border-red-400/50"
+            className="w-full px-4 py-2.5 bg-dungeon-800 border border-dungeon-700 rounded-lg text-slate-100 focus:outline-none focus:border-red-400/50"
           >
             <option value="">None</option>
             {categories.map((c) => (
@@ -186,7 +186,7 @@ export default function HabitForm({ onSave, onCancel }: HabitFormProps) {
           <select
             value={timePreferenceId}
             onChange={(e) => setTimePreferenceId(e.target.value)}
-            className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:border-red-400/50"
+            className="w-full px-4 py-2.5 bg-dungeon-800 border border-dungeon-700 rounded-lg text-slate-100 focus:outline-none focus:border-red-400/50"
           >
             <option value="">Anytime</option>
             {timePreferences.map((t) => (
@@ -202,7 +202,7 @@ export default function HabitForm({ onSave, onCancel }: HabitFormProps) {
           <select
             value={frequencyId}
             onChange={(e) => setFrequencyId(e.target.value)}
-            className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:border-red-400/50"
+            className="w-full px-4 py-2.5 bg-dungeon-800 border border-dungeon-700 rounded-lg text-slate-100 focus:outline-none focus:border-red-400/50"
           >
             <option value="">Select...</option>
             {frequencies.map((f) => (
@@ -218,7 +218,7 @@ export default function HabitForm({ onSave, onCancel }: HabitFormProps) {
             max="30"
             value={targetCount}
             onChange={(e) => setTargetCount(e.target.value)}
-            className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:border-red-400/50"
+            className="w-full px-4 py-2.5 bg-dungeon-800 border border-dungeon-700 rounded-lg text-slate-100 focus:outline-none focus:border-red-400/50"
           />
         </div>
       </div>
@@ -234,7 +234,7 @@ export default function HabitForm({ onSave, onCancel }: HabitFormProps) {
               className={`w-10 h-10 rounded-full text-sm font-medium transition-colors ${
                 specificDays.includes(d.value)
                   ? "bg-red-400 text-slate-950"
-                  : "bg-slate-800 text-slate-400 hover:bg-slate-700"
+                  : "bg-dungeon-800 text-slate-400 hover:bg-dungeon-700"
               }`}
             >
               {d.label}
@@ -257,7 +257,7 @@ export default function HabitForm({ onSave, onCancel }: HabitFormProps) {
                 className={`w-full p-3 rounded-lg border text-left transition-colors ${
                   selectedGoalIds.includes(g.id)
                     ? "border-red-400 bg-red-400/10"
-                    : "border-slate-700 bg-slate-800 hover:border-slate-600"
+                    : "border-dungeon-700 bg-dungeon-800 hover:border-dungeon-600"
                 }`}
               >
                 <div className="flex items-center gap-3">
@@ -278,11 +278,11 @@ export default function HabitForm({ onSave, onCancel }: HabitFormProps) {
             ))}
           </div>
         ) : (
-          <p className="text-sm text-slate-400 p-3 bg-slate-800 rounded-lg">No active goals available. Create a goal first.</p>
+          <p className="text-sm text-slate-400 p-3 bg-dungeon-800 rounded-lg">No active goals available. Create a goal first.</p>
         )}
       </div>
 
-      <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
+      <div className="flex items-center justify-end gap-3 pt-4 border-t border-dungeon-800">
         <button type="button" onClick={onCancel} className="px-4 py-2 text-slate-400 hover:text-slate-100 transition-colors font-medium">
           Cancel
         </button>

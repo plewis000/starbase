@@ -145,7 +145,7 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
           placeholder="Enter task title..."
           disabled={submitting}
           autoFocus
-          className="w-full bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50"
+          className="w-full bg-dungeon-800 border border-dungeon-700 rounded px-4 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50"
         />
       </div>
 
@@ -260,7 +260,7 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
           placeholder="Add a detailed description..."
           disabled={submitting}
           rows={3}
-          className="w-full bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50 resize-none"
+          className="w-full bg-dungeon-800 border border-dungeon-700 rounded px-4 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50 resize-none"
         />
       </div>
 
@@ -274,7 +274,7 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
                 type="checkbox"
                 checked={item.checked}
                 readOnly
-                className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-red-400 cursor-pointer"
+                className="w-4 h-4 rounded border-dungeon-700 bg-dungeon-800 text-red-400 cursor-pointer"
               />
               <span className="flex-1 text-sm text-slate-100">{item.title}</span>
               <button
@@ -301,13 +301,13 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
             }}
             placeholder="Add checklist item..."
             disabled={submitting}
-            className="flex-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50"
+            className="flex-1 bg-dungeon-800 border border-dungeon-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50"
           />
           <button
             type="button"
             onClick={handleAddChecklistItem}
             disabled={submitting || !newChecklistItem.trim()}
-            className="px-3 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-100 text-sm font-medium rounded transition-colors"
+            className="px-3 py-2 bg-dungeon-800 hover:bg-dungeon-700 disabled:opacity-50 text-slate-100 text-sm font-medium rounded transition-colors"
           >
             Add
           </button>
@@ -322,19 +322,19 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
       )}
 
       {/* 11. Form actions */}
-      <div className="flex gap-3 justify-end pt-4 border-t border-slate-800">
+      <div className="flex gap-3 justify-end pt-4 border-t border-dungeon-800">
         <button
           type="button"
           onClick={onCancel}
           disabled={submitting}
-          className="px-4 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-100 font-medium rounded transition-colors"
+          className="px-4 py-2 bg-dungeon-800 hover:bg-dungeon-700 disabled:opacity-50 text-slate-100 font-medium rounded transition-colors"
         >
           Cancel
         </button>
         <button
           type="submit"
           disabled={submitting}
-          className="px-4 py-2 bg-red-400 hover:bg-red-500 disabled:bg-slate-700 disabled:cursor-not-allowed text-slate-950 font-medium rounded transition-colors flex items-center gap-2"
+          className="px-4 py-2 bg-red-400 hover:bg-red-500 disabled:bg-dungeon-700 disabled:cursor-not-allowed text-slate-950 font-medium rounded transition-colors flex items-center gap-2"
         >
           {submitting ? (
             <>

@@ -172,10 +172,10 @@ export default function TaskCard({
   return (
     <div
       onClick={() => onSelect(task.id)}
-      className={`flex items-center gap-4 p-4 bg-slate-900 border rounded-lg cursor-pointer transition-all hover:bg-slate-800/50 ${
+      className={`flex items-center gap-4 p-4 bg-dungeon-900 border rounded-lg cursor-pointer transition-all hover:bg-dungeon-800/50 ${
         isSelected
           ? "border-red-400 border-l-4"
-          : "border-slate-800 hover:border-slate-700"
+          : "border-dungeon-800 hover:border-dungeon-700"
       } ${isCompleted ? "opacity-60" : ""}`}
     >
       {/* Quick-complete checkbox */}
@@ -184,7 +184,7 @@ export default function TaskCard({
         className={`flex-shrink-0 w-5 h-5 rounded border-2 transition-colors flex items-center justify-center ${
           isCompleted
             ? "bg-red-500 border-red-500 text-white"
-            : "border-slate-600 hover:border-red-400"
+            : "border-dungeon-600 hover:border-red-400"
         }`}
         title={isCompleted ? "Completed" : "Mark complete"}
       >
@@ -229,7 +229,7 @@ export default function TaskCard({
               {displayTags.filter((tag) => tag.tag).map((tag) => (
                 <span
                   key={tag.id}
-                  className="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-800 text-slate-200 border border-slate-700"
+                  className="px-2 py-0.5 rounded-full text-xs font-medium bg-dungeon-800 text-slate-200 border border-dungeon-700"
                   style={{
                     borderColor: tag.tag?.display_color || undefined,
                     color: tag.tag?.display_color || undefined,
@@ -249,14 +249,14 @@ export default function TaskCard({
 
           {/* Subtask progress */}
           {task.subtask_progress && task.subtask_progress.total > 0 && (
-            <span className="px-2 py-0.5 rounded text-xs font-medium text-slate-400 bg-slate-800/50">
+            <span className="px-2 py-0.5 rounded text-xs font-medium text-slate-400 bg-dungeon-800/50">
               {task.subtask_progress.done}/{task.subtask_progress.total} subtasks
             </span>
           )}
 
           {/* Checklist progress */}
           {hasChecklist && (
-            <span className="px-2 py-0.5 rounded text-xs font-medium text-slate-400 bg-slate-800/50">
+            <span className="px-2 py-0.5 rounded text-xs font-medium text-slate-400 bg-dungeon-800/50">
               {completedChecklist}/{checklist.length} ✓
             </span>
           )}
@@ -279,12 +279,12 @@ export default function TaskCard({
                     <img
                       src={owner.avatar_url}
                       alt={owner.full_name}
-                      className="w-7 h-7 rounded-full bg-slate-800 object-cover border-2 border-slate-900"
+                      className="w-7 h-7 rounded-full bg-dungeon-800 object-cover border-2 border-dungeon-900"
                       title={owner.full_name}
                     />
                   ) : (
                     <div
-                      className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-semibold text-slate-200 border-2 border-slate-900"
+                      className="w-7 h-7 rounded-full bg-dungeon-700 flex items-center justify-center text-[10px] font-semibold text-slate-200 border-2 border-dungeon-900"
                       title={owner.full_name}
                     >
                       {getInitials(owner.full_name)}
@@ -293,7 +293,7 @@ export default function TaskCard({
                 </div>
               ))}
               {allOwners.length > 3 && (
-                <div className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-semibold text-slate-300 border-2 border-slate-900">
+                <div className="w-7 h-7 rounded-full bg-dungeon-700 flex items-center justify-center text-[10px] font-semibold text-slate-300 border-2 border-dungeon-900">
                   +{allOwners.length - 3}
                 </div>
               )}
@@ -302,7 +302,7 @@ export default function TaskCard({
 
           {/* Owner popover */}
           {showOwnerPopover && members && members.length > 1 && (
-            <div className="absolute right-0 top-full mt-2 bg-slate-900 border border-slate-700 rounded-lg shadow-xl z-50 py-1.5 min-w-[160px]">
+            <div className="absolute right-0 top-full mt-2 bg-dungeon-900 border border-dungeon-700 rounded-lg shadow-xl z-50 py-1.5 min-w-[160px]">
               <p className="px-3 py-1 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Owners</p>
               {members.map((m) => {
                 const name = m.user?.full_name || m.display_name || m.user_id;
@@ -315,10 +315,10 @@ export default function TaskCard({
                     className={`w-full text-left px-3 py-1.5 text-xs flex items-center gap-2 transition-colors ${
                       isOwner
                         ? "text-red-300 bg-red-900/20 hover:bg-red-900/30"
-                        : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+                        : "text-slate-400 hover:text-slate-200 hover:bg-dungeon-800"
                     }`}
                   >
-                    <span className="w-4 h-4 rounded-full bg-slate-700 flex items-center justify-center text-[8px] font-semibold flex-shrink-0">
+                    <span className="w-4 h-4 rounded-full bg-dungeon-700 flex items-center justify-center text-[8px] font-semibold flex-shrink-0">
                       {getInitials(name)}
                     </span>
                     <span className="flex-1 truncate">{name.split(" ")[0]}</span>

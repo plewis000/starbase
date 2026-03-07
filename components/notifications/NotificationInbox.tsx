@@ -149,7 +149,7 @@ export default function NotificationInbox() {
   const unreadCount = notifications.filter((n) => !n.read_at).length;
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="min-h-screen bg-dungeon-950">
       <div className="max-w-4xl mx-auto p-6">
         {/* Header */}
         <div className="mb-8">
@@ -165,7 +165,7 @@ export default function NotificationInbox() {
             {unreadCount > 0 && (
               <button
                 onClick={markAllRead}
-                className="px-4 py-2 text-sm font-medium text-slate-100 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors"
+                className="px-4 py-2 text-sm font-medium text-slate-100 bg-dungeon-800 hover:bg-dungeon-700 border border-dungeon-700 rounded-lg transition-colors"
               >
                 Mark all read
               </button>
@@ -173,7 +173,7 @@ export default function NotificationInbox() {
           </div>
 
           {/* Filter tabs */}
-          <div className="flex gap-2 border-b border-slate-800">
+          <div className="flex gap-2 border-b border-dungeon-800">
             <button
               onClick={() => setFilter("all")}
               className={`px-4 py-3 font-medium transition-colors border-b-2 ${
@@ -226,8 +226,8 @@ export default function NotificationInbox() {
                   onClick={() => handleNotificationClick(notification)}
                   className={`group p-4 rounded-lg border transition-all cursor-pointer ${
                     notification.read_at
-                      ? "bg-slate-900 border-slate-800 hover:border-slate-700"
-                      : "bg-slate-900/60 border-red-400/30 hover:border-red-400/50"
+                      ? "bg-dungeon-900 border-dungeon-800 hover:border-dungeon-700"
+                      : "bg-dungeon-900/60 border-red-400/30 hover:border-red-400/50"
                   }`}
                 >
                   <div className="flex items-start gap-4 relative">
@@ -268,7 +268,7 @@ export default function NotificationInbox() {
                     {hoveredId === notification.id && (
                       <button
                         onClick={(e) => dismissNotification(notification.id, e)}
-                        className="flex-shrink-0 text-slate-500 hover:text-slate-300 transition-colors p-1.5 hover:bg-slate-800 rounded"
+                        className="flex-shrink-0 text-slate-500 hover:text-slate-300 transition-colors p-1.5 hover:bg-dungeon-800 rounded"
                         aria-label="Dismiss"
                       >
                         <svg

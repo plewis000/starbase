@@ -94,7 +94,7 @@ function CalendarGrid({
   for (let d = 1; d <= totalDays; d++) cells.push(d);
 
   return (
-    <div className="mt-2 p-2 bg-slate-800/80 border border-slate-700 rounded-lg w-[260px]">
+    <div className="mt-2 p-2 bg-dungeon-800/80 border border-dungeon-700 rounded-lg w-[260px]">
       {/* Month/Year nav */}
       <div className="flex items-center justify-between mb-2 px-1">
         <button type="button" onClick={prevMonth} className="p-1 text-slate-400 hover:text-slate-100 transition-colors">
@@ -131,7 +131,7 @@ function CalendarGrid({
                   ? "bg-red-500/30 text-red-300 ring-1 ring-red-400/60"
                   : isToday
                   ? "bg-amber-500/15 text-amber-300 hover:bg-amber-500/25"
-                  : "text-slate-300 hover:bg-slate-700"
+                  : "text-slate-300 hover:bg-dungeon-700"
               }`}
             >
               {day}
@@ -201,7 +201,7 @@ export default function DatePicker({ value, onChange, showRelative = true }: Dat
             className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
               value === p.value
                 ? "bg-red-500/20 text-red-300 ring-2 ring-red-400/60 border-transparent"
-                : "bg-slate-700 text-slate-300 border-slate-600 hover:ring-1 hover:ring-slate-500"
+                : "bg-dungeon-700 text-slate-300 border-dungeon-600 hover:ring-1 hover:ring-slate-500"
             }`}
           >
             {p.label}
@@ -214,7 +214,7 @@ export default function DatePicker({ value, onChange, showRelative = true }: Dat
           className={`p-1.5 rounded-full border transition-all ${
             showCalendar
               ? "bg-red-500/20 text-red-300 ring-2 ring-red-400/60 border-transparent"
-              : "bg-slate-700 text-slate-400 border-slate-600 hover:text-slate-200 hover:ring-1 hover:ring-slate-500"
+              : "bg-dungeon-700 text-slate-400 border-dungeon-600 hover:text-slate-200 hover:ring-1 hover:ring-slate-500"
           }`}
           aria-label="Toggle calendar"
         >

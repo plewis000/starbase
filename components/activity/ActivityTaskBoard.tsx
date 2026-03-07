@@ -491,12 +491,12 @@ export default function ActivityTaskBoard({
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header bar */}
-      <div className="flex-shrink-0 px-4 py-3 border-b border-slate-800 bg-slate-950/80 backdrop-blur-sm">
+      <div className="flex-shrink-0 px-4 py-3 border-b border-dungeon-800 bg-dungeon-950/80 backdrop-blur-sm">
         <div className="flex items-center gap-2 min-w-0 flex-wrap">
           <h1 className="text-lg font-bold text-slate-100 tracking-wide flex-shrink-0">Tasks</h1>
           <span className="text-xs text-slate-500 font-mono flex-shrink-0">{total} total</span>
 
-          <div className="flex items-center gap-0.5 bg-slate-900 border border-slate-800 rounded-lg p-0.5 overflow-x-auto flex-shrink-0">
+          <div className="flex items-center gap-0.5 bg-dungeon-900 border border-dungeon-800 rounded-lg p-0.5 overflow-x-auto flex-shrink-0">
             {([
               { key: "list" as ViewMode, icon: "☰", label: "List" },
               { key: "board" as ViewMode, icon: "▦", label: "Board" },
@@ -523,7 +523,7 @@ export default function ActivityTaskBoard({
       </div>
 
       {/* Quick add bar with + button */}
-      <div className="flex-shrink-0 px-4 py-2 border-b border-slate-800/50">
+      <div className="flex-shrink-0 px-4 py-2 border-b border-dungeon-800/50">
         <div className="flex items-center gap-2">
           {onCreateTask && (
             <button
@@ -541,7 +541,7 @@ export default function ActivityTaskBoard({
       </div>
 
       {/* Filters */}
-      <div className="flex-shrink-0 px-4 py-2 border-b border-slate-800/50">
+      <div className="flex-shrink-0 px-4 py-2 border-b border-dungeon-800/50">
         <ActivityFilterBar
           filters={filters}
           onFilterChange={handleFilterChange}
@@ -563,7 +563,7 @@ export default function ActivityTaskBoard({
       <div className="flex-1 overflow-auto px-4 py-3">
         {loading && tasks.length === 0 ? (
           <div className="flex items-center justify-center h-48">
-            <div className="animate-spin w-8 h-8 border-2 border-slate-700 border-t-red-500 rounded-full" />
+            <div className="animate-spin w-8 h-8 border-2 border-dungeon-700 border-t-red-500 rounded-full" />
           </div>
         ) : tasks.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 text-center">

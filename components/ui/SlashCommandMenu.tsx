@@ -72,10 +72,10 @@ export default function SlashCommandMenu({ isOpen, onClose, onSwitchView, onCrea
   return (
     <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[20vh] bg-black/40 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden"
+        className="bg-dungeon-900 border border-dungeon-700 rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-3 border-b border-slate-800">
+        <div className="p-3 border-b border-dungeon-800">
           <input
             ref={inputRef}
             type="text"
@@ -97,7 +97,7 @@ export default function SlashCommandMenu({ isOpen, onClose, onSwitchView, onCrea
                 onClick={cmd.action}
                 onMouseEnter={() => setSelectedIndex(i)}
                 className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${
-                  i === selectedIndex ? "bg-slate-800" : "hover:bg-slate-800/50"
+                  i === selectedIndex ? "bg-dungeon-800" : "hover:bg-dungeon-800/50"
                 }`}
               >
                 <span className="text-xs font-mono text-red-400/70 w-24 flex-shrink-0">{cmd.command}</span>

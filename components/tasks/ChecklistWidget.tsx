@@ -35,21 +35,21 @@ function AssigneeButton({ item, members, onAssign }: {
           item.assignee.avatar_url ? (
             <img src={item.assignee.avatar_url} alt="" className="w-full h-full rounded-full object-cover" />
           ) : (
-            <span className="bg-slate-700 text-slate-300 border-slate-600 w-full h-full rounded-full flex items-center justify-center">
+            <span className="bg-dungeon-700 text-slate-300 border-dungeon-600 w-full h-full rounded-full flex items-center justify-center">
               {getInitials(item.assignee.full_name)}
             </span>
           )
         ) : (
-          <span className="bg-slate-800 text-slate-600 border-slate-700 border-dashed w-full h-full rounded-full flex items-center justify-center hover:text-slate-400">
+          <span className="bg-dungeon-800 text-slate-600 border-dungeon-700 border-dashed w-full h-full rounded-full flex items-center justify-center hover:text-slate-400">
             +
           </span>
         )}
       </button>
       {showDropdown && (
-        <div className="absolute right-0 top-full mt-1 z-20 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 min-w-[140px]">
+        <div className="absolute right-0 top-full mt-1 z-20 bg-dungeon-800 border border-dungeon-700 rounded-lg shadow-xl py-1 min-w-[140px]">
           <button
             onClick={() => { onAssign(item.id, null); setShowDropdown(false); }}
-            className="w-full text-left px-3 py-1.5 text-xs text-slate-400 hover:bg-slate-700 transition-colors"
+            className="w-full text-left px-3 py-1.5 text-xs text-slate-400 hover:bg-dungeon-700 transition-colors"
           >
             Unassigned
           </button>
@@ -57,7 +57,7 @@ function AssigneeButton({ item, members, onAssign }: {
             <button
               key={m.user_id}
               onClick={() => { onAssign(item.id, m.user_id); setShowDropdown(false); }}
-              className={`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-700 transition-colors ${
+              className={`w-full text-left px-3 py-1.5 text-xs hover:bg-dungeon-700 transition-colors ${
                 item.assigned_to === m.user_id ? "text-red-400 font-medium" : "text-slate-200"
               }`}
             >
@@ -227,7 +227,7 @@ export default function ChecklistWidget({
               {checkedCount} of {itemsState.length} complete
             </span>
           </div>
-          <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+          <div className="h-2 bg-dungeon-800 rounded-full overflow-hidden">
             <div
               className="h-full bg-red-400 transition-all duration-300"
               style={{ width: `${progressPercent}%` }}
@@ -246,7 +246,7 @@ export default function ChecklistWidget({
                 checked={item.checked}
                 onChange={() => handleToggleItem(item.id, item.checked)}
                 disabled={loading}
-                className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-red-400 cursor-pointer disabled:opacity-50"
+                className="w-4 h-4 rounded border-dungeon-700 bg-dungeon-800 text-red-400 cursor-pointer disabled:opacity-50"
               />
               {editingId === item.id ? (
                 <input
@@ -259,7 +259,7 @@ export default function ChecklistWidget({
                     if (e.key === "Escape") setEditingId(null);
                   }}
                   autoFocus
-                  className="flex-1 bg-slate-700 border border-red-400 rounded px-2 py-1 text-sm text-slate-100 focus:outline-none"
+                  className="flex-1 bg-dungeon-700 border border-red-400 rounded px-2 py-1 text-sm text-slate-100 focus:outline-none"
                 />
               ) : (
                 <span
@@ -309,12 +309,12 @@ export default function ChecklistWidget({
           }}
           placeholder="Add item..."
           disabled={addingItem}
-          className="flex-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50"
+          className="flex-1 bg-dungeon-800 border border-dungeon-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50"
         />
         <button
           onClick={handleAddItem}
           disabled={addingItem || !newItemTitle.trim()}
-          className="px-3 py-2 bg-red-400 hover:bg-red-500 disabled:bg-slate-700 disabled:cursor-not-allowed text-slate-950 text-sm font-medium rounded transition-colors"
+          className="px-3 py-2 bg-red-400 hover:bg-red-500 disabled:bg-dungeon-700 disabled:cursor-not-allowed text-slate-950 text-sm font-medium rounded transition-colors"
         >
           {addingItem ? <LoadingSpinner size="sm" /> : "Add"}
         </button>

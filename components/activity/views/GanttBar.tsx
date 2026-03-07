@@ -28,8 +28,8 @@ function priorityColor(name?: string): string {
     case "Urgent": return "bg-red-500/80";
     case "High": return "bg-orange-500/70";
     case "Medium": return "bg-amber-500/60";
-    case "Low": return "bg-slate-600";
-    default: return "bg-slate-600";
+    case "Low": return "bg-dungeon-600";
+    default: return "bg-dungeon-600";
   }
 }
 
@@ -38,7 +38,7 @@ function statusBorder(name?: string): string {
     case "Done": return "border-green-500/50";
     case "In Progress": return "border-blue-500/50";
     case "Blocked": return "border-red-500/50";
-    default: return "border-slate-700/50";
+    default: return "border-dungeon-700/50";
   }
 }
 
@@ -68,7 +68,7 @@ export default function GanttBar({ task, startDay, duration, dayWidth, rowHeight
 
       {/* Assignee initials on right edge */}
       {task.assignee && (
-        <div className="absolute -right-1 -top-1 w-4 h-4 rounded-full bg-slate-900 border border-slate-700 flex items-center justify-center text-[7px] font-bold text-slate-300">
+        <div className="absolute -right-1 -top-1 w-4 h-4 rounded-full bg-dungeon-900 border border-dungeon-700 flex items-center justify-center text-[7px] font-bold text-slate-300">
           {task.assignee.full_name?.charAt(0) || "?"}
         </div>
       )}

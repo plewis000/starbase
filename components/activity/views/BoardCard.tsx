@@ -30,7 +30,7 @@ function priorityDot(name?: string): string {
     case "High": return "bg-orange-400";
     case "Medium": return "bg-amber-400";
     case "Low": return "bg-slate-500";
-    default: return "bg-slate-700";
+    default: return "bg-dungeon-700";
   }
 }
 
@@ -75,10 +75,10 @@ export default function BoardCard({ task, isDone, isCompleted, isGhost, isOverla
       onClick={() => !isGhost && onSelect?.(task.id)}
       className={`p-2.5 rounded-lg border transition-all ${
         isOverlay
-          ? "bg-slate-900 border-slate-600 cursor-grabbing ring-1 ring-red-400/30"
+          ? "bg-dungeon-900 border-dungeon-600 cursor-grabbing ring-1 ring-red-400/30"
           : isGhost
-            ? "bg-slate-950/30 border-dashed border-slate-700/50 opacity-30"
-            : "bg-slate-950/60 border-slate-800/50 hover:border-slate-700 cursor-grab active:cursor-grabbing"
+            ? "bg-dungeon-950/30 border-dashed border-dungeon-700/50 opacity-30"
+            : "bg-dungeon-950/60 border-dungeon-800/50 hover:border-dungeon-700 cursor-grab active:cursor-grabbing"
       } ${isCompleted ? "ring-1 ring-green-500/30" : ""}`}
     >
       {/* Title row with priority dot */}
@@ -109,7 +109,7 @@ export default function BoardCard({ task, isDone, isCompleted, isGhost, isOverla
         <div className="flex items-center gap-1.5">
           {task.assignee && (
             <div
-              className="w-5 h-5 rounded-full bg-slate-800 flex items-center justify-center text-[8px] font-bold text-slate-400 border border-slate-700"
+              className="w-5 h-5 rounded-full bg-dungeon-800 flex items-center justify-center text-[8px] font-bold text-slate-400 border border-dungeon-700"
               title={task.assignee.full_name}
             >
               {task.assignee.avatar_url ? (
@@ -123,7 +123,7 @@ export default function BoardCard({ task, isDone, isCompleted, isGhost, isOverla
             <button
               onClick={(e) => { e.stopPropagation(); e.preventDefault(); onQuickComplete(task.id); }}
               onPointerDown={(e) => e.stopPropagation()}
-              className="w-5 h-5 rounded-full border border-slate-700 hover:border-green-500 hover:bg-green-500/10 transition-all flex items-center justify-center"
+              className="w-5 h-5 rounded-full border border-dungeon-700 hover:border-green-500 hover:bg-green-500/10 transition-all flex items-center justify-center"
               title="Mark complete"
             >
               <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-slate-600 hover:text-green-400">

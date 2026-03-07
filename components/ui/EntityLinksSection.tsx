@@ -200,7 +200,7 @@ export default function EntityLinksSection({
   if (links.length === 0) {
     return (
       <>
-        <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
+        <div className="bg-dungeon-800 border border-dungeon-700 rounded-lg p-4">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-semibold text-slate-100">Linked Items</h3>
           </div>
@@ -212,7 +212,7 @@ export default function EntityLinksSection({
               <button
                 key={t}
                 onClick={() => openPicker(t)}
-                className="px-3 py-1.5 text-xs text-slate-400 hover:text-red-400 bg-slate-900 border border-slate-700 hover:border-red-400/30 rounded-lg transition-colors"
+                className="px-3 py-1.5 text-xs text-slate-400 hover:text-red-400 bg-dungeon-900 border border-dungeon-700 hover:border-red-400/30 rounded-lg transition-colors"
               >
                 {ENTITY_TYPE_ICONS[t]} Link {ENTITY_TYPE_LABELS[t]}
               </button>
@@ -232,7 +232,7 @@ export default function EntityLinksSection({
 
   return (
     <>
-      <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
+      <div className="bg-dungeon-800 border border-dungeon-700 rounded-lg p-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-slate-100">
             Linked Items{" "}
@@ -256,7 +256,7 @@ export default function EntityLinksSection({
           {displayLinks.map(({ link, linkedType, linkedId, label, displayName }) => (
             <div
               key={link.id}
-              className="flex items-center gap-2 p-2 bg-slate-900 rounded-lg border border-slate-800 group"
+              className="flex items-center gap-2 p-2 bg-dungeon-900 rounded-lg border border-dungeon-800 group"
             >
               <span className="text-sm flex-shrink-0">
                 {ENTITY_TYPE_ICONS[linkedType]}
@@ -264,7 +264,7 @@ export default function EntityLinksSection({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-slate-500">{label}</span>
-                  <span className="text-xs px-1.5 py-0.5 bg-slate-800 rounded text-slate-400">
+                  <span className="text-xs px-1.5 py-0.5 bg-dungeon-800 rounded text-slate-400">
                     {ENTITY_TYPE_LABELS[linkedType]}
                   </span>
                   {link.sync_completion && (

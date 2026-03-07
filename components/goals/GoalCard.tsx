@@ -52,8 +52,8 @@ export default function GoalCard({ goal, onSelect, isSelected = false }: GoalCar
   return (
     <div
       onClick={() => onSelect(goal.id)}
-      className={`p-4 bg-slate-900 border rounded-lg cursor-pointer transition-all hover:bg-slate-800/50 ${
-        isSelected ? "border-red-400 border-l-4" : "border-slate-800 hover:border-slate-700"
+      className={`p-4 bg-dungeon-900 border rounded-lg cursor-pointer transition-all hover:bg-dungeon-800/50 ${
+        isSelected ? "border-red-400 border-l-4" : "border-dungeon-800 hover:border-dungeon-700"
       }`}
     >
       <div className="flex items-start justify-between gap-3 mb-3">
@@ -92,7 +92,7 @@ export default function GoalCard({ goal, onSelect, isSelected = false }: GoalCar
           </span>
           <span className="text-slate-500">{goal.progress_type.replace("_", " ")}</span>
         </div>
-        <div className="w-full bg-slate-800 rounded-full h-1.5">
+        <div className="w-full bg-dungeon-800 rounded-full h-1.5">
           <div
             className={`h-1.5 rounded-full transition-all ${PROGRESS_COLORS[goal.status] || "bg-red-400"}`}
             style={{ width: `${progressPercent}%` }}

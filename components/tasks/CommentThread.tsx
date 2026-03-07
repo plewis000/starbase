@@ -215,10 +215,10 @@ export default function CommentThread({
                   <img
                     src={comment.user.avatar_url}
                     alt={comment.user?.full_name || "User"}
-                    className="w-8 h-8 rounded-full bg-slate-800 object-cover"
+                    className="w-8 h-8 rounded-full bg-dungeon-800 object-cover"
                   />
                 ) : (
-                  <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-semibold text-slate-200">
+                  <div className="w-8 h-8 rounded-full bg-dungeon-700 flex items-center justify-center text-xs font-semibold text-slate-200">
                     {getInitials(comment.user?.full_name)}
                   </div>
                 )}
@@ -249,7 +249,7 @@ export default function CommentThread({
       )}
 
       {/* Add comment form */}
-      <div className="pt-3 border-t border-slate-800 space-y-2">
+      <div className="pt-3 border-t border-dungeon-800 space-y-2">
         <div className="relative">
           <textarea
             ref={textareaRef}
@@ -280,22 +280,22 @@ export default function CommentThread({
             placeholder="Add a comment... Use @name to mention someone (Ctrl+Enter to submit)"
             disabled={submitting}
             rows={3}
-            className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50 resize-none"
+            className="w-full bg-dungeon-800 border border-dungeon-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50 resize-none"
           />
 
           {/* @mention autocomplete dropdown */}
           {showMentionSuggestions && mentionSuggestions.length > 0 && (
-            <div className="absolute bottom-full left-0 mb-1 w-64 bg-slate-800 border border-slate-700 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
+            <div className="absolute bottom-full left-0 mb-1 w-64 bg-dungeon-800 border border-dungeon-700 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
               {mentionSuggestions.map((member, index) => (
                 <button
                   key={member.id}
                   type="button"
                   onClick={() => insertMention(member)}
-                  className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-slate-700 transition-colors ${
-                    index === selectedSuggestionIndex ? 'bg-slate-700' : ''
+                  className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-dungeon-700 transition-colors ${
+                    index === selectedSuggestionIndex ? 'bg-dungeon-700' : ''
                   }`}
                 >
-                  <div className="w-6 h-6 rounded-full bg-slate-600 flex items-center justify-center text-[10px] font-semibold text-slate-200">
+                  <div className="w-6 h-6 rounded-full bg-dungeon-600 flex items-center justify-center text-[10px] font-semibold text-slate-200">
                     {getInitials(member.full_name)}
                   </div>
                   <div>
@@ -313,14 +313,14 @@ export default function CommentThread({
           <button
             onClick={() => setNewComment("")}
             disabled={submitting || !newComment.trim()}
-            className="px-3 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-100 text-sm font-medium rounded transition-colors"
+            className="px-3 py-2 bg-dungeon-800 hover:bg-dungeon-700 disabled:opacity-50 text-slate-100 text-sm font-medium rounded transition-colors"
           >
             Clear
           </button>
           <button
             onClick={handleSubmitComment}
             disabled={submitting || !newComment.trim()}
-            className="px-3 py-2 bg-red-400 hover:bg-red-500 disabled:bg-slate-700 disabled:cursor-not-allowed text-slate-950 text-sm font-medium rounded transition-colors flex items-center gap-2"
+            className="px-3 py-2 bg-red-400 hover:bg-red-500 disabled:bg-dungeon-700 disabled:cursor-not-allowed text-slate-950 text-sm font-medium rounded transition-colors flex items-center gap-2"
           >
             {submitting ? <LoadingSpinner size="sm" /> : "Post"}
           </button>

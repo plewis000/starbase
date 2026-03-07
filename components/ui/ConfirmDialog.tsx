@@ -35,7 +35,7 @@ export default function ConfirmDialog({
       aria-labelledby="confirm-title"
     >
       <div
-        className="bg-slate-900 border border-slate-700 rounded-xl p-6 max-w-sm w-full shadow-xl"
+        className="bg-dungeon-900 border border-dungeon-700 rounded-xl p-6 max-w-sm w-full shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <h3 id="confirm-title" className="text-lg font-semibold text-slate-100 mb-2">{title}</h3>
@@ -43,7 +43,7 @@ export default function ConfirmDialog({
         <div className="flex items-center justify-end gap-3">
           <button
             onClick={onCancel}
-            className="px-4 py-2 text-sm font-medium text-slate-300 hover:text-slate-100 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors"
+            className="px-4 py-2 text-sm font-medium text-slate-300 hover:text-slate-100 bg-dungeon-800 hover:bg-dungeon-700 rounded-lg transition-colors"
           >
             {cancelLabel}
           </button>

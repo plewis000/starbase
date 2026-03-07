@@ -35,20 +35,20 @@ interface Props {
 
 // Fallback colors when no display_color is set
 const FALLBACK_COLORS: Record<string, { border: string; bg: string; dot: string }> = {
-  "To Do": { border: "border-slate-600", bg: "bg-slate-900/30", dot: "bg-slate-600" },
+  "To Do": { border: "border-dungeon-600", bg: "bg-dungeon-900/30", dot: "bg-dungeon-600" },
   "In Progress": { border: "border-blue-500", bg: "bg-blue-950/20", dot: "bg-blue-500" },
   "Blocked": { border: "border-red-500", bg: "bg-red-950/20", dot: "bg-red-500" },
   "Done": { border: "border-green-500", bg: "bg-green-950/20", dot: "bg-green-500" },
 };
 
-const DEFAULT_STYLE = { border: "border-slate-600", bg: "bg-slate-900/30", dot: "bg-slate-600" };
+const DEFAULT_STYLE = { border: "border-dungeon-600", bg: "bg-dungeon-900/30", dot: "bg-dungeon-600" };
 
 function getColumnStyle(status: ConfigStatus) {
   if (status.color) {
     return {
       borderColor: status.color,
       dotColor: status.color,
-      bgClass: "bg-slate-900/30",
+      bgClass: "bg-dungeon-900/30",
     };
   }
   const fallback = FALLBACK_COLORS[status.name] || DEFAULT_STYLE;
@@ -86,7 +86,7 @@ function DroppableColumn({
       style={colStyle.borderColor ? { borderColor: colStyle.borderColor } : undefined}
     >
       {/* Column header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-slate-800/50">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-dungeon-800/50">
         <div className="flex items-center gap-2">
           <div
             className={`w-2 h-2 rounded-full ${colStyle.dotClass || ""}`}
@@ -135,7 +135,7 @@ function MobileSection({
       {/* Tap-to-expand header */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between px-4 min-h-[48px] border-b border-slate-800/50 active:bg-slate-800/30"
+        className="w-full flex items-center justify-between px-4 min-h-[48px] border-b border-dungeon-800/50 active:bg-dungeon-800/30"
       >
         <div className="flex items-center gap-2">
           <div

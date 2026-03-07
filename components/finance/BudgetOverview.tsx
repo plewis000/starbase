@@ -65,7 +65,7 @@ export default function BudgetOverview() {
       )}
 
       {budgets.length === 0 ? (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 text-center">
+        <div className="bg-dungeon-900 border border-dungeon-800 rounded-xl p-8 text-center">
           <p className="text-slate-400 text-sm">No budgets set. Create one to start tracking spending limits.</p>
         </div>
       ) : (
@@ -74,7 +74,7 @@ export default function BudgetOverview() {
             const isOver = b.percent_used > 100;
             const isWarning = b.percent_used >= 75 && b.percent_used <= 100;
             return (
-              <div key={b.id} className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+              <div key={b.id} className="bg-dungeon-900 border border-dungeon-800 rounded-xl p-4">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <span>{b.category?.icon || "?"}</span>
@@ -89,7 +89,7 @@ export default function BudgetOverview() {
                     <span className="text-sm text-slate-500"> / {fmt(b.monthly_amount)}</span>
                   </div>
                 </div>
-                <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                <div className="h-2 bg-dungeon-800 rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all ${
                       isOver ? "bg-red-500" : isWarning ? "bg-amber-500" : "bg-green-500"
@@ -167,11 +167,11 @@ function AddBudgetForm({ onAdded, onCancel }: { onAdded: (b: Budget) => void; on
   };
 
   return (
-    <div className="bg-slate-900 border border-slate-700 rounded-xl p-4 space-y-3">
+    <div className="bg-dungeon-900 border border-dungeon-700 rounded-xl p-4 space-y-3">
       <select
         value={categoryId}
         onChange={(e) => setCategoryId(e.target.value)}
-        className="w-full px-3 py-2 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:border-red-500"
+        className="w-full px-3 py-2 text-sm bg-dungeon-800 border border-dungeon-700 rounded-md text-slate-100 focus:outline-none focus:border-red-500"
       >
         <option value="">Select category</option>
         {categories.map((c) => (
@@ -184,11 +184,11 @@ function AddBudgetForm({ onAdded, onCancel }: { onAdded: (b: Budget) => void; on
         placeholder="Monthly budget amount"
         value={amount}
         onChange={(e) => setAmount(e.target.value)}
-        className="w-full px-3 py-2 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:border-red-500"
+        className="w-full px-3 py-2 text-sm bg-dungeon-800 border border-dungeon-700 rounded-md text-slate-100 focus:outline-none focus:border-red-500"
       />
       {error && <div className="text-xs text-red-400">{error}</div>}
       <div className="flex gap-2">
-        <button onClick={onCancel} className="flex-1 px-3 py-2 text-sm bg-slate-800 text-slate-300 rounded-md hover:bg-slate-700">
+        <button onClick={onCancel} className="flex-1 px-3 py-2 text-sm bg-dungeon-800 text-slate-300 rounded-md hover:bg-dungeon-700">
           Cancel
         </button>
         <button

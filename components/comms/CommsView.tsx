@@ -61,9 +61,9 @@ export default function CommsView() {
   return (
     <div className="flex h-full">
       {/* Left panel: tabs + content */}
-      <div className="w-80 flex-shrink-0 border-r border-slate-800 flex flex-col bg-slate-950/50">
+      <div className="w-80 flex-shrink-0 border-r border-dungeon-800 flex flex-col bg-dungeon-950/50">
         {/* Tab switcher */}
-        <div className="flex border-b border-slate-800">
+        <div className="flex border-b border-dungeon-800">
           <button
             onClick={() => setActiveTab("threads")}
             className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors ${

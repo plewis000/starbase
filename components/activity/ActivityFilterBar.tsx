@@ -272,7 +272,7 @@ export default function ActivityFilterBar({
         {savedViews.map((view) => (
           <div key={view.name} className="relative group flex-shrink-0">
             {editingView === view.name ? (
-              <div className="flex items-center gap-1 bg-slate-800 border border-slate-600 rounded-full px-1 py-0.5">
+              <div className="flex items-center gap-1 bg-dungeon-800 border border-dungeon-600 rounded-full px-1 py-0.5">
                 <select
                   value={editIcon}
                   onChange={(e) => setEditIcon(e.target.value)}
@@ -297,7 +297,7 @@ export default function ActivityFilterBar({
                 className={`relative flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all border ${
                   activeView === view.name
                     ? "bg-crimson-900/30 border-crimson-700 text-crimson-300"
-                    : "bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-300 hover:border-slate-700"
+                    : "bg-dungeon-900 border-dungeon-800 text-slate-500 hover:text-slate-300 hover:border-dungeon-700"
                 }`}
               >
                 <span>{view.icon}</span>
@@ -329,7 +329,7 @@ export default function ActivityFilterBar({
 
         <button
           onClick={() => setShowSaveDialog(!showSaveDialog)}
-          className="px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap border border-dashed border-slate-700 text-slate-600 hover:text-slate-400 hover:border-slate-600 transition-all flex-shrink-0"
+          className="px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap border border-dashed border-dungeon-700 text-slate-600 hover:text-slate-400 hover:border-dungeon-600 transition-all flex-shrink-0"
         >
           + Save View
         </button>
@@ -338,17 +338,17 @@ export default function ActivityFilterBar({
           <div className="relative flex-shrink-0" ref={restoreMenuRef}>
             <button
               onClick={() => setShowRestoreMenu(!showRestoreMenu)}
-              className="px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap border border-dashed border-slate-700 text-slate-600 hover:text-slate-400 hover:border-slate-600 transition-all"
+              className="px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap border border-dashed border-dungeon-700 text-slate-600 hover:text-slate-400 hover:border-dungeon-600 transition-all"
             >
               + Restore ({hiddenDefaultViews.length})
             </button>
             {showRestoreMenu && (
-              <div className="absolute top-full left-0 mt-1 bg-slate-900 border border-slate-700 rounded-lg shadow-xl z-50 py-1 min-w-[140px]">
+              <div className="absolute top-full left-0 mt-1 bg-dungeon-900 border border-dungeon-700 rounded-lg shadow-xl z-50 py-1 min-w-[140px]">
                 {hiddenDefaultViews.map((view) => (
                   <button
                     key={view.name}
                     onClick={() => { onRestoreDefault(view.name); if (hiddenDefaultViews.length <= 1) setShowRestoreMenu(false); }}
-                    className="w-full text-left px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800 transition-colors flex items-center gap-1.5"
+                    className="w-full text-left px-3 py-1.5 text-xs text-slate-300 hover:bg-dungeon-800 transition-colors flex items-center gap-1.5"
                   >
                     <span>{view.icon}</span>
                     {view.name}
@@ -362,7 +362,7 @@ export default function ActivityFilterBar({
 
       {/* View override notification bar */}
       {showModifiedBar && activeDefaultView && (
-        <div className="flex items-center gap-2 px-2.5 py-1.5 bg-slate-900/60 border border-slate-800 rounded-lg text-xs">
+        <div className="flex items-center gap-2 px-2.5 py-1.5 bg-dungeon-900/60 border border-dungeon-800 rounded-lg text-xs">
           {isModified ? (
             <>
               <span className="text-slate-400">
@@ -416,12 +416,12 @@ export default function ActivityFilterBar({
       {/* Save dialog with emoji picker */}
       {showSaveDialog && (
         <div className="flex gap-2 items-center">
-          <div className="flex items-center gap-1 bg-slate-900 border border-slate-700 rounded px-2 py-1">
+          <div className="flex items-center gap-1 bg-dungeon-900 border border-dungeon-700 rounded px-2 py-1">
             {EMOJI_PICKS.slice(0, 8).map((emoji) => (
               <button
                 key={emoji}
                 onClick={() => setSaveIcon(emoji)}
-                className={`text-sm p-0.5 rounded ${saveIcon === emoji ? "bg-slate-700" : "hover:bg-slate-800"}`}
+                className={`text-sm p-0.5 rounded ${saveIcon === emoji ? "bg-dungeon-700" : "hover:bg-dungeon-800"}`}
               >
                 {emoji}
               </button>
@@ -433,7 +433,7 @@ export default function ActivityFilterBar({
             onChange={(e) => setSaveName(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") handleSaveView(); if (e.key === "Escape") setShowSaveDialog(false); }}
             placeholder="View name..."
-            className="flex-1 bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-crimson-500"
+            className="flex-1 bg-dungeon-900 border border-dungeon-700 rounded px-3 py-1.5 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-crimson-500"
             autoFocus
           />
           <button onClick={handleSaveView} className="px-3 py-1.5 text-xs bg-crimson-600 text-white rounded font-medium">Save</button>
@@ -444,7 +444,7 @@ export default function ActivityFilterBar({
       {/* Compact filter row — Mine/All + Filters left, search right */}
       <div className="flex items-center gap-2">
         {/* Mine / All toggle */}
-        <div className="flex items-center gap-0.5 bg-slate-900 border border-slate-800 rounded-lg p-0.5 flex-shrink-0">
+        <div className="flex items-center gap-0.5 bg-dungeon-900 border border-dungeon-800 rounded-lg p-0.5 flex-shrink-0">
           <button
             onClick={() => update("owner", "me")}
             className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${
@@ -466,7 +466,7 @@ export default function ActivityFilterBar({
         <button
           onClick={() => setExpanded(!expanded)}
           className={`px-2.5 py-1.5 rounded-lg text-xs border transition-all flex-shrink-0 ${
-            expanded ? "bg-crimson-900/20 border-crimson-700 text-crimson-400" : "bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-300"
+            expanded ? "bg-crimson-900/20 border-crimson-700 text-crimson-400" : "bg-dungeon-900 border-dungeon-800 text-slate-500 hover:text-slate-300"
           }`}
         >
           {expanded ? "Less" : "Filters"}
@@ -477,7 +477,7 @@ export default function ActivityFilterBar({
           defaultValue={filters.search || ""}
           onChange={(e) => handleSearch(e.target.value)}
           placeholder="Search..."
-          className="flex-1 min-w-0 bg-slate-900/80 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-crimson-500/50"
+          className="flex-1 min-w-0 bg-dungeon-900/80 border border-dungeon-800 rounded-lg px-3 py-1.5 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-crimson-500/50"
         />
       </div>
 
@@ -505,7 +505,7 @@ export default function ActivityFilterBar({
               </div>
               <button
                 onClick={() => update("direction", filters.direction === "asc" ? "desc" : "asc")}
-                className="self-end px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded text-xs text-slate-400 hover:text-slate-200"
+                className="self-end px-2.5 py-1.5 bg-dungeon-900 border border-dungeon-800 rounded text-xs text-slate-400 hover:text-slate-200"
                 title={`Sort ${filters.direction === "asc" ? "ascending" : "descending"}`}
               >
                 {filters.direction === "asc" ? "↑" : "↓"}
@@ -544,7 +544,7 @@ function FilterSelect({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full px-2 py-1.5 bg-slate-900 border border-slate-800 rounded text-xs text-slate-200 focus:outline-none focus:border-crimson-500 cursor-pointer"
+        className="w-full px-2 py-1.5 bg-dungeon-900 border border-dungeon-800 rounded text-xs text-slate-200 focus:outline-none focus:border-crimson-500 cursor-pointer"
       >
         {options.map((o) => (
           <option key={o.value} value={o.value}>{o.label}</option>

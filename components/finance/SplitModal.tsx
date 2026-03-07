@@ -101,7 +101,7 @@ export default function SplitModal({ transaction, categories, onClose, onSplit }
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-lg p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-dungeon-900 border border-dungeon-700 rounded-xl w-full max-w-lg p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-slate-100">Split Transaction</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-100 transition-colors">
@@ -124,12 +124,12 @@ export default function SplitModal({ transaction, categories, onClose, onSplit }
                 placeholder="Amount"
                 value={row.amount}
                 onChange={(e) => updateRow(i, "amount", e.target.value)}
-                className="w-24 px-2 py-2 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:border-red-500"
+                className="w-24 px-2 py-2 text-sm bg-dungeon-800 border border-dungeon-700 rounded-md text-slate-100 focus:outline-none focus:border-red-500"
               />
               <select
                 value={row.category_id}
                 onChange={(e) => updateRow(i, "category_id", e.target.value)}
-                className="flex-1 px-2 py-2 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:border-red-500"
+                className="flex-1 px-2 py-2 text-sm bg-dungeon-800 border border-dungeon-700 rounded-md text-slate-100 focus:outline-none focus:border-red-500"
               >
                 <option value="">Select category</option>
                 {categories.map((cat) => (
@@ -173,7 +173,7 @@ export default function SplitModal({ transaction, categories, onClose, onSplit }
         <div className="flex gap-3 pt-2">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-2.5 text-sm bg-slate-800 text-slate-300 rounded-md hover:bg-slate-700 transition-colors"
+            className="flex-1 px-4 py-2.5 text-sm bg-dungeon-800 text-slate-300 rounded-md hover:bg-dungeon-700 transition-colors"
           >
             Cancel
           </button>

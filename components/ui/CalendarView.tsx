@@ -123,15 +123,15 @@ export default function CalendarView({ items, timezone, onItemClick, initialDate
       {/* Month navigation */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <button onClick={prevMonth} className="px-2 py-1 rounded text-sm text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors">
+          <button onClick={prevMonth} className="px-2 py-1 rounded text-sm text-slate-400 hover:text-slate-100 hover:bg-dungeon-800 transition-colors">
             &lt;
           </button>
           <h2 className="text-lg font-bold text-slate-100 min-w-[180px] text-center">{monthLabel}</h2>
-          <button onClick={nextMonth} className="px-2 py-1 rounded text-sm text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors">
+          <button onClick={nextMonth} className="px-2 py-1 rounded text-sm text-slate-400 hover:text-slate-100 hover:bg-dungeon-800 transition-colors">
             &gt;
           </button>
         </div>
-        <button onClick={goToday} className="px-3 py-1 text-xs font-medium text-slate-400 border border-slate-700 rounded-lg hover:bg-slate-800 transition-colors">
+        <button onClick={goToday} className="px-3 py-1 text-xs font-medium text-slate-400 border border-dungeon-700 rounded-lg hover:bg-dungeon-800 transition-colors">
           Today
         </button>
       </div>
@@ -146,7 +146,7 @@ export default function CalendarView({ items, timezone, onItemClick, initialDate
       </div>
 
       {/* Calendar grid */}
-      <div className="grid grid-cols-7 gap-px flex-1 bg-slate-800/30 rounded-lg overflow-hidden">
+      <div className="grid grid-cols-7 gap-px flex-1 bg-dungeon-800/30 rounded-lg overflow-hidden">
         {monthDays.map(({ date, inMonth }, idx) => {
           const key = dateKey(date);
           const isToday = key === todayKey;
@@ -158,9 +158,9 @@ export default function CalendarView({ items, timezone, onItemClick, initialDate
               key={idx}
               onClick={() => dayItems.length > 0 && setPopoverDay(popoverDay === key ? null : key)}
               className={`relative min-h-[72px] p-1 transition-colors cursor-pointer ${
-                inMonth ? "bg-slate-950" : "bg-slate-950/50"
-              } ${isWeekend ? "bg-slate-900/30" : ""} ${
-                dayItems.length > 0 ? "hover:bg-slate-800/50" : ""
+                inMonth ? "bg-dungeon-950" : "bg-dungeon-950/50"
+              } ${isWeekend ? "bg-dungeon-900/30" : ""} ${
+                dayItems.length > 0 ? "hover:bg-dungeon-800/50" : ""
               }`}
             >
               <span className={`text-[11px] font-mono block text-right ${
@@ -194,7 +194,7 @@ export default function CalendarView({ items, timezone, onItemClick, initialDate
               {popoverDay === key && dayItems.length > 0 && (
                 <div
                   ref={popoverRef}
-                  className="absolute z-40 top-full left-0 mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-2 min-w-[180px] max-w-[240px]"
+                  className="absolute z-40 top-full left-0 mt-1 bg-dungeon-800 border border-dungeon-700 rounded-lg shadow-xl p-2 min-w-[180px] max-w-[240px]"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="text-[10px] text-slate-500 font-semibold mb-1">
@@ -205,7 +205,7 @@ export default function CalendarView({ items, timezone, onItemClick, initialDate
                       <button
                         key={`${item.id}-${i}`}
                         onClick={() => onItemClick?.(item)}
-                        className="w-full text-left px-2 py-1.5 rounded hover:bg-slate-700 transition-colors flex items-center gap-2"
+                        className="w-full text-left px-2 py-1.5 rounded hover:bg-dungeon-700 transition-colors flex items-center gap-2"
                       >
                         <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: item.color || "#64748b" }} />
                         <div className="min-w-0 flex-1">

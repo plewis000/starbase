@@ -58,7 +58,7 @@ export default function OutcomesPanel() {
 
   if (!data) {
     return (
-      <div className="bg-slate-900 rounded-xl border border-slate-800 p-6 text-center text-slate-400">
+      <div className="bg-dungeon-900 rounded-xl border border-dungeon-800 p-6 text-center text-slate-400">
         Failed to load dashboard data
       </div>
     );
@@ -80,11 +80,11 @@ export default function OutcomesPanel() {
     <div className="space-y-4">
       {/* Summary strip */}
       <div className="flex items-center gap-4 flex-wrap">
-        <div className="flex items-center gap-2 bg-slate-900 rounded-lg border border-slate-800 px-4 py-2.5">
+        <div className="flex items-center gap-2 bg-dungeon-900 rounded-lg border border-dungeon-800 px-4 py-2.5">
           <span className="text-red-400 text-lg font-bold">{habits_summary.checked_today}</span>
           <span className="text-slate-400 text-sm">/{habits_summary.active_count} habits today</span>
         </div>
-        <div className="flex items-center gap-2 bg-slate-900 rounded-lg border border-slate-800 px-4 py-2.5">
+        <div className="flex items-center gap-2 bg-dungeon-900 rounded-lg border border-dungeon-800 px-4 py-2.5">
           <span className="text-red-400 text-lg font-bold">{goals_summary.active_count}</span>
           <span className="text-slate-400 text-sm">active goals</span>
         </div>
@@ -112,7 +112,7 @@ export default function OutcomesPanel() {
             const doneCount = goalHabits.filter((h) => h.checked_today).length;
 
             return (
-              <div key={goal.id} className="bg-slate-900 rounded-xl border border-slate-800 p-5">
+              <div key={goal.id} className="bg-dungeon-900 rounded-xl border border-dungeon-800 p-5">
                 {/* Goal header + progress */}
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-sm font-semibold text-slate-100">{goal.title}</h3>
@@ -120,7 +120,7 @@ export default function OutcomesPanel() {
                     {Math.round(goal.progress_value)}%
                   </span>
                 </div>
-                <div className="w-full bg-slate-800 rounded-full h-2 mb-3">
+                <div className="w-full bg-dungeon-800 rounded-full h-2 mb-3">
                   <div
                     className="bg-red-400 h-2 rounded-full transition-all"
                     style={{ width: `${Math.min(100, goal.progress_value)}%` }}
@@ -129,7 +129,7 @@ export default function OutcomesPanel() {
 
                 {/* Driving habits */}
                 {goalHabits.length > 0 && (
-                  <div className="space-y-1.5 pt-3 border-t border-slate-800">
+                  <div className="space-y-1.5 pt-3 border-t border-dungeon-800">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-xs text-slate-500 uppercase tracking-wider">Driving Habits</span>
                       <span className="text-xs text-slate-400">
@@ -141,7 +141,7 @@ export default function OutcomesPanel() {
                         <div className={`w-3.5 h-3.5 rounded-full flex-shrink-0 ${
                           h.checked_today
                             ? "bg-red-400"
-                            : "border-2 border-slate-600"
+                            : "border-2 border-dungeon-600"
                         }`} />
                         <span className={`text-sm flex-1 ${h.checked_today ? "text-slate-300" : "text-slate-400"}`}>
                           {h.title}
@@ -154,7 +154,7 @@ export default function OutcomesPanel() {
                       </div>
                     ))}
                     {/* Habit health bar */}
-                    <div className="w-full bg-slate-800 rounded-full h-1 mt-2">
+                    <div className="w-full bg-dungeon-800 rounded-full h-1 mt-2">
                       <div
                         className="bg-red-400/60 h-1 rounded-full transition-all"
                         style={{ width: `${goalHabits.length > 0 ? (doneCount / goalHabits.length) * 100 : 0}%` }}
@@ -164,27 +164,27 @@ export default function OutcomesPanel() {
                 )}
 
                 {goalHabits.length === 0 && (
-                  <p className="text-xs text-slate-500 pt-2 border-t border-slate-800">No linked habits</p>
+                  <p className="text-xs text-slate-500 pt-2 border-t border-dungeon-800">No linked habits</p>
                 )}
               </div>
             );
           })}
         </div>
       ) : (
-        <div className="bg-slate-900 rounded-xl border border-slate-800 p-6 text-center">
+        <div className="bg-dungeon-900 rounded-xl border border-dungeon-800 p-6 text-center">
           <p className="text-slate-400 text-sm">No active goals. Create one to start tracking progress.</p>
         </div>
       )}
 
       {/* Standalone habits */}
       {standaloneHabits.length > 0 && (
-        <div className="bg-slate-900 rounded-xl border border-slate-800 p-5">
+        <div className="bg-dungeon-900 rounded-xl border border-dungeon-800 p-5">
           <h3 className="text-xs text-slate-500 uppercase tracking-wider mb-3">Standalone Habits</h3>
           <div className="space-y-1.5">
             {standaloneHabits.map((h) => (
               <div key={h.id} className="flex items-center gap-2.5 py-1">
                 <div className={`w-3.5 h-3.5 rounded-full flex-shrink-0 ${
-                  h.checked_today ? "bg-red-400" : "border-2 border-slate-600"
+                  h.checked_today ? "bg-red-400" : "border-2 border-dungeon-600"
                 }`} />
                 <span className={`text-sm flex-1 ${h.checked_today ? "text-slate-300" : "text-slate-400"}`}>
                   {h.title}
@@ -200,7 +200,7 @@ export default function OutcomesPanel() {
 
       {/* Streaks leaderboard */}
       {streaks_leaderboard.length > 0 && (
-        <div className="bg-slate-900 rounded-xl border border-slate-800 p-5">
+        <div className="bg-dungeon-900 rounded-xl border border-dungeon-800 p-5">
           <h3 className="text-xs text-slate-500 uppercase tracking-wider mb-3">Top Streaks</h3>
           <div className="space-y-2">
             {streaks_leaderboard.map((s, i) => (

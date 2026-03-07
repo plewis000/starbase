@@ -54,7 +54,7 @@ function QuickAddGoal({ onCreated }: { onCreated: () => void }) {
       onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
       placeholder="Quick add goal... (press Enter)"
       disabled={adding}
-      className="w-full bg-slate-900 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-500/50 disabled:opacity-50 transition-colors"
+      className="w-full bg-dungeon-900 border border-dungeon-800 rounded-lg px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-500/50 disabled:opacity-50 transition-colors"
     />
   );
 }
@@ -119,14 +119,14 @@ export default function GoalList({ onSelectGoal, onCreateGoal, selectedGoalId }:
       <QuickAddGoal onCreated={fetchGoals} />
 
       {/* Status tabs */}
-      <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-lg border border-slate-800">
+      <div className="flex items-center gap-1 bg-dungeon-900 p-1 rounded-lg border border-dungeon-800">
         {STATUS_TABS.map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
               activeTab === tab
-                ? "bg-slate-800 text-red-400"
+                ? "bg-dungeon-800 text-red-400"
                 : "text-slate-400 hover:text-slate-100"
             }`}
           >
@@ -145,7 +145,7 @@ export default function GoalList({ onSelectGoal, onCreateGoal, selectedGoalId }:
           placeholder="Search goals..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400/50 transition-colors"
+          className="w-full pl-10 pr-4 py-2.5 bg-dungeon-900 border border-dungeon-800 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400/50 transition-colors"
         />
       </div>
 

@@ -58,7 +58,7 @@ function QuickAddHabit({ onCreated }: { onCreated: () => void }) {
       onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
       placeholder="Quick add habit... (e.g., 'drink water', 'exercise')"
       disabled={adding}
-      className="w-full bg-slate-900 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-500/50 disabled:opacity-50 transition-colors"
+      className="w-full bg-dungeon-900 border border-dungeon-800 rounded-lg px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-500/50 disabled:opacity-50 transition-colors"
     />
   );
 }
@@ -222,14 +222,14 @@ export default function HabitList({ onSelectHabit, onCreateHabit, selectedHabitI
 
       {/* Today's progress bar */}
       {activeCount > 0 && (
-        <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
+        <div className="bg-dungeon-900 rounded-lg p-4 border border-dungeon-800">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-slate-100">
               {completionRate === 100 ? "All done today!" : completionRate >= 50 ? "Keep it up!" : "Today\u2019s Progress"}
             </span>
             <span className={`text-sm font-bold ${completionRate === 100 ? "text-emerald-400" : "text-red-400"}`}>{completionRate}%</span>
           </div>
-          <div className="w-full bg-slate-800 rounded-full h-2">
+          <div className="w-full bg-dungeon-800 rounded-full h-2">
             <div
               className={`h-2 rounded-full transition-all ${completionRate === 100 ? "bg-emerald-400" : "bg-red-400"}`}
               style={{ width: `${completionRate}%` }}
@@ -244,13 +244,13 @@ export default function HabitList({ onSelectHabit, onCreateHabit, selectedHabitI
       )}
 
       {/* Filter */}
-      <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-lg border border-slate-800">
+      <div className="flex items-center gap-1 bg-dungeon-900 p-1 rounded-lg border border-dungeon-800">
         {(["active", "paused", "all"] as const).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors capitalize ${
-              filter === f ? "bg-slate-800 text-red-400" : "text-slate-400 hover:text-slate-100"
+              filter === f ? "bg-dungeon-800 text-red-400" : "text-slate-400 hover:text-slate-100"
             }`}
           >
             {f}

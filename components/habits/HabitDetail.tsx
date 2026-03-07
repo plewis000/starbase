@@ -182,7 +182,7 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
   return (
     <div className="h-full overflow-y-auto">
       {/* Header */}
-      <div className="sticky top-0 bg-slate-900 border-b border-slate-800 px-6 py-4 z-10">
+      <div className="sticky top-0 bg-dungeon-900 border-b border-dungeon-800 px-6 py-4 z-10">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             {habit.category && (
@@ -204,15 +204,15 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
       <div className="p-6 space-y-6">
         {/* Streak stats */}
         <div className="grid grid-cols-3 gap-3">
-          <div className="bg-slate-800/50 rounded-lg p-3 text-center">
+          <div className="bg-dungeon-800/50 rounded-lg p-3 text-center">
             <div className="text-2xl font-bold text-amber-400">🔥 {habit.current_streak}</div>
             <div className="text-xs text-slate-400 mt-1">Current</div>
           </div>
-          <div className="bg-slate-800/50 rounded-lg p-3 text-center">
+          <div className="bg-dungeon-800/50 rounded-lg p-3 text-center">
             <div className="text-2xl font-bold text-slate-100">{habit.longest_streak}</div>
             <div className="text-xs text-slate-400 mt-1">Best</div>
           </div>
-          <div className="bg-slate-800/50 rounded-lg p-3 text-center">
+          <div className="bg-dungeon-800/50 rounded-lg p-3 text-center">
             <div className="text-2xl font-bold text-slate-100">{habit.total_completions}</div>
             <div className="text-xs text-slate-400 mt-1">Total</div>
           </div>
@@ -232,7 +232,7 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
                     {dayName}
                   </span>
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                    done ? "bg-red-400/20 border-2 border-red-400" : "bg-slate-800 border-2 border-slate-700"
+                    done ? "bg-red-400/20 border-2 border-red-400" : "bg-dungeon-800 border-2 border-dungeon-700"
                   }`}>
                     {done && (
                       <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -248,7 +248,7 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
 
         {/* Check-in form (if not checked today) */}
         {habit.status === "active" && !habit.checked_today && (
-          <div className="bg-slate-800/50 rounded-lg p-4 space-y-3">
+          <div className="bg-dungeon-800/50 rounded-lg p-4 space-y-3">
             <h3 className="text-sm font-semibold text-slate-100">Check In</h3>
             {/* Mood picker */}
             <div className="flex items-center gap-2">
@@ -257,7 +257,7 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
                   key={mood}
                   onClick={() => setCheckInMood(checkInMood === mood ? "" : mood)}
                   className={`w-10 h-10 rounded-lg text-xl flex items-center justify-center transition-all ${
-                    checkInMood === mood ? "bg-slate-700 ring-2 ring-red-400" : "bg-slate-800 hover:bg-slate-700"
+                    checkInMood === mood ? "bg-dungeon-700 ring-2 ring-red-400" : "bg-dungeon-800 hover:bg-dungeon-700"
                   }`}
                   title={mood}
                 >
@@ -271,7 +271,7 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
               value={checkInNote}
               onChange={(e) => setCheckInNote(e.target.value)}
               placeholder="Quick note (optional)..."
-              className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400/50 text-sm"
+              className="w-full px-3 py-2 bg-dungeon-800 border border-dungeon-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-400/50 text-sm"
             />
             <button
               onClick={handleCheckIn}
@@ -311,7 +311,7 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
               </h3>
             </div>
             {showGoalPicker && (
-              <div className="bg-slate-800/50 rounded-lg p-4 mb-3 space-y-3">
+              <div className="bg-dungeon-800/50 rounded-lg p-4 mb-3 space-y-3">
                 {pickerLoading ? (
                   <p className="text-sm text-slate-400">Loading goals...</p>
                 ) : availableGoals.length > 0 ? (
@@ -325,7 +325,7 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
                           className={`w-full p-2 rounded-lg border text-left transition-colors text-sm ${
                             selectedGoalsToAdd.includes(g.id)
                               ? "border-red-400 bg-red-400/10"
-                              : "border-slate-700 bg-slate-800 hover:border-slate-600"
+                              : "border-dungeon-700 bg-dungeon-800 hover:border-dungeon-600"
                           }`}
                         >
                           <div className="flex items-center gap-2">
@@ -375,7 +375,7 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
             {habit.linked_goals && habit.linked_goals.length > 0 && (
               <div className="space-y-2">
                 {habit.linked_goals.map((g) => (
-                  <div key={g.id} className="p-3 bg-slate-900 rounded-lg border border-slate-800 space-y-2">
+                  <div key={g.id} className="p-3 bg-dungeon-900 rounded-lg border border-dungeon-800 space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-slate-100">{g.title}</span>
                       <span className={`px-2 py-0.5 rounded text-xs font-medium ${
@@ -387,7 +387,7 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
                         {g.status}
                       </span>
                     </div>
-                    <div className="w-full bg-slate-700 rounded-full h-2">
+                    <div className="w-full bg-dungeon-700 rounded-full h-2">
                       <div
                         className="bg-red-400 h-2 rounded-full transition-all"
                         style={{ width: `${Math.round(g.progress_value)}%` }}
@@ -399,7 +399,7 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
                 {!showGoalPicker && (
                   <button
                     onClick={openGoalPicker}
-                    className="w-full px-3 py-2 border border-slate-700 hover:bg-slate-800 text-slate-300 font-medium rounded-lg transition-colors text-sm"
+                    className="w-full px-3 py-2 border border-dungeon-700 hover:bg-dungeon-800 text-slate-300 font-medium rounded-lg transition-colors text-sm"
                   >
                     Link to More Goals
                   </button>
@@ -419,10 +419,10 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
 
         {/* Status actions */}
         {habit.status === "active" && (
-          <div className="flex items-center gap-2 pt-4 border-t border-slate-800">
+          <div className="flex items-center gap-2 pt-4 border-t border-dungeon-800">
             <button
               onClick={() => handleStatusChange("paused")}
-              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium rounded-lg transition-colors text-sm"
+              className="px-4 py-2 bg-dungeon-800 hover:bg-dungeon-700 text-slate-300 font-medium rounded-lg transition-colors text-sm"
             >
               Pause
             </button>
@@ -435,7 +435,7 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
           </div>
         )}
         {habit.status === "paused" && (
-          <div className="pt-4 border-t border-slate-800">
+          <div className="pt-4 border-t border-dungeon-800">
             <button
               onClick={() => handleStatusChange("active")}
               className="px-4 py-2 bg-red-400 hover:bg-red-500 text-slate-950 font-medium rounded-lg transition-colors text-sm"
@@ -448,7 +448,7 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
         {/* Comments */}
         <div>
           <h3 className="text-sm font-semibold text-slate-100 mb-3">Comments</h3>
-          <div className="bg-slate-800/50 rounded-lg p-4">
+          <div className="bg-dungeon-800/50 rounded-lg p-4">
             <CommentThread entityType="habit" entityId={habitId} />
           </div>
         </div>

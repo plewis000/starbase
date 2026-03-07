@@ -207,7 +207,7 @@ export default function GanttView({ tasks, onSelect, timezone }: Props) {
             key={z}
             onClick={() => setZoom(z)}
             className={`px-2 py-1 rounded text-xs font-medium transition-all ${
-              zoom === z ? "bg-red-500 text-white" : "bg-slate-800 text-slate-400 hover:text-slate-200"
+              zoom === z ? "bg-red-500 text-white" : "bg-dungeon-800 text-slate-400 hover:text-slate-200"
             }`}
           >
             {z.charAt(0).toUpperCase() + z.slice(1)}
@@ -215,11 +215,11 @@ export default function GanttView({ tasks, onSelect, timezone }: Props) {
         ))}
       </div>
 
-      <div className="flex flex-1 overflow-hidden border border-slate-800 rounded-lg">
+      <div className="flex flex-1 overflow-hidden border border-dungeon-800 rounded-lg">
         {/* Task labels (left side) */}
-        <div className="flex-shrink-0 border-r border-slate-800 bg-slate-950/50" style={{ width: LABEL_WIDTH }}>
+        <div className="flex-shrink-0 border-r border-dungeon-800 bg-dungeon-950/50" style={{ width: LABEL_WIDTH }}>
           {/* Header spacer */}
-          <div className="h-8 border-b border-slate-800 px-3 flex items-center">
+          <div className="h-8 border-b border-dungeon-800 px-3 flex items-center">
             <span className="text-[10px] text-slate-500 font-semibold uppercase">Task</span>
           </div>
           {/* Task names */}
@@ -228,7 +228,7 @@ export default function GanttView({ tasks, onSelect, timezone }: Props) {
               <div
                 key={task.id}
                 onClick={() => onSelect?.(task.id)}
-                className="flex items-center gap-2 px-3 cursor-pointer hover:bg-slate-800/50 transition-colors"
+                className="flex items-center gap-2 px-3 cursor-pointer hover:bg-dungeon-800/50 transition-colors"
                 style={{ height: ROW_HEIGHT }}
               >
                 <span className={`text-xs truncate ${task.completed_at ? "line-through text-slate-500" : "text-slate-200"}`}>
@@ -242,12 +242,12 @@ export default function GanttView({ tasks, onSelect, timezone }: Props) {
         {/* Chart area (scrollable) */}
         <div ref={scrollRef} className="flex-1 overflow-auto">
           {/* Day headers */}
-          <div className="flex h-8 border-b border-slate-800 sticky top-0 bg-slate-950/90 z-10" style={{ width: chartWidth }}>
+          <div className="flex h-8 border-b border-dungeon-800 sticky top-0 bg-dungeon-950/90 z-10" style={{ width: chartWidth }}>
             {dayColumns.map((col, i) => (
               <div
                 key={i}
-                className={`flex-shrink-0 flex items-center justify-center border-r border-slate-800/30 text-[9px] font-mono ${
-                  col.isToday ? "bg-red-500/10 text-red-400 font-bold" : col.isWeekend ? "bg-slate-900/50 text-slate-600" : "text-slate-500"
+                className={`flex-shrink-0 flex items-center justify-center border-r border-dungeon-800/30 text-[9px] font-mono ${
+                  col.isToday ? "bg-red-500/10 text-red-400 font-bold" : col.isWeekend ? "bg-dungeon-900/50 text-slate-600" : "text-slate-500"
                 }`}
                 style={{ width: config.dayWidth }}
               >
@@ -263,7 +263,7 @@ export default function GanttView({ tasks, onSelect, timezone }: Props) {
               <div
                 key={i}
                 className={`absolute top-0 bottom-0 border-r ${
-                  col.isWeekend ? "border-slate-800/50 bg-slate-900/20" : "border-slate-800/20"
+                  col.isWeekend ? "border-dungeon-800/50 bg-dungeon-900/20" : "border-dungeon-800/20"
                 }`}
                 style={{ left: i * config.dayWidth, width: config.dayWidth }}
               />
@@ -273,7 +273,7 @@ export default function GanttView({ tasks, onSelect, timezone }: Props) {
             {sortedTasks.map((_, idx) => (
               <div
                 key={idx}
-                className="absolute left-0 right-0 border-b border-slate-800/20"
+                className="absolute left-0 right-0 border-b border-dungeon-800/20"
                 style={{ top: (idx + 1) * ROW_HEIGHT }}
               />
             ))}

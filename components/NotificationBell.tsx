@@ -139,9 +139,9 @@ export default function NotificationBell() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-80 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden">
+        <div className="absolute right-0 top-full mt-2 w-80 bg-dungeon-900 border border-dungeon-700 rounded-xl shadow-2xl z-50 overflow-hidden">
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-dungeon-700">
             <span className="text-sm font-semibold text-white">
               Notifications
             </span>
@@ -172,7 +172,7 @@ export default function NotificationBell() {
                   onClick={() => {
                     if (!n.read_at) markAsRead(n.id);
                   }}
-                  className={`w-full text-left px-4 py-3 border-b border-slate-800 hover:bg-slate-800 transition-colors ${
+                  className={`w-full text-left px-4 py-3 border-b border-dungeon-800 hover:bg-dungeon-800 transition-colors ${
                     n.read_at ? "opacity-60" : ""
                   }`}
                 >

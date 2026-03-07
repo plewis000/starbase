@@ -128,7 +128,7 @@ export default function ZevPanel() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center gap-2 p-3 border-b border-slate-800">
+      <div className="flex items-center gap-2 p-3 border-b border-dungeon-800">
         <div className="w-7 h-7 rounded-full bg-amber-600/20 flex items-center justify-center text-xs font-bold text-amber-400">
           Z
         </div>
@@ -139,7 +139,7 @@ export default function ZevPanel() {
         {(messages.length > 0 || resumedConversation) && (
           <button
             onClick={startNewChat}
-            className="text-[10px] text-slate-500 hover:text-slate-300 px-2 py-1 rounded border border-slate-700 hover:border-slate-600 transition-colors"
+            className="text-[10px] text-slate-500 hover:text-slate-300 px-2 py-1 rounded border border-dungeon-700 hover:border-dungeon-600 transition-colors"
           >
             New Chat
           </button>
@@ -162,7 +162,7 @@ export default function ZevPanel() {
             <div className={`max-w-[85%] rounded-xl px-3 py-2 text-sm ${
               msg.role === "user"
                 ? "bg-green-600/20 text-green-100"
-                : "bg-slate-800 text-slate-200"
+                : "bg-dungeon-800 text-slate-200"
             }`}>
               <div className="whitespace-pre-wrap break-words">{msg.content}</div>
             </div>
@@ -171,7 +171,7 @@ export default function ZevPanel() {
 
         {loading && (
           <div className="flex justify-start">
-            <div className="bg-slate-800 rounded-xl px-3 py-2">
+            <div className="bg-dungeon-800 rounded-xl px-3 py-2">
               <div className="flex gap-1">
                 <div className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
                 <div className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
@@ -184,7 +184,7 @@ export default function ZevPanel() {
       </div>
 
       {/* Input */}
-      <div className="p-3 border-t border-slate-800">
+      <div className="p-3 border-t border-dungeon-800">
         <div className="flex gap-2">
           <textarea
             ref={inputRef}
@@ -194,12 +194,12 @@ export default function ZevPanel() {
             placeholder="Ask Zev..."
             disabled={loading}
             rows={1}
-            className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500/50 disabled:opacity-50 resize-none"
+            className="flex-1 bg-dungeon-800 border border-dungeon-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500/50 disabled:opacity-50 resize-none"
           />
           <button
             onClick={sendMessage}
             disabled={!input.trim() || loading}
-            className="px-3 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-slate-700 text-white rounded-lg transition-colors self-end"
+            className="px-3 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-dungeon-700 text-white rounded-lg transition-colors self-end"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />

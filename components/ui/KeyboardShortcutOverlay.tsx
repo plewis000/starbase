@@ -27,7 +27,7 @@ export default function KeyboardShortcutOverlay({ isOpen, onClose }: Props) {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-6 max-w-md w-full mx-4"
+        className="bg-dungeon-900 border border-dungeon-700 rounded-xl shadow-2xl p-6 max-w-md w-full mx-4"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
@@ -45,7 +45,7 @@ export default function KeyboardShortcutOverlay({ isOpen, onClose }: Props) {
                 {s.keys.map((key, j) => (
                   <React.Fragment key={j}>
                     {j > 0 && <span className="text-slate-600 text-xs">+</span>}
-                    <kbd className="px-2 py-0.5 bg-slate-800 border border-slate-700 rounded text-xs font-mono text-slate-300">
+                    <kbd className="px-2 py-0.5 bg-dungeon-800 border border-dungeon-700 rounded text-xs font-mono text-slate-300">
                       {key}
                     </kbd>
                   </React.Fragment>
@@ -56,7 +56,7 @@ export default function KeyboardShortcutOverlay({ isOpen, onClose }: Props) {
         </div>
 
         <p className="text-[10px] text-slate-600 mt-4 text-center">
-          Press <kbd className="px-1 bg-slate-800 border border-slate-700 rounded text-[10px]">?</kbd> to toggle
+          Press <kbd className="px-1 bg-dungeon-800 border border-dungeon-700 rounded text-[10px]">?</kbd> to toggle
         </p>
       </div>
     </div>

@@ -183,12 +183,12 @@ export default function QuickAddBar({ onAdd, config }: QuickAddBarProps) {
             onKeyDown={(e) => { if (e.key === "Enter") handleSubmit(); }}
             placeholder='Quick add — "Fix bug !high @parker tomorrow #backend"'
             disabled={adding}
-            className={`w-full bg-slate-900/80 border rounded-lg px-4 py-2 text-sm text-slate-100 placeholder-slate-600 focus:outline-none transition-all disabled:opacity-50 ${
+            className={`w-full bg-dungeon-900/80 border rounded-lg px-4 py-2 text-sm text-slate-100 placeholder-slate-600 focus:outline-none transition-all disabled:opacity-50 ${
               flash === "success"
                 ? "border-green-500/50 ring-1 ring-green-500/20"
                 : flash === "error"
                 ? "border-red-500/50 ring-1 ring-red-500/20"
-                : "border-slate-800 focus:border-crimson-500/50 focus:ring-1 focus:ring-crimson-500/20"
+                : "border-dungeon-800 focus:border-crimson-500/50 focus:ring-1 focus:ring-crimson-500/20"
             }`}
           />
           {/* Detected date hint */}
@@ -201,7 +201,7 @@ export default function QuickAddBar({ onAdd, config }: QuickAddBarProps) {
         <button
           onClick={handleSubmit}
           disabled={!value.trim() || adding}
-          className="px-3 py-2 bg-crimson-600 hover:bg-crimson-500 disabled:bg-slate-800 disabled:text-slate-600 text-white text-sm font-medium rounded-lg transition-all flex-shrink-0"
+          className="px-3 py-2 bg-crimson-600 hover:bg-crimson-500 disabled:bg-dungeon-800 disabled:text-slate-600 text-white text-sm font-medium rounded-lg transition-all flex-shrink-0"
         >
           {adding ? "..." : "+"}
         </button>
