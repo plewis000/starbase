@@ -75,6 +75,42 @@ export const GET = withUser(async (_request, { supabase, user }) => {
     .eq("user_id", user.id)
     .eq("opened", false);
 
+  // Get recent achievement unlocks (last 5)
+  const { data: recentUnlocks } = await supabase
+    .schema("platform")
+    .from("achievement_unlocks")
+    .select("achievement_id, unlocked_at, xp_awarded")
+    .eq("user_id", user.id)
+    .order("unlocked_at", { ascending: false })
+    .limit(5);
+
+  // Fetch achievement details for recent unlocks
+  let recentAchievements: { id: string; name: string; icon: string; tier: string; xp_reward: number; unlocked_at: string }[] = [];
+  if (recentUnlocks && recentUnlocks.length > 0) {
+    const achievementIds = recentUnlocks.map(u => u.achievement_id);
+    const { data: achievementDetails } = await supabase
+      .schema("config")
+      .from("achievements")
+      .select("id, name, icon, tier")
+      .in("id", achievementIds);
+    if (achievementDetails) {
+      const detailMap = new Map(achievementDetails.map(a => [a.id, a]));
+      recentAchievements = recentUnlocks
+        .filter(u => detailMap.has(u.achievement_id))
+        .map(u => {
+          const detail = detailMap.get(u.achievement_id)!;
+          return {
+            id: detail.id,
+            name: detail.name,
+            icon: detail.icon,
+            tier: detail.tier,
+            xp_reward: u.xp_awarded,
+            unlocked_at: u.unlocked_at,
+          };
+        });
+    }
+  }
+
   // Get active buffs (current streaks)
   const { data: activeStreaks } = await supabase
     .schema("platform")
@@ -127,6 +163,7 @@ export const GET = withUser(async (_request, { supabase, user }) => {
       due_date: t.due_date,
     })),
     recent_xp: recentXp || [],
+    recent_achievements: recentAchievements,
   });
 });
 

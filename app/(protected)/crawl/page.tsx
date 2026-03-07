@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { useToast } from "@/components/ui/Toast";
 import type {
@@ -217,8 +218,10 @@ interface ActivationReadiness {
 
 export default function CrawlPage() {
   const toast = useToast();
+  const searchParams = useSearchParams();
   const [user, setUser] = useState<{ full_name: string; email: string; avatar_url?: string } | null>(null);
-  const [tab, setTab] = useState<Tab>("profile");
+  const initialTab = (searchParams.get("tab") as Tab) || "profile";
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [loading, setLoading] = useState(true);
 
   // Activation state

@@ -28,6 +28,15 @@ interface ShoppingListSummary {
   checked_items: number;
 }
 
+interface RecentAchievement {
+  id: string;
+  name: string;
+  icon: string;
+  tier: string;
+  xp_reward: number;
+  unlocked_at: string;
+}
+
 interface CrawlerData {
   profile: {
     crawler_name: string;
@@ -38,8 +47,14 @@ interface CrawlerData {
     xp_progress: number;
     xp_to_next: number;
     xp_in_level: number;
+    crawler_class: string | null;
+  };
+  stats: {
+    achievement_count: number;
+    unopened_boxes: number;
   };
   recent_xp: { action_type: string; amount: number; description: string }[];
+  recent_achievements: RecentAchievement[];
 }
 
 interface TasksSummary {
@@ -60,6 +75,19 @@ interface DashboardData {
   };
   streaks_leaderboard: { title: string; current_streak: number }[];
 }
+
+const CLASS_ICONS: Record<string, string> = {
+  berserker: "⚔️", ranger: "🏹", scholar: "📖", paladin: "🛡️",
+  monk: "🧘", artificer: "⚙️", warden: "🏠", unclassed: "❓",
+};
+
+const ACHIEVEMENT_TIER_STYLE: Record<string, string> = {
+  common: "bg-dungeon-800 border-dungeon-700",
+  uncommon: "bg-green-950/20 border-green-800/50",
+  rare: "bg-blue-950/20 border-blue-800/50",
+  epic: "bg-purple-950/20 border-purple-800/50",
+  legendary: "bg-orange-950/20 border-orange-700/50",
+};
 
 const getWelcomeMessage = (displayName: string) => {
   const welcomeMessages = [
@@ -224,35 +252,78 @@ export default function DashboardPage() {
 
         {/* Crawler Status Card */}
         {crawler && (
-          <Link href="/crawl" className="block">
-            <div className="dcc-card-hover p-5 relative overflow-hidden">
-              <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-crimson-500 to-transparent opacity-60" />
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full border-2 border-crimson-600 flex items-center justify-center bg-dungeon-950">
-                    <span className="text-lg font-bold text-crimson-400 font-mono">{crawler.profile.level}</span>
+          <div className="space-y-3">
+            <Link href="/crawl" className="block">
+              <div className="dcc-card-hover p-5 relative overflow-hidden">
+                <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-crimson-500 to-transparent opacity-60" />
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full border-2 border-crimson-600 flex items-center justify-center bg-dungeon-950">
+                      <span className="text-lg font-bold text-crimson-400 font-mono">{crawler.profile.level}</span>
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-slate-100 font-bold">{crawler.profile.crawler_name || displayName}</span>
+                        {crawler.profile.crawler_class && crawler.profile.crawler_class !== "unclassed" && (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-dungeon-800 border border-dungeon-700 text-slate-300 font-mono capitalize">
+                            {CLASS_ICONS[crawler.profile.crawler_class] || ""} {crawler.profile.crawler_class}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs text-dungeon-500 font-mono">Floor {crawler.profile.floor_number} — Level {crawler.profile.level}</div>
+                    </div>
                   </div>
-                  <div>
-                    <div className="text-slate-100 font-bold">{crawler.profile.crawler_name || displayName}</div>
-                    <div className="text-xs text-dungeon-500 font-mono">Floor {crawler.profile.floor_number} — Level {crawler.profile.level}</div>
+                  <div className="text-right">
+                    <div className="text-lg font-bold text-crimson-400 font-mono">{crawler.profile.total_xp.toLocaleString()} XP</div>
+                    <div className="flex items-center gap-3 justify-end">
+                      {crawler.profile.login_streak > 1 && (
+                        <span className="text-xs text-gold-400 font-mono">🔥 {crawler.profile.login_streak}d</span>
+                      )}
+                      {crawler.stats?.achievement_count > 0 && (
+                        <span className="text-xs text-dungeon-500 font-mono">🏆 {crawler.stats.achievement_count}</span>
+                      )}
+                      {crawler.stats?.unopened_boxes > 0 && (
+                        <span className="text-xs text-gold-400 font-mono">📦 {crawler.stats.unopened_boxes}</span>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="text-lg font-bold text-crimson-400 font-mono">{crawler.profile.total_xp.toLocaleString()} XP</div>
-                  {crawler.profile.login_streak > 1 && (
-                    <div className="text-xs text-gold-400 font-mono">🔥 {crawler.profile.login_streak}-day streak</div>
-                  )}
+                <div className="dcc-xp-bar">
+                  <div className="dcc-xp-fill" style={{ width: `${Math.min(crawler.profile.xp_progress || 0, 100)}%` }} />
+                </div>
+                <div className="flex justify-between text-xs text-dungeon-500 mt-1 font-mono">
+                  <span>Level {crawler.profile.level}</span>
+                  <span>{(crawler.profile.xp_to_next || 0).toLocaleString()} XP to next</span>
                 </div>
               </div>
-              <div className="dcc-xp-bar">
-                <div className="dcc-xp-fill" style={{ width: `${Math.min(crawler.profile.xp_progress || 0, 100)}%` }} />
+            </Link>
+
+            {/* Recent Achievements Showcase */}
+            {crawler.recent_achievements && crawler.recent_achievements.length > 0 && (
+              <div className="dcc-card p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-xs font-semibold text-dungeon-500 uppercase tracking-wider font-mono">Recent Achievements</h3>
+                  <Link href="/crawl?tab=achievements" className="text-xs text-crimson-400 hover:text-crimson-300 transition-colors font-mono">
+                    View all &rarr;
+                  </Link>
+                </div>
+                <div className="flex gap-3 overflow-x-auto pb-1">
+                  {crawler.recent_achievements.slice(0, 4).map(a => (
+                    <div
+                      key={a.id}
+                      className={`flex-shrink-0 flex items-center gap-2.5 px-3 py-2 rounded-lg border ${ACHIEVEMENT_TIER_STYLE[a.tier] || ACHIEVEMENT_TIER_STYLE.common}`}
+                    >
+                      <span className="text-xl">{a.icon || "🏆"}</span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-slate-100 truncate">{a.name}</p>
+                        <p className="text-[10px] text-dungeon-500 font-mono">+{a.xp_reward} XP</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="flex justify-between text-xs text-dungeon-500 mt-1 font-mono">
-                <span>Level {crawler.profile.level}</span>
-                <span>{(crawler.profile.xp_to_next || 0).toLocaleString()} XP to next</span>
-              </div>
-            </div>
-          </Link>
+            )}
+          </div>
         )}
 
         {/* Outcomes Panel */}
