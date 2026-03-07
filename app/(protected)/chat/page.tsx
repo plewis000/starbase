@@ -15,6 +15,7 @@ interface Conversation {
   id: string;
   started_at: string;
   last_message_at: string;
+  title?: string | null;
 }
 
 export default function ChatPage() {
@@ -201,7 +202,7 @@ export default function ChatPage() {
                 }`}
               >
                 <div className="truncate font-medium">
-                  {conv.id.slice(0, 8)}...
+                  {conv.title || `${conv.id.slice(0, 8)}...`}
                 </div>
                 <div className="text-xs text-dungeon-500 mt-0.5">
                   {formatTime(conv.last_message_at || conv.started_at)}

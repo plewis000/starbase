@@ -347,15 +347,43 @@ export const GET = withUser(async (request: NextRequest, { supabase, user }) => 
     return NextResponse.json({ messages: messages || [] });
   }
 
-  // List recent conversations
+  // List recent conversations with preview titles
   const { data: conversations } = await platform(supabase)
     .from("agent_conversations")
-    .select("id, channel, started_at, last_message_at")
+    .select("id, channel, started_at, last_message_at, summary")
     .eq("user_id", user.id)
     .order("last_message_at", { ascending: false })
     .limit(20);
 
-  return NextResponse.json({ conversations: conversations || [] });
+  // Fetch first user message for each conversation to use as title
+  const convList = conversations || [];
+  const convIds = convList.map(c => c.id);
+  let firstMessages: Record<string, string> = {};
+
+  if (convIds.length > 0) {
+    const { data: msgs } = await platform(supabase)
+      .from("agent_messages")
+      .select("conversation_id, content")
+      .in("conversation_id", convIds)
+      .eq("role", "user")
+      .order("created_at", { ascending: true });
+
+    // Group and take first per conversation
+    for (const m of msgs || []) {
+      if (!firstMessages[m.conversation_id]) {
+        firstMessages[m.conversation_id] = m.content;
+      }
+    }
+  }
+
+  const enriched = convList.map(c => ({
+    ...c,
+    title: firstMessages[c.id]
+      ? firstMessages[c.id].slice(0, 60) + (firstMessages[c.id].length > 60 ? "..." : "")
+      : c.summary?.slice(0, 60) || null,
+  }));
+
+  return NextResponse.json({ conversations: enriched });
 });
 
 // Ensure messages alternate user/assistant correctly

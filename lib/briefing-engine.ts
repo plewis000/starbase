@@ -32,6 +32,8 @@ interface BriefingData {
   recentCompletions: string[];
   // Behavioral trends (week-over-week comparison)
   trends: TrendData | null;
+  // Workload trajectory
+  workloadTrajectory: string | null;
 }
 
 interface TrendData {
@@ -360,6 +362,27 @@ async function gatherBriefingData(
   // Behavioral trends: compare last 7 days vs prior 7 days
   const trends = await gatherTrendData(supabase, userId);
 
+  // Workload trajectory: detect multi-day overload patterns
+  let workloadTrajectory: string | null = null;
+  if (overdueTasks.length >= 3 && ctx) {
+    // Check if overdue count has been growing
+    const threeDaysAgo = new Date(now);
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+    const { data: recentCompleted } = await platform(supabase)
+      .from("tasks")
+      .select("id", { count: "exact", head: true })
+      .contains("owner_ids", [userId])
+      .gte("completed_at", threeDaysAgo.toISOString())
+      .not("completed_at", "is", null);
+
+    const completedRecently = recentCompleted?.length || 0;
+    if (completedRecently === 0 && overdueTasks.length >= 5) {
+      workloadTrajectory = `${userName} has ${overdueTasks.length} overdue tasks and hasn't completed anything in 3 days. May need to triage, delegate, or reschedule.`;
+    } else if (overdueTasks.length > todayTasks.length * 2) {
+      workloadTrajectory = `Overdue tasks (${overdueTasks.length}) are piling up faster than new work. Consider a catch-up session or delegation.`;
+    }
+  }
+
   return {
     userName,
     partnerName,
@@ -380,6 +403,7 @@ async function gatherBriefingData(
     partnerHabitsUnchecked,
     recentCompletions: (completionsRes.data || []).map((t) => t.title),
     trends,
+    workloadTrajectory,
   };
 }
 
@@ -723,6 +747,11 @@ function formatBriefingContext(data: BriefingData): string {
   // Behavioral trends — week-over-week signals
   if (data.trends?.alert) {
     parts.push(`\nTREND ALERT: ${data.trends.alert}`);
+  }
+
+  // Workload trajectory — multi-day overload patterns
+  if (data.workloadTrajectory) {
+    parts.push(`\nWORKLOAD TRAJECTORY: ${data.workloadTrajectory}`);
   }
 
   return parts.join("\n");
