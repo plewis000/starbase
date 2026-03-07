@@ -147,6 +147,20 @@ async function evaluateUserAchievements(
     allUnlocks.push(...unlocks);
   }
 
+  // --- custom: household_centurion (100+ total household task completions) ---
+  const householdMembers = await getHouseholdMembers(supabase, userId);
+  const { count: householdTaskCount } = await platform(supabase)
+    .from("tasks")
+    .select("*", { count: "exact", head: true })
+    .in("completed_by", householdMembers)
+    .not("completed_at", "is", null);
+  if ((householdTaskCount || 0) >= 100) {
+    const unlocks = await checkAchievements(supabase, userId, "custom", {
+      custom_type: "party_task_total",
+    });
+    allUnlocks.push(...unlocks);
+  }
+
   return allUnlocks;
 }
 

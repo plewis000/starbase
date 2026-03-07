@@ -334,6 +334,10 @@ export const PATCH = withAuth(async (request, { supabase, user, ctx }, params) =
       user.id,
       id!
     ).catch((err) => console.error("Assignment notification error:", err));
+
+    // "It's Not My Fault" achievement — reassigning a task
+    checkAchievements(supabase, user.id, "custom", { custom_type: "task_reassigned" })
+      .catch((err) => console.error("Reassign achievement error:", err));
   }
 
   // Notify on task completion (non-blocking)
@@ -419,6 +423,11 @@ export const PATCH = withAuth(async (request, { supabase, user, ctx }, params) =
           }
           if (dayOfWeek === 0 || dayOfWeek === 6) {
             await checkAchievements(svc, creditedUserId, "custom", { custom_type: "weekend_warrior" });
+          }
+
+          // Party achievement: completing a task created by another household member
+          if (currentTask.created_by && currentTask.created_by !== creditedUserId) {
+            await checkAchievements(svc, creditedUserId, "custom", { custom_type: "party_task_completed" });
           }
         }
 

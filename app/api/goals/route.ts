@@ -182,6 +182,13 @@ export const POST = withAuth(async (request, { supabase, user }) => {
     performed_by: user.id,
   }).catch(console.error);
 
+  // "New Year, New Me" achievement — creating a goal in January
+  if (new Date().getMonth() === 0) {
+    const { checkAchievements } = await import("@/lib/gamification");
+    checkAchievements(supabase, user.id, "custom", { custom_type: "january_goal" })
+      .catch(console.error);
+  }
+
   // Enrich and return
   const lookups = await getGoalHabitLookups(supabase);
   const enriched = enrichGoal(goal, lookups);
