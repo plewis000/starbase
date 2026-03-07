@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { withUser } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
-import { getHouseholdContext } from "@/lib/household";
+import { getHouseholdContext, getHouseholdMemberIds } from "@/lib/household";
 
 // ---- GET: Unified dashboard summary ----
 
@@ -10,6 +10,7 @@ export const GET = withUser(async (_request, { supabase, user }) => {
   const ctx = await getHouseholdContext(supabase, user.id);
   if (!ctx) return NextResponse.json({ error: "No household found" }, { status: 404 });
 
+  const householdMemberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
   const today = new Date().toISOString().split("T")[0];
 
   // Parallel fetch all data — scoped to household
@@ -32,6 +33,7 @@ export const GET = withUser(async (_request, { supabase, user }) => {
     habitCheckInsRes,
     habitGoalsRes,
     topStreaksRes,
+    recentActivityRes,
   ] = await Promise.all([
     // Overdue tasks: due_date < today AND completed_at IS NULL
     platform(supabase)
@@ -122,6 +124,16 @@ export const GET = withUser(async (_request, { supabase, user }) => {
       .gt("current_streak", 0)
       .order("current_streak", { ascending: false })
       .limit(5),
+
+    // Recent household activity (last 10 meaningful actions)
+    platform(supabase)
+      .from("activity_log")
+      .select("id, entity_type, action, performed_by, created_at, metadata")
+      .in("performed_by", householdMemberIds)
+      .in("action", ["created", "completed", "checked_in"])
+      .in("entity_type", ["task", "habit_check_in", "goal"])
+      .order("created_at", { ascending: false })
+      .limit(10),
   ]);
 
   // Extract counts
@@ -200,6 +212,50 @@ export const GET = withUser(async (_request, { supabase, user }) => {
     current_streak: habit.current_streak as number,
   }));
 
+  // Get member names for activity feed
+  const { data: memberProfiles } = await platform(supabase)
+    .from("household_members")
+    .select("user_id, display_name, user:user_id(full_name)")
+    .eq("household_id", ctx.household_id);
+
+  const nameMap = new Map<string, string>();
+  for (const m of memberProfiles || []) {
+    const name = m.display_name || (m.user as any)?.full_name || "Unknown";
+    nameMap.set(m.user_id as string, name);
+  }
+
+  // Build activity feed
+  const activityFeed = (recentActivityRes.data || []).map((entry: any) => {
+    const performerName = nameMap.get(entry.performed_by) || "Someone";
+    const isCurrentUser = entry.performed_by === user.id;
+    let description = "";
+    const meta = entry.metadata || {};
+
+    if (entry.entity_type === "task" && entry.action === "created") {
+      description = `created a task`;
+    } else if (entry.entity_type === "task" && entry.action === "completed") {
+      description = `completed a task`;
+    } else if (entry.entity_type === "habit_check_in") {
+      description = `checked in on a habit`;
+    } else if (entry.entity_type === "goal" && entry.action === "created") {
+      description = `set a new goal`;
+    } else if (entry.entity_type === "goal" && entry.action === "completed") {
+      description = `completed a goal!`;
+    } else {
+      description = `${entry.action} a ${entry.entity_type.replace(/_/g, " ")}`;
+    }
+
+    return {
+      id: entry.id,
+      performer: isCurrentUser ? "You" : performerName,
+      is_current_user: isCurrentUser,
+      description,
+      entity_type: entry.entity_type,
+      action: entry.action,
+      created_at: entry.created_at,
+    };
+  });
+
   return NextResponse.json({
     tasks_summary: {
       overdue: overdueCount,
@@ -211,7 +267,7 @@ export const GET = withUser(async (_request, { supabase, user }) => {
     },
     goals_summary: {
       active_count: goalsList.length,
-      avg_progress: Math.round(avgProgress * 10) / 10, // Round to 1 decimal
+      avg_progress: Math.round(avgProgress * 10) / 10,
       goals: goalsList,
     },
     habits_summary: {
@@ -220,5 +276,6 @@ export const GET = withUser(async (_request, { supabase, user }) => {
       habits: habitsList,
     },
     streaks_leaderboard: streaksLeaderboard,
+    recent_activity: activityFeed,
   });
 });

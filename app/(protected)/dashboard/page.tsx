@@ -66,6 +66,16 @@ interface TasksSummary {
   in_progress: number;
 }
 
+interface ActivityEntry {
+  id: string;
+  performer: string;
+  is_current_user: boolean;
+  description: string;
+  entity_type: string;
+  action: string;
+  created_at: string;
+}
+
 interface DashboardData {
   tasks_summary: TasksSummary;
   habits_summary: {
@@ -74,6 +84,7 @@ interface DashboardData {
     habits: DashboardHabit[];
   };
   streaks_leaderboard: { title: string; current_streak: number }[];
+  recent_activity?: ActivityEntry[];
 }
 
 const CLASS_ICONS: Record<string, string> = {
@@ -88,6 +99,20 @@ const ACHIEVEMENT_TIER_STYLE: Record<string, string> = {
   epic: "bg-purple-950/20 border-purple-800/50",
   legendary: "bg-orange-950/20 border-orange-700/50",
 };
+
+function formatTimeAgo(dateStr: string): string {
+  const now = Date.now();
+  const then = new Date(dateStr).getTime();
+  const diff = now - then;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "now";
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d`;
+  return `${Math.floor(days / 7)}w`;
+}
 
 const getWelcomeMessage = (displayName: string) => {
   const welcomeMessages = [
@@ -486,6 +511,35 @@ export default function DashboardPage() {
               </svg>
             </div>
           </Link>
+        )}
+
+        {/* Household Activity Feed */}
+        {dashData?.recent_activity && dashData.recent_activity.length > 0 && (
+          <section className="space-y-3">
+            <h2 className="text-lg font-semibold text-slate-100 dcc-heading tracking-wide">Recent Activity</h2>
+            <div className="dcc-card p-4 space-y-1">
+              {dashData.recent_activity.slice(0, 8).map(entry => (
+                <div key={entry.id} className="flex items-center gap-3 py-1.5">
+                  <span className="text-sm flex-shrink-0">
+                    {entry.entity_type === "task" && entry.action === "completed" ? "✅" :
+                     entry.entity_type === "task" ? "📋" :
+                     entry.entity_type === "habit_check_in" ? "🔄" :
+                     entry.entity_type === "goal" && entry.action === "completed" ? "🏆" :
+                     entry.entity_type === "goal" ? "🎯" : "📝"}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <span className={`text-sm ${entry.is_current_user ? "text-slate-400" : "text-slate-200 font-medium"}`}>
+                      {entry.performer}
+                    </span>
+                    <span className="text-sm text-dungeon-500"> {entry.description}</span>
+                  </div>
+                  <span className="text-[10px] text-dungeon-600 font-mono flex-shrink-0">
+                    {formatTimeAgo(entry.created_at)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
         )}
 
         {/* Quick Action Buttons */}
