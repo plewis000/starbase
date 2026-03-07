@@ -158,6 +158,55 @@ export const POST = withAuth(async (request, { supabase, user }, params) => {
           custom_type: "streak_rebuilt",
         });
       }
+
+      // Household completion celebration: if this check-in means ALL members have finished ALL habits today
+      try {
+        const { getHouseholdContext, getHouseholdMemberIds } = await import("@/lib/household");
+        const { triggerNotification } = await import("@/lib/notify");
+        const hCtx = await getHouseholdContext(supabase, user.id);
+        if (hCtx) {
+          const memberIds = await getHouseholdMemberIds(supabase, hCtx.household_id);
+          if (memberIds.length > 1) {
+            const todayStr = new Date().toISOString().slice(0, 10);
+            let allComplete = true;
+
+            for (const memberId of memberIds) {
+              const { data: mHabits } = await platform(supabase)
+                .from("habits")
+                .select("id")
+                .eq("owner_id", memberId)
+                .eq("status", "active");
+
+              const { data: mCheckIns } = await platform(supabase)
+                .from("habit_check_ins")
+                .select("habit_id")
+                .eq("checked_by", memberId)
+                .eq("check_date", todayStr);
+
+              const mTotal = mHabits?.length || 0;
+              const mChecked = new Set((mCheckIns || []).map(c => c.habit_id)).size;
+              if (mTotal === 0 || mChecked < mTotal) {
+                allComplete = false;
+                break;
+              }
+            }
+
+            if (allComplete) {
+              // Both partners finished all habits — celebrate!
+              for (const memberId of memberIds) {
+                triggerNotification(supabase, {
+                  recipientUserId: memberId,
+                  title: "Household sweep! Everyone finished all habits today.",
+                  body: "Both of you crushed every habit today. That's the kind of day that compounds.",
+                  event: "achievement_unlocked",
+                }).catch(() => {});
+              }
+            }
+          }
+        }
+      } catch {
+        // Non-critical — don't break the check-in flow
+      }
     } catch (err) {
       console.error("Gamification error:", err);
     }

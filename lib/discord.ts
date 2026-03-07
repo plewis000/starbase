@@ -182,6 +182,10 @@ export async function registerSlashCommands() {
       description: "Check what needs attention right now",
     },
     {
+      name: "focus",
+      description: "Get your prioritized focus list — what to do right now",
+    },
+    {
       name: "pipeline",
       description: "Show active pipeline jobs",
     },

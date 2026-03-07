@@ -131,6 +131,46 @@ export async function GET(request: NextRequest) {
         }
       }
 
+      // 4. Partner awareness — friendly motivation
+      const { getHouseholdContext, getHouseholdMemberIds } = await import("@/lib/household");
+      const hCtx = await getHouseholdContext(supabase, user.id);
+      if (hCtx) {
+        const allMembers = await getHouseholdMemberIds(supabase, hCtx.household_id);
+        const partnerIds = allMembers.filter((id) => id !== user.id);
+        if (partnerIds.length > 0) {
+          const partnerId = partnerIds[0];
+          const { data: partnerRec } = await platform(supabase)
+            .from("users")
+            .select("display_name, full_name")
+            .eq("id", partnerId)
+            .single();
+          const partnerName = partnerRec?.display_name || partnerRec?.full_name || "Your partner";
+
+          const { data: partnerHabits } = await platform(supabase)
+            .from("habits")
+            .select("id")
+            .eq("owner_id", partnerId)
+            .eq("status", "active");
+
+          const { data: partnerCheckIns } = await platform(supabase)
+            .from("habit_check_ins")
+            .select("habit_id")
+            .eq("checked_by", partnerId)
+            .eq("check_date", todayStr);
+
+          const pTotal = partnerHabits?.length || 0;
+          const pChecked = partnerCheckIns?.length || 0;
+          const userChecked = activeHabits ? activeHabits.length - unchecked.length : 0;
+          const userTotal = activeHabits?.length || 0;
+
+          if (pTotal > 0 && pChecked === pTotal && unchecked.length > 0) {
+            nudges.push(`${partnerName} already finished all ${pChecked} habits today. You're at ${userChecked}/${userTotal}.`);
+          } else if (pTotal > 0 && pChecked > userChecked && unchecked.length > 0) {
+            nudges.push(`${partnerName} is at ${pChecked}/${pTotal} habits. You're at ${userChecked}/${userTotal}.`);
+          }
+        }
+      }
+
       if (nudges.length === 0) {
         results.push({ userId: user.id, nudged: false, reason: "nothing to nudge" });
         continue;

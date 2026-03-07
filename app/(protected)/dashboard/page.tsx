@@ -583,6 +583,36 @@ export default function DashboardPage() {
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium text-slate-100">{s.title}</div>
                     <div className="text-xs text-dungeon-500 mt-1 line-clamp-2">{s.description}</div>
+                    <div className="flex gap-2 mt-2">
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          const res = await fetch(`/api/ai/suggestions/${s.id}`, {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ action: "accepted" }),
+                          });
+                          if (res.ok) setSuggestions((prev) => prev.filter((x) => x.id !== s.id));
+                        }}
+                        className="text-[10px] px-2.5 py-1 rounded-md bg-green-600/20 text-green-400 hover:bg-green-600/30 transition-colors font-medium"
+                      >
+                        Accept
+                      </button>
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          const res = await fetch(`/api/ai/suggestions/${s.id}`, {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ action: "dismissed" }),
+                          });
+                          if (res.ok) setSuggestions((prev) => prev.filter((x) => x.id !== s.id));
+                        }}
+                        className="text-[10px] px-2.5 py-1 rounded-md bg-dungeon-800 text-dungeon-400 hover:text-slate-200 hover:bg-dungeon-700 transition-colors font-medium"
+                      >
+                        Dismiss
+                      </button>
+                    </div>
                   </div>
                   <div className="flex-shrink-0">
                     <span className="dcc-badge-muted font-mono">{Math.round(s.confidence * 100)}%</span>

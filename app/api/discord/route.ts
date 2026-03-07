@@ -237,6 +237,8 @@ async function processCommand(
         return await handleReview(supabase, userId, webhookUrl);
       case "nudge":
         return await handleNudge(supabase, userId, webhookUrl);
+      case "focus":
+        return await handleFocus(supabase, userId, webhookUrl);
       default:
         await sendWebhook(webhookUrl, { content: `Unknown command: ${commandName}` });
     }
@@ -1236,6 +1238,66 @@ async function handleNudge(supabase: Supabase, userId: string, webhookUrl: strin
       description: nudges.join("\n\n"),
       color: nudges.some((n) => n.includes("Overdue")) ? 0xef4444 : 0xf59e0b,
       footer: { text: "Zev | The Keep" },
+      timestamp: new Date().toISOString(),
+    }],
+  });
+}
+
+// ── Focus command ──────────────────────────────────────
+
+async function handleFocus(supabase: Supabase, userId: string, webhookUrl: string) {
+  const result = await executeTool(supabase, userId, "get_focus_tasks", {});
+
+  if (!result.success) {
+    await sendWebhook(webhookUrl, { content: "Couldn't generate focus list. Try again." });
+    return;
+  }
+
+  const data = result.data as {
+    focus_items: { type: string; title: string; urgency: string; reasons: string[] }[];
+    total_open_tasks: number;
+    overdue_count: number;
+    habits_at_risk: number;
+    message: string;
+  };
+
+  if (data.focus_items.length === 0) {
+    await sendWebhook(webhookUrl, {
+      embeds: [{
+        title: "All Clear",
+        description: "Nothing urgent right now. Enjoy the free time.",
+        color: 0x22c55e,
+        footer: { text: "Zev | The Keep" },
+      }],
+    });
+    return;
+  }
+
+  const urgencyIcons: Record<string, string> = {
+    critical: "🔴",
+    high: "🟠",
+    medium: "🟡",
+    low: "🟢",
+  };
+
+  const lines = data.focus_items.map((item) => {
+    const icon = item.type === "habit" ? "🔥" : urgencyIcons[item.urgency] || "⚪";
+    const reasons = item.reasons.length > 0 ? ` — ${item.reasons.join(", ")}` : "";
+    return `${icon} **${item.title}**${reasons}`;
+  });
+
+  const statsLine = [
+    data.overdue_count > 0 ? `${data.overdue_count} overdue` : null,
+    data.habits_at_risk > 0 ? `${data.habits_at_risk} streaks at risk` : null,
+    `${data.total_open_tasks} open tasks`,
+  ].filter(Boolean).join(" · ");
+
+  await sendWebhook(webhookUrl, {
+    embeds: [{
+      title: "Focus List",
+      description: lines.join("\n\n"),
+      color: data.focus_items.some(i => i.urgency === "critical") ? 0xef4444 : 0xf59e0b,
+      footer: { text: `${statsLine} · Zev | The Keep` },
       timestamp: new Date().toISOString(),
     }],
   });
