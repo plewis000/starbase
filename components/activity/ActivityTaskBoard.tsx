@@ -344,6 +344,15 @@ export default function ActivityTaskBoard({
     ));
   }, [setSavedViews]);
 
+  const handleRestoreArchivedView = useCallback((viewName: string) => {
+    const current = savedViewsRef.current;
+    setSavedViews(current.map((v) => {
+      if (v.name !== viewName) return v;
+      const { archived, ...rest } = v as any;
+      return rest;
+    }));
+  }, [setSavedViews]);
+
   // Drag-and-drop status change handler (optimistic)
   const handleStatusChange = useCallback(async (taskId: string, newStatusId: string) => {
     const newStatus = config?.statuses.find((s) => s.id === newStatusId);
@@ -485,6 +494,7 @@ export default function ActivityTaskBoard({
     }));
 
   const modeCustomViews = savedViews.filter((v: any) => !v.archived && (!v.mode || v.mode === viewMode));
+  const archivedCustomViews = savedViews.filter((v: any) => v.archived);
 
   const allViews = [...visibleDefaults, ...modeCustomViews];
 
@@ -556,6 +566,8 @@ export default function ActivityTaskBoard({
           onHideDefault={(name) => setHiddenDefaults([...(hiddenDefaults || []), name])}
           onRestoreDefault={(name) => setHiddenDefaults((hiddenDefaults || []).filter(n => n !== name))}
           allDefaultViews={defaultViews}
+          archivedViews={archivedCustomViews}
+          onRestoreArchivedView={handleRestoreArchivedView}
         />
       </div>
 

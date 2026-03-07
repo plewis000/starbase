@@ -13,6 +13,8 @@ const VALID_TABLES = [
   "habit_frequencies",
   "habit_time_preferences",
   "shopping_categories",
+  "expense_categories",
+  "tags",
 ] as const;
 
 type ConfigTable = typeof VALID_TABLES[number];

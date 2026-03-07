@@ -32,7 +32,7 @@ interface HouseholdData {
   name: string;
   timezone: string;
   locale?: string;
-  members: { id: string; user_id: string; role: string; display_name?: string; joined_at: string }[];
+  members: { id: string; user_id: string; role: string; display_name?: string; email?: string; joined_at: string }[];
 }
 
 interface SavedView {
@@ -405,7 +405,10 @@ function HouseholdTab() {
           {household.members.map((m) => (
             <div key={m.id} className="flex items-center justify-between px-3 py-2 bg-dungeon-800/50 rounded-lg">
               <div>
-                <span className="text-sm text-slate-200">{m.display_name || m.user_id}</span>
+                <span className="text-sm text-slate-200">{m.display_name || m.email || "Unknown"}</span>
+                {m.email && m.display_name && (
+                  <span className="text-xs text-dungeon-500 ml-2">{m.email}</span>
+                )}
               </div>
               <span className={`px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded ${
                 m.role === "admin" ? "bg-red-900/30 text-red-400" : "bg-dungeon-700 text-dungeon-400"
@@ -552,7 +555,7 @@ function ConfigSection({ table, label }: { table: string; label: string }) {
       const res = await fetch(`/api/admin/config?table=${table}`);
       if (res.ok) {
         const data = await res.json();
-        setItems(data.items || data || []);
+        setItems(data.rows || []);
       }
     } catch { /* silent */ }
     setLoading(false);
@@ -853,6 +856,29 @@ function NotificationPreferences() {
     }
   };
 
+  const testWebhook = async () => {
+    if (!webhookUrl.trim()) return;
+    setSaving("test");
+    try {
+      const res = await fetch(webhookUrl.trim(), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: "Starbase webhook test — if you see this, notifications are working!",
+        }),
+      });
+      if (res.ok) {
+        toast.success("Test message sent! Check your Discord channel.");
+      } else {
+        toast.error("Webhook failed — check the URL is correct");
+      }
+    } catch {
+      toast.error("Webhook failed — check the URL is correct");
+    } finally {
+      setSaving(null);
+    }
+  };
+
   if (loading) {
     return <div className="dcc-card p-6"><p className="text-sm text-dungeon-400">Loading preferences...</p></div>;
   }
@@ -903,9 +929,18 @@ function NotificationPreferences() {
                 >
                   Save
                 </button>
+                <button
+                  onClick={testWebhook}
+                  disabled={saving === "test" || !webhookUrl.trim()}
+                  className="bg-dungeon-700 hover:bg-dungeon-600 disabled:opacity-50 text-slate-300 px-3 py-1.5 rounded text-xs font-medium"
+                >
+                  Test
+                </button>
               </div>
-              <p className="text-xs text-dungeon-500 mt-1">
-                Create a webhook in your Discord server settings and paste the URL here to receive daily task reminders.
+              <p className="text-xs text-dungeon-500 mt-1.5 leading-relaxed">
+                In Discord: Server Settings &rarr; Integrations &rarr; Webhooks &rarr; New Webhook.
+                Pick the channel you want notifications in, copy the URL, and paste it here.
+                This webhook receives daily briefings, task reminders, and habit nudges.
               </p>
             </div>
           )}

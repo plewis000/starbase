@@ -48,6 +48,8 @@ interface Props {
   onHideDefault?: (name: string) => void;
   onRestoreDefault?: (name: string) => void;
   allDefaultViews?: SavedView[];
+  archivedViews?: SavedView[];
+  onRestoreArchivedView?: (name: string) => void;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -145,6 +147,8 @@ export default function ActivityFilterBar({
   onHideDefault,
   onRestoreDefault,
   allDefaultViews,
+  archivedViews,
+  onRestoreArchivedView,
 }: Props) {
   const statusOptions = buildStatusMultiOptions(config);
   const priorityOptions = buildPriorityMultiOptions(config);
@@ -162,8 +166,9 @@ export default function ActivityFilterBar({
   const filtersRef = useRef(filters);
   filtersRef.current = filters;
 
-  // Hidden defaults for restore menu
+  // Hidden defaults + archived custom views for restore menu
   const hiddenDefaultViews = (allDefaultViews || []).filter(v => hiddenDefaults?.includes(v.name));
+  const totalRestorableCount = hiddenDefaultViews.length + (archivedViews?.length || 0);
 
   // Outside-click handler for restore menu
   useEffect(() => {
@@ -334,20 +339,30 @@ export default function ActivityFilterBar({
           + Save View
         </button>
 
-        {hiddenDefaultViews.length > 0 && onRestoreDefault && (
+        {totalRestorableCount > 0 && (
           <div className="relative flex-shrink-0" ref={restoreMenuRef}>
             <button
               onClick={() => setShowRestoreMenu(!showRestoreMenu)}
               className="px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap border border-dashed border-dungeon-700 text-slate-600 hover:text-slate-400 hover:border-dungeon-600 transition-all"
             >
-              + Restore ({hiddenDefaultViews.length})
+              + Restore ({totalRestorableCount})
             </button>
             {showRestoreMenu && (
               <div className="absolute top-full left-0 mt-1 bg-dungeon-900 border border-dungeon-700 rounded-lg shadow-xl z-50 py-1 min-w-[140px]">
                 {hiddenDefaultViews.map((view) => (
                   <button
                     key={view.name}
-                    onClick={() => { onRestoreDefault(view.name); if (hiddenDefaultViews.length <= 1) setShowRestoreMenu(false); }}
+                    onClick={() => { onRestoreDefault?.(view.name); if (totalRestorableCount <= 1) setShowRestoreMenu(false); }}
+                    className="w-full text-left px-3 py-1.5 text-xs text-slate-300 hover:bg-dungeon-800 transition-colors flex items-center gap-1.5"
+                  >
+                    <span>{view.icon}</span>
+                    {view.name}
+                  </button>
+                ))}
+                {archivedViews?.map((view) => (
+                  <button
+                    key={view.name}
+                    onClick={() => { onRestoreArchivedView?.(view.name); if (totalRestorableCount <= 1) setShowRestoreMenu(false); }}
                     className="w-full text-left px-3 py-1.5 text-xs text-slate-300 hover:bg-dungeon-800 transition-colors flex items-center gap-1.5"
                   >
                     <span>{view.icon}</span>

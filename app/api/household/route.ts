@@ -39,10 +39,22 @@ export const GET = withUser(async (_request, { supabase, user }) => {
     .eq("household_id", household.id)
     .order("joined_at");
 
+  // Enrich with user data (cross-schema FK can't be joined by PostgREST)
+  const userIds = (members || []).map((m) => m.user_id);
+  const { data: users } = userIds.length > 0
+    ? await platform(supabase).from("users").select("id, full_name, email").in("id", userIds)
+    : { data: [] };
+  const usersMap = new Map((users || []).map((u: { id: string; full_name: string; email: string }) => [u.id, u]));
+  const enrichedMembers = (members || []).map((m) => ({
+    ...m,
+    display_name: m.display_name || usersMap.get(m.user_id)?.full_name || null,
+    email: usersMap.get(m.user_id)?.email || null,
+  }));
+
   return NextResponse.json({
     household: {
       ...household,
-      members: members || [],
+      members: enrichedMembers,
     },
     current_role: membership.role,
   });
