@@ -27,11 +27,17 @@ interface DashboardData {
   streaks_leaderboard: { title: string; current_streak: number }[];
 }
 
-export default function OutcomesPanel() {
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export default function OutcomesPanel({ data: externalData }: { data?: any } = {}) {
+  const [data, setData] = useState<DashboardData | null>(externalData || null);
+  const [loading, setLoading] = useState(!externalData);
 
   useEffect(() => {
+    if (externalData) {
+      setData(externalData);
+      setLoading(false);
+      return;
+    }
     const fetchData = async () => {
       try {
         setLoading(true);
@@ -46,7 +52,7 @@ export default function OutcomesPanel() {
       }
     };
     fetchData();
-  }, []);
+  }, [externalData]);
 
   if (loading) {
     return (

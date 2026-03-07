@@ -329,7 +329,7 @@ export default function DashboardPage() {
         {/* Outcomes Panel */}
         <section>
           <h2 className="text-lg font-semibold text-slate-100 mb-4 dcc-heading tracking-wide">Your Outcomes</h2>
-          <OutcomesPanel />
+          <OutcomesPanel data={dashData} />
         </section>
 
         {/* AI Suggestions */}
