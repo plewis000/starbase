@@ -23,6 +23,14 @@
     {
       "path": "/api/cron/gamification-check",
       "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/cron/weekly-review",
+      "schedule": "0 14 * * 0"
+    },
+    {
+      "path": "/api/cron/afternoon-nudge",
+      "schedule": "0 21 * * *"
     }
   ]
 }

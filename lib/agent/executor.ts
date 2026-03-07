@@ -116,6 +116,18 @@ export async function executeTool(
       case "get_household_overview":
         return await getHouseholdOverview(supabase, userId);
 
+      // ── TASK DELEGATION ──
+      case "delegate_task":
+        return await delegateTask(supabase, userId, input);
+
+      // ── WEEKLY REVIEW ──
+      case "get_weekly_summary":
+        return await getWeeklySummary(supabase, userId);
+
+      // ── WORKLOAD BALANCE ──
+      case "get_workload_balance":
+        return await getWorkloadBalance(supabase, userId);
+
       // ── GAMIFICATION ──
       case "get_crawler_stats":
         return await getCrawlerStats(supabase, userId);
@@ -1753,6 +1765,171 @@ async function getCrawlerStats(supabase: Supabase, userId: string): Promise<Tool
       debuffs: (overdueRes.data || []).map(t => `${t.title} (due ${t.due_date})`),
       recent_achievements: achievements,
       unopened_loot_boxes: lootRes.count || 0,
+    },
+  };
+}
+
+// ── DELEGATE TASK ──────────────────────────────────────────────
+
+async function delegateTask(supabase: Supabase, userId: string, input: Record<string, unknown>): Promise<ToolResult> {
+  const taskId = input.task_id as string;
+  const assignToName = input.assign_to as string;
+  if (!taskId || !assignToName) return { success: false, error: "task_id and assign_to are required" };
+
+  // Resolve household member
+  const ctx = await getHouseholdContext(supabase, userId);
+  if (!ctx) return { success: false, error: "No household found" };
+  const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
+
+  const { data: members } = await platform(supabase)
+    .from("users")
+    .select("id, display_name, full_name")
+    .in("id", memberIds);
+
+  if (!members) return { success: false, error: "Failed to load household members" };
+
+  const match = members.find((m) => {
+    const name = (m.display_name || m.full_name || "").toLowerCase();
+    return name === assignToName.toLowerCase() || name.startsWith(assignToName.toLowerCase());
+  });
+
+  if (!match) return { success: false, error: `No household member named "${assignToName}"` };
+
+  // Verify task exists and belongs to household
+  const { data: task } = await platform(supabase)
+    .from("tasks")
+    .select("id, title, created_by, assigned_to, owner_ids")
+    .eq("id", taskId)
+    .single();
+
+  if (!task || !memberIds.includes(task.created_by)) {
+    return { success: false, error: "Task not found" };
+  }
+
+  // Update task assignment
+  const { error } = await platform(supabase)
+    .from("tasks")
+    .update({
+      assigned_to: match.id,
+      owner_ids: [match.id],
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", taskId);
+
+  if (error) return { success: false, error: error.message };
+
+  // Notify the new assignee
+  const { notifyTaskAssigned } = await import("@/lib/notify");
+  notifyTaskAssigned(supabase, task.title, match.id, userId, taskId).catch(() => {});
+
+  const reason = input.reason ? ` Reason: ${input.reason}` : "";
+  const assigneeName = match.display_name || match.full_name;
+  return {
+    success: true,
+    data: { message: `"${task.title}" delegated to ${assigneeName}.${reason}` },
+  };
+}
+
+// ── WEEKLY SUMMARY (ON-DEMAND) ────────────────────────────────
+
+async function getWeeklySummary(supabase: Supabase, userId: string): Promise<ToolResult> {
+  const { generateWeeklyReview } = await import("@/lib/briefing-engine");
+  const result = await generateWeeklyReview(supabase, userId);
+  if (!result) return { success: false, error: "Not enough data for weekly review" };
+  return { success: true, data: { review: result.review, metrics: result.data } };
+}
+
+// ── WORKLOAD BALANCE ──────────────────────────────────────────
+
+async function getWorkloadBalance(supabase: Supabase, userId: string): Promise<ToolResult> {
+  const ctx = await getHouseholdContext(supabase, userId);
+  if (!ctx) return { success: false, error: "No household found" };
+  const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+
+  // Get open status IDs
+  const { data: activeStatuses } = await config(supabase)
+    .from("task_statuses")
+    .select("id, name")
+    .eq("active", true);
+
+  const terminalNames = new Set(["done", "shipped", "completed", "abandoned", "cancelled"]);
+  const openStatusIds = (activeStatuses || [])
+    .filter((s) => !terminalNames.has(s.name.toLowerCase()))
+    .map((s) => s.id);
+
+  const balanceData: {
+    name: string;
+    openTasks: number;
+    overdueTasks: number;
+    todayTasks: number;
+    activeHabits: number;
+    habitsCheckedToday: number;
+  }[] = [];
+
+  for (const memberId of memberIds) {
+    const { data: userRec } = await platform(supabase)
+      .from("users")
+      .select("display_name, full_name")
+      .eq("id", memberId)
+      .single();
+
+    const name = userRec?.display_name || userRec?.full_name || "Unknown";
+
+    const [openRes, overdueRes, todayRes, habitsRes, checkInsRes] = await Promise.all([
+      platform(supabase)
+        .from("tasks")
+        .select("id", { count: "exact", head: true })
+        .in("status_id", openStatusIds.length > 0 ? openStatusIds : ["__none__"])
+        .contains("owner_ids", [memberId]),
+      platform(supabase)
+        .from("tasks")
+        .select("id", { count: "exact", head: true })
+        .lt("due_date", todayStr)
+        .in("status_id", openStatusIds.length > 0 ? openStatusIds : ["__none__"])
+        .contains("owner_ids", [memberId]),
+      platform(supabase)
+        .from("tasks")
+        .select("id", { count: "exact", head: true })
+        .eq("due_date", todayStr)
+        .in("status_id", openStatusIds.length > 0 ? openStatusIds : ["__none__"])
+        .contains("owner_ids", [memberId]),
+      platform(supabase)
+        .from("habits")
+        .select("id", { count: "exact", head: true })
+        .eq("owner_id", memberId)
+        .eq("status", "active"),
+      platform(supabase)
+        .from("habit_check_ins")
+        .select("id", { count: "exact", head: true })
+        .eq("checked_by", memberId)
+        .eq("check_date", todayStr),
+    ]);
+
+    balanceData.push({
+      name,
+      openTasks: openRes.count || 0,
+      overdueTasks: overdueRes.count || 0,
+      todayTasks: todayRes.count || 0,
+      activeHabits: habitsRes.count || 0,
+      habitsCheckedToday: checkInsRes.count || 0,
+    });
+  }
+
+  // Compute imbalance
+  const maxOpen = Math.max(...balanceData.map((b) => b.openTasks));
+  const minOpen = Math.min(...balanceData.map((b) => b.openTasks));
+  const imbalance = maxOpen - minOpen;
+
+  return {
+    success: true,
+    data: {
+      members: balanceData,
+      imbalance_score: imbalance,
+      recommendation: imbalance > 5
+        ? `Workload is unbalanced (${imbalance} task gap). Consider delegating from the more loaded member.`
+        : "Workload is reasonably balanced.",
     },
   };
 }

@@ -441,6 +441,43 @@ export const AGENT_TOOLS: Tool[] = [
     },
   },
 
+  // ── TASK DELEGATION ──
+  {
+    name: "delegate_task",
+    description: "Reassign an existing task to another household member. Use when someone asks to hand off a task, or when Zev identifies a better person for the job based on workload.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        task_id: { type: "string", description: "Task ID to reassign (required)" },
+        assign_to: { type: "string", description: "Name of household member to assign to (required)" },
+        reason: { type: "string", description: "Brief reason for delegation (shown in notification)" },
+      },
+      required: ["task_id", "assign_to"],
+    },
+  },
+
+  // ── WEEKLY REVIEW (ON-DEMAND) ──
+  {
+    name: "get_weekly_summary",
+    description: "Generate an AI-powered weekly review on demand — tasks completed, habits, XP, goals, household performance. Use when someone asks 'how did we do this week' or 'weekly review'.",
+    input_schema: {
+      type: "object" as const,
+      properties: {},
+      required: [],
+    },
+  },
+
+  // ── WORKLOAD CHECK ──
+  {
+    name: "get_workload_balance",
+    description: "Compare workload between household members — task counts, overdue items, habit loads. Use to inform delegation decisions or when someone asks about load balance.",
+    input_schema: {
+      type: "object" as const,
+      properties: {},
+      required: [],
+    },
+  },
+
   // ── GAMIFICATION (THE CRAWL) ──
   {
     name: "get_crawler_stats",

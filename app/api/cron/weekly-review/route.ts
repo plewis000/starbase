@@ -1,7 +1,7 @@
 /**
- * Cron: Daily Digest — runs at 1 PM UTC (8 AM CT)
- * AI-powered personalized morning briefing for each household member.
- * Uses Zev's voice, includes cross-household data for coordination.
+ * Cron: Weekly Review — runs at 2 PM UTC (9 AM CT) on Sundays
+ * AI-powered weekly household review for each member.
+ * Synthesizes the week's data into an actionable summary.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -9,7 +9,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { platform } from "@/lib/supabase/schemas";
 import { sendEmbed, ZEV_COLOR } from "@/lib/discord";
 import { triggerNotification } from "@/lib/notify";
-import { generateDailyBriefing } from "@/lib/briefing-engine";
+import { generateWeeklyReview } from "@/lib/briefing-engine";
 
 export async function GET(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
@@ -20,7 +20,6 @@ export async function GET(request: NextRequest) {
 
   const supabase = createServiceClient();
 
-  // Get all active users
   const { data: activeUsers } = await platform(supabase)
     .from("users")
     .select("id, display_name, full_name")
@@ -30,7 +29,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ message: "No active users", sent: 0 });
   }
 
-  // Get Discord webhook config for each user
+  // Get Discord webhooks
   const { data: discordPrefs } = await platform(supabase)
     .from("user_notification_prefs")
     .select("user_id, config, channel:notification_channels!user_notification_prefs_channel_id_fkey(slug)")
@@ -53,17 +52,17 @@ export async function GET(request: NextRequest) {
 
   for (const user of activeUsers) {
     try {
-      const result = await generateDailyBriefing(supabase, user.id);
+      const result = await generateWeeklyReview(supabase, user.id);
 
       if (!result) {
-        results.push({ userId: user.id, sent: false, error: "No data to brief" });
+        results.push({ userId: user.id, sent: false, error: "No data for review" });
         continue;
       }
 
-      const { briefing, data } = result;
+      const { review, data } = result;
       const userName = user.display_name || user.full_name || "Crawler";
 
-      // Send to Discord via user's webhook (personalized DM-style)
+      // Send via Discord webhook
       const webhookUrl = userWebhooks.get(user.id);
       if (webhookUrl) {
         try {
@@ -72,45 +71,39 @@ export async function GET(request: NextRequest) {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               embeds: [{
-                title: `Morning Briefing — ${userName}`,
-                description: briefing,
+                title: `Weekly Review — ${userName}`,
+                description: review.slice(0, 4000), // Discord embed limit
                 color: ZEV_COLOR,
                 timestamp: new Date().toISOString(),
-                footer: { text: "Zev | The Keep" },
+                footer: { text: "Zev | Weekly Review" },
               }],
             }),
           });
           if (res.ok) sentCount++;
         } catch (err) {
-          console.error(`[daily-digest] Webhook failed for ${user.id}:`, err);
+          console.error(`[weekly-review] Webhook failed for ${user.id}:`, err);
         }
       }
 
-      // Also send to shared channel as fallback
+      // Shared channel fallback
       const channelId = process.env.PIPELINE_CHANNEL_ID;
       if (channelId && !webhookUrl) {
         await sendEmbed(channelId, {
-          title: `Morning Briefing — ${userName}`,
-          description: briefing,
+          title: `Weekly Review — ${userName}`,
+          description: review.slice(0, 4000),
           color: ZEV_COLOR,
           timestamp: new Date().toISOString(),
-          footer: { text: "Zev | The Keep" },
+          footer: { text: "Zev | Weekly Review" },
         });
         sentCount++;
       }
 
-      // In-app notification with summary
-      const summaryTitle = data.overdueTaskCount > 0
-        ? `${data.overdueTaskCount} overdue, ${data.todayTaskCount} due today`
-        : data.todayTaskCount > 0
-          ? `${data.todayTaskCount} task${data.todayTaskCount !== 1 ? "s" : ""} due today`
-          : "All clear today";
-
+      // In-app notification
       triggerNotification(supabase, {
         recipientUserId: user.id,
-        title: `Morning Briefing: ${summaryTitle}`,
-        body: briefing.slice(0, 300),
-        event: "daily_digest",
+        title: `Weekly Review: ${data.tasksCompleted} tasks, ${data.habitsCompletionRate}% habits`,
+        body: review.slice(0, 300),
+        event: "daily_digest", // reuse event type
       }).catch(() => {});
 
       results.push({ userId: user.id, sent: true });
@@ -120,7 +113,7 @@ export async function GET(request: NextRequest) {
   }
 
   return NextResponse.json({
-    message: "Daily briefings generated",
+    message: "Weekly reviews generated",
     sent: sentCount,
     users: activeUsers.length,
     results,
