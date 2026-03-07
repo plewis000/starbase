@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { verifyKey } from "discord-interactions";
 import { sendMessage, sendEmbed, sendMessageWithButtons, editMessage, CHANNELS, ZEV_COLOR, SYSTEM_COLOR, getGuildChannels } from "@/lib/discord";
-import { getHouseholdContext } from "@/lib/household";
+import { getHouseholdContext, getHouseholdMemberIds } from "@/lib/household";
 import { createServiceClient } from "@/lib/supabase/service";
 import { platform, config, household, finance } from "@/lib/supabase/schemas";
 import {
@@ -635,11 +635,15 @@ async function handleShop(supabase: Supabase, userId: string, options: Record<st
     return;
   }
 
-  // Get default shopping list
+  // Get household member IDs so we find any household member's shopping list
+  const ctx = await getHouseholdContext(supabase, userId);
+  const memberIds = ctx ? await getHouseholdMemberIds(supabase, ctx.household_id) : [userId];
+
+  // Get default shopping list (any household member's)
   const { data: lists } = await household(supabase)
     .from("shopping_lists")
     .select("id, name")
-    .eq("created_by", userId)
+    .in("created_by", memberIds)
     .order("is_default", { ascending: false })
     .limit(1);
 
