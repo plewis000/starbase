@@ -497,7 +497,7 @@ async function getHouseholdMembers(
 ): Promise<string[]> {
   // Get user's household
   const { data: membership } = await supabase
-    .schema("household")
+    .schema("platform")
     .from("household_members")
     .select("household_id")
     .eq("user_id", userId)
@@ -507,7 +507,7 @@ async function getHouseholdMembers(
   if (!membership) return [userId];
 
   const { data: members } = await supabase
-    .schema("household")
+    .schema("platform")
     .from("household_members")
     .select("user_id")
     .eq("household_id", membership.household_id);

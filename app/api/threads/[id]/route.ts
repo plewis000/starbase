@@ -21,7 +21,7 @@ export const GET = withAuth(async (_request: NextRequest, { supabase, ctx }, par
 
   // Get comments for this thread using the polymorphic comment system
   const { data: comments } = await platform(supabase)
-    .from("comments_v2")
+    .from("comments")
     .select("*")
     .eq("entity_type", "thread")
     .eq("entity_id", id)
