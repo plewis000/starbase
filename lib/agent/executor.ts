@@ -241,7 +241,49 @@ async function createTask(supabase: Supabase, userId: string, input: Record<stri
 
   if (error) return { success: false, error: error.message };
   const assignMsg = assigneeId !== userId ? ` (assigned to ${assignToName})` : "";
-  return { success: true, data: { task: data, message: `Task "${data.title}" created${assignMsg}` } };
+
+  // If task was self-assigned (no explicit assign_to), check household workload for hint
+  let workloadHint: string | undefined;
+  if (!assignToName) {
+    try {
+      const ctx2 = await getHouseholdContext(supabase, userId);
+      if (ctx2) {
+        const memberIds2 = await getHouseholdMemberIds(supabase, ctx2.household_id);
+        const otherIds = memberIds2.filter((id) => id !== userId);
+        if (otherIds.length > 0) {
+          const { count: userOpen } = await platform(supabase)
+            .from("tasks")
+            .select("id", { count: "exact", head: true })
+            .contains("owner_ids", [userId])
+            .is("completed_at", null);
+          const { count: otherOpen } = await platform(supabase)
+            .from("tasks")
+            .select("id", { count: "exact", head: true })
+            .contains("owner_ids", [otherIds[0]])
+            .is("completed_at", null);
+          const gap = (userOpen || 0) - (otherOpen || 0);
+          if (gap > 5) {
+            const { data: otherUser } = await platform(supabase)
+              .from("users")
+              .select("display_name, full_name")
+              .eq("id", otherIds[0])
+              .single();
+            const otherName = otherUser?.display_name || otherUser?.full_name || "partner";
+            workloadHint = `Note: You have ${userOpen} open tasks vs ${otherName}'s ${otherOpen}. Consider delegating some.`;
+          }
+        }
+      }
+    } catch { /* non-critical */ }
+  }
+
+  return {
+    success: true,
+    data: {
+      task: data,
+      message: `Task "${data.title}" created${assignMsg}`,
+      ...(workloadHint ? { workload_hint: workloadHint } : {}),
+    },
+  };
 }
 
 async function updateTask(supabase: Supabase, userId: string, input: Record<string, unknown>): Promise<ToolResult> {

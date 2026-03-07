@@ -43,7 +43,9 @@ export type NotifyEvent =
   | "loot_box_earned"
   | "task_co_completed"
   | "daily_digest"
+  | "weekly_review"
   | "streak_broken"
+  | "afternoon_nudge"
   | "system";
 
 // Keep v2 alias for any code that imported the old type name

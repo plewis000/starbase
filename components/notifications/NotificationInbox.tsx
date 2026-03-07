@@ -39,7 +39,9 @@ export default function NotificationInbox() {
     achievement_unlocked: "🏆",
     loot_box: "📦",
     daily_digest: "📋",
+    weekly_review: "📊",
     streak_broken: "💀",
+    afternoon_nudge: "⏰",
   };
 
   const fetchNotifications = useCallback(async () => {
