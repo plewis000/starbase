@@ -233,6 +233,10 @@ async function processCommand(
         return await handleCrawl(supabase, userId, webhookUrl);
       case "ask":
         return await handleAsk(supabase, userId, options, interaction, webhookUrl);
+      case "review":
+        return await handleReview(supabase, userId, webhookUrl);
+      case "nudge":
+        return await handleNudge(supabase, userId, webhookUrl);
       default:
         await sendWebhook(webhookUrl, { content: `Unknown command: ${commandName}` });
     }
@@ -1112,6 +1116,127 @@ async function handleCrawl(supabase: Supabase, userId: string, webhookUrl: strin
         { name: "⬇️ Debuffs", value: `${overdueCount || 0} overdue tasks`, inline: true },
       ],
       footer: { text: "The Keep — So fun it hurts." },
+    }],
+  });
+}
+
+// ── Review + Nudge commands ───────────────────────────────────────────
+
+async function handleReview(supabase: Supabase, userId: string, webhookUrl: string) {
+  const { generateWeeklyReview } = await import("@/lib/briefing-engine");
+  const result = await generateWeeklyReview(supabase, userId);
+
+  if (!result) {
+    await sendWebhook(webhookUrl, { content: "Not enough data for a weekly review yet. Give it a few more days." });
+    return;
+  }
+
+  const chunks = splitForDiscord(result.review, 4000);
+  await sendWebhook(webhookUrl, {
+    embeds: [{
+      title: "Weekly Review",
+      description: chunks[0],
+      color: ZEV_COLOR,
+      footer: { text: "Zev | Weekly Review" },
+      timestamp: new Date().toISOString(),
+    }],
+  });
+
+  for (let i = 1; i < chunks.length; i++) {
+    await sendWebhook(webhookUrl, { content: chunks[i] });
+  }
+}
+
+async function handleNudge(supabase: Supabase, userId: string, webhookUrl: string) {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const nudges: string[] = [];
+
+  // Unchecked habits
+  const { data: activeHabits } = await platform(supabase)
+    .from("habits")
+    .select("id, title, current_streak")
+    .eq("owner_id", userId)
+    .eq("status", "active");
+
+  const { data: todayCheckIns } = await platform(supabase)
+    .from("habit_check_ins")
+    .select("habit_id")
+    .eq("checked_by", userId)
+    .eq("check_date", todayStr);
+
+  const checkedIds = new Set((todayCheckIns || []).map((c) => c.habit_id));
+  const unchecked = (activeHabits || []).filter((h) => !checkedIds.has(h.id));
+
+  if (unchecked.length > 0) {
+    const atRisk = unchecked.filter((h) => h.current_streak > 0);
+    if (atRisk.length > 0) {
+      const names = atRisk.slice(0, 3).map((h) => `**${h.title}** (${h.current_streak}d streak)`).join(", ");
+      nudges.push(`🔥 Streaks at risk: ${names}`);
+    } else {
+      const names = unchecked.slice(0, 3).map((h) => h.title).join(", ");
+      nudges.push(`🔄 Unchecked habits: ${names}`);
+    }
+  }
+
+  // Overdue tasks
+  const { data: overdueTasks } = await platform(supabase)
+    .from("tasks")
+    .select("title")
+    .contains("owner_ids", [userId])
+    .lt("due_date", todayStr)
+    .is("completed_at", null)
+    .limit(5);
+
+  if (overdueTasks && overdueTasks.length > 0) {
+    const names = overdueTasks.slice(0, 3).map((t) => `**${t.title}**`).join(", ");
+    nudges.push(`⚠️ Overdue: ${names}${overdueTasks.length > 3 ? ` +${overdueTasks.length - 3} more` : ""}`);
+  }
+
+  // Tasks due today
+  const { data: todayTasks } = await platform(supabase)
+    .from("tasks")
+    .select("title")
+    .contains("owner_ids", [userId])
+    .eq("due_date", todayStr)
+    .is("completed_at", null)
+    .limit(5);
+
+  if (todayTasks && todayTasks.length > 0) {
+    const names = todayTasks.slice(0, 3).map((t) => t.title).join(", ");
+    nudges.push(`📋 Due today: ${names}`);
+  }
+
+  // Pending suggestions
+  const { data: suggestions } = await platform(supabase)
+    .from("ai_suggestions")
+    .select("title")
+    .eq("user_id", userId)
+    .eq("status", "pending")
+    .limit(1);
+
+  if (suggestions && suggestions.length > 0) {
+    nudges.push(`💡 Suggestion: ${suggestions[0].title}`);
+  }
+
+  if (nudges.length === 0) {
+    await sendWebhook(webhookUrl, {
+      embeds: [{
+        title: "All Clear",
+        description: "Nothing urgent. You're caught up. Nice.",
+        color: 0x22c55e,
+        footer: { text: "Zev | The Keep" },
+      }],
+    });
+    return;
+  }
+
+  await sendWebhook(webhookUrl, {
+    embeds: [{
+      title: "What Needs Attention",
+      description: nudges.join("\n\n"),
+      color: nudges.some((n) => n.includes("Overdue")) ? 0xef4444 : 0xf59e0b,
+      footer: { text: "Zev | The Keep" },
+      timestamp: new Date().toISOString(),
     }],
   });
 }

@@ -174,6 +174,14 @@ export async function registerSlashCommands() {
       ],
     },
     {
+      name: "review",
+      description: "Get your weekly review from Zev",
+    },
+    {
+      name: "nudge",
+      description: "Check what needs attention right now",
+    },
+    {
       name: "pipeline",
       description: "Show active pipeline jobs",
     },
