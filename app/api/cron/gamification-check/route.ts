@@ -117,6 +117,10 @@ async function evaluateUserAchievements(
     allUnlocks.push(...unlocks);
   }
 
+  // --- task_count: catches retroactive completions (First Blood, Ten Down, Centurion) ---
+  const taskCountUnlocks = await checkAchievements(supabase, userId, "task_count", {});
+  allUnlocks.push(...taskCountUnlocks);
+
   // --- level_reached: simple check, no context needed ---
   const levelUnlocks = await checkAchievements(supabase, userId, "level_reached", {});
   allUnlocks.push(...levelUnlocks);
