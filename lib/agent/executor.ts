@@ -112,6 +112,10 @@ export async function executeTool(
       case "submit_onboarding_response":
         return await submitOnboardingResponse(supabase, userId, input);
 
+      // ── HOUSEHOLD ──
+      case "get_household_overview":
+        return await getHouseholdOverview(supabase, userId);
+
       // ── GAMIFICATION ──
       case "get_crawler_stats":
         return await getCrawlerStats(supabase, userId);
@@ -186,6 +190,28 @@ async function createTask(supabase: Supabase, userId: string, input: Record<stri
     .limit(1)
     .single();
 
+  // Resolve assign_to — look up household member by name
+  let assigneeId = userId;
+  const assignToName = input.assign_to as string | undefined;
+  if (assignToName) {
+    const ctx = await getHouseholdContext(supabase, userId);
+    if (ctx) {
+      const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
+      const { data: members } = await platform(supabase)
+        .from("users")
+        .select("id, display_name, full_name")
+        .in("id", memberIds);
+
+      if (members) {
+        const match = members.find((m) => {
+          const name = (m.display_name || m.full_name || "").toLowerCase();
+          return name === assignToName.toLowerCase() || name.startsWith(assignToName.toLowerCase());
+        });
+        if (match) assigneeId = match.id;
+      }
+    }
+  }
+
   const { data, error } = await platform(supabase)
     .from("tasks")
     .insert({
@@ -194,15 +220,16 @@ async function createTask(supabase: Supabase, userId: string, input: Record<stri
       due_date: (input.due_date as string) || null,
       priority_id: priorityId || null,
       status_id: defaultStatus?.id || null,
-      owner_ids: [userId],
-      assigned_to: userId,
+      owner_ids: [assigneeId],
+      assigned_to: assigneeId,
       created_by: userId,
     })
-    .select("id, title, due_date")
+    .select("id, title, due_date, assigned_to")
     .single();
 
   if (error) return { success: false, error: error.message };
-  return { success: true, data: { task: data, message: `Task "${data.title}" created` } };
+  const assignMsg = assigneeId !== userId ? ` (assigned to ${assignToName})` : "";
+  return { success: true, data: { task: data, message: `Task "${data.title}" created${assignMsg}` } };
 }
 
 async function updateTask(supabase: Supabase, userId: string, input: Record<string, unknown>): Promise<ToolResult> {
@@ -1529,6 +1556,106 @@ async function submitOnboardingResponse(supabase: Supabase, userId: string, inpu
       message: "Got it — learned something new about this crawler.",
     },
   };
+}
+
+// ── HOUSEHOLD OVERVIEW ──
+
+async function getHouseholdOverview(supabase: Supabase, userId: string): Promise<ToolResult> {
+  const ctx = await getHouseholdContext(supabase, userId);
+  if (!ctx) return { success: false, error: "No household found" };
+  const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
+
+  // Get member names
+  const { data: members } = await platform(supabase)
+    .from("users")
+    .select("id, display_name, full_name")
+    .in("id", memberIds);
+
+  const nameMap = new Map<string, string>();
+  for (const m of members || []) {
+    nameMap.set(m.id, m.display_name || m.full_name || "Unknown");
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  // Parallel queries for each member's data
+  const [tasksResult, overdueResult, habitsResult, checkInsResult, goalsResult] = await Promise.all([
+    // Tasks due today
+    platform(supabase).from("tasks")
+      .select("id, title, assigned_to, due_date, status:task_statuses(name)")
+      .in("assigned_to", memberIds)
+      .is("completed_at", null)
+      .eq("due_date", today),
+    // Overdue tasks
+    platform(supabase).from("tasks")
+      .select("id, title, assigned_to, due_date")
+      .in("assigned_to", memberIds)
+      .is("completed_at", null)
+      .lt("due_date", today),
+    // Active habits
+    platform(supabase).from("habits")
+      .select("id, title, owner_id, current_streak")
+      .in("owner_id", memberIds)
+      .eq("status", "active"),
+    // Today's check-ins
+    platform(supabase).from("habit_check_ins")
+      .select("habit_id, checked_by")
+      .in("checked_by", memberIds)
+      .eq("check_date", today),
+    // Active goals
+    platform(supabase).from("goals")
+      .select("id, title, owner_id, progress, target_value, status")
+      .in("owner_id", memberIds)
+      .eq("status", "active"),
+  ]);
+
+  const todayTasks = tasksResult.data || [];
+  const overdueTasks = overdueResult.data || [];
+  const habits = habitsResult.data || [];
+  const checkIns = new Set((checkInsResult.data || []).map(c => c.habit_id));
+  const goals = goalsResult.data || [];
+
+  // Build per-member summary
+  const memberSummaries = memberIds.map((id) => {
+    const name = nameMap.get(id) || "Unknown";
+    const myTodayTasks = todayTasks.filter(t => t.assigned_to === id);
+    const myOverdue = overdueTasks.filter(t => t.assigned_to === id);
+    const myHabits = habits.filter(h => h.owner_id === id);
+    const myCheckedIn = myHabits.filter(h => checkIns.has(h.id));
+    const myGoals = goals.filter(g => g.owner_id === id);
+    const topStreaks = myHabits.filter(h => h.current_streak > 0)
+      .sort((a, b) => b.current_streak - a.current_streak)
+      .slice(0, 3);
+
+    return {
+      name,
+      user_id: id,
+      tasks_due_today: myTodayTasks.length,
+      tasks_today_titles: myTodayTasks.slice(0, 5).map(t => t.title),
+      overdue_count: myOverdue.length,
+      overdue_titles: myOverdue.slice(0, 3).map(t => `${t.title} (due ${t.due_date})`),
+      habits_total: myHabits.length,
+      habits_done_today: myCheckedIn.length,
+      top_streaks: topStreaks.map(h => ({ title: h.title, streak: h.current_streak })),
+      active_goals: myGoals.map(g => ({
+        title: g.title,
+        progress: g.progress || 0,
+        target: g.target_value || 100,
+      })),
+    };
+  });
+
+  // Household totals
+  const householdSummary = {
+    total_tasks_today: todayTasks.length,
+    total_overdue: overdueTasks.length,
+    total_habits: habits.length,
+    total_checked_in_today: checkIns.size,
+    total_active_goals: goals.length,
+    members: memberSummaries,
+  };
+
+  return { success: true, data: householdSummary };
 }
 
 // ── GAMIFICATION ──

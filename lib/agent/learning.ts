@@ -223,14 +223,49 @@ export async function buildUserContext(
     .order("confidence", { ascending: false })
     .limit(30);
 
-  if (!observations || observations.length === 0) {
+  // Also load household-level observations from OTHER members
+  // This gives Zev cross-user knowledge (e.g., "Lenale handles grocery shopping")
+  const { getHouseholdContext, getHouseholdMemberIds } = await import("@/lib/household");
+  const ctx = await getHouseholdContext(supabase, userId);
+  let householdObs: { observation_type: string; observation: string; confidence: number }[] = [];
+  let partnerName = "";
+  if (ctx) {
+    const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
+    const otherMemberIds = memberIds.filter(id => id !== userId);
+    if (otherMemberIds.length > 0) {
+      // Get partner's name
+      const { data: partners } = await platform(supabase)
+        .from("users")
+        .select("display_name, full_name")
+        .in("id", otherMemberIds)
+        .limit(1);
+      if (partners?.[0]) {
+        partnerName = partners[0].display_name || partners[0].full_name || "";
+      }
+
+      // Get household-relevant observations from partner
+      // Only types that benefit cross-user: relationship, routine, preference, context
+      const { data: partnerObs } = await platform(supabase)
+        .from("ai_observations")
+        .select("observation_type, observation, confidence")
+        .in("user_id", otherMemberIds)
+        .eq("is_active", true)
+        .in("observation_type", ["relationship", "routine", "context", "preference"])
+        .gte("confidence", 0.7)
+        .order("confidence", { ascending: false })
+        .limit(10);
+      householdObs = partnerObs || [];
+    }
+  }
+
+  if ((!observations || observations.length === 0) && householdObs.length === 0) {
     return `You are talking to ${userName}. You don't know much about them yet — learn through conversation. Ask questions naturally, remember what they tell you.`;
   }
 
   // Memory access refresh — boost confidence of accessed observations (Ebbinghaus-inspired).
   // Observations that are used in conversations are still relevant; prevent decay.
   // Non-blocking: fire and forget.
-  const boostIds = observations
+  const boostIds = (observations || [])
     .filter((o) => o.confidence < 0.95 && o.source_layer !== "declared")
     .map((o) => o.id);
   if (boostIds.length > 0) {
@@ -243,7 +278,7 @@ export async function buildUserContext(
 
   // Group by type
   const grouped: Record<string, string[]> = {};
-  for (const obs of observations) {
+  for (const obs of observations || []) {
     const type = obs.observation_type;
     if (!grouped[type]) grouped[type] = [];
     grouped[type].push(`${obs.observation} [${obs.source_layer}, conf:${obs.confidence}]`);
@@ -277,6 +312,14 @@ export async function buildUserContext(
       for (const item of grouped[type].slice(0, 5)) {
         sections.push(`- ${item}`);
       }
+    }
+  }
+
+  // Inject household context from partner
+  if (householdObs.length > 0 && partnerName) {
+    sections.push(`\nAbout ${partnerName} (household partner — knowledge from their conversations):`);
+    for (const obs of householdObs.slice(0, 6)) {
+      sections.push(`- ${obs.observation}`);
     }
   }
 

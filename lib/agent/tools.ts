@@ -24,7 +24,7 @@ export const AGENT_TOOLS: Tool[] = [
   },
   {
     name: "create_task",
-    description: "Create a new task. Returns the created task.",
+    description: "Create a new task. Can assign to any household member by name. Returns the created task.",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -32,6 +32,7 @@ export const AGENT_TOOLS: Tool[] = [
         description: { type: "string", description: "Task description" },
         due_date: { type: "string", description: "Due date in YYYY-MM-DD format" },
         priority: { type: "string", description: "Priority: 'high', 'medium', 'low', or priority config ID" },
+        assign_to: { type: "string", description: "Name of household member to assign to (e.g. 'Parker', 'Lenale'). Defaults to current user." },
       },
       required: ["title"],
     },
@@ -426,6 +427,17 @@ export const AGENT_TOOLS: Tool[] = [
         response: { type: "string", description: "The user's response in their own words (required)" },
       },
       required: ["question_key", "response"],
+    },
+  },
+
+  // ── HOUSEHOLD ──
+  {
+    name: "get_household_overview",
+    description: "Get a unified household overview — all members' tasks (today/overdue), habits (streaks, today's check-ins), active goals, and recent activity. Use this when someone asks about the household as a whole, 'how are we doing', 'what's everyone up to', or to proactively surface cross-member coordination opportunities.",
+    input_schema: {
+      type: "object" as const,
+      properties: {},
+      required: [],
     },
   },
 
