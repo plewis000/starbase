@@ -428,4 +428,15 @@ export const AGENT_TOOLS: Tool[] = [
       required: ["question_key", "response"],
     },
   },
+
+  // ── GAMIFICATION (THE CRAWL) ──
+  {
+    name: "get_crawler_stats",
+    description: "Get the user's Crawl profile — level, XP, class, stats (STR/DEX/CON/INT/CHA), active streaks (buffs), overdue tasks (debuffs), recent achievements, and loot box count. Use this to comment on their progress, celebrate milestones, or roast them for debuffs.",
+    input_schema: {
+      type: "object" as const,
+      properties: {},
+      required: [],
+    },
+  },
 ];

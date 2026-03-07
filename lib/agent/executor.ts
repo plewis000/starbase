@@ -112,6 +112,10 @@ export async function executeTool(
       case "submit_onboarding_response":
         return await submitOnboardingResponse(supabase, userId, input);
 
+      // ── GAMIFICATION ──
+      case "get_crawler_stats":
+        return await getCrawlerStats(supabase, userId);
+
       default:
         return { success: false, error: `Unknown tool: ${toolName}` };
     }
@@ -1523,6 +1527,105 @@ async function submitOnboardingResponse(supabase: Supabase, userId: string, inpu
       deferred: true,
       observations_generated: obsResult.created,
       message: "Got it — learned something new about this crawler.",
+    },
+  };
+}
+
+// ── GAMIFICATION ──
+
+async function getCrawlerStats(supabase: Supabase, userId: string): Promise<ToolResult> {
+  const { calculateLevel, getFloorForLevel } = await import("@/lib/gamification");
+
+  // Profile + stats
+  const { data: profile } = await platform(supabase)
+    .from("crawler_profiles")
+    .select("total_xp, crawler_name, title, crawler_class, class_description, stat_str, stat_dex, stat_con, stat_int, stat_cha, login_streak")
+    .eq("user_id", userId)
+    .single();
+
+  if (!profile) {
+    return { success: true, data: { message: "No crawler profile found. This user hasn't entered The Crawl yet." } };
+  }
+
+  const levelInfo = calculateLevel(profile.total_xp);
+
+  // Recent achievements, active streaks, overdue tasks, loot boxes in parallel
+  const [achievementsRes, streaksRes, overdueRes, lootRes] = await Promise.all([
+    // Last 5 unlocked achievements with names
+    platform(supabase)
+      .from("achievement_unlocks")
+      .select("achievement_id, unlocked_at, xp_awarded")
+      .eq("user_id", userId)
+      .order("unlocked_at", { ascending: false })
+      .limit(5),
+    // Active habit streaks (buffs)
+    platform(supabase)
+      .from("habits")
+      .select("title, current_streak")
+      .eq("owner_id", userId)
+      .eq("status", "active")
+      .gt("current_streak", 0)
+      .order("current_streak", { ascending: false })
+      .limit(5),
+    // Overdue tasks (debuffs)
+    platform(supabase)
+      .from("tasks")
+      .select("title, due_date")
+      .is("completed_at", null)
+      .lt("due_date", new Date().toISOString().split("T")[0])
+      .or(`assigned_to.eq.${userId},created_by.eq.${userId}`)
+      .limit(5),
+    // Unopened loot boxes
+    platform(supabase)
+      .from("loot_boxes")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("opened", false),
+  ]);
+
+  // Resolve achievement names
+  let achievements: { name: string; unlocked_at: string; xp: number }[] = [];
+  if (achievementsRes.data?.length) {
+    const ids = achievementsRes.data.map(a => a.achievement_id);
+    const { data: details } = await config(supabase)
+      .from("achievements")
+      .select("id, name, tier")
+      .in("id", ids);
+    if (details) {
+      const map = new Map(details.map(d => [d.id, d]));
+      achievements = achievementsRes.data
+        .filter(a => map.has(a.achievement_id))
+        .map(a => ({
+          name: `${map.get(a.achievement_id)!.name} (${map.get(a.achievement_id)!.tier})`,
+          unlocked_at: a.unlocked_at,
+          xp: a.xp_awarded,
+        }));
+    }
+  }
+
+  return {
+    success: true,
+    data: {
+      crawler_name: profile.crawler_name,
+      title: profile.title,
+      level: levelInfo.level,
+      floor: getFloorForLevel(levelInfo.level),
+      total_xp: profile.total_xp,
+      xp_progress: `${levelInfo.xpInLevel}/${levelInfo.xpToNext + levelInfo.xpInLevel}`,
+      crawler_class: profile.crawler_class || "unclassed",
+      class_description: profile.class_description,
+      stats: {
+        STR: profile.stat_str,
+        DEX: profile.stat_dex,
+        CON: profile.stat_con,
+        INT: profile.stat_int,
+        CHA: profile.stat_cha,
+      },
+      login_streak: profile.login_streak,
+      buffs: (streaksRes.data || []).map(h => `${h.title} (${h.current_streak}d streak)`),
+      debuffs: (overdueRes.data || []).map(t => `${t.title} (due ${t.due_date})`),
+      recent_achievements: achievements,
+      unopened_loot_boxes: lootRes.count || 0,
     },
   };
 }
