@@ -236,6 +236,12 @@ export default function CrawlPage() {
   const [recentXp, setRecentXp] = useState<XpLedgerEntry[]>([]);
   const [stats, setStats] = useState({ achievement_count: 0, unopened_boxes: 0 });
 
+  // Profile edit state
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editTitle, setEditTitle] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
+
   // Achievements state
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [achievementFilter, setAchievementFilter] = useState<string>("all");
@@ -349,6 +355,38 @@ export default function CrawlPage() {
       toast.error("Failed to open loot box. Make sure you have rewards configured!");
     } finally {
       setOpeningBox(null);
+    }
+  };
+
+  const handleEditProfile = () => {
+    if (!profile) return;
+    setEditName(profile.crawler_name || "");
+    setEditTitle(profile.title || "");
+    setEditing(true);
+  };
+
+  const handleSaveProfile = async () => {
+    setSavingProfile(true);
+    try {
+      const res = await fetch("/api/gamification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          crawler_name: editName.trim() || undefined,
+          title: editTitle.trim() || null,
+        }),
+      });
+      if (res.ok) {
+        setEditing(false);
+        toast.success("Profile updated");
+        fetchProfile();
+      } else {
+        toast.error("Failed to save profile");
+      }
+    } catch {
+      toast.error("Failed to save profile");
+    } finally {
+      setSavingProfile(false);
     }
   };
 
@@ -540,12 +578,55 @@ export default function CrawlPage() {
 
                 {/* Center: Info + XP */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-baseline gap-3 mb-1">
-                    <h2 className="text-2xl font-bold text-slate-100 dcc-heading tracking-wide">{profile.crawler_name}</h2>
-                    {profile.title && (
-                      <span className="text-sm text-gold-400 font-medium">{profile.title}</span>
-                    )}
-                  </div>
+                  {editing ? (
+                    <div className="space-y-2 mb-3">
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        placeholder="Crawler name"
+                        maxLength={50}
+                        className="w-full bg-dungeon-800 border border-dungeon-700 rounded-lg px-3 py-2 text-lg font-bold text-slate-100 focus:outline-none focus:border-crimson-500/50"
+                      />
+                      <input
+                        type="text"
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        placeholder="Title (optional, e.g. 'The Relentless')"
+                        maxLength={50}
+                        className="w-full bg-dungeon-800 border border-dungeon-700 rounded-lg px-3 py-1.5 text-sm text-gold-400 focus:outline-none focus:border-crimson-500/50"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleSaveProfile}
+                          disabled={savingProfile || !editName.trim()}
+                          className="px-3 py-1.5 text-xs font-medium dcc-btn-primary disabled:opacity-50"
+                        >
+                          {savingProfile ? "Saving..." : "Save"}
+                        </button>
+                        <button
+                          onClick={() => setEditing(false)}
+                          className="px-3 py-1.5 text-xs text-dungeon-500 hover:text-slate-100 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-baseline gap-3 mb-1 group">
+                      <h2 className="text-2xl font-bold text-slate-100 dcc-heading tracking-wide">{profile.crawler_name}</h2>
+                      {profile.title && (
+                        <span className="text-sm text-gold-400 font-medium">{profile.title}</span>
+                      )}
+                      <button
+                        onClick={handleEditProfile}
+                        className="opacity-0 group-hover:opacity-100 text-dungeon-500 hover:text-slate-300 transition-all text-xs ml-1"
+                        title="Edit profile"
+                      >
+                        ✏️
+                      </button>
+                    </div>
+                  )}
                   <p className="text-dungeon-500 text-sm mb-3 font-mono">
                     {profile.floor?.icon} Floor {profile.floor_number || 1}: {profile.floor?.name || "The Stairwell"}
                   </p>
