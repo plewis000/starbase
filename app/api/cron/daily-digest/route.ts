@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { platform, config } from "@/lib/supabase/schemas";
 import { sendEmbed, ZEV_COLOR } from "@/lib/discord";
+import { triggerNotification } from "@/lib/notify";
 
 export async function GET(request: NextRequest) {
   // Verify Vercel cron secret
@@ -92,6 +93,25 @@ export async function GET(request: NextRequest) {
     footer: { text: "The Keep Daily Digest" },
     timestamp: now.toISOString(),
   });
+
+  // Also create in-app notifications for all active users
+  const { data: activeUsers } = await platform(supabase)
+    .from("users")
+    .select("id")
+    .eq("status", "active");
+
+  const digestTitle = overdueCount > 0
+    ? `${overdueCount} overdue, ${todayCount} due today`
+    : `${todayCount} task${todayCount !== 1 ? "s" : ""} due today`;
+
+  for (const u of activeUsers || []) {
+    triggerNotification(supabase, {
+      recipientUserId: u.id,
+      title: `Daily Digest: ${digestTitle}`,
+      body: overdueCount > 0 ? "You have overdue tasks that need attention." : "Check your task board for today's items.",
+      event: "daily_digest",
+    }).catch(() => {});
+  }
 
   return NextResponse.json({ message: "Digest sent", overdue: overdueCount, today: todayCount });
 }
