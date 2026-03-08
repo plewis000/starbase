@@ -573,84 +573,63 @@ export default function CrawlPage() {
           ))}
         </div>
 
-        {/* Onboarding — shown when gamification not yet activated */}
-        {!activated && !loading ? (
-          <div className="max-w-lg mx-auto space-y-6">
-            <div className="dcc-card p-8 text-center">
-              <span className="text-5xl block mb-4">🗡️</span>
-              <h2 className="text-2xl font-bold text-slate-100 dcc-heading mb-2">Enter The Crawl</h2>
-              <p className="text-dungeon-500 text-sm font-mono mb-6">
-                The System has been watching. Before you can enter the dungeon, you need to prove you&apos;re worth tracking.
-              </p>
-
-              {/* Prerequisites checklist */}
-              <div className="text-left space-y-3 mb-6">
-                <p className="text-xs text-dungeon-500 uppercase tracking-wider font-mono mb-2">Prerequisites</p>
-
-                {activation && Object.entries(activation.modules).map(([key, mod]) => {
-                  const labels: Record<string, { name: string; min: number }> = {
-                    tasks: { name: "Complete tasks", min: 5 },
-                    habits: { name: "Log habit check-ins", min: 3 },
-                    finance: { name: "Track transactions", min: 5 },
-                    goals: { name: "Set a goal", min: 1 },
-                  };
-                  const label = labels[key];
-                  return (
-                    <div key={key} className={`flex items-center gap-3 p-3 rounded-lg border ${
-                      mod.ready ? "border-green-800 bg-green-950/20" : "border-dungeon-700 bg-dungeon-800"
-                    }`}>
-                      <span className="text-lg">{mod.ready ? "✅" : "⬜"}</span>
-                      <div className="flex-1">
-                        <span className={`text-sm ${mod.ready ? "text-green-400" : "text-dungeon-400"}`}>
-                          {label?.name || key}
-                        </span>
-                        <span className="text-xs text-dungeon-500 ml-2 font-mono">
-                          {mod.count}/{label?.min || 1}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-
-                {activation && (
-                  <div className={`flex items-center gap-3 p-3 rounded-lg border ${
-                    activation.hasRewards ? "border-green-800 bg-green-950/20" : "border-dungeon-700 bg-dungeon-800"
-                  }`}>
-                    <span className="text-lg">{activation.hasRewards ? "✅" : "⬜"}</span>
-                    <div className="flex-1">
-                      <span className={`text-sm ${activation.hasRewards ? "text-green-400" : "text-dungeon-400"}`}>
-                        Set up loot box rewards
-                      </span>
-                      {!activation.hasRewards && (
-                        <Link href="/crawl/rewards" className="text-xs text-crimson-400 ml-2 hover:text-crimson-300">
-                          Set up rewards &rarr;
-                        </Link>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                <p className="text-xs text-dungeon-500 font-mono mt-3">
-                  Need data in at least {activation?.minRequired || 2} modules + rewards configured.
-                  {activation && ` (${activation.totalReady}/${activation.minRequired} modules ready)`}
+        {/* Onboarding banner — recommendation, not a gate */}
+        {!activated && !loading && activation && (
+          <div className="dcc-card p-4 mb-6 border-amber-900/30">
+            <div className="flex items-start gap-4">
+              <span className="text-2xl flex-shrink-0">🗡️</span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <h3 className="text-sm font-bold text-slate-100">Activate The Crawl</h3>
+                  <button
+                    onClick={() => setActivated(true)}
+                    className="text-xs text-dungeon-500 hover:text-slate-300 transition-colors flex-shrink-0"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+                <p className="text-xs text-dungeon-500 font-mono mb-3">
+                  XP and achievements won&apos;t track until activated. Here&apos;s what&apos;s recommended:
                 </p>
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {Object.entries(activation.modules).map(([key, mod]) => {
+                    const names: Record<string, string> = { tasks: "Tasks", habits: "Habits", finance: "Finance", goals: "Goals" };
+                    return (
+                      <span key={key} className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${
+                        mod.ready ? "bg-green-950/30 text-green-400 border border-green-800/50" : "bg-dungeon-800 text-dungeon-500 border border-dungeon-700"
+                      }`}>
+                        {mod.ready ? "✓" : "○"} {names[key] || key}
+                      </span>
+                    );
+                  })}
+                  <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${
+                    activation.hasRewards ? "bg-green-950/30 text-green-400 border border-green-800/50" : "bg-dungeon-800 text-dungeon-500 border border-dungeon-700"
+                  }`}>
+                    {activation.hasRewards ? "✓" : "○"} Rewards
+                    {!activation.hasRewards && (
+                      <Link href="/crawl/rewards" className="text-crimson-400 ml-1 hover:text-crimson-300">setup</Link>
+                    )}
+                  </span>
+                </div>
+                <button
+                  onClick={handleActivate}
+                  disabled={activating}
+                  className="px-4 py-2 rounded-lg font-medium text-sm transition-all dcc-btn-primary disabled:opacity-50"
+                >
+                  {activating ? "Activating..." : "Activate Now"}
+                </button>
+                {!activation.ready && (
+                  <span className="text-[10px] text-dungeon-500 ml-3">
+                    {activation.totalReady}/{activation.minRequired} modules ready — activate anyway or keep building data
+                  </span>
+                )}
               </div>
-
-              <button
-                onClick={handleActivate}
-                disabled={!activation?.ready || activating}
-                className={`w-full py-3 rounded-lg font-medium text-sm transition-all ${
-                  activation?.ready
-                    ? "dcc-btn-primary"
-                    : "bg-dungeon-800 text-dungeon-500 border border-dungeon-700 cursor-not-allowed"
-                }`}
-              >
-                {activating ? "Activating..." : activation?.ready ? "Begin The Crawl" : "Not Ready Yet"}
-              </button>
             </div>
           </div>
-        ) : /* Tab Content */
-        loading && tab === "profile" ? (
+        )}
+
+        {/* Tab Content */}
+        {loading && tab === "profile" ? (
           <div className="flex justify-center py-12"><LoadingSpinner size="lg" /></div>
         ) : tab === "profile" && profile ? (
           <div className="space-y-6">

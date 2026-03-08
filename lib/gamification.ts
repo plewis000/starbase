@@ -168,9 +168,7 @@ export async function activateGamification(
   supabase: SupabaseClient,
   userId: string,
 ): Promise<boolean> {
-  const readiness = await checkActivationReadiness(supabase, userId);
-  if (!readiness.ready) return false;
-
+  // Activate regardless of prerequisites — they're recommendations, not gates
   await supabase
     .schema("platform")
     .from("crawler_profiles")
