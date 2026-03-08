@@ -5,7 +5,7 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
-import { sendMessageWithButtons, sendMessage, ZEV_COLOR } from "@/lib/discord";
+import { sendMessageWithButtons, sendMessage, ZEV_COLOR, getGuildChannels, createChannel, deleteChannel } from "@/lib/discord";
 import { createServiceClient } from "@/lib/supabase/service";
 import { platform } from "@/lib/supabase/schemas";
 
@@ -95,7 +95,26 @@ export async function POST(request: NextRequest) {
     await sendMessage(channelId, content);
     return NextResponse.json({ sent: true });
 
+  } else if (action === "create_channel") {
+    // Create a channel under the Zev category
+    const name = body.name as string;
+    if (!name) return NextResponse.json({ error: "name required" }, { status: 400 });
+    const channels = await getGuildChannels();
+    const zevCat = channels.find(c => c.name.toLowerCase() === "zev" && c.type === 4);
+    if (!zevCat) return NextResponse.json({ error: "Zev category not found" }, { status: 404 });
+
+    // Delete existing channel with same name if not already under Zev
+    const existing = channels.find(c => c.name === name);
+    if (existing && existing.parent_id !== zevCat.id) {
+      await deleteChannel(existing.id);
+    } else if (existing && existing.parent_id === zevCat.id) {
+      return NextResponse.json({ created: false, message: "Channel already exists under Zev", id: existing.id });
+    }
+
+    const ch = await createChannel(name, zevCat.id);
+    return NextResponse.json({ created: !!ch, id: ch?.id });
+
   } else {
-    return NextResponse.json({ error: `Unknown action: ${action}`, available: ["cleanup", "post_feedback", "post_message"] }, { status: 400 });
+    return NextResponse.json({ error: `Unknown action: ${action}`, available: ["cleanup", "post_feedback", "post_message", "create_channel"] }, { status: 400 });
   }
 }
