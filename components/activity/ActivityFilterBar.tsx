@@ -161,7 +161,6 @@ export default function ActivityFilterBar({
   const [editName, setEditName] = useState("");
   const [editIcon, setEditIcon] = useState("");
   const [showRestoreMenu, setShowRestoreMenu] = useState(false);
-  const restoreMenuRef = useRef<HTMLDivElement>(null);
   const searchTimeout = useRef<NodeJS.Timeout | null>(null);
   const filtersRef = useRef(filters);
   filtersRef.current = filters;
@@ -169,18 +168,6 @@ export default function ActivityFilterBar({
   // Hidden defaults + archived custom views for restore menu
   const hiddenDefaultViews = (allDefaultViews || []).filter(v => hiddenDefaults?.includes(v.name));
   const totalRestorableCount = hiddenDefaultViews.length + (archivedViews?.length || 0);
-
-  // Outside-click handler for restore menu
-  useEffect(() => {
-    if (!showRestoreMenu) return;
-    const handler = (e: MouseEvent) => {
-      if (restoreMenuRef.current && !restoreMenuRef.current.contains(e.target as Node)) {
-        setShowRestoreMenu(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [showRestoreMenu]);
 
   const update = useCallback((key: keyof ActivityFilters, value: string | number | undefined) => {
     const next = { ...filters, [key]: value };
@@ -340,38 +327,12 @@ export default function ActivityFilterBar({
         </button>
 
         {totalRestorableCount > 0 && (
-          <div className="relative flex-shrink-0" ref={restoreMenuRef}>
-            <button
-              onClick={() => setShowRestoreMenu(!showRestoreMenu)}
-              className="px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap border border-dashed border-dungeon-700 text-slate-600 hover:text-slate-400 hover:border-dungeon-600 transition-all"
-            >
-              + Restore ({totalRestorableCount})
-            </button>
-            {showRestoreMenu && (
-              <div className="absolute bottom-full left-0 mb-1 bg-dungeon-900 border border-dungeon-700 rounded-lg shadow-xl z-50 py-1 min-w-[140px]">
-                {hiddenDefaultViews.map((view) => (
-                  <button
-                    key={view.name}
-                    onClick={() => { onRestoreDefault?.(view.name); if (totalRestorableCount <= 1) setShowRestoreMenu(false); }}
-                    className="w-full text-left px-3 py-1.5 text-xs text-slate-300 hover:bg-dungeon-800 transition-colors flex items-center gap-1.5"
-                  >
-                    <span>{view.icon}</span>
-                    {view.name}
-                  </button>
-                ))}
-                {archivedViews?.map((view) => (
-                  <button
-                    key={view.name}
-                    onClick={() => { onRestoreArchivedView?.(view.name); if (totalRestorableCount <= 1) setShowRestoreMenu(false); }}
-                    className="w-full text-left px-3 py-1.5 text-xs text-slate-300 hover:bg-dungeon-800 transition-colors flex items-center gap-1.5"
-                  >
-                    <span>{view.icon}</span>
-                    {view.name}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <button
+            onClick={() => setShowRestoreMenu(true)}
+            className="px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap border border-dashed border-dungeon-700 text-slate-600 hover:text-slate-400 hover:border-dungeon-600 transition-all flex-shrink-0"
+          >
+            + Restore ({totalRestorableCount})
+          </button>
         )}
       </div>
 
@@ -535,6 +496,61 @@ export default function ActivityFilterBar({
               options={GROUP_BY_OPTIONS}
               onChange={(v) => update("groupBy", v)}
             />
+          </div>
+        </div>
+      )}
+
+      {/* Restore / Archive dialog */}
+      {showRestoreMenu && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowRestoreMenu(false)}>
+          <div className="bg-dungeon-900 border border-dungeon-700 rounded-xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-dungeon-800">
+              <h3 className="text-sm font-semibold text-slate-200">Restore Views</h3>
+              <button onClick={() => setShowRestoreMenu(false)} className="text-slate-500 hover:text-slate-300 text-lg leading-none">&times;</button>
+            </div>
+            <div className="p-2 max-h-64 overflow-y-auto">
+              {hiddenDefaultViews.length > 0 && (
+                <div className="mb-2">
+                  <p className="px-2 py-1 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Hidden Defaults</p>
+                  {hiddenDefaultViews.map((view) => (
+                    <div key={view.name} className="flex items-center justify-between px-2 py-2 rounded-lg hover:bg-dungeon-800 transition-colors">
+                      <span className="flex items-center gap-2 text-xs text-slate-300">
+                        <span>{view.icon}</span>
+                        {view.name}
+                      </span>
+                      <button
+                        onClick={() => { onRestoreDefault?.(view.name); }}
+                        className="px-2.5 py-1 text-[11px] font-medium text-green-400 hover:text-green-300 bg-green-500/10 hover:bg-green-500/20 rounded transition-colors"
+                      >
+                        Restore
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {(archivedViews?.length || 0) > 0 && (
+                <div>
+                  <p className="px-2 py-1 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Archived Custom Views</p>
+                  {archivedViews?.map((view) => (
+                    <div key={view.name} className="flex items-center justify-between px-2 py-2 rounded-lg hover:bg-dungeon-800 transition-colors">
+                      <span className="flex items-center gap-2 text-xs text-slate-300">
+                        <span>{view.icon}</span>
+                        {view.name}
+                      </span>
+                      <button
+                        onClick={() => { onRestoreArchivedView?.(view.name); }}
+                        className="px-2.5 py-1 text-[11px] font-medium text-green-400 hover:text-green-300 bg-green-500/10 hover:bg-green-500/20 rounded transition-colors"
+                      >
+                        Restore
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {totalRestorableCount === 0 && (
+                <p className="px-2 py-4 text-xs text-slate-500 text-center">No views to restore.</p>
+              )}
+            </div>
           </div>
         </div>
       )}
