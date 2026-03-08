@@ -285,6 +285,83 @@ export function InlineTypePicker({
   );
 }
 
+// ─── Effort Level Picker ─────────────────────────────────────────────────
+
+export function InlineEffortPicker({
+  taskId,
+  currentValue,
+  options,
+  onUpdated,
+  onConfigAdded,
+}: {
+  taskId: string;
+  currentValue?: string;
+  options: ConfigOption[];
+  onUpdated: () => void;
+  onConfigAdded?: () => void;
+}) {
+  const [saving, setSaving] = useState(false);
+  const [showAdd, setShowAdd] = useState(false);
+  const [newName, setNewName] = useState("");
+
+  const handleSelect = async (id: string) => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      await patchTask(taskId, { effort_level_id: id === currentValue ? null : id });
+      onUpdated();
+    } catch { /* silent */ }
+    setSaving(false);
+  };
+
+  const handleAdd = async () => {
+    if (!newName.trim()) return;
+    try {
+      await addConfigOption("effort_levels", newName.trim());
+      setNewName("");
+      setShowAdd(false);
+      onConfigAdded?.();
+    } catch { /* silent */ }
+  };
+
+  return (
+    <div className={`flex flex-wrap gap-1.5 ${saving ? "opacity-60 pointer-events-none" : ""}`}>
+      {options.map((opt) => (
+        <button
+          key={opt.id}
+          onClick={() => handleSelect(opt.id)}
+          className={`min-h-[44px] px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+            opt.id === currentValue
+              ? "bg-red-500/20 text-red-300 ring-2 ring-red-400/60 border-transparent"
+              : "bg-dungeon-700 text-slate-300 border-dungeon-600 hover:ring-1 hover:ring-dungeon-500"
+          }`}
+        >
+          {opt.icon && <span className="mr-1">{opt.icon}</span>}
+          {opt.name}
+        </button>
+      ))}
+      {showAdd ? (
+        <input
+          type="text"
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); if (e.key === "Escape") setShowAdd(false); }}
+          placeholder="New effort..."
+          className="min-h-[44px] px-2 py-1 bg-dungeon-800 border border-dungeon-600 rounded text-xs text-slate-100 focus:outline-none focus:border-red-400 w-24"
+          autoFocus
+        />
+      ) : (
+        <button
+          onClick={() => setShowAdd(true)}
+          className="min-h-[44px] px-3 py-1.5 rounded-full text-xs text-dungeon-500 border border-dashed border-dungeon-700 hover:text-slate-300 hover:border-dungeon-500 transition-all"
+        >
+          +
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ─── Date Picker ────────────────────────────────────────────────────────
 
 export function InlineDatePicker({

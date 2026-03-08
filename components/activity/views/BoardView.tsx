@@ -11,6 +11,8 @@ interface Task {
   due_date?: string;
   completed_at?: string | null;
   status_id?: string;
+  owner_ids?: string[];
+  owners?: { id: string; full_name: string; avatar_url?: string | null }[];
   status?: { id: string; name: string; color?: string; sort_order: number };
   priority?: { id: string; name: string; color?: string; sort_order: number };
   assignee?: { id: string; full_name: string; avatar_url?: string | null };

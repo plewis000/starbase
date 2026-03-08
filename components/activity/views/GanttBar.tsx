@@ -8,6 +8,7 @@ interface Task {
   due_date?: string;
   schedule_date?: string;
   completed_at?: string | null;
+  owners?: { id: string; full_name: string; avatar_url?: string | null }[];
   status?: { name: string };
   priority?: { name: string };
   assignee?: { full_name: string; avatar_url?: string | null };
@@ -66,12 +67,19 @@ export default function GanttBar({ task, startDay, duration, dayWidth, rowHeight
         {task.title}
       </span>
 
-      {/* Assignee initials on right edge */}
-      {task.assignee && (
-        <div className="absolute -right-1 -top-1 w-4 h-4 rounded-full bg-dungeon-900 border border-dungeon-700 flex items-center justify-center text-[7px] font-bold text-slate-300">
-          {task.assignee.full_name?.charAt(0) || "?"}
-        </div>
-      )}
+      {/* Owner initials on right edge */}
+      {(() => {
+        const ppl = task.owners && task.owners.length > 0 ? task.owners : task.assignee ? [task.assignee] : [];
+        return ppl.length > 0 ? (
+          <div className="absolute -right-1 -top-1 flex -space-x-1">
+            {ppl.slice(0, 2).map((o, i) => (
+              <div key={i} className="w-4 h-4 rounded-full bg-dungeon-900 border border-dungeon-700 flex items-center justify-center text-[7px] font-bold text-slate-300">
+                {o.full_name?.charAt(0) || "?"}
+              </div>
+            ))}
+          </div>
+        ) : null;
+      })()}
     </div>
   );
 }

@@ -211,7 +211,27 @@ function InlineCellAssignee({
         onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
         className="flex items-center gap-1 hover:bg-dungeon-800 rounded px-1 py-0.5 transition-colors"
       >
-        {task.assignee ? (
+        {(task.owners && task.owners.length > 0) ? (
+          <div className="flex items-center">
+            <div className="flex -space-x-1.5">
+              {task.owners.slice(0, 3).map((owner) => (
+                <div key={owner.id} className="w-5 h-5 rounded-full bg-dungeon-800 flex items-center justify-center text-[8px] font-bold text-slate-300 border border-dungeon-700" title={owner.full_name}>
+                  {owner.avatar_url ? (
+                    <img src={owner.avatar_url} alt="" className="w-full h-full rounded-full object-cover" />
+                  ) : initials(owner.full_name)}
+                </div>
+              ))}
+              {task.owners.length > 3 && (
+                <div className="w-5 h-5 rounded-full bg-dungeon-700 flex items-center justify-center text-[7px] font-bold text-slate-400 border border-dungeon-600">
+                  +{task.owners.length - 3}
+                </div>
+              )}
+            </div>
+            <span className="text-[10px] text-slate-400 truncate ml-1.5">
+              {task.owners.length === 1 ? task.owners[0].full_name?.split(" ")[0] : `${task.owners.length} owners`}
+            </span>
+          </div>
+        ) : task.assignee ? (
           <>
             <div className="w-5 h-5 rounded-full bg-dungeon-800 flex items-center justify-center text-[8px] font-bold text-slate-300 border border-dungeon-700" title={task.assignee.full_name}>
               {task.assignee.avatar_url ? (
@@ -593,16 +613,23 @@ export default function ListView({ tasks, onQuickComplete, completedTaskId, conf
         if (config?.members) {
           return <InlineCellAssignee task={task} members={config.members} onUpdate={handleInlineUpdate} />;
         }
-        return task.assignee ? (
-          <div className="flex items-center gap-1">
-            <div className="w-5 h-5 rounded-full bg-dungeon-800 flex items-center justify-center text-[8px] font-bold text-slate-300 border border-dungeon-700" title={task.assignee.full_name}>
-              {task.assignee.avatar_url ? (
-                <img src={task.assignee.avatar_url} alt="" className="w-full h-full rounded-full object-cover" />
-              ) : initials(task.assignee.full_name)}
+        {
+          const displayOwners = task.owners && task.owners.length > 0 ? task.owners : task.assignee ? [task.assignee] : [];
+          return displayOwners.length > 0 ? (
+            <div className="flex items-center gap-1">
+              <div className="flex -space-x-1.5">
+                {displayOwners.slice(0, 3).map((o) => (
+                  <div key={o.id} className="w-5 h-5 rounded-full bg-dungeon-800 flex items-center justify-center text-[8px] font-bold text-slate-300 border border-dungeon-700" title={o.full_name}>
+                    {initials(o.full_name)}
+                  </div>
+                ))}
+              </div>
+              <span className="text-[10px] text-slate-400 truncate">
+                {displayOwners.length === 1 ? displayOwners[0].full_name?.split(" ")[0] : `${displayOwners.length}`}
+              </span>
             </div>
-            <span className="text-[10px] text-slate-400 truncate">{task.assignee.full_name?.split(" ")[0]}</span>
-          </div>
-        ) : <span className="text-[10px] text-slate-600">—</span>;
+          ) : <span className="text-[10px] text-slate-600">—</span>;
+        }
 
       case "due_date":
         return <InlineCellDate task={task} onUpdate={handleInlineUpdate} />;
@@ -612,7 +639,7 @@ export default function ListView({ tasks, onQuickComplete, completedTaskId, conf
           return (
             <InlineCellPicker
               options={config.task_types}
-              currentId={(task as any).task_type_id}
+              currentId={task.task_type_id}
               onSelect={(id) => handleInlineUpdate(task.id, { task_type_id: id })}
               allowDeselect
             />
@@ -625,7 +652,7 @@ export default function ListView({ tasks, onQuickComplete, completedTaskId, conf
           return (
             <InlineCellPicker
               options={config.effort_levels}
-              currentId={(task as any).effort_level_id}
+              currentId={task.effort_level_id}
               onSelect={(id) => handleInlineUpdate(task.id, { effort_level_id: id })}
               allowDeselect
             />
@@ -690,9 +717,13 @@ export default function ListView({ tasks, onQuickComplete, completedTaskId, conf
             {task.due_date && (
               <span className={`text-[10px] font-mono ${dateColor(task.due_date)}`}>{formatRelDate(task.due_date)}</span>
             )}
-            {task.assignee && (
+            {(task.owners && task.owners.length > 0) ? (
+              <span className="text-[10px] text-slate-400">
+                {task.owners.length === 1 ? task.owners[0].full_name?.split(" ")[0] : task.owners.map(o => o.full_name?.split(" ")[0]).join(", ")}
+              </span>
+            ) : task.assignee ? (
               <span className="text-[10px] text-slate-400">{task.assignee.full_name?.split(" ")[0]}</span>
-            )}
+            ) : null}
           </div>
         </div>
 

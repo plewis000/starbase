@@ -8,6 +8,8 @@ interface Task {
   title: string;
   due_date?: string;
   completed_at?: string | null;
+  owner_ids?: string[];
+  owners?: { id: string; full_name: string; avatar_url?: string | null }[];
   status?: { id: string; name: string; color?: string; sort_order: number };
   priority?: { id: string; name: string; color?: string; sort_order: number };
   assignee?: { id: string; full_name: string; avatar_url?: string | null };
@@ -175,15 +177,19 @@ export default function TimelineView({ tasks, onQuickComplete, completedTaskId, 
                       </span>
                     )}
 
-                    {/* Assignee */}
-                    {task.assignee && (
-                      <div
-                        className="flex-shrink-0 w-4 h-4 rounded-full bg-dungeon-800 flex items-center justify-center text-[7px] font-bold text-slate-500 border border-dungeon-700"
-                        title={task.assignee.full_name}
-                      >
-                        {task.assignee.full_name?.split(" ").map((w) => w[0]).join("").slice(0, 2)}
-                      </div>
-                    )}
+                    {/* Owners */}
+                    {(() => {
+                      const ppl = task.owners && task.owners.length > 0 ? task.owners : task.assignee ? [task.assignee] : [];
+                      return ppl.length > 0 ? (
+                        <div className="flex -space-x-1 flex-shrink-0">
+                          {ppl.slice(0, 3).map((o) => (
+                            <div key={o.id} className="w-4 h-4 rounded-full bg-dungeon-800 flex items-center justify-center text-[7px] font-bold text-slate-500 border border-dungeon-700" title={o.full_name}>
+                              {o.full_name?.split(" ").map((w: string) => w[0]).join("").slice(0, 2)}
+                            </div>
+                          ))}
+                        </div>
+                      ) : null;
+                    })()}
                   </div>
                 </div>
               );

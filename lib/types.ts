@@ -76,6 +76,10 @@ export interface Task {
   description?: string;
   status_id: string;
   priority_id: string;
+  task_type_id?: string;
+  effort_level_id?: string;
+  completion_mode?: "solo" | "coop" | "competitive";
+  completed_at?: string | null;
   status: {
     id: string;
     name: string;
@@ -88,6 +92,7 @@ export interface Task {
   };
   owner_ids?: string[];
   owners?: UserSummary[];
+  assigned_to?: string;
   assignee?: {
     id: string;
     full_name: string;
@@ -99,6 +104,7 @@ export interface Task {
     full_name: string;
   };
   due_date?: string;
+  schedule_date?: string;
   recurrence_rule?: string;
   recurrence_context?: RecurrenceContext;
   tags: Tag[];

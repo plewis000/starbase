@@ -13,6 +13,8 @@ interface Task {
   schedule_date?: string;
   created_at?: string;
   completed_at?: string | null;
+  owner_ids?: string[];
+  owners?: { id: string; full_name: string; avatar_url?: string | null }[];
   status?: { id: string; name: string };
   priority?: { id: string; name: string; sort_order: number };
   assignee?: { id: string; full_name: string; avatar_url?: string | null };

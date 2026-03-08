@@ -10,6 +10,7 @@ import {
   InlineStatusPicker,
   InlinePriorityPicker,
   InlineTypePicker,
+  InlineEffortPicker,
   InlineDatePicker,
   InlineTagEditor,
 } from "./InlineFieldEditors";
@@ -344,8 +345,22 @@ export default function TaskDetail({
             <p className="text-xs text-dungeon-400 mb-2 font-semibold uppercase tracking-wider">Type</p>
             <InlineTypePicker
               taskId={task.id}
-              currentValue={(task as any).task_type_id}
+              currentValue={task.task_type_id}
               options={config.task_types}
+              onUpdated={handleFieldUpdated}
+              onConfigAdded={handleConfigAdded}
+            />
+          </div>
+        )}
+
+        {/* Inline Effort Level Picker */}
+        {config && config.effort_levels.length > 0 && (
+          <div>
+            <p className="text-xs text-dungeon-400 mb-2 font-semibold uppercase tracking-wider">Effort</p>
+            <InlineEffortPicker
+              taskId={task.id}
+              currentValue={task.effort_level_id}
+              options={config.effort_levels}
               onUpdated={handleFieldUpdated}
               onConfigAdded={handleConfigAdded}
             />
@@ -454,7 +469,7 @@ export default function TaskDetail({
                       onClick={() => handleOptimisticUpdate({ completion_mode: mode.value })}
                       title={mode.desc}
                       className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
-                        (task as any).completion_mode === mode.value || (!((task as any).completion_mode) && mode.value === "solo")
+                        task.completion_mode === mode.value || (!(task.completion_mode) && mode.value === "solo")
                           ? "bg-crimson-900/30 border-crimson-700 text-crimson-300"
                           : "bg-dungeon-800 border-dungeon-700 text-dungeon-400 hover:text-slate-200 hover:border-dungeon-600"
                       }`}

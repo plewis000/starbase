@@ -9,6 +9,8 @@ interface Task {
   due_date?: string;
   completed_at?: string | null;
   status_id?: string;
+  owner_ids?: string[];
+  owners?: { id: string; full_name: string; avatar_url?: string | null }[];
   priority?: { id: string; name: string; color?: string; sort_order: number };
   assignee?: { id: string; full_name: string; avatar_url?: string | null };
   subtask_progress?: { done: number; total: number };
@@ -107,18 +109,31 @@ export default function BoardCard({ task, isDone, isCompleted, isGhost, isOverla
         </div>
 
         <div className="flex items-center gap-1.5">
-          {task.assignee && (
-            <div
-              className="w-5 h-5 rounded-full bg-dungeon-800 flex items-center justify-center text-[8px] font-bold text-slate-400 border border-dungeon-700"
-              title={task.assignee.full_name}
-            >
-              {task.assignee.avatar_url ? (
-                <img src={task.assignee.avatar_url} alt="" className="w-full h-full rounded-full object-cover" />
-              ) : (
-                task.assignee.full_name?.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)
-              )}
-            </div>
-          )}
+          {(() => {
+            const displayOwners = task.owners && task.owners.length > 0 ? task.owners : task.assignee ? [task.assignee] : [];
+            return displayOwners.length > 0 ? (
+              <div className="flex -space-x-1.5">
+                {displayOwners.slice(0, 3).map((o) => (
+                  <div
+                    key={o.id}
+                    className="w-5 h-5 rounded-full bg-dungeon-800 flex items-center justify-center text-[8px] font-bold text-slate-400 border border-dungeon-700"
+                    title={o.full_name}
+                  >
+                    {o.avatar_url ? (
+                      <img src={o.avatar_url} alt="" className="w-full h-full rounded-full object-cover" />
+                    ) : (
+                      o.full_name?.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2)
+                    )}
+                  </div>
+                ))}
+                {displayOwners.length > 3 && (
+                  <div className="w-5 h-5 rounded-full bg-dungeon-700 flex items-center justify-center text-[7px] font-bold text-slate-400 border border-dungeon-600">
+                    +{displayOwners.length - 3}
+                  </div>
+                )}
+              </div>
+            ) : null;
+          })()}
           {!isDone && (
             <button
               onClick={(e) => { e.stopPropagation(); e.preventDefault(); onQuickComplete(task.id); }}
