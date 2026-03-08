@@ -40,7 +40,9 @@ export async function GET() {
     statuses: statuses.data || [],
     priorities: priorities.data || [],
     types: types.data || [],
+    task_types: types.data || [],
     efforts: efforts.data || [],
+    effort_levels: efforts.data || [],
     locations: locations.data || [],
     // Goal config
     goal_categories: goalCategories.data || [],
