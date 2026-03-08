@@ -29,6 +29,7 @@ export interface TaskConfig {
   priorities: ConfigOption[];
   task_types: ConfigOption[];
   effort_levels: ConfigOption[];
+  locations: ConfigOption[];
   tags: ConfigOption[];
   members: HouseholdMember[];
 }
@@ -41,19 +42,22 @@ async function fetchConfig(): Promise<TaskConfig> {
   if (fetchPromise) return fetchPromise;
 
   fetchPromise = (async () => {
-    const [configRes, membersRes] = await Promise.all([
+    const [configRes, membersRes, tagsRes] = await Promise.all([
       fetch("/api/config"),
       fetch("/api/household/members"),
+      fetch("/api/tags"),
     ]);
     const configData = await configRes.json();
     const membersData = await membersRes.json();
+    const tagsData = await tagsRes.json();
 
     cachedConfig = {
       statuses: configData.statuses || [],
       priorities: configData.priorities || [],
       task_types: configData.task_types || configData.types || [],
       effort_levels: configData.effort_levels || [],
-      tags: configData.tags || [],
+      locations: configData.locations || [],
+      tags: tagsData.tags || [],
       members: membersData.members || [],
     };
     fetchPromise = null;

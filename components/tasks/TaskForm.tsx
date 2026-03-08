@@ -6,7 +6,7 @@ import DatePicker from "@/components/ui/DatePicker";
 import { useToast } from "@/components/ui/Toast";
 import { useTaskConfig } from "@/hooks/useTaskConfig";
 import { Task, ChecklistItem } from "@/lib/types";
-import { StatusPicker, PriorityPicker, TypePicker, EffortPicker, OwnerPicker, TagPicker } from "./FieldPickers";
+import { StatusPicker, PriorityPicker, TypePicker, EffortPicker, LocationPicker, OwnerPicker, TagPicker } from "./FieldPickers";
 import RecurrenceEditor from "./RecurrenceEditor";
 
 interface TaskFormProps {
@@ -31,6 +31,9 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
     recurrenceRule: task?.recurrence_rule || "",
     taskTypeId: task?.task_type_id || "",
     effortLevelId: task?.effort_level_id || "",
+    locationContextId: task?.location_context_id || "",
+    scheduleDate: task?.schedule_date || "",
+    estimatedMinutes: task?.estimated_minutes || 0,
     completionMode: task?.completion_mode || "solo",
   });
 
@@ -90,6 +93,9 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
         recurrence_rule: formData.recurrenceRule || null,
         task_type_id: formData.taskTypeId || null,
         effort_level_id: formData.effortLevelId || null,
+        location_context_id: formData.locationContextId || null,
+        schedule_date: formData.scheduleDate || null,
+        estimated_minutes: formData.estimatedMinutes || null,
         tag_ids: selectedTagIds,
         checklist_items: checklistItems.filter((item) => item.title.trim()).map((item) => item.title.trim()),
         completion_mode: formData.completionMode || "solo",
@@ -125,6 +131,7 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
   const priorities = config?.priorities || [];
   const taskTypes = config?.task_types || [];
   const effortLevels = config?.effort_levels || [];
+  const locations = config?.locations || [];
   const tags = config?.tags || [];
 
   if (configLoading) {
@@ -199,7 +206,20 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
         </div>
       )}
 
-      {/* 5. Due Date + Recurrence (side by side) */}
+      {/* 4b. Location pills (if locations exist) */}
+      {locations.length > 0 && (
+        <div>
+          <label className={SECTION_LABEL}>Location</label>
+          <LocationPicker
+            options={locations}
+            value={formData.locationContextId}
+            onChange={(id) => setField("locationContextId", id)}
+            disabled={submitting}
+          />
+        </div>
+      )}
+
+      {/* 5. Due Date + Start Date */}
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className={SECTION_LABEL}>Due Date</label>
@@ -209,10 +229,34 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
           />
         </div>
         <div>
+          <label className={SECTION_LABEL}>Start Date</label>
+          <DatePicker
+            value={formData.scheduleDate}
+            onChange={(d) => setField("scheduleDate", d)}
+          />
+        </div>
+      </div>
+
+      {/* 5b. Recurrence + Time Estimate */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
           <label className={SECTION_LABEL}>Repeat</label>
           <RecurrenceEditor
             value={formData.recurrenceRule}
             onChange={(rule) => setField("recurrenceRule", rule)}
+          />
+        </div>
+        <div>
+          <label className={SECTION_LABEL}>Estimated Time (min)</label>
+          <input
+            type="number"
+            min={0}
+            max={10000}
+            value={formData.estimatedMinutes || ""}
+            onChange={(e) => setFormData((prev) => ({ ...prev, estimatedMinutes: parseInt(e.target.value) || 0 }))}
+            placeholder="e.g. 30"
+            disabled={submitting}
+            className="w-full bg-dungeon-800 border border-dungeon-700 rounded px-4 py-2 text-slate-100 placeholder-dungeon-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50 disabled:opacity-50"
           />
         </div>
       </div>

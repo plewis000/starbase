@@ -78,6 +78,9 @@ export interface Task {
   priority_id: string;
   task_type_id?: string;
   effort_level_id?: string;
+  location_context_id?: string;
+  estimated_minutes?: number | null;
+  actual_minutes?: number | null;
   task_type?: { id: string; name: string; icon?: string };
   effort_level?: { id: string; name: string; icon?: string };
   location_context?: { id: string; name: string; icon?: string };

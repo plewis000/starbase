@@ -395,6 +395,175 @@ export function InlineDatePicker({
   );
 }
 
+// ─── Schedule Date Picker ────────────────────────────────────────────────
+
+export function InlineScheduleDatePicker({
+  taskId,
+  currentValue,
+  onUpdated,
+}: {
+  taskId: string;
+  currentValue?: string;
+  onUpdated: () => void;
+}) {
+  const [saving, setSaving] = useState(false);
+
+  const handleChange = async (dateStr: string) => {
+    setSaving(true);
+    try {
+      await patchTask(taskId, { schedule_date: dateStr || null });
+      onUpdated();
+    } catch { /* silent */ }
+    setSaving(false);
+  };
+
+  return (
+    <div className={saving ? "opacity-60 pointer-events-none" : ""}>
+      <DatePicker
+        value={currentValue || ""}
+        onChange={handleChange}
+        showRelative
+      />
+    </div>
+  );
+}
+
+// ─── Location Context Picker ────────────────────────────────────────────
+
+export function InlineLocationPicker({
+  taskId,
+  currentValue,
+  options,
+  onUpdated,
+}: {
+  taskId: string;
+  currentValue?: string;
+  options: ConfigOption[];
+  onUpdated: () => void;
+}) {
+  const [saving, setSaving] = useState(false);
+
+  const handleSelect = async (id: string) => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      await patchTask(taskId, { location_context_id: id === currentValue ? null : id });
+      onUpdated();
+    } catch { /* silent */ }
+    setSaving(false);
+  };
+
+  return (
+    <div className={`flex flex-wrap gap-1.5 ${saving ? "opacity-60 pointer-events-none" : ""}`}>
+      {options.map((opt) => (
+        <button
+          key={opt.id}
+          onClick={() => handleSelect(opt.id)}
+          className={`min-h-[44px] px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+            opt.id === currentValue
+              ? "bg-red-500/20 text-red-300 ring-2 ring-red-400/60 border-transparent"
+              : "bg-dungeon-700 text-slate-300 border-dungeon-600 hover:ring-1 hover:ring-dungeon-500"
+          }`}
+        >
+          {opt.icon && <span className="mr-1">{opt.icon}</span>}
+          {opt.name}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ─── Time Estimate Editor ────────────────────────────────────────────────
+
+export function InlineTimeEstimate({
+  taskId,
+  estimatedMinutes,
+  actualMinutes,
+  onUpdated,
+}: {
+  taskId: string;
+  estimatedMinutes?: number | null;
+  actualMinutes?: number | null;
+  onUpdated: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [est, setEst] = useState(estimatedMinutes ?? 0);
+  const [act, setAct] = useState(actualMinutes ?? 0);
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await patchTask(taskId, {
+        estimated_minutes: est || null,
+        actual_minutes: act || null,
+      });
+      onUpdated();
+    } catch { /* silent */ }
+    setSaving(false);
+    setEditing(false);
+  };
+
+  const formatTime = (mins?: number | null): string => {
+    if (!mins) return "—";
+    if (mins < 60) return `${mins}m`;
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return m > 0 ? `${h}h ${m}m` : `${h}h`;
+  };
+
+  if (!editing) {
+    return (
+      <button
+        onClick={() => setEditing(true)}
+        className="text-sm text-slate-300 hover:text-red-400 transition-colors"
+      >
+        {estimatedMinutes || actualMinutes ? (
+          <span>
+            Est: {formatTime(estimatedMinutes)}
+            {actualMinutes ? <span className="text-dungeon-400 ml-2">Actual: {formatTime(actualMinutes)}</span> : null}
+          </span>
+        ) : (
+          <span className="text-dungeon-500 italic">Set time estimate...</span>
+        )}
+      </button>
+    );
+  }
+
+  return (
+    <div className={`flex items-center gap-3 ${saving ? "opacity-60" : ""}`}>
+      <div className="flex items-center gap-1.5">
+        <span className="text-[10px] text-dungeon-400 uppercase">Est</span>
+        <input
+          type="number"
+          min={0}
+          max={10000}
+          value={est || ""}
+          onChange={(e) => setEst(parseInt(e.target.value) || 0)}
+          placeholder="min"
+          className="w-16 bg-dungeon-800 border border-dungeon-700 rounded px-2 py-1.5 text-xs text-slate-100 text-center focus:outline-none focus:border-red-400"
+          autoFocus
+        />
+      </div>
+      <div className="flex items-center gap-1.5">
+        <span className="text-[10px] text-dungeon-400 uppercase">Act</span>
+        <input
+          type="number"
+          min={0}
+          max={10000}
+          value={act || ""}
+          onChange={(e) => setAct(parseInt(e.target.value) || 0)}
+          placeholder="min"
+          className="w-16 bg-dungeon-800 border border-dungeon-700 rounded px-2 py-1.5 text-xs text-slate-100 text-center focus:outline-none focus:border-red-400"
+        />
+      </div>
+      <span className="text-[10px] text-dungeon-500">min</span>
+      <button onClick={handleSave} className="text-xs text-green-400 hover:text-green-300">Save</button>
+      <button onClick={() => setEditing(false)} className="text-xs text-dungeon-500 hover:text-slate-300">Cancel</button>
+    </div>
+  );
+}
+
 // ─── Assignee Picker ────────────────────────────────────────────────────
 
 export function InlineAssigneePicker({

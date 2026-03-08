@@ -12,6 +12,9 @@ import {
   InlineTypePicker,
   InlineEffortPicker,
   InlineDatePicker,
+  InlineScheduleDatePicker,
+  InlineLocationPicker,
+  InlineTimeEstimate,
   InlineTagEditor,
 } from "./InlineFieldEditors";
 import RecurrenceEditor from "./RecurrenceEditor";
@@ -389,6 +392,26 @@ export default function TaskDetail({
             </div>
           </div>
 
+          {/* Schedule date — inline editable */}
+          <div className="flex items-center gap-3">
+            <span className="text-dungeon-500 text-sm">🗓️</span>
+            <div className="flex-1">
+              <p className="text-xs text-dungeon-400 mb-1">Start date</p>
+              <div className="flex items-center gap-3">
+                <InlineScheduleDatePicker
+                  taskId={task.id}
+                  currentValue={task.schedule_date}
+                  onUpdated={handleFieldUpdated}
+                />
+                {task.schedule_date && (
+                  <span className={`text-xs font-medium ${getDateColor(task.schedule_date)}`}>
+                    {formatRelativeDate(task.schedule_date)}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* Owners — multi-select toggle picker */}
           {config && (
             <div className="flex items-start gap-3">
@@ -481,6 +504,36 @@ export default function TaskDetail({
               </div>
             </div>
           )}
+
+          {/* Location Context */}
+          {config && config.locations.length > 0 && (
+            <div className="flex items-start gap-3">
+              <span className="text-dungeon-500 text-sm mt-1">📍</span>
+              <div className="flex-1">
+                <p className="text-xs text-dungeon-400 mb-1.5">Location</p>
+                <InlineLocationPicker
+                  taskId={task.id}
+                  currentValue={task.location_context_id}
+                  options={config.locations}
+                  onUpdated={handleFieldUpdated}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Time Estimate */}
+          <div className="flex items-start gap-3">
+            <span className="text-dungeon-500 text-sm mt-0.5">⏱️</span>
+            <div className="flex-1">
+              <p className="text-xs text-dungeon-400 mb-1">Time</p>
+              <InlineTimeEstimate
+                taskId={task.id}
+                estimatedMinutes={task.estimated_minutes}
+                actualMinutes={task.actual_minutes}
+                onUpdated={handleFieldUpdated}
+              />
+            </div>
+          </div>
 
           {/* Creator */}
           {task.creator && (

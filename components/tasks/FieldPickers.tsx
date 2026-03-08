@@ -130,6 +130,22 @@ export function EffortPicker({
   return <PillPicker options={options} value={value} onChange={onChange} allowDeselect disabled={disabled} />;
 }
 
+// ─── Location Picker ─────────────────────────────────────────────────────
+
+export function LocationPicker({
+  options,
+  value,
+  onChange,
+  disabled,
+}: {
+  options: ConfigOption[];
+  value: string;
+  onChange: (id: string) => void;
+  disabled?: boolean;
+}) {
+  return <PillPicker options={options} value={value} onChange={onChange} allowDeselect disabled={disabled} />;
+}
+
 // ─── Assignee Picker ─────────────────────────────────────────────────────
 
 function getInitials(name: string): string {

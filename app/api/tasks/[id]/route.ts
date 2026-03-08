@@ -225,7 +225,7 @@ export const PATCH = withAuth(async (request, { supabase, user, ctx }, params) =
   }
 
   // Handle fields not in Zod schema but still allowed
-  for (const field of ["estimated_minutes", "actual_minutes", "snoozed_until", "workflow_phase"]) {
+  for (const field of ["snoozed_until", "workflow_phase"]) {
     if (field in body && !(field in updateFields)) {
       updateFields[field] = body[field];
     }

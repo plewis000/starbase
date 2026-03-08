@@ -41,6 +41,8 @@ export const createTaskSchema = z.object({
   tag_ids: uuidArray.optional(),
   checklist_items: z.array(z.string().max(500)).max(100).optional(),
   completion_mode: completionMode,
+  estimated_minutes: z.number().int().min(0).max(100000).nullish().transform(v => v ?? null),
+  actual_minutes: z.number().int().min(0).max(100000).nullish().transform(v => v ?? null),
 });
 
 export const updateTaskSchema = z.object({
@@ -60,6 +62,8 @@ export const updateTaskSchema = z.object({
   completed_at: z.string().datetime().nullish().transform(v => v ?? null),
   sort_order: z.number().int().min(0).max(100000).optional(),
   completion_mode: completionMode,
+  estimated_minutes: z.number().int().min(0).max(100000).nullish().transform(v => v ?? null),
+  actual_minutes: z.number().int().min(0).max(100000).nullish().transform(v => v ?? null),
 }).partial();
 
 // ---- Habit Schemas ----
