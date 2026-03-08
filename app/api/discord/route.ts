@@ -209,6 +209,8 @@ async function processCommand(
           "`/nudge` — Check what needs attention now",
           "`/review` — Get your weekly review",
           "`/feedback` — Submit a bug, wish, or feedback",
+          "`/start` — Get set up with Zev (free onboarding)",
+          "`/answer` — Answer onboarding questions (free)",
           "`/usage` — Check API usage and costs",
           "`/pipeline` — Show active pipeline jobs",
         ].join("\n"),
@@ -263,6 +265,10 @@ async function processCommand(
         return await handleNudge(supabase, userId, webhookUrl);
       case "focus":
         return await handleFocus(supabase, userId, webhookUrl);
+      case "start":
+        return await handleStart(supabase, userId, options, webhookUrl);
+      case "answer":
+        return await handleAnswer(supabase, userId, options, webhookUrl);
       default:
         await sendWebhook(webhookUrl, { content: `Unknown command: ${commandName}` });
     }
@@ -413,17 +419,25 @@ async function handleLink(supabase: Supabase, discordUserId: string, options: Re
         "",
         "I'm Zev — your household's executive assistant. I handle tasks, habits, shopping, budgets, and keeping you two organized.",
         "",
-        "**Let's get you set up (takes ~5 min):**",
-        "Type `/ask Hey Zev, let's do the onboarding` and I'll walk you through it.",
-        "",
-        "**Or jump straight in:**",
-        "• `/task Buy groceries` — create your first task",
-        "• `/habit Morning workout` — start tracking a habit",
-        "• `/dashboard` — see your daily overview",
-        "• `/help` — see all commands",
-        "",
-        "I'll learn your patterns over time and get smarter about helping you. The more you use me, the more useful I get.",
+        "**Pick how you want to get started:**",
       ].join("\n"),
+      components: [{
+        type: 1, // Action row
+        components: [
+          {
+            type: 2, // Button
+            style: 1, // Primary (blurple)
+            label: "Quick Start (10 sec)",
+            custom_id: "onboard_quick",
+          },
+          {
+            type: 2,
+            style: 2, // Secondary (grey)
+            label: "Full Interview (~5 min)",
+            custom_id: "onboard_full",
+          },
+        ],
+      }],
     });
   } else {
     await sendWebhook(webhookUrl, {
@@ -1446,6 +1460,241 @@ async function handleFocus(supabase: Supabase, userId: string, webhookUrl: strin
   });
 }
 
+// ── Templated onboarding commands (free, no AI cost) ──────────────────
+
+async function handleStart(supabase: Supabase, userId: string, options: Record<string, unknown>, webhookUrl: string) {
+  const track = (options.track as string) || "quick";
+
+  // Check existing onboarding state
+  const hCtx = await getHouseholdContext(supabase, userId);
+  if (!hCtx) {
+    await sendWebhook(webhookUrl, { content: "You need to join a household first. Visit https://starbase-green.vercel.app/join" });
+    return;
+  }
+
+  const { data: existing } = await platform(supabase)
+    .from("onboarding_state")
+    .select("current_phase, current_question_index")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (existing && existing.current_phase === "active") {
+    await sendWebhook(webhookUrl, {
+      embeds: [{
+        description: "You're already set up! Try `/dashboard` for your overview or `/ask` to chat with Zev.",
+        color: ZEV_COLOR,
+      }],
+    });
+    return;
+  }
+
+  if (existing && existing.current_phase === "interview") {
+    // Resume interview — send current question
+    const questionIndex = existing.current_question_index || 0;
+    await sendOnboardingQuestion(supabase, userId, questionIndex, webhookUrl);
+    return;
+  }
+
+  if (track === "quick") {
+    // Quick start: create onboarding state as active immediately
+    await platform(supabase)
+      .from("onboarding_state")
+      .upsert({
+        user_id: userId,
+        household_id: hCtx.household_id,
+        current_phase: "active",
+        track: "quick",
+        interview_started_at: new Date().toISOString(),
+        interview_completed_at: new Date().toISOString(),
+        metadata: { quick_start: true, started_via: "discord" },
+      }, { onConflict: "user_id,household_id" });
+
+    await sendWebhook(webhookUrl, {
+      embeds: [{
+        title: "You're in!",
+        description: [
+          "Quick start complete. Here's what you can do right now:",
+          "",
+          "**Get organized:**",
+          "`/task Buy groceries` — create a task",
+          "`/habit Morning workout` — start a habit",
+          "`/shop Milk, eggs, bread` — add to shopping list",
+          "",
+          "**Stay on track:**",
+          "`/dashboard` — your daily overview",
+          "`/focus` — what to do right now",
+          "`/nudge` — what needs attention",
+          "",
+          "**Talk to Zev (AI, costs a few cents):**",
+          "`/ask Hey Zev, what should I focus on?`",
+          "",
+          "I'll learn your patterns over time. The more you use me, the smarter I get.",
+        ].join("\n"),
+        color: ZEV_COLOR,
+        footer: { text: "Zev | Quick Start Complete" },
+      }],
+    });
+  } else {
+    // Full interview: create state and send first question
+    await platform(supabase)
+      .from("onboarding_state")
+      .upsert({
+        user_id: userId,
+        household_id: hCtx.household_id,
+        current_phase: "interview",
+        current_question_index: 0,
+        track: "full",
+        interview_started_at: new Date().toISOString(),
+        metadata: { started_via: "discord" },
+      }, { onConflict: "user_id,household_id" });
+
+    await sendWebhook(webhookUrl, {
+      embeds: [{
+        title: "Let's get to know each other",
+        description: "I'm going to ask you 10 questions so I can be actually useful. Takes about 5 minutes.\n\nAnswer each one with `/answer your response here`.\n\nLet's go!",
+        color: ZEV_COLOR,
+      }],
+    });
+
+    // Send first question
+    await sendOnboardingQuestion(supabase, userId, 0, webhookUrl);
+  }
+}
+
+async function sendOnboardingQuestion(supabase: Supabase, userId: string, questionIndex: number, webhookUrl: string) {
+  const { data: questions } = await config(supabase)
+    .from("onboarding_questions")
+    .select("question_key, question_text, sort_order")
+    .eq("active", true)
+    .order("sort_order");
+
+  if (!questions || questionIndex >= questions.length) {
+    await sendWebhook(webhookUrl, { content: "No more questions! Finishing up..." });
+    return;
+  }
+
+  const q = questions[questionIndex];
+  await sendWebhook(webhookUrl, {
+    embeds: [{
+      title: `Question ${questionIndex + 1} of ${questions.length}`,
+      description: q.question_text,
+      color: 0x3b82f6,
+      footer: { text: "Reply with /answer your response" },
+    }],
+  });
+}
+
+async function handleAnswer(supabase: Supabase, userId: string, options: Record<string, unknown>, webhookUrl: string) {
+  const response = options.response as string;
+
+  // Get onboarding state
+  const { data: state } = await platform(supabase)
+    .from("onboarding_state")
+    .select("id, current_phase, current_question_index, household_id")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (!state || state.current_phase !== "interview") {
+    await sendWebhook(webhookUrl, {
+      content: state?.current_phase === "active"
+        ? "You're already done with onboarding! Use `/ask` to talk to Zev."
+        : "Start onboarding first with `/start`.",
+    });
+    return;
+  }
+
+  // Get current question
+  const { data: questions } = await config(supabase)
+    .from("onboarding_questions")
+    .select("question_key, question_text, sort_order")
+    .eq("active", true)
+    .order("sort_order");
+
+  if (!questions) {
+    await sendWebhook(webhookUrl, { content: "Couldn't load questions. Try again." });
+    return;
+  }
+
+  const questionIndex = state.current_question_index || 0;
+  if (questionIndex >= questions.length) {
+    await sendWebhook(webhookUrl, { content: "All questions answered! Finishing up..." });
+    return;
+  }
+
+  const currentQ = questions[questionIndex];
+
+  // Store the response
+  await platform(supabase)
+    .from("onboarding_responses")
+    .insert({
+      onboarding_id: state.id,
+      user_id: userId,
+      question_key: currentQ.question_key,
+      question_text: currentQ.question_text,
+      raw_response: response,
+      phase: "interview",
+      channel: "discord",
+    });
+
+  const nextIndex = questionIndex + 1;
+  const isLast = nextIndex >= questions.length;
+
+  if (isLast) {
+    // Complete the interview
+    await platform(supabase)
+      .from("onboarding_state")
+      .update({
+        current_phase: "active",
+        current_question_index: nextIndex,
+        interview_completed_at: new Date().toISOString(),
+      })
+      .eq("id", state.id);
+
+    // Generate observations from responses
+    try {
+      const { generateObservationsFromOnboarding } = await import("@/lib/observation-generator");
+      await generateObservationsFromOnboarding(supabase, userId, state.household_id, state.id);
+    } catch (err) {
+      console.error("[onboarding] Observation generation failed:", err);
+    }
+
+    await sendWebhook(webhookUrl, {
+      embeds: [{
+        title: "Onboarding Complete",
+        description: [
+          "Got it — I've got a much better picture of you now.",
+          "",
+          "**What's next:**",
+          "`/task` — create tasks",
+          "`/habit` — start tracking habits",
+          "`/dashboard` — your daily overview",
+          "`/ask` — chat with Zev anytime (AI-powered)",
+          "",
+          "I'll use what you told me to give better advice, smarter nudges, and more relevant suggestions.",
+        ].join("\n"),
+        color: ZEV_COLOR,
+        footer: { text: "Zev | Interview Complete" },
+      }],
+    });
+  } else {
+    // Advance to next question
+    await platform(supabase)
+      .from("onboarding_state")
+      .update({ current_question_index: nextIndex })
+      .eq("id", state.id);
+
+    await sendWebhook(webhookUrl, {
+      embeds: [{
+        description: `Got it. (${nextIndex}/${questions.length})`,
+        color: ZEV_COLOR,
+      }],
+    });
+
+    // Send next question
+    await sendOnboardingQuestion(supabase, userId, nextIndex, webhookUrl);
+  }
+}
+
 // ── Feedback + Pipeline commands ──────────────────────────────────────
 
 async function handleFeedback(supabase: Supabase, userId: string | null, discordUserId: string, options: Record<string, unknown>, webhookUrl: string) {
@@ -1594,7 +1843,20 @@ async function handleButtonInteraction(
       return;
     }
 
-    // Check admin role
+    // Onboarding buttons — no admin required
+    if (customId === "onboard_quick" || customId === "onboard_full") {
+      const track = customId === "onboard_quick" ? "quick" : "full";
+      await handleStart(supabase, userId, { track }, webhookUrl);
+      // Disable buttons on the original message
+      if (interaction.message?.id) {
+        await editMessage(interaction.channel_id, interaction.message.id, {
+          components: [],
+        });
+      }
+      return;
+    }
+
+    // Check admin role for pipeline buttons
     const ctx = await getHouseholdContext(supabase, userId);
     if (!ctx || ctx.role !== "admin") {
       await sendWebhookFollowup(webhookUrl, { content: "Only admins can approve pipeline actions." });

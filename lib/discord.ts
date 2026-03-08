@@ -202,6 +202,23 @@ export async function registerSlashCommands() {
       ],
     },
     {
+      name: "start",
+      description: "Start onboarding — get set up with Zev",
+      options: [
+        { name: "track", description: "Quick start or full interview", type: 3, required: false, choices: [
+          { name: "Quick Start (ready in 10 sec)", value: "quick" },
+          { name: "Full Interview (10 questions, ~5 min)", value: "full" },
+        ]},
+      ],
+    },
+    {
+      name: "answer",
+      description: "Answer an onboarding question (free, no AI cost)",
+      options: [
+        { name: "response", description: "Your answer", type: 3, required: true },
+      ],
+    },
+    {
       name: "help",
       description: "List all available slash commands",
     },
