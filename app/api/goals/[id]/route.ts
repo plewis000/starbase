@@ -51,15 +51,33 @@ export const GET = withAuth(async (request, { supabase, user }, params) => {
       .limit(20),
   ]);
 
-  // Fetch linked habit details
+  // Fetch linked habit details with recent check-in history for 7-day grid
   const habitIds = (habitLinksRes.data || []).map((l: Record<string, unknown>) => l.habit_id as string);
   let linkedHabits: Record<string, unknown>[] = [];
   if (habitIds.length > 0) {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     const { data } = await platform(supabase)
       .from("habits")
       .select("id, title, current_streak, longest_streak, total_completions, status")
       .in("id", habitIds);
-    linkedHabits = data || [];
+    // Fetch check-in history for the last 7 days
+    const { data: checkIns } = await platform(supabase)
+      .from("habit_check_ins")
+      .select("habit_id, check_date")
+      .in("habit_id", habitIds)
+      .gte("check_date", sevenDaysAgo.toISOString().split("T")[0]);
+    // Group check-ins by habit
+    const checkInMap = new Map<string, { check_date: string }[]>();
+    for (const ci of checkIns || []) {
+      const arr = checkInMap.get(ci.habit_id) || [];
+      arr.push({ check_date: ci.check_date });
+      checkInMap.set(ci.habit_id, arr);
+    }
+    linkedHabits = (data || []).map(h => ({
+      ...h,
+      check_in_history: checkInMap.get(h.id as string) || [],
+    }));
   }
 
   // Fetch linked task details
