@@ -62,13 +62,22 @@ export const POST = withAuth(async (request: NextRequest, { supabase, user }, pa
   // Scale quantities if multiplier provided
   const multiplier = servings_multiplier || 1;
 
+  // Fetch shopping categories for auto-categorization
+  const { config: configSchema } = await import("@/lib/supabase/schemas");
+  const { buildCategoryLookup: buildLookup, autoCategorize: autocat } = await import("@/lib/shopping-categorize");
+  const { data: shopCategories } = await configSchema(supabase)
+    .from("shopping_categories")
+    .select("id, name")
+    .eq("active", true);
+  const catLookup = buildLookup(shopCategories || []);
+
   const shoppingItems = ingredients
     .filter((ing: { is_optional: boolean }) => !ing.is_optional)
     .map((ing: { name: string; quantity: string | null; category_id: string | null }) => ({
       list_id: targetListId,
       name: ing.name,
       quantity: scaleQuantity(ing.quantity, multiplier),
-      category_id: ing.category_id || null,
+      category_id: ing.category_id || autocat(ing.name, catLookup),
       is_staple: false,
       added_by: user.id,
       source: "recipe",
@@ -128,3 +137,4 @@ function scaleQuantity(quantity: string | null, multiplier: number): string | nu
 
   return quantity;
 }
+

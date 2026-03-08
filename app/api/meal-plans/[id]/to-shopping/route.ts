@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withAuth } from "@/lib/api/withAuth";
-import { household } from "@/lib/supabase/schemas";
+import { household, config } from "@/lib/supabase/schemas";
 import { logActivity } from "@/lib/activity-log";
+import { buildCategoryLookup, autoCategorize } from "@/lib/shopping-categorize";
 
 // POST /api/meal-plans/[id]/to-shopping — Convert all meal plan recipes to shopping list
 export const POST = withAuth(async (request: NextRequest, { supabase, user }, params) => {
@@ -91,12 +92,19 @@ export const POST = withAuth(async (request: NextRequest, { supabase, user }, pa
     return NextResponse.json({ error: "Could not find or create shopping list" }, { status: 500 });
   }
 
+  // Fetch shopping categories for auto-categorization of uncategorized ingredients
+  const { data: shopCategories } = await config(supabase)
+    .from("shopping_categories")
+    .select("id, name")
+    .eq("active", true);
+  const catLookup = buildCategoryLookup(shopCategories || []);
+
   // Build shopping items with smart quantity aggregation
   const shoppingItems = Array.from(aggregated.values()).map(agg => ({
     list_id: targetListId,
     name: agg.name,
     quantity: mergeQuantities(agg.quantities),
-    category_id: agg.category_id,
+    category_id: agg.category_id || autoCategorize(agg.name, catLookup),
     is_staple: false,
     added_by: user.id,
     source: "meal_plan",
