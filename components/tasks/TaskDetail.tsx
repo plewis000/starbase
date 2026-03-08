@@ -437,6 +437,36 @@ export default function TaskDetail({
             </div>
           )}
 
+          {/* Completion Mode — only for multi-owner tasks */}
+          {(task.owner_ids?.length || 0) > 1 && (
+            <div className="flex items-start gap-3">
+              <span className="text-dungeon-500 text-sm mt-1">🎮</span>
+              <div className="flex-1">
+                <p className="text-xs text-dungeon-400 mb-1.5">Completion Mode</p>
+                <div className="flex gap-1.5">
+                  {([
+                    { value: "solo", label: "Solo", desc: "One person completes" },
+                    { value: "coop", label: "Co-op", desc: "Everyone gets credit" },
+                    { value: "competitive", label: "Competitive", desc: "First to finish" },
+                  ] as const).map((mode) => (
+                    <button
+                      key={mode.value}
+                      onClick={() => handleOptimisticUpdate({ completion_mode: mode.value })}
+                      title={mode.desc}
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
+                        (task as any).completion_mode === mode.value || (!((task as any).completion_mode) && mode.value === "solo")
+                          ? "bg-crimson-900/30 border-crimson-700 text-crimson-300"
+                          : "bg-dungeon-800 border-dungeon-700 text-dungeon-400 hover:text-slate-200 hover:border-dungeon-600"
+                      }`}
+                    >
+                      {mode.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Creator */}
           {task.creator && (
             <div className="flex items-center gap-3">

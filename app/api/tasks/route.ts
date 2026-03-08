@@ -265,6 +265,7 @@ export const POST = withAuth(async (request, { supabase, user, ctx }) => {
     domain_slugs,
     tag_ids,
     checklist_items,
+    completion_mode,
   } = parsed.data;
 
   // Build owner_ids: prefer owner_ids, fall back to assigned_to, default to [current_user]
@@ -307,6 +308,7 @@ export const POST = withAuth(async (request, { supabase, user, ctx }) => {
       location_context_id: location_context_id || null,
       recurrence_rule: recurrence_rule || null,
       parent_task_id: parent_task_id || null,
+      completion_mode: completion_mode || "solo",
       source: "manual",
     })
     .select("*")
