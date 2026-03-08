@@ -442,11 +442,11 @@ export async function getUserDisplayName(
 ): Promise<string> {
   const { data } = await platform(supabase)
     .from("users")
-    .select("full_name, display_name, email")
+    .select("full_name, email")
     .eq("id", userId)
     .single();
 
-  return data?.display_name || data?.full_name || data?.email || "Someone";
+  return data?.full_name || data?.email || "Someone";
 }
 
 // ─── Task-specific convenience helpers ───────────────────────

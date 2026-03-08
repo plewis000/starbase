@@ -30,7 +30,7 @@ export const GET = withAuth(async (_request: NextRequest, { supabase, user }, pa
   if (userIds.length > 0) {
     const { data: users } = await platform(supabase)
       .from("users")
-      .select("id, display_name, full_name, email, avatar_url")
+      .select("id, full_name, email, avatar_url")
       .in("id", userIds);
     if (users) userMap = new Map(users.map((u) => [u.id, u]));
   }

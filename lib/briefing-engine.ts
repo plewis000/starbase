@@ -183,11 +183,11 @@ async function gatherBriefingData(
   // Get user name
   const { data: userRec } = await platform(supabase)
     .from("users")
-    .select("display_name, full_name")
+    .select("full_name")
     .eq("id", userId)
     .single();
 
-  const userName = userRec?.display_name || userRec?.full_name || "there";
+  const userName = userRec?.full_name || "there";
 
   // Get open status IDs
   const { data: activeStatuses } = await config(supabase)
@@ -320,10 +320,10 @@ async function gatherBriefingData(
       const partnerId = otherIds[0];
       const { data: partnerRec } = await platform(supabase)
         .from("users")
-        .select("display_name, full_name")
+        .select("full_name")
         .eq("id", partnerId)
         .single();
-      partnerName = partnerRec?.display_name || partnerRec?.full_name || null;
+      partnerName = partnerRec?.full_name || null;
 
       // Partner's overdue + today
       const [pOverdue, pToday, pHabits, pCheckIns] = await Promise.all([
@@ -526,11 +526,11 @@ async function gatherWeeklyData(
   // Get user name
   const { data: userRec } = await platform(supabase)
     .from("users")
-    .select("display_name, full_name")
+    .select("full_name")
     .eq("id", userId)
     .single();
 
-  const userName = userRec?.display_name || userRec?.full_name || "there";
+  const userName = userRec?.full_name || "there";
 
   // Parallel queries
   const [
@@ -638,10 +638,10 @@ async function gatherWeeklyData(
       const partnerId = otherIds[0];
       const { data: partnerRec } = await platform(supabase)
         .from("users")
-        .select("display_name, full_name")
+        .select("full_name")
         .eq("id", partnerId)
         .single();
-      partnerName = partnerRec?.display_name || partnerRec?.full_name || null;
+      partnerName = partnerRec?.full_name || null;
 
       const [pCompleted, pAggregates] = await Promise.all([
         platform(supabase)

@@ -196,6 +196,10 @@ export async function registerSlashCommands() {
         { name: "email", description: "The email you signed up with", type: 3, required: true },
       ],
     },
+    {
+      name: "help",
+      description: "List all available slash commands",
+    },
   ];
 
   try {

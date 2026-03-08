@@ -192,6 +192,30 @@ async function processCommand(
   try {
     const supabase = createServiceClient();
 
+    // /help and /link run before user resolution
+    if (commandName === "help") {
+      await sendWebhook(webhookUrl, {
+        content: [
+          "**Available Commands:**",
+          "`/link` — Link your Discord to the app (do this first)",
+          "`/task` — Create a new task",
+          "`/habit` — Check in to a habit",
+          "`/budget` — Get spending summary",
+          "`/shop` — Add items to shopping list",
+          "`/dashboard` — Your daily overview",
+          "`/crawl` — View your crawler profile & stats",
+          "`/ask` — Ask Zev anything (uses AI)",
+          "`/focus` — Get your prioritized focus list",
+          "`/nudge` — Check what needs attention now",
+          "`/review` — Get your weekly review",
+          "`/feedback` — Submit a bug, wish, or feedback",
+          "`/usage` — Check API usage and costs",
+          "`/pipeline` — Show active pipeline jobs",
+        ].join("\n"),
+      });
+      return;
+    }
+
     // /link runs before user resolution — it creates the link
     if (commandName === "link") {
       return await handleLink(supabase, discordUserId, options, webhookUrl);
@@ -278,7 +302,7 @@ async function handleLink(supabase: Supabase, discordUserId: string, options: Re
   // Find the user by email in auth.users (need to match against platform.users which stores email)
   const { data: user } = await platform(supabase)
     .from("users")
-    .select("id, email, display_name")
+    .select("id, email, full_name")
     .eq("email", email)
     .maybeSingle();
 
@@ -371,7 +395,7 @@ async function handleLink(supabase: Supabase, discordUserId: string, options: Re
     return;
   }
 
-  const name = user.display_name || email.split("@")[0];
+  const name = user.full_name || email.split("@")[0];
   await sendWebhook(webhookUrl, {
     content: `Linked! Welcome, **${name}**. You now have full access to all slash commands.\n\nTry these:\n• **/dashboard** — your daily overview\n• **/task** — create a task\n• **/shop** — add to shopping list\n• **/habit** — check in to a habit\n• **/ask** — ask me anything`,
   });

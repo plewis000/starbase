@@ -20,8 +20,7 @@ export async function GET(request: NextRequest) {
   // Get all active users
   const { data: users, error: usersErr } = await platform(supabase)
     .from("users")
-    .select("id")
-    .eq("status", "active");
+    .select("id");
 
   if (usersErr || !users) {
     return NextResponse.json({ error: "Failed to fetch users" }, { status: 500 });

@@ -15,13 +15,13 @@ export const GET = withUser(async (_request, { supabase, user }) => {
   // Get member profiles
   const { data: members } = await platform(supabase)
     .from("users")
-    .select("id, display_name, full_name")
+    .select("id, full_name")
     .in("id", memberIds);
 
   // Per-member parallel data fetch
   const memberData = await Promise.all(
     (members || []).map(async (member) => {
-      const name = member.display_name || member.full_name || "Unknown";
+      const name = member.full_name || "Unknown";
 
       const [
         overdueRes,

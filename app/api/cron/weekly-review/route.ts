@@ -22,8 +22,7 @@ export async function GET(request: NextRequest) {
 
   const { data: activeUsers } = await platform(supabase)
     .from("users")
-    .select("id, display_name, full_name")
-    .eq("status", "active");
+    .select("id, full_name");
 
   if (!activeUsers || activeUsers.length === 0) {
     return NextResponse.json({ message: "No active users", sent: 0 });
@@ -60,7 +59,7 @@ export async function GET(request: NextRequest) {
       }
 
       const { review, data } = result;
-      const userName = user.display_name || user.full_name || "Crawler";
+      const userName = user.full_name || "Crawler";
 
       // Send via Discord webhook
       const webhookUrl = userWebhooks.get(user.id);

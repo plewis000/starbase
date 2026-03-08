@@ -208,11 +208,11 @@ export async function buildUserContext(
   // Get user's display name
   const { data: userRecord } = await platform(supabase)
     .from("users")
-    .select("display_name, full_name")
+    .select("full_name")
     .eq("id", userId)
     .single();
 
-  const userName = userRecord?.display_name || userRecord?.full_name || "User";
+  const userName = userRecord?.full_name || "User";
 
   // Get observations grouped by type, ordered by confidence
   const { data: observations } = await platform(supabase)
@@ -236,11 +236,11 @@ export async function buildUserContext(
       // Get partner's name
       const { data: partners } = await platform(supabase)
         .from("users")
-        .select("display_name, full_name")
+        .select("full_name")
         .in("id", otherMemberIds)
         .limit(1);
       if (partners?.[0]) {
-        partnerName = partners[0].display_name || partners[0].full_name || "";
+        partnerName = partners[0].full_name || "";
       }
 
       // Get household-relevant observations from partner

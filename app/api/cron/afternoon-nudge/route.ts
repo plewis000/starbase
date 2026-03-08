@@ -22,8 +22,7 @@ export async function GET(request: NextRequest) {
 
   const { data: activeUsers } = await platform(supabase)
     .from("users")
-    .select("id, display_name, full_name")
-    .eq("status", "active");
+    .select("id, full_name");
 
   if (!activeUsers || activeUsers.length === 0) {
     return NextResponse.json({ message: "No active users", nudged: 0 });
@@ -42,7 +41,7 @@ export async function GET(request: NextRequest) {
       }
 
       const nudges: string[] = [];
-      const userName = user.display_name || user.full_name || "there";
+      const userName = user.full_name || "there";
 
       // 1. Check unchecked habits
       const { data: activeHabits } = await platform(supabase)
@@ -141,10 +140,10 @@ export async function GET(request: NextRequest) {
           const partnerId = partnerIds[0];
           const { data: partnerRec } = await platform(supabase)
             .from("users")
-            .select("display_name, full_name")
+            .select("full_name")
             .eq("id", partnerId)
             .single();
-          const partnerName = partnerRec?.display_name || partnerRec?.full_name || "Your partner";
+          const partnerName = partnerRec?.full_name || "Your partner";
 
           const { data: partnerHabits } = await platform(supabase)
             .from("habits")

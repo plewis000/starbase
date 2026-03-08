@@ -21,8 +21,7 @@ export async function GET(request: NextRequest) {
 
   const { data: users } = await platform(supabase)
     .from("users")
-    .select("id, display_name, full_name, household_members!inner(household_id)")
-    .eq("status", "active");
+    .select("id, full_name, household_members!inner(household_id)");
 
   if (!users || users.length === 0) {
     return NextResponse.json({ message: "No users", bootstrapped: 0 });
@@ -47,7 +46,7 @@ export async function GET(request: NextRequest) {
         .eq("is_active", true);
 
       const existingSet = new Set((existing || []).map((o) => o.observation.toLowerCase()));
-      const userName = user.display_name || user.full_name || "User";
+      const userName = user.full_name || "User";
 
       const toInsert: {
         user_id: string;

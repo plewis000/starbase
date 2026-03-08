@@ -24,8 +24,7 @@ export async function GET(request: NextRequest) {
   // Get all active users with their household
   const { data: users, error: usersErr } = await platform(supabase)
     .from("users")
-    .select("id, display_name, full_name, household_members!inner(household_id)")
-    .eq("status", "active");
+    .select("id, full_name, household_members!inner(household_id)");
 
   if (usersErr || !users) {
     return NextResponse.json({ error: "Failed to fetch users" }, { status: 500 });

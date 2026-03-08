@@ -77,10 +77,10 @@ export async function resolveMentions(
 
   const { data: users } = await platform(supabase)
     .from("users")
-    .select("id, display_name, email")
+    .select("id, full_name, email")
     .or(
       sanitized
-        .map((id) => `display_name.ilike.${id},email.ilike.${id}`)
+        .map((id) => `full_name.ilike.${id},email.ilike.${id}`)
         .join(",")
     );
 
@@ -89,7 +89,7 @@ export async function resolveMentions(
       for (const identifier of identifiers) {
         const lower = identifier.toLowerCase();
         if (
-          (user.display_name && user.display_name.toLowerCase() === lower) ||
+          (user.full_name && user.full_name.toLowerCase() === lower) ||
           (user.email && user.email.toLowerCase() === lower)
         ) {
           resolved.set(identifier, user.id);

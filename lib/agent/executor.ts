@@ -223,12 +223,12 @@ async function createTask(supabase: Supabase, userId: string, input: Record<stri
       const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
       const { data: members } = await platform(supabase)
         .from("users")
-        .select("id, display_name, full_name")
+        .select("id, full_name")
         .in("id", memberIds);
 
       if (members) {
         const match = members.find((m) => {
-          const name = (m.display_name || m.full_name || "").toLowerCase();
+          const name = (m.full_name || "").toLowerCase();
           return name === assignToName.toLowerCase() || name.startsWith(assignToName.toLowerCase());
         });
         if (match) assigneeId = match.id;
@@ -277,10 +277,10 @@ async function createTask(supabase: Supabase, userId: string, input: Record<stri
           if (gap > 5) {
             const { data: otherUser } = await platform(supabase)
               .from("users")
-              .select("display_name, full_name")
+              .select("full_name")
               .eq("id", otherIds[0])
               .single();
-            const otherName = otherUser?.display_name || otherUser?.full_name || "partner";
+            const otherName = otherUser?.full_name || "partner";
             workloadHint = `Note: You have ${userOpen} open tasks vs ${otherName}'s ${otherOpen}. Consider delegating some.`;
           }
         }
@@ -1634,12 +1634,12 @@ async function getHouseholdOverview(supabase: Supabase, userId: string): Promise
   // Get member names
   const { data: members } = await platform(supabase)
     .from("users")
-    .select("id, display_name, full_name")
+    .select("id, full_name")
     .in("id", memberIds);
 
   const nameMap = new Map<string, string>();
   for (const m of members || []) {
-    nameMap.set(m.id, m.display_name || m.full_name || "Unknown");
+    nameMap.set(m.id, m.full_name || "Unknown");
   }
 
   const today = new Date().toISOString().slice(0, 10);
@@ -1837,13 +1837,13 @@ async function delegateTask(supabase: Supabase, userId: string, input: Record<st
 
   const { data: members } = await platform(supabase)
     .from("users")
-    .select("id, display_name, full_name")
+    .select("id, full_name")
     .in("id", memberIds);
 
   if (!members) return { success: false, error: "Failed to load household members" };
 
   const match = members.find((m) => {
-    const name = (m.display_name || m.full_name || "").toLowerCase();
+    const name = (m.full_name || "").toLowerCase();
     return name === assignToName.toLowerCase() || name.startsWith(assignToName.toLowerCase());
   });
 
@@ -1877,7 +1877,7 @@ async function delegateTask(supabase: Supabase, userId: string, input: Record<st
   notifyTaskAssigned(supabase, task.title, match.id, userId, taskId).catch(() => {});
 
   const reason = input.reason ? ` Reason: ${input.reason}` : "";
-  const assigneeName = match.display_name || match.full_name;
+  const assigneeName = match.full_name;
   return {
     success: true,
     data: { message: `"${task.title}" delegated to ${assigneeName}.${reason}` },
@@ -1925,11 +1925,11 @@ async function getWorkloadBalance(supabase: Supabase, userId: string): Promise<T
   for (const memberId of memberIds) {
     const { data: userRec } = await platform(supabase)
       .from("users")
-      .select("display_name, full_name")
+      .select("full_name")
       .eq("id", memberId)
       .single();
 
-    const name = userRec?.display_name || userRec?.full_name || "Unknown";
+    const name = userRec?.full_name || "Unknown";
 
     const [openRes, overdueRes, todayRes, habitsRes, checkInsRes] = await Promise.all([
       platform(supabase)
