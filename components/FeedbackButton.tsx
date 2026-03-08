@@ -52,8 +52,7 @@ export default function FeedbackButton() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type: selectedType,
-          body: body.trim(),
-          page_url: pathname,
+          content: body.trim(),
           source: "web_form",
         }),
       });

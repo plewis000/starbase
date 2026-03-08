@@ -10,7 +10,7 @@ import { withUser } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
 import { getHouseholdContext } from "@/lib/household";
 import { triggerNotification } from "@/lib/notify";
-import { sendMessageWithButtons, ZEV_COLOR } from "@/lib/discord";
+import { sendMessageWithButtons, ZEV_COLOR, findChannelByName, CHANNELS } from "@/lib/discord";
 import { validateEnum, validatePagination } from "@/lib/validation";
 import { createFeedbackSchema, parseBody } from "@/lib/schemas";
 import type { FeedbackType, FeedbackStatus, FeedbackSource } from "@/lib/types";
@@ -175,14 +175,14 @@ export const POST = withUser(async (request: NextRequest, { supabase, user }) =>
       } catch { /* ignore notification failures */ }
     }
 
-    // Post to #pipeline with Approve/Won't Fix buttons
-    const pipelineChannelId = process.env.PIPELINE_CHANNEL_ID;
-    if (pipelineChannelId) {
+    // Post to #feedback with Approve/Backlog/Won't Fix buttons
+    const feedbackChannelId = await findChannelByName(CHANNELS.FEEDBACK);
+    if (feedbackChannelId) {
       try {
         const typeEmoji: Record<string, string> = {
           bug: "🐛", wish: "⭐", feedback: "💬", question: "❓",
         };
-        const messageId = await sendMessageWithButtons(pipelineChannelId, {
+        const messageId = await sendMessageWithButtons(feedbackChannelId, {
           embeds: [{
             title: `${typeEmoji[type] || "💬"} New ${type}`,
             description: content.slice(0, 2000),
@@ -192,8 +192,9 @@ export const POST = withUser(async (request: NextRequest, { supabase, user }) =>
           components: [{
             type: 1,
             components: [
-              { type: 2, style: 3, label: "Approve", custom_id: `pipeline_approve_${feedbackItem.id}`, emoji: { name: "✅" } },
-              { type: 2, style: 4, label: "Won't Fix", custom_id: `pipeline_wontfix_${feedbackItem.id}`, emoji: { name: "🚫" } },
+              { type: 2, style: 3, label: "Ship It", custom_id: `pipeline_approve_${feedbackItem.id}`, emoji: { name: "✅" } },
+              { type: 2, style: 1, label: "Backlog", custom_id: `pipeline_backlog_${feedbackItem.id}`, emoji: { name: "📋" } },
+              { type: 2, style: 4, label: "Decline", custom_id: `pipeline_wontfix_${feedbackItem.id}`, emoji: { name: "🚫" } },
             ],
           }],
         });

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { verifyKey } from "discord-interactions";
-import { sendMessage, sendEmbed, sendMessageWithButtons, editMessage, CHANNELS, ZEV_COLOR, SYSTEM_COLOR, getGuildChannels } from "@/lib/discord";
+import { sendMessage, sendEmbed, sendMessageWithButtons, editMessage, findChannelByName, CHANNELS, ZEV_COLOR, SYSTEM_COLOR, getGuildChannels } from "@/lib/discord";
 import { getHouseholdContext, getHouseholdMemberIds } from "@/lib/household";
 import { createServiceClient } from "@/lib/supabase/service";
 import { platform, config, household, finance } from "@/lib/supabase/schemas";
@@ -129,13 +129,35 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    if (customId.startsWith("pipeline_backlog_")) {
+      const feedbackId = customId.replace("pipeline_backlog_", "");
+      return NextResponse.json({
+        type: 9, // MODAL
+        data: {
+          custom_id: `modal_backlog_${feedbackId}`,
+          title: "Add to Backlog",
+          components: [{
+            type: 1,
+            components: [{
+              type: 4,
+              custom_id: "notes",
+              label: "Notes (optional)",
+              style: 2,
+              required: false,
+              placeholder: "e.g. 'Low priority' or 'Bundle with next sprint'",
+            }],
+          }],
+        },
+      });
+    }
+
     if (customId.startsWith("pipeline_wontfix_")) {
       const feedbackId = customId.replace("pipeline_wontfix_", "");
       return NextResponse.json({
         type: 9,
         data: {
           custom_id: `modal_wontfix_${feedbackId}`,
-          title: "Won't Fix",
+          title: "Decline",
           components: [{
             type: 1,
             components: [{
@@ -1749,22 +1771,23 @@ async function handleFeedback(supabase: Supabase, userId: string | null, discord
     Promise.resolve(platform(supabase).from("feedback_votes").insert({ feedback_id: feedback.id, user_id: userId })).catch(() => {});
   }
 
-  // Post to #pipeline channel with approve/reject buttons
-  const pipelineChannelId = process.env.PIPELINE_CHANNEL_ID;
-  if (pipelineChannelId) {
+  // Post to #feedback channel with approve/backlog/decline buttons
+  const feedbackChannelId = await findChannelByName(CHANNELS.FEEDBACK);
+  if (feedbackChannelId) {
     const typeEmoji: Record<string, string> = { bug: "🐛", wish: "⭐", feedback: "💬", question: "❓" };
-    const messageId = await sendMessageWithButtons(pipelineChannelId, {
+    const messageId = await sendMessageWithButtons(feedbackChannelId, {
       embeds: [{
         title: `${typeEmoji[type] || "💬"} New ${type}`,
         description: description.slice(0, 2000),
         color: ZEV_COLOR,
-        footer: { text: `ID: ${feedback.id.slice(0, 8)}` },
+        footer: { text: `ID: ${feedback.id.slice(0, 8)} | Source: discord` },
       }],
       components: [{
         type: 1,
         components: [
-          { type: 2, style: 3, label: "Approve", custom_id: `pipeline_approve_${feedback.id}`, emoji: { name: "✅" } },
-          { type: 2, style: 4, label: "Won't Fix", custom_id: `pipeline_wontfix_${feedback.id}`, emoji: { name: "🚫" } },
+          { type: 2, style: 3, label: "Ship It", custom_id: `pipeline_approve_${feedback.id}`, emoji: { name: "✅" } },
+          { type: 2, style: 1, label: "Backlog", custom_id: `pipeline_backlog_${feedback.id}`, emoji: { name: "📋" } },
+          { type: 2, style: 4, label: "Decline", custom_id: `pipeline_wontfix_${feedback.id}`, emoji: { name: "🚫" } },
         ],
       }],
     });
@@ -1782,7 +1805,7 @@ async function handleFeedback(supabase: Supabase, userId: string | null, discord
   const typeLabel: Record<string, string> = { bug: "Bug logged", wish: "Wish captured", feedback: "Feedback received", question: "Question submitted" };
   await sendWebhook(webhookUrl, {
     embeds: [{
-      description: `**${typeLabel[type] || "Received"}:** ${description.slice(0, 200)}${description.length > 200 ? "..." : ""}\n\nPosted to #pipeline for review.`,
+      description: `**${typeLabel[type] || "Received"}:** ${description.slice(0, 200)}${description.length > 200 ? "..." : ""}\n\nPosted to #feedback for review.`,
       color: ZEV_COLOR,
       footer: { text: "Free command — no API cost" },
     }],
@@ -2133,14 +2156,70 @@ async function handleModalSubmit(
       await sendWebhookFollowup(webhookUrl, { content: confirmMsg });
 
       // Remove buttons from original embed
-      if (existing.discord_message_id && process.env.PIPELINE_CHANNEL_ID) {
+      const approveChannelId = await findChannelByName(CHANNELS.FEEDBACK);
+      if (existing.discord_message_id && approveChannelId) {
         const typeEmoji: Record<string, string> = { bug: "🐛", wish: "⭐", feedback: "💬", question: "❓" };
-        await editMessage(process.env.PIPELINE_CHANNEL_ID, existing.discord_message_id, {
+        await editMessage(approveChannelId, existing.discord_message_id, {
           embeds: [{
-            title: `${typeEmoji[existing.type] || "💬"} ${existing.type} — ✅ Approved`,
+            title: `${typeEmoji[existing.type] || "💬"} ${existing.type} — ✅ Shipping`,
             description: (notes ? `${existing.body}\n\n---\nAdmin notes: ${notes}` : existing.body).slice(0, 2000),
             color: 0x2ecc71, // green
             footer: { text: `ID: ${feedbackId.slice(0, 8)} | Queued for worker` },
+          }],
+          components: [],
+        });
+      }
+
+    } else if (customId.startsWith("modal_backlog_")) {
+      const feedbackId = customId.replace("modal_backlog_", "");
+      const notes = fields.notes?.trim();
+
+      const { data: existing } = await platform(supabase)
+        .from("feedback")
+        .select("body, status, pipeline_status, discord_message_id, type")
+        .eq("id", feedbackId)
+        .single();
+
+      if (!existing) {
+        await sendWebhookFollowup(webhookUrl, { content: "Feedback not found." });
+        return;
+      }
+
+      const blockingStatuses = ["working", "preview_ready", "shipped"];
+      if (existing.pipeline_status && blockingStatuses.includes(existing.pipeline_status)) {
+        await sendWebhookFollowup(webhookUrl, { content: `Can't backlog — already ${existing.pipeline_status}.` });
+        return;
+      }
+
+      const updatePayload: Record<string, unknown> = {
+        status: "planned",
+        pipeline_status: null, // No pipeline dispatch — stays local
+        updated_at: new Date().toISOString(),
+      };
+      if (notes) {
+        updatePayload.body = `${existing.body}\n\n---\nBacklog notes: ${notes}`;
+      }
+
+      await platform(supabase)
+        .from("feedback")
+        .update(updatePayload)
+        .eq("id", feedbackId);
+
+      const confirmMsg = notes
+        ? `Added to backlog.\n> ${notes.slice(0, 200)}`
+        : "Added to backlog — will be implemented locally.";
+      await sendWebhookFollowup(webhookUrl, { content: confirmMsg });
+
+      // Update embed
+      const feedbackChannelId = await findChannelByName(CHANNELS.FEEDBACK);
+      if (existing.discord_message_id && feedbackChannelId) {
+        const typeEmoji: Record<string, string> = { bug: "🐛", wish: "⭐", feedback: "💬", question: "❓" };
+        await editMessage(feedbackChannelId, existing.discord_message_id, {
+          embeds: [{
+            title: `${typeEmoji[existing.type] || "💬"} ${existing.type} — 📋 Backlogged`,
+            description: (notes ? `${existing.body}\n\n---\nNotes: ${notes}` : existing.body).slice(0, 2000),
+            color: 0x3498db, // blue
+            footer: { text: `ID: ${feedbackId.slice(0, 8)} | For local implementation` },
           }],
           components: [],
         });
@@ -2192,11 +2271,12 @@ async function handleModalSubmit(
       await sendWebhookFollowup(webhookUrl, { content: confirmMsg });
 
       // Remove buttons from original embed
-      if (existing.discord_message_id && process.env.PIPELINE_CHANNEL_ID) {
+      const declineChannelId = await findChannelByName(CHANNELS.FEEDBACK);
+      if (existing.discord_message_id && declineChannelId) {
         const typeEmoji: Record<string, string> = { bug: "🐛", wish: "⭐", feedback: "💬", question: "❓" };
-        await editMessage(process.env.PIPELINE_CHANNEL_ID, existing.discord_message_id, {
+        await editMessage(declineChannelId, existing.discord_message_id, {
           embeds: [{
-            title: `${typeEmoji[existing.type] || "💬"} ${existing.type} — 🚫 Won't Fix`,
+            title: `${typeEmoji[existing.type] || "💬"} ${existing.type} — 🚫 Declined`,
             description: existing.body.slice(0, 2000),
             color: 0xe74c3c, // red
             footer: { text: `ID: ${feedbackId.slice(0, 8)} | ${reason ? `Reason: ${reason.slice(0, 100)}` : "Closed"}` },

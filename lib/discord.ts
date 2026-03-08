@@ -268,6 +268,7 @@ export const CHANNELS = {
   GENERAL: "general",
   ACTIVITY: "activity",
   PIPELINE: "pipeline",
+  FEEDBACK: "feedback",
 } as const;
 
 // Legacy channel names (for cleanup during reset)

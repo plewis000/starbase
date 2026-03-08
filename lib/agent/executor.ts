@@ -2,7 +2,7 @@ import { SupabaseClient } from "@supabase/supabase-js";
 import { finance, config, platform, household } from "@/lib/supabase/schemas";
 import { getHouseholdContext, getHouseholdMemberIds } from "@/lib/household";
 import { sanitizeSearchInput } from "@/lib/validation";
-import { sendMessageWithButtons, ZEV_COLOR } from "@/lib/discord";
+import { sendMessageWithButtons, ZEV_COLOR, findChannelByName, CHANNELS } from "@/lib/discord";
 
 type Supabase = SupabaseClient;
 
@@ -876,7 +876,7 @@ async function submitFeedback(supabase: Supabase, userId: string, input: Record<
       submitted_by: userId,
       type,
       body: body.trim(),
-      source: "discord",
+      source: "chat",
       priority: (input.priority as string) || "medium",
       tags: [],
     })
@@ -885,22 +885,23 @@ async function submitFeedback(supabase: Supabase, userId: string, input: Record<
 
   if (error) return { success: false, error: error.message };
 
-  // Post to #pipeline channel with approve/reject buttons
-  const pipelineChannelId = process.env.PIPELINE_CHANNEL_ID;
-  if (pipelineChannelId) {
+  // Post to #feedback channel with approve/backlog/decline buttons
+  const feedbackChannelId = await findChannelByName(CHANNELS.FEEDBACK);
+  if (feedbackChannelId) {
     const typeEmoji: Record<string, string> = { bug: "\u{1F41B}", wish: "\u2B50", feedback: "\u{1F4AC}", question: "\u2753" };
-    const messageId = await sendMessageWithButtons(pipelineChannelId, {
+    const messageId = await sendMessageWithButtons(feedbackChannelId, {
       embeds: [{
         title: `${typeEmoji[type] || "\u{1F4AC}"} New ${type}`,
         description: body.trim().slice(0, 2000),
         color: ZEV_COLOR,
-        footer: { text: `ID: ${data.id.slice(0, 8)}` },
+        footer: { text: `ID: ${data.id.slice(0, 8)} | Source: chat` },
       }],
       components: [{
         type: 1,
         components: [
-          { type: 2, style: 3, label: "Approve", custom_id: `pipeline_approve_${data.id}`, emoji: { name: "\u2705" } },
-          { type: 2, style: 4, label: "Won't Fix", custom_id: `pipeline_wontfix_${data.id}`, emoji: { name: "\u{1F6AB}" } },
+          { type: 2, style: 3, label: "Ship It", custom_id: `pipeline_approve_${data.id}`, emoji: { name: "\u2705" } },
+          { type: 2, style: 1, label: "Backlog", custom_id: `pipeline_backlog_${data.id}`, emoji: { name: "\u{1F4CB}" } },
+          { type: 2, style: 4, label: "Decline", custom_id: `pipeline_wontfix_${data.id}`, emoji: { name: "\u{1F6AB}" } },
         ],
       }],
     });
