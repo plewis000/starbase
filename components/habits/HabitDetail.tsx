@@ -301,6 +301,15 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
         {/* Linked Items (cross-module) */}
         <EntityLinksSection entityType="habit" entityId={habitId} />
 
+        {/* Discuss with Zev */}
+        <a
+          href={`/chat?entity_type=habit&entity_id=${habitId}&prompt=${encodeURIComponent(`Let's discuss the habit "${habit.title}"`)}`}
+          className="flex items-center gap-2 px-4 py-2.5 bg-dungeon-800 border border-dungeon-700 rounded-lg hover:border-amber-500/30 hover:bg-dungeon-750 transition-colors text-sm text-dungeon-400 hover:text-amber-400"
+        >
+          <span>💬</span>
+          <span>Discuss with Zev</span>
+        </a>
+
         {/* Linked Goals */}
         {(habit.linked_goals && habit.linked_goals.length > 0) || showGoalPicker ? (
           <div>

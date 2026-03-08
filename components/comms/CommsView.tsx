@@ -17,7 +17,7 @@ interface Thread {
 type Tab = "threads" | "zev";
 
 export default function CommsView() {
-  const [activeTab, setActiveTab] = useState<Tab>("threads");
+  const [activeTab, setActiveTab] = useState<Tab>("zev");
   const [threads, setThreads] = useState<Thread[]>([]);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [activeThread, setActiveThread] = useState<Thread | null>(null);

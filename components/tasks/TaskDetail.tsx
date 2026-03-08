@@ -554,6 +554,15 @@ export default function TaskDetail({
         {/* Linked Items */}
         <EntityLinksSection entityType="task" entityId={task.id} />
 
+        {/* Discuss with Zev */}
+        <a
+          href={`/chat?entity_type=task&entity_id=${task.id}&prompt=${encodeURIComponent(`Let's discuss the task "${task.title}"`)}`}
+          className="flex items-center gap-2 px-4 py-2.5 bg-dungeon-800 border border-dungeon-700 rounded-lg hover:border-amber-500/30 hover:bg-dungeon-750 transition-colors text-sm text-dungeon-400 hover:text-amber-400"
+        >
+          <span>💬</span>
+          <span>Discuss with Zev</span>
+        </a>
+
         {/* Comments */}
         <div className="bg-dungeon-800 border border-dungeon-700 rounded-lg p-4">
           <h3 className="text-sm font-semibold text-slate-100 mb-3">Comments</h3>

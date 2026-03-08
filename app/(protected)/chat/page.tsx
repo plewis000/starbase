@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 interface Message {
   id: string;
@@ -19,14 +20,17 @@ interface Conversation {
 }
 
 export default function ChatPage() {
+  const searchParams = useSearchParams();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [entityContext, setEntityContext] = useState<{ type: string; id: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const initialPromptSent = useRef(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -35,6 +39,20 @@ export default function ChatPage() {
   useEffect(() => { scrollToBottom(); }, [messages]);
   useEffect(() => { loadConversations(); }, []);
   useEffect(() => { inputRef.current?.focus(); }, []);
+
+  // Handle entity context from URL params (e.g., ?entity_type=task&entity_id=xxx&prompt=...)
+  useEffect(() => {
+    const et = searchParams.get("entity_type");
+    const eid = searchParams.get("entity_id");
+    const prompt = searchParams.get("prompt");
+    if (et && eid) {
+      setEntityContext({ type: et, id: eid });
+      if (prompt && !initialPromptSent.current) {
+        initialPromptSent.current = true;
+        setInput(prompt);
+      }
+    }
+  }, [searchParams]);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -97,14 +115,20 @@ export default function ChatPage() {
     setLoading(true);
 
     try {
+      const payload: Record<string, unknown> = {
+        message: text,
+        conversation_id: conversationId,
+        channel: "web",
+      };
+      // Attach entity context for new conversations
+      if (!conversationId && entityContext) {
+        payload.entity_type = entityContext.type;
+        payload.entity_id = entityContext.id;
+      }
       const res = await fetch("/api/agent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: text,
-          conversation_id: conversationId,
-          channel: "web",
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) throw new Error("Request failed");

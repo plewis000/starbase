@@ -41,7 +41,7 @@ export const POST = withAuth(async (request: NextRequest, { supabase, user }, pa
     return NextResponse.json({ error: "No ingredients found in meal plan recipes" }, { status: 400 });
   }
 
-  // Aggregate: group by ingredient name (case-insensitive), combine quantities
+  // Aggregate: group by ingredient name (case-insensitive), combine quantities smartly
   const aggregated = new Map<string, { name: string; quantities: string[]; category_id: string | null }>();
 
   for (const ing of allIngredients) {
@@ -91,11 +91,11 @@ export const POST = withAuth(async (request: NextRequest, { supabase, user }, pa
     return NextResponse.json({ error: "Could not find or create shopping list" }, { status: 500 });
   }
 
-  // Build shopping items
+  // Build shopping items with smart quantity aggregation
   const shoppingItems = Array.from(aggregated.values()).map(agg => ({
     list_id: targetListId,
     name: agg.name,
-    quantity: agg.quantities.length > 0 ? agg.quantities.join(" + ") : null,
+    quantity: mergeQuantities(agg.quantities),
     category_id: agg.category_id,
     is_staple: false,
     added_by: user.id,
@@ -131,3 +131,76 @@ export const POST = withAuth(async (request: NextRequest, { supabase, user }, pa
     items: created,
   }, { status: 201 });
 });
+
+/**
+ * Smart quantity merging: combines quantities with matching units.
+ * "2 cups" + "1 cup" → "3 cups"
+ * "2 cups" + "3 tbsp" → "2 cups + 3 tbsp" (different units kept separate)
+ * "2" + "3" → "5" (unitless adds up)
+ */
+function mergeQuantities(quantities: string[]): string | null {
+  if (quantities.length === 0) return null;
+  if (quantities.length === 1) return quantities[0];
+
+  // Parse each quantity into { amount, unit }
+  const parsed: { amount: number; unit: string; raw: string }[] = [];
+  for (const q of quantities) {
+    const match = q.match(/^(\d+\.?\d*)\s*(.*)/);
+    if (match) {
+      parsed.push({ amount: parseFloat(match[1]), unit: match[2].trim().toLowerCase(), raw: q });
+    } else {
+      const fracMatch = q.match(/^(\d+)\/(\d+)\s*(.*)/);
+      if (fracMatch) {
+        parsed.push({
+          amount: parseInt(fracMatch[1]) / parseInt(fracMatch[2]),
+          unit: fracMatch[3].trim().toLowerCase(),
+          raw: q,
+        });
+      } else {
+        // Unparseable — fall back to string join
+        return quantities.join(" + ");
+      }
+    }
+  }
+
+  // Group by normalized unit
+  const byUnit = new Map<string, number>();
+  const unitDisplay = new Map<string, string>(); // preserve original casing
+  for (const p of parsed) {
+    const norm = normalizeUnit(p.unit);
+    byUnit.set(norm, (byUnit.get(norm) || 0) + p.amount);
+    if (!unitDisplay.has(norm)) unitDisplay.set(norm, p.unit);
+  }
+
+  // Format results
+  const parts: string[] = [];
+  for (const [norm, total] of byUnit) {
+    const display = unitDisplay.get(norm) || norm;
+    const formatted = total % 1 === 0 ? total.toString() : total.toFixed(1);
+    parts.push(display ? `${formatted} ${display}` : formatted);
+  }
+
+  return parts.join(" + ");
+}
+
+function normalizeUnit(unit: string): string {
+  const aliases: Record<string, string> = {
+    cup: "cups", c: "cups",
+    tbsp: "tbsp", tablespoon: "tbsp", tablespoons: "tbsp",
+    tsp: "tsp", teaspoon: "tsp", teaspoons: "tsp",
+    oz: "oz", ounce: "oz", ounces: "oz",
+    lb: "lbs", lbs: "lbs", pound: "lbs", pounds: "lbs",
+    g: "g", gram: "g", grams: "g",
+    kg: "kg", kilogram: "kg", kilograms: "kg",
+    ml: "ml", milliliter: "ml", milliliters: "ml",
+    l: "l", liter: "l", liters: "l",
+    can: "cans", cans: "cans",
+    bag: "bags", bags: "bags",
+    box: "boxes", boxes: "boxes",
+    bottle: "bottles", bottles: "bottles",
+    pack: "packs", packs: "packs",
+    bunch: "bunches", bunches: "bunches",
+    "": "",
+  };
+  return aliases[unit] ?? unit;
+}

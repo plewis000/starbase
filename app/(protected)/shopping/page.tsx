@@ -127,19 +127,7 @@ export default function ShoppingPage() {
     }
   }, [activeListId]);
 
-  // Fetch categories
-  useEffect(() => {
-    async function loadCategories() {
-      try {
-        const res = await fetch("/api/config");
-        if (res.ok) {
-          const data = await res.json();
-          // Shopping categories aren't in the config endpoint yet, but we can use them from the list items
-        }
-      } catch {}
-    }
-    loadCategories();
-  }, []);
+  // Categories loaded above from /api/config
 
   useEffect(() => { fetchLists(); }, [fetchLists]);
   useEffect(() => { fetchActiveList(); }, [fetchActiveList]);
@@ -169,16 +157,21 @@ export default function ShoppingPage() {
     checkLinks();
   }, [activeList]);
 
-  // Extract categories from items
+  // Fetch categories from config
   useEffect(() => {
-    if (activeList?.items) {
-      const catMap = new Map<string, ShoppingCategory>();
-      for (const item of activeList.items) {
-        if (item.category) catMap.set(item.category.id, item.category);
-      }
-      setCategories(Array.from(catMap.values()).sort((a, b) => a.sort_order - b.sort_order));
+    async function loadCategories() {
+      try {
+        const res = await fetch("/api/config");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.shopping_categories) {
+            setCategories(data.shopping_categories.sort((a: ShoppingCategory, b: ShoppingCategory) => a.sort_order - b.sort_order));
+          }
+        }
+      } catch { /* silent */ }
     }
-  }, [activeList]);
+    loadCategories();
+  }, []);
 
   const handleCreateList = async () => {
     if (!newListName.trim()) return;
@@ -471,7 +464,7 @@ export default function ShoppingPage() {
         ) : (
           <>
             {/* Add item form */}
-            <div className="flex gap-2 mb-6">
+            <div className="flex flex-wrap gap-2 mb-6">
               <input
                 type="text"
                 value={newItemName}
@@ -479,8 +472,8 @@ export default function ShoppingPage() {
                 onKeyDown={(e) => {
                   if (e.key === "Enter") handleAddItem();
                 }}
-                placeholder="Add item..."
-                className="flex-1 px-4 py-2.5 bg-dungeon-900 border border-dungeon-800 rounded-lg text-slate-100 placeholder-dungeon-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/30 transition-colors"
+                placeholder='Add item... (try "2 lbs chicken")'
+                className="flex-1 min-w-[200px] px-4 py-2.5 bg-dungeon-900 border border-dungeon-800 rounded-lg text-slate-100 placeholder-dungeon-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/30 transition-colors"
               />
               <input
                 type="text"
@@ -492,6 +485,20 @@ export default function ShoppingPage() {
                 placeholder="Qty"
                 className="w-20 px-3 py-2.5 bg-dungeon-900 border border-dungeon-800 rounded-lg text-slate-100 placeholder-dungeon-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/30 transition-colors text-center"
               />
+              {categories.length > 0 && (
+                <select
+                  value={newItemCategory}
+                  onChange={(e) => setNewItemCategory(e.target.value)}
+                  className="w-36 px-3 py-2.5 bg-dungeon-900 border border-dungeon-800 rounded-lg text-slate-100 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/30 transition-colors text-sm"
+                >
+                  <option value="">Category</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.icon ? `${cat.icon} ` : ""}{cat.name}
+                    </option>
+                  ))}
+                </select>
+              )}
               <button
                 onClick={handleAddItem}
                 disabled={!newItemName.trim()}
@@ -602,12 +609,30 @@ export default function ShoppingPage() {
                             </span>
                           )}
 
-                          {/* Staple badge */}
-                          {item.is_staple && (
-                            <span className="text-xs text-amber-400" title="Staple item">
-                              ★
-                            </span>
-                          )}
+                          {/* Staple toggle */}
+                          <button
+                            onClick={async () => {
+                              try {
+                                await fetch(`/api/shopping/${activeListId}/items/${item.id}`, {
+                                  method: "PATCH",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ is_staple: !item.is_staple }),
+                                });
+                                setActiveList((prev) => {
+                                  if (!prev) return prev;
+                                  return { ...prev, items: prev.items?.map((i) =>
+                                    i.id === item.id ? { ...i, is_staple: !i.is_staple } : i
+                                  )};
+                                });
+                              } catch { /* silent */ }
+                            }}
+                            className={`text-xs transition-colors flex-shrink-0 ${
+                              item.is_staple ? "text-amber-400" : "text-dungeon-600 opacity-0 group-hover:opacity-100 hover:text-amber-400"
+                            }`}
+                            title={item.is_staple ? "Remove from staples" : "Mark as staple"}
+                          >
+                            ★
+                          </button>
 
                           {/* Linked badge */}
                           {linkedItemIds.has(item.id) && (
@@ -653,9 +678,11 @@ export default function ShoppingPage() {
 
                 {/* Footer actions */}
                 <div className="flex items-center justify-between pt-4 border-t border-dungeon-800">
-                  <span className="text-sm text-dungeon-400">
-                    {uncheckedCount} remaining, {checkedCount} checked
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-dungeon-400">
+                      {uncheckedCount} remaining, {checkedCount} checked
+                    </span>
+                  </div>
                   <div className="flex gap-2">
                     {checkedCount > 0 && (
                       <button

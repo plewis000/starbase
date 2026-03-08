@@ -84,7 +84,7 @@ export const POST = withUser(async (request: NextRequest, { supabase, user }) =>
   let body;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
 
-  const { message, conversation_id, channel } = body;
+  const { message, conversation_id, channel, entity_type, entity_id } = body;
   if (!message || typeof message !== "string" || !message.trim()) {
     return NextResponse.json({ error: "message is required" }, { status: 400 });
   }
@@ -95,12 +95,17 @@ export const POST = withUser(async (request: NextRequest, { supabase, user }) =>
   // Get or create conversation
   let conversationId = conversation_id as string | null;
   if (!conversationId) {
+    const insertData: Record<string, unknown> = {
+      user_id: user.id,
+      channel: agentChannel,
+    };
+    if (entity_type && entity_id) {
+      insertData.entity_type = entity_type;
+      insertData.entity_id = entity_id;
+    }
     const { data: conv, error: convError } = await platform(supabase)
       .from("agent_conversations")
-      .insert({
-        user_id: user.id,
-        channel: agentChannel,
-      })
+      .insert(insertData)
       .select("id")
       .single();
 

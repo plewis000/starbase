@@ -506,6 +506,15 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
         {/* Cross-Module Links */}
         <EntityLinksSection entityType="goal" entityId={goalId} />
 
+        {/* Discuss with Zev */}
+        <a
+          href={`/chat?entity_type=goal&entity_id=${goalId}&prompt=${encodeURIComponent(`Let's discuss the goal "${goal.title}"`)}`}
+          className="flex items-center gap-2 px-4 py-2.5 bg-dungeon-800 border border-dungeon-700 rounded-lg hover:border-amber-500/30 hover:bg-dungeon-750 transition-colors text-sm text-dungeon-400 hover:text-amber-400"
+        >
+          <span>💬</span>
+          <span>Discuss with Zev</span>
+        </a>
+
         {/* Status actions */}
         {goal.status === "active" && (
           <div className="flex items-center gap-2 pt-4 border-t border-dungeon-800">
