@@ -137,7 +137,7 @@ export const PATCH = withAuth(async (request, { supabase, user }, params) => {
   const { habit_ids: habitIds, ...rest } = parsed.data as Record<string, unknown> & { habit_ids?: string[] };
   const updates: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(rest)) {
-    if (value !== undefined) {
+    if (key in parsed.body) {
       updates[key] = value;
     }
   }

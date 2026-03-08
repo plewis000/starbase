@@ -222,17 +222,10 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
       {/* 5. Due Date + Start Date */}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className={SECTION_LABEL}>Due Date</label>
+          <label className={SECTION_LABEL}>Date</label>
           <DatePicker
             value={formData.dueDate}
             onChange={(d) => setField("dueDate", d)}
-          />
-        </div>
-        <div>
-          <label className={SECTION_LABEL}>Start Date</label>
-          <DatePicker
-            value={formData.scheduleDate}
-            onChange={(d) => setField("scheduleDate", d)}
           />
         </div>
       </div>

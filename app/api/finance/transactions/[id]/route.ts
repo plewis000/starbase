@@ -12,12 +12,13 @@ export const PATCH = withUser(async (request: NextRequest, { supabase, user }, p
 
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
-  if (data.category_id !== undefined) updates.category_id = data.category_id || null;
-  if (data.notes !== undefined) updates.notes = data.notes;
-  if (data.reviewed !== undefined) updates.reviewed = data.reviewed;
-  if (data.excluded !== undefined) updates.excluded = data.excluded;
-  if (data.merchant_name !== undefined) updates.merchant_name = data.merchant_name;
-  if (data.description !== undefined) updates.description = data.description;
+  const body = parsed.body;
+  if ("category_id" in body) updates.category_id = data.category_id || null;
+  if ("notes" in body) updates.notes = data.notes;
+  if ("reviewed" in body) updates.reviewed = data.reviewed;
+  if ("excluded" in body) updates.excluded = data.excluded;
+  if ("merchant_name" in body) updates.merchant_name = data.merchant_name;
+  if ("description" in body) updates.description = data.description;
 
   const { data: transaction, error } = await finance(supabase)
     .from("transactions")

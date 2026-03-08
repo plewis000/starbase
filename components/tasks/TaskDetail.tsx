@@ -12,7 +12,6 @@ import {
   InlineTypePicker,
   InlineEffortPicker,
   InlineDatePicker,
-  InlineScheduleDatePicker,
   InlineLocationPicker,
   InlineTimeEstimate,
   InlineTagEditor,
@@ -106,7 +105,7 @@ const FIELD_LABELS: Record<string, string> = {
   status_id: "status",
   priority_id: "priority",
   assigned_to: "assignee",
-  due_date: "due date",
+  due_date: "date",
   title: "title",
   description: "description",
   task_type_id: "type",
@@ -114,7 +113,6 @@ const FIELD_LABELS: Record<string, string> = {
   effort_level_id: "effort",
   location_context_id: "location",
   completion_mode: "completion mode",
-  schedule_date: "start date",
   estimated_minutes: "time estimate",
   actual_minutes: "actual time",
   owner_ids: "owners",
@@ -383,11 +381,11 @@ export default function TaskDetail({
 
         {/* Meta information card */}
         <div className="bg-dungeon-800 border border-dungeon-700 rounded-lg p-4 space-y-4">
-          {/* Due date — inline editable */}
+          {/* Date — inline editable */}
           <div className="flex items-center gap-3">
             <span className="text-dungeon-500 text-sm">📅</span>
             <div className="flex-1">
-              <p className="text-xs text-dungeon-400 mb-1">Due date</p>
+              <p className="text-xs text-dungeon-400 mb-1">Date</p>
               <div className="flex items-center gap-3">
                 <InlineDatePicker
                   taskId={task.id}
@@ -397,26 +395,6 @@ export default function TaskDetail({
                 {task.due_date && (
                   <span className={`text-xs font-medium ${getDateColor(task.due_date)}`}>
                     {formatRelativeDate(task.due_date)}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Schedule date — inline editable */}
-          <div className="flex items-center gap-3">
-            <span className="text-dungeon-500 text-sm">🗓️</span>
-            <div className="flex-1">
-              <p className="text-xs text-dungeon-400 mb-1">Start date</p>
-              <div className="flex items-center gap-3">
-                <InlineScheduleDatePicker
-                  taskId={task.id}
-                  currentValue={task.schedule_date}
-                  onUpdated={handleFieldUpdated}
-                />
-                {task.schedule_date && (
-                  <span className={`text-xs font-medium ${getDateColor(task.schedule_date)}`}>
-                    {formatRelativeDate(task.schedule_date)}
                   </span>
                 )}
               </div>

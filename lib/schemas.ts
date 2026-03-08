@@ -255,7 +255,7 @@ export const paginationSchema = z.object({
 // ---- Helper: parse body with Zod ----
 
 export async function parseBody<T>(request: Request, schema: z.ZodSchema<T>): Promise<
-  { ok: true; data: T } | { ok: false; error: string; status: 400 }
+  { ok: true; data: T; body: Record<string, unknown> } | { ok: false; error: string; status: 400 }
 > {
   let body: unknown;
   try {
@@ -271,5 +271,5 @@ export async function parseBody<T>(request: Request, schema: z.ZodSchema<T>): Pr
     return { ok: false, error: `${path}${firstError.message}`, status: 400 };
   }
 
-  return { ok: true, data: result.data };
+  return { ok: true, data: result.data, body: body as Record<string, unknown> };
 }

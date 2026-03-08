@@ -25,13 +25,14 @@ export const PATCH = withAuth(async (request: NextRequest, { supabase, user, ctx
 
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
-  if (data.name !== undefined) updates.name = data.name;
-  if (data.quantity !== undefined) updates.quantity = data.quantity != null ? String(data.quantity) : null;
-  if (data.category_id !== undefined) updates.category_id = data.category_id;
-  if (data.is_staple !== undefined) updates.is_staple = data.is_staple;
-  if (data.sort_order !== undefined) updates.sort_order = data.sort_order;
+  const body = parsed.body;
+  if ("name" in body) updates.name = data.name;
+  if ("quantity" in body) updates.quantity = data.quantity != null ? String(data.quantity) : null;
+  if ("category_id" in body) updates.category_id = data.category_id;
+  if ("is_staple" in body) updates.is_staple = data.is_staple;
+  if ("sort_order" in body) updates.sort_order = data.sort_order;
 
-  if (data.checked !== undefined) {
+  if ("checked" in body && data.checked !== undefined) {
     updates.checked = data.checked;
     updates.checked_at = data.checked ? new Date().toISOString() : null;
     updates.checked_by = data.checked ? user.id : null;

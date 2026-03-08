@@ -205,10 +205,12 @@ export const PATCH = withAuth(async (request, { supabase, user, ctx }, params) =
     }
   }
 
-  // Apply validated fields from Zod output
+  // Apply only fields explicitly present in the request body.
+  // Zod transforms convert absent fields to null, so we check `field in body`
+  // instead of `value !== undefined` to avoid clobbering existing DB values.
   const validatedData = zodResult.data;
   for (const [field, value] of Object.entries(validatedData)) {
-    if (value !== undefined && !(field in updateFields)) {
+    if (field in body && !(field in updateFields)) {
       updateFields[field] = value;
     }
   }

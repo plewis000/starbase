@@ -106,7 +106,7 @@ export const PATCH = withAuth(async (request, { supabase, user }, params) => {
   const { goal_ids: parsedGoalIds, ...validatedFields } = parsed.data;
   const updates: Record<string, unknown> = {};
   for (const [key, val] of Object.entries(validatedFields)) {
-    if (val !== undefined) {
+    if (key in parsed.body) {
       updates[key] = val;
     }
   }
