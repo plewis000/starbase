@@ -684,7 +684,7 @@ export default function CrawlPage() {
       }
       setActivated(true);
       setActivation(null);
-      toast.success("The Crawl has begun. Good luck, crawler.");
+      toast.success("Gamification activated! XP and achievements are now tracking.");
       fetchProfile();
     } catch {
       toast.error("Failed to activate gamification");
@@ -726,8 +726,8 @@ export default function CrawlPage() {
       <div className="max-w-5xl mx-auto p-6">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-slate-100 dcc-heading tracking-wider">The Crawl</h1>
-          <p className="text-dungeon-500 text-sm mt-1 italic font-mono">So fun it hurts.</p>
+          <h1 className="text-3xl font-bold text-slate-100 dcc-heading tracking-wider">Gamification</h1>
+          <p className="text-dungeon-500 text-sm mt-1 italic font-mono">XP, achievements, rewards, and stats.</p>
         </div>
 
         {/* Active Season Banner */}
@@ -784,7 +784,7 @@ export default function CrawlPage() {
               <span className="text-2xl flex-shrink-0">🗡️</span>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2 mb-2">
-                  <h3 className="text-sm font-bold text-slate-100">Activate The Crawl</h3>
+                  <h3 className="text-sm font-bold text-slate-100">Activate Gamification</h3>
                   <button
                     onClick={() => setActivated(true)}
                     className="text-xs text-dungeon-500 hover:text-slate-300 transition-colors flex-shrink-0"

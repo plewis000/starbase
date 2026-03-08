@@ -129,7 +129,7 @@ export default function SettingsPage() {
 
   return (
     <div className="p-6 max-w-3xl mx-auto space-y-6">
-      <h1 className="text-2xl font-bold text-slate-100 dcc-heading tracking-wide">Registry</h1>
+      <h1 className="text-2xl font-bold text-slate-100 dcc-heading tracking-wide">Settings</h1>
 
       {/* Tabs */}
       <div className="flex items-center gap-1 dcc-card p-1 overflow-x-auto">
@@ -471,7 +471,7 @@ function SavedViewsManager() {
       </div>
       {visibleViews.length === 0 ? (
         <p className="text-sm text-dungeon-500 text-center py-4">
-          {showArchived ? "No archived views." : "No saved views yet. Save a filter from the Task Board."}
+          {showArchived ? "No archived views." : "No saved views yet. Save a filter from Tasks."}
         </p>
       ) : (
         <div className="space-y-2">

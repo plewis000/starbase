@@ -68,7 +68,7 @@ export default function WelcomePage() {
           <div className="space-y-3">
             <WelcomeStep
               number={1}
-              title="Browse the Task Board"
+              title="Browse Tasks"
               description="See shared tasks and claim ones you want to handle."
             />
             <WelcomeStep

@@ -50,7 +50,7 @@ export default function BudgetPage() {
     <div className="p-6">
       <div className="max-w-5xl mx-auto space-y-6">
         <PageHeader
-          title="The Vault"
+          title="Budget"
           subtitle="Track spending, set budgets, stay accountable."
           action={
             hasAccounts === false ? (

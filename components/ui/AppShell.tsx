@@ -28,18 +28,17 @@ interface AppShellProps {
 }
 
 const navItems: NavItem[] = [
-  { href: "/dashboard", label: "Command Deck", icon: "🏠" },
-  { href: "/comms", label: "Comms", icon: "💬" },
-  { href: "/crawl", label: "The Crawl", icon: "🗡️" },
-  { href: "/tasks", label: "Task Board", icon: "📋" },
+  { href: "/dashboard", label: "Home", icon: "🏠" },
+  { href: "/comms", label: "Messages", icon: "💬" },
+  { href: "/crawl", label: "Gamification", icon: "🎮" },
+  { href: "/tasks", label: "Tasks", icon: "📋" },
   { href: "/calendar", label: "Calendar", icon: "📅" },
-  { href: "/budget", label: "The Vault", icon: "💰" },
-  { href: "/goals", label: "War Room", icon: "🎯" },
-  { href: "/habits", label: "Training Grounds", icon: "🔄" },
-  { href: "/shopping", label: "Quartermaster", icon: "🛒" },
-  { href: "/recipes", label: "Mess Hall", icon: "🍳" },
-  { href: "/notifications", label: "Message Board", icon: "🔔" },
-  { href: "/settings", label: "Registry", icon: "⚙️" },
+  { href: "/budget", label: "Budget", icon: "💰" },
+  { href: "/goals", label: "Goals & Habits", icon: "🎯" },
+  { href: "/shopping", label: "Shopping", icon: "🛒" },
+  { href: "/recipes", label: "Recipes", icon: "🍳" },
+  { href: "/notifications", label: "Notifications", icon: "🔔" },
+  { href: "/settings", label: "Settings", icon: "⚙️" },
 ];
 
 export default function AppShell({ user, children }: AppShellProps) {

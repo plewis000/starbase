@@ -11,18 +11,17 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { href: "/dashboard", label: "Deck", icon: "🏠" },
-  { href: "/crawl", label: "Crawl", icon: "🗡️" },
+  { href: "/dashboard", label: "Home", icon: "🏠" },
   { href: "/tasks", label: "Tasks", icon: "📋" },
-  { href: "/habits", label: "Train", icon: "🔄" },
   { href: "/goals", label: "Goals", icon: "🎯" },
+  { href: "/crawl", label: "Game", icon: "🎮" },
+  { href: "/calendar", label: "Calendar", icon: "📅" },
 ];
 
 const moreItems: NavItem[] = [
-  { href: "/calendar", label: "Calendar", icon: "📅" },
-  { href: "/budget", label: "Vault", icon: "💰" },
-  { href: "/shopping", label: "Shop", icon: "🛒" },
-  { href: "/recipes", label: "Meals", icon: "🍳" },
+  { href: "/budget", label: "Budget", icon: "💰" },
+  { href: "/shopping", label: "Shopping", icon: "🛒" },
+  { href: "/recipes", label: "Recipes", icon: "🍳" },
   { href: "/chat", label: "Zev", icon: "💬" },
   { href: "/notifications", label: "Alerts", icon: "🔔" },
   { href: "/settings", label: "Settings", icon: "⚙️" },

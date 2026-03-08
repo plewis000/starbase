@@ -173,7 +173,7 @@ async function executeCommand(
       .eq("status", "active")
       .order("title");
 
-    if (!habits || habits.length === 0) return { response: "No active habits. The Training Grounds are empty." };
+    if (!habits || habits.length === 0) return { response: "No active habits." };
 
     // Check which are done today
     const { data: checkins } = await platform(supabase)
@@ -276,7 +276,7 @@ async function executeCommand(
       .eq("user_id", userId)
       .eq("is_active", true);
 
-    if (!budgets || budgets.length === 0) return { response: "No budgets configured. Visit The Vault to set them up." };
+    if (!budgets || budgets.length === 0) return { response: "No budgets configured. Set them up in Budget." };
 
     const { data: transactions } = await supabase
       .schema("finance")
@@ -311,7 +311,7 @@ async function executeCommand(
       .order("target_date", { ascending: true })
       .limit(10);
 
-    if (!goals || goals.length === 0) return { response: "No active goals. Visit the War Room to set some." };
+    if (!goals || goals.length === 0) return { response: "No active goals. Create some in Goals & Habits." };
 
     const lines = goals.map((g) => {
       const pct = g.progress_value ? `${Math.round(g.progress_value)}%` : "0%";
@@ -332,7 +332,7 @@ async function executeCommand(
       .order("created_at", { ascending: false })
       .limit(5);
 
-    if (!lists || lists.length === 0) return { response: "No active shopping lists. The Quartermaster has nothing to report." };
+    if (!lists || lists.length === 0) return { response: "No active shopping lists." };
 
     const listSummaries = [];
     for (const list of lists) {

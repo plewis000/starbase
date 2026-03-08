@@ -160,16 +160,15 @@ export default function CommandPalette() {
 
     // Navigation
     const navItems = [
-      { label: "Dashboard", icon: "🏠", path: "/dashboard", keywords: ["home", "overview", "dash"] },
-      { label: "The Crawl", icon: "🗡️", path: "/crawl", keywords: ["crawl", "xp", "level", "profile", "achievement", "gamif"] },
+      { label: "Home", icon: "🏠", path: "/dashboard", keywords: ["home", "overview", "dash", "dashboard"] },
+      { label: "Gamification", icon: "🎮", path: "/crawl", keywords: ["crawl", "xp", "level", "profile", "achievement", "gamif", "game"] },
       { label: "Tasks", icon: "📋", path: "/tasks", keywords: ["todo", "task"] },
-      { label: "Goals", icon: "🎯", path: "/goals", keywords: ["goal", "objective"] },
-      { label: "Habits", icon: "🔄", path: "/habits", keywords: ["habit", "routine", "streak"] },
+      { label: "Goals & Habits", icon: "🎯", path: "/goals", keywords: ["goal", "objective", "habit", "routine", "streak"] },
       { label: "Budget", icon: "💰", path: "/budget", keywords: ["budget", "money", "spend", "finance"] },
       { label: "Shopping", icon: "🛒", path: "/shopping", keywords: ["shop", "grocery", "list", "buy"] },
-      { label: "Recipes & Meals", icon: "🍳", path: "/recipes", keywords: ["recipe", "meal", "plan", "cook", "food", "dinner", "ingredient"] },
+      { label: "Recipes", icon: "🍳", path: "/recipes", keywords: ["recipe", "meal", "plan", "cook", "food", "dinner", "ingredient"] },
       { label: "Notifications", icon: "🔔", path: "/notifications", keywords: ["notification", "alert", "bell"] },
-      { label: "Party Quests", icon: "👥", path: "/crawl/party", keywords: ["party", "quest", "team", "coop", "shared"] },
+      { label: "Shared Challenges", icon: "👥", path: "/crawl/party", keywords: ["party", "quest", "team", "coop", "shared"] },
       { label: "Reward Pool", icon: "🎁", path: "/crawl/rewards", keywords: ["reward", "loot", "prize", "pool"] },
       { label: "Leaderboard", icon: "🏆", path: "/crawl", keywords: ["leader", "rank", "leaderboard", "compete"] },
       { label: "Settings", icon: "⚙️", path: "/settings", keywords: ["admin", "config", "setting"] },

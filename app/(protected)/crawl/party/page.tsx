@@ -99,7 +99,7 @@ export default function PartyGoalsPage() {
         title="Party Quests"
         subtitle="Shared goals for the household. Complete together for bonus XP. The System respects cooperation. Barely."
         breadcrumbs={[
-          { label: "The Crawl", href: "/crawl" },
+          { label: "Gamification", href: "/crawl" },
           { label: "Party Quests" },
         ]}
         action={

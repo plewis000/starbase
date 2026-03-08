@@ -10,17 +10,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { platform } from "@/lib/supabase/schemas";
 
-// The rooms of The Keep
 export const FEATURE_AREAS = [
-  "tasks",       // The Task Board
-  "habits",      // The Training Grounds
-  "goals",       // The War Room
-  "budget",      // The Vault
-  "shopping",    // The Quartermaster
-  "crawl",       // The Hall of Records
-  "chat",        // The Outreach Office
-  "notifications", // The Message Board
-  "settings",    // The Registry
+  "tasks",
+  "habits",
+  "goals",
+  "budget",
+  "shopping",
+  "crawl",
+  "chat",
+  "notifications",
+  "settings",
 ] as const;
 
 export type FeatureArea = typeof FEATURE_AREAS[number];

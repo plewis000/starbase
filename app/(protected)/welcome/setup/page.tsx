@@ -516,7 +516,7 @@ export default function SetupPage() {
               onClick={() => router.push("/tasks")}
               className="w-full dcc-btn-primary py-3 text-base"
             >
-              Go to Task Board
+              Go to Tasks
             </button>
           </div>
         )}

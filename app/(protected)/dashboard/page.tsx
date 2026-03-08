@@ -139,7 +139,7 @@ function formatTimeAgo(dateStr: string): string {
 const getWelcomeMessage = (displayName: string) => {
   const welcomeMessages = [
     `Welcome back, ${displayName}`,
-    `The Command Deck awaits, ${displayName}`,
+    `Ready when you are, ${displayName}`,
     `Good to see you again, ${displayName}`,
     `Back for more, ${displayName}?`,
     `The System missed you, ${displayName}`,
@@ -784,10 +784,10 @@ export default function DashboardPage() {
         {/* Quick Action Buttons */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           <QuickActionButton href="/chat" icon="💬" label="Ask Zev" />
-          <QuickActionButton href="/crawl" icon="🗡️" label="The Crawl" />
-          <QuickActionButton href="/goals" icon="🎯" label="War Room" />
-          <QuickActionButton href="/habits" icon="🔄" label="Training" />
-          <QuickActionButton href="/tasks" icon="📋" label="Task Board" />
+          <QuickActionButton href="/tasks" icon="📋" label="Tasks" />
+          <QuickActionButton href="/goals" icon="🎯" label="Goals & Habits" />
+          <QuickActionButton href="/crawl" icon="🎮" label="Gamification" />
+          <QuickActionButton href="/budget" icon="💰" label="Budget" />
         </div>
 
         {error && (

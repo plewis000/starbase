@@ -149,7 +149,7 @@ export default function RewardsPage() {
         title="Loot Box Rewards"
         subtitle="Define what you can win. The System doesn't hand out participation trophies."
         breadcrumbs={[
-          { label: "The Crawl", href: "/crawl" },
+          { label: "Gamification", href: "/crawl" },
           { label: "Reward Pool" },
         ]}
         action={
