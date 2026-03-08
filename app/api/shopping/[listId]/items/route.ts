@@ -28,7 +28,7 @@ export const POST = withAuth(async (request: NextRequest, { supabase, user, ctx 
   const inserts = parsed.data.items.map((item) => ({
     list_id: listId,
     name: item.name,
-    quantity: item.quantity != null ? String(item.quantity) : null,
+    quantity: item.quantity || null,
     category_id: item.category_id ?? null,
     is_staple: item.is_staple,
     added_by: user.id,

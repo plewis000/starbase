@@ -8,7 +8,7 @@ import Modal from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 
 // Parse quantity from item name: "2 lbs chicken" → { name: "chicken", quantity: "2 lbs" }
-// Also handles: "milk x3", "3x eggs", "chicken (2 lbs)"
+// Also handles: "milk x3", "3x eggs", "chicken (2 lbs)", "$50 headphones"
 function parseItemInput(input: string): { name: string; quantity: string | null } {
   const trimmed = input.trim();
 
@@ -21,12 +21,17 @@ function parseItemInput(input: string): { name: string; quantity: string | null 
   const trailingMatch = trimmed.match(trailingX);
   if (trailingMatch) return { name: trailingMatch[1].trim(), quantity: trailingMatch[2] };
 
+  // Pattern: "$50 headphones" or "$19.99 book"
+  const pricePattern = /^\$[\d,.]+\s+(.+)$/;
+  const priceMatch = trimmed.match(pricePattern);
+  if (priceMatch) return { name: trimmed, quantity: null }; // Keep price in name
+
   // Pattern: "2 lbs chicken", "1 gallon milk", "3 bags chips"
   const unitPattern = /^(\d+(?:\.\d+)?)\s+(lbs?|oz|kg|g|gallon|gallons|gal|bags?|boxes?|cans?|bottles?|packs?|bunche?s?|dozen|doz|ct|count|liters?|l)\s+(.+)$/i;
   const unitMatch = trimmed.match(unitPattern);
   if (unitMatch) return { name: unitMatch[3].trim(), quantity: `${unitMatch[1]} ${unitMatch[2]}` };
 
-  // Pattern: "chicken (2 lbs)"
+  // Pattern: "chicken (2 lbs)" or "headphones ($50)"
   const parenPattern = /^(.+?)\s*\((.+?)\)\s*$/;
   const parenMatch = trimmed.match(parenPattern);
   if (parenMatch) return { name: parenMatch[1].trim(), quantity: parenMatch[2].trim() };
@@ -71,6 +76,13 @@ interface ShoppingList {
   created_at: string;
 }
 
+const LIST_TEMPLATES = [
+  { name: "Groceries", store: "" },
+  { name: "Wishlist", store: "" },
+  { name: "Home & Hardware", store: "" },
+  { name: "Errands", store: "" },
+];
+
 export default function ShoppingPage() {
   const toast = useToast();
   const [lists, setLists] = useState<ShoppingList[]>([]);
@@ -86,6 +98,7 @@ export default function ShoppingPage() {
   const [newItemName, setNewItemName] = useState("");
   const [newItemQty, setNewItemQty] = useState("");
   const [newItemCategory, setNewItemCategory] = useState("");
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [linkedItemIds, setLinkedItemIds] = useState<Set<string>>(new Set());
   const [showCelebration, setShowCelebration] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -126,8 +139,6 @@ export default function ShoppingPage() {
       setListLoading(false);
     }
   }, [activeListId]);
-
-  // Categories loaded above from /api/config
 
   useEffect(() => { fetchLists(); }, [fetchLists]);
   useEffect(() => { fetchActiveList(); }, [fetchActiveList]);
@@ -173,16 +184,15 @@ export default function ShoppingPage() {
     loadCategories();
   }, []);
 
-  const handleCreateList = async () => {
-    if (!newListName.trim()) return;
+  const handleCreateList = async (name?: string, store?: string) => {
+    const listName = name || newListName.trim();
+    const listStore = store || newListStore.trim() || null;
+    if (!listName) return;
     try {
       const res = await fetch("/api/shopping", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: newListName.trim(),
-          store: newListStore.trim() || null,
-        }),
+        body: JSON.stringify({ name: listName, store: listStore }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -228,7 +238,8 @@ export default function ShoppingPage() {
         await fetchActiveList();
         await fetchLists();
       } else {
-        toast.error("Failed to add item");
+        const errData = await res.json().catch(() => ({}));
+        toast.error(errData.error || "Failed to add item");
       }
     } catch {
       toast.error("Failed to add item");
@@ -260,7 +271,7 @@ export default function ShoppingPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ entity_type: "shopping_item", entity_id: itemId }),
-        }).catch(() => {}); // Fire-and-forget — don't block UI
+        }).catch(() => {}); // Fire-and-forget
       }
       // Celebrate when all items are checked off
       if (checked) {
@@ -270,7 +281,7 @@ export default function ShoppingPage() {
         const allChecked = updatedItems?.every((i) => i.checked);
         if (allChecked && updatedItems && updatedItems.length > 0) {
           setShowCelebration(true);
-          toast.success("List complete! Nice shopping!");
+          toast.success("All done!");
         }
       }
       await fetchLists(); // Update counts
@@ -282,14 +293,17 @@ export default function ShoppingPage() {
 
   const handleDeleteItem = async (itemId: string) => {
     if (!activeListId) return;
+    // Optimistic removal
+    setActiveList((prev) => {
+      if (!prev) return prev;
+      return { ...prev, items: prev.items?.filter((i) => i.id !== itemId) };
+    });
     try {
-      await fetch(`/api/shopping/${activeListId}/items/${itemId}`, {
-        method: "DELETE",
-      });
-      await fetchActiveList();
+      await fetch(`/api/shopping/${activeListId}/items/${itemId}`, { method: "DELETE" });
       await fetchLists();
     } catch (err) {
       console.error("Failed to delete item:", err);
+      await fetchActiveList();
     }
   };
 
@@ -336,7 +350,6 @@ export default function ShoppingPage() {
   const handleTrackAsTask = async (item: ShoppingItem) => {
     setTrackingItemId(item.id);
     try {
-      // 1. Create a task with the shopping item's name
       const taskRes = await fetch("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -349,7 +362,6 @@ export default function ShoppingPage() {
       const taskId = taskData.task?.id;
       if (!taskId) throw new Error("No task ID returned");
 
-      // 2. Create entity link between shopping item and task
       const linkRes = await fetch("/api/entity-links", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -367,7 +379,7 @@ export default function ShoppingPage() {
       }
 
       setLinkedItemIds((prev) => new Set([...prev, item.id]));
-      toast.success(`Task created and linked to "${item.name}"`);
+      toast.success(`Task created for "${item.name}"`);
     } catch {
       toast.error("Failed to track as task");
     } finally {
@@ -375,17 +387,26 @@ export default function ShoppingPage() {
     }
   };
 
-  // Group items by category
+  // Group items: unchecked by category, checked at bottom
   const groupedItems = () => {
     if (!activeList?.items) return {};
     const groups: Record<string, ShoppingItem[]> = {};
     const unchecked = activeList.items.filter((i) => !i.checked);
     const checked = activeList.items.filter((i) => i.checked);
 
-    for (const item of unchecked) {
-      const catName = item.category?.name || "Uncategorized";
-      if (!groups[catName]) groups[catName] = [];
-      groups[catName].push(item);
+    // If any items have categories, group by category
+    const hasCategories = unchecked.some((i) => i.category);
+    if (hasCategories) {
+      for (const item of unchecked) {
+        const catName = item.category?.name || "Other";
+        if (!groups[catName]) groups[catName] = [];
+        groups[catName].push(item);
+      }
+    } else {
+      // No categories — just show as a flat list
+      if (unchecked.length > 0) {
+        groups["Items"] = unchecked;
+      }
     }
 
     if (checked.length > 0) {
@@ -440,6 +461,9 @@ export default function ShoppingPage() {
                 }`}
               >
                 <span>{list.name}</span>
+                {list.store && (
+                  <span className="ml-1.5 text-xs opacity-50">{list.store}</span>
+                )}
                 {list.total_items > 0 && (
                   <span className="ml-2 text-xs opacity-60">
                     {list.checked_items}/{list.total_items}
@@ -451,16 +475,29 @@ export default function ShoppingPage() {
         )}
 
         {lists.length === 0 ? (
-          <EmptyState
-            icon="🛒"
-            title="Your shopping lists are empty"
-            description="Create a list for your next grocery run — add items, check them off as you shop, and never forget the milk again."
-            tip="Tip: Shopping lists are for store runs. For recurring purchases like 'buy milk weekly', use a task with a recurrence."
-            action={{
-              label: "Create Your First List",
-              onClick: () => setShowNewListModal(true),
-            }}
-          />
+          <div className="space-y-6">
+            <EmptyState
+              icon="📋"
+              title="No lists yet"
+              description="Create lists for groceries, wishlists, home projects, or anything you need to buy or track."
+              action={{
+                label: "Create a List",
+                onClick: () => setShowNewListModal(true),
+              }}
+            />
+            {/* Quick-start templates */}
+            <div className="flex flex-wrap gap-2 justify-center">
+              {LIST_TEMPLATES.map((tmpl) => (
+                <button
+                  key={tmpl.name}
+                  onClick={() => handleCreateList(tmpl.name, tmpl.store)}
+                  className="px-4 py-2 rounded-lg text-sm font-medium bg-dungeon-900 border border-dungeon-800 text-dungeon-400 hover:text-slate-200 hover:border-dungeon-600 transition-all"
+                >
+                  {tmpl.name}
+                </button>
+              ))}
+            </div>
+          </div>
         ) : (
           <>
             {/* Add item form */}
@@ -472,7 +509,7 @@ export default function ShoppingPage() {
                 onKeyDown={(e) => {
                   if (e.key === "Enter") handleAddItem();
                 }}
-                placeholder='Add item... (try "2 lbs chicken")'
+                placeholder="Add an item..."
                 className="flex-1 min-w-[200px] px-4 py-2.5 bg-dungeon-900 border border-dungeon-800 rounded-lg text-slate-100 placeholder-dungeon-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/30 transition-colors"
               />
               <input
@@ -483,21 +520,43 @@ export default function ShoppingPage() {
                   if (e.key === "Enter") handleAddItem();
                 }}
                 placeholder="Qty"
-                className="w-20 px-3 py-2.5 bg-dungeon-900 border border-dungeon-800 rounded-lg text-slate-100 placeholder-dungeon-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/30 transition-colors text-center"
+                className="w-24 px-3 py-2.5 bg-dungeon-900 border border-dungeon-800 rounded-lg text-slate-100 placeholder-dungeon-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/30 transition-colors text-center"
               />
+              {/* Category toggle — only show picker if categories exist and user wants it */}
               {categories.length > 0 && (
-                <select
-                  value={newItemCategory}
-                  onChange={(e) => setNewItemCategory(e.target.value)}
-                  className="w-36 px-3 py-2.5 bg-dungeon-900 border border-dungeon-800 rounded-lg text-slate-100 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/30 transition-colors text-sm"
-                >
-                  <option value="">Category</option>
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.icon ? `${cat.icon} ` : ""}{cat.name}
-                    </option>
-                  ))}
-                </select>
+                <>
+                  <button
+                    onClick={() => setShowCategoryPicker(!showCategoryPicker)}
+                    className={`px-3 py-2.5 rounded-lg text-sm border transition-colors ${
+                      showCategoryPicker || newItemCategory
+                        ? "bg-dungeon-800 border-red-400/30 text-red-400"
+                        : "bg-dungeon-900 border-dungeon-800 text-dungeon-500 hover:text-slate-300 hover:border-dungeon-700"
+                    }`}
+                    title="Set category"
+                  >
+                    {newItemCategory
+                      ? categories.find((c) => c.id === newItemCategory)?.name || "Category"
+                      : "Category"}
+                  </button>
+                  {showCategoryPicker && (
+                    <select
+                      value={newItemCategory}
+                      onChange={(e) => {
+                        setNewItemCategory(e.target.value);
+                        setShowCategoryPicker(false);
+                      }}
+                      autoFocus
+                      className="w-36 px-3 py-2.5 bg-dungeon-900 border border-dungeon-800 rounded-lg text-slate-100 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/30 transition-colors text-sm"
+                    >
+                      <option value="">No category</option>
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.icon ? `${cat.icon} ` : ""}{cat.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </>
               )}
               <button
                 onClick={handleAddItem}
@@ -514,59 +573,32 @@ export default function ShoppingPage() {
                 <LoadingSpinner size="md" />
               </div>
             ) : items.length === 0 ? (
-              <div className="space-y-6">
-                <div className="text-center py-8">
-                  <div className="text-4xl mb-3">🛒</div>
-                  <p className="text-slate-300 font-medium mb-1">This list is ready for items</p>
-                  <p className="text-dungeon-500 text-sm">Type an item above and press Enter — try &quot;2 lbs chicken&quot; or &quot;milk x3&quot;</p>
-                </div>
-                <div className="bg-dungeon-850 border border-dungeon-700 rounded-xl p-5">
-                  <h3 className="text-sm font-semibold text-slate-300 mb-3">Common items — tap to add</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {["Milk", "Eggs", "Bread", "Butter", "Chicken", "Rice", "Bananas", "Onions", "Tomatoes", "Cheese", "Pasta", "Coffee"].map((item) => (
-                      <button
-                        key={item}
-                        onClick={async () => {
-                          try {
-                            const res = await fetch(`/api/shopping/${activeListId}/items`, {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ name: item }),
-                            });
-                            if (res.ok) {
-                              toast.success(`Added ${item}`);
-                              await fetchActiveList();
-                              await fetchLists();
-                            }
-                          } catch { toast.error("Failed to add item"); }
-                        }}
-                        className="px-3 py-1.5 rounded-full text-xs font-medium bg-dungeon-900 border border-dungeon-700 text-dungeon-400 hover:text-slate-200 hover:border-crimson-700 transition-all"
-                      >
-                        {item}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+              <div className="text-center py-12">
+                <div className="text-4xl mb-3">📋</div>
+                <p className="text-slate-300 font-medium mb-1">This list is empty</p>
+                <p className="text-dungeon-500 text-sm">Type an item above and press Enter</p>
               </div>
             ) : (
               <div className="space-y-6">
                 {Object.entries(grouped).map(([category, categoryItems]) => (
                   <div key={category}>
-                    {/* Category header */}
-                    <div className="flex items-center gap-2 mb-2">
-                      {category !== "Uncategorized" && category !== "Checked" && (
-                        <span className="text-sm">
-                          {categoryItems[0]?.category?.icon || ""}
-                        </span>
-                      )}
-                      {category === "Checked" && <span className="text-sm">✓</span>}
-                      <h3 className={`text-sm font-semibold ${
-                        category === "Checked" ? "text-dungeon-500" : "text-slate-300"
-                      }`}>
-                        {category}
-                      </h3>
-                      <span className="text-xs text-dungeon-500">({categoryItems.length})</span>
-                    </div>
+                    {/* Category header — hide generic "Items" header if only one group */}
+                    {category !== "Items" && (
+                      <div className="flex items-center gap-2 mb-2">
+                        {category !== "Checked" && (
+                          <span className="text-sm">
+                            {categoryItems[0]?.category?.icon || ""}
+                          </span>
+                        )}
+                        {category === "Checked" && <span className="text-sm text-dungeon-600">✓</span>}
+                        <h3 className={`text-sm font-semibold ${
+                          category === "Checked" ? "text-dungeon-500" : "text-slate-300"
+                        }`}>
+                          {category}
+                        </h3>
+                        <span className="text-xs text-dungeon-500">({categoryItems.length})</span>
+                      </div>
+                    )}
 
                     {/* Items */}
                     <div className="space-y-1">
@@ -602,14 +634,14 @@ export default function ShoppingPage() {
                             {item.name}
                           </span>
 
-                          {/* Quantity */}
+                          {/* Quantity badge */}
                           {item.quantity && (
                             <span className="text-xs text-dungeon-400 bg-dungeon-800 px-2 py-0.5 rounded">
                               {item.quantity}
                             </span>
                           )}
 
-                          {/* Staple toggle */}
+                          {/* Staple indicator */}
                           <button
                             onClick={async () => {
                               try {
@@ -629,7 +661,7 @@ export default function ShoppingPage() {
                             className={`text-xs transition-colors flex-shrink-0 ${
                               item.is_staple ? "text-amber-400" : "text-dungeon-600 opacity-0 group-hover:opacity-100 hover:text-amber-400"
                             }`}
-                            title={item.is_staple ? "Remove from staples" : "Mark as staple"}
+                            title={item.is_staple ? "Remove from staples" : "Mark as staple (auto-adds to new lists)"}
                           >
                             ★
                           </button>
@@ -680,7 +712,7 @@ export default function ShoppingPage() {
                 <div className="flex items-center justify-between pt-4 border-t border-dungeon-800">
                   <div className="flex items-center gap-3">
                     <span className="text-sm text-dungeon-400">
-                      {uncheckedCount} remaining, {checkedCount} checked
+                      {uncheckedCount} remaining{checkedCount > 0 ? `, ${checkedCount} done` : ""}
                     </span>
                   </div>
                   <div className="flex gap-2">
@@ -689,7 +721,7 @@ export default function ShoppingPage() {
                         onClick={handleClearChecked}
                         className="px-3 py-1.5 text-sm text-dungeon-400 hover:text-slate-100 bg-dungeon-900 border border-dungeon-800 rounded-lg hover:border-dungeon-700 transition-colors"
                       >
-                        Clear checked
+                        Clear done
                       </button>
                     )}
                     {showDeleteConfirm ? (
@@ -728,17 +760,39 @@ export default function ShoppingPage() {
       <Modal
         isOpen={showNewListModal}
         onClose={() => setShowNewListModal(false)}
-        title="New Shopping List"
+        title="New List"
       >
         <div className="space-y-4">
+          {/* Quick templates */}
           <div>
-            <label className="block text-sm font-medium text-slate-100 mb-2">List Name *</label>
+            <label className="block text-xs font-medium text-dungeon-400 mb-2">Quick start</label>
+            <div className="flex flex-wrap gap-2">
+              {LIST_TEMPLATES.map((tmpl) => (
+                <button
+                  key={tmpl.name}
+                  onClick={() => {
+                    handleCreateList(tmpl.name, tmpl.store);
+                  }}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium bg-dungeon-800 border border-dungeon-700 text-dungeon-400 hover:text-slate-200 hover:border-dungeon-600 transition-all"
+                >
+                  {tmpl.name}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px bg-dungeon-700" />
+            <span className="text-xs text-dungeon-500">or custom</span>
+            <div className="flex-1 h-px bg-dungeon-700" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-100 mb-2">List Name</label>
             <input
               type="text"
               value={newListName}
               onChange={(e) => setNewListName(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") handleCreateList(); }}
-              placeholder="e.g., Weekly Groceries"
+              placeholder="e.g., Holiday gifts, Home renovation, Amazon"
               autoFocus
               className="w-full bg-dungeon-800 border border-dungeon-700 rounded px-4 py-2 text-slate-100 placeholder-dungeon-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50"
             />
@@ -749,7 +803,7 @@ export default function ShoppingPage() {
               type="text"
               value={newListStore}
               onChange={(e) => setNewListStore(e.target.value)}
-              placeholder="e.g., Costco, Trader Joe's"
+              placeholder="e.g., Amazon, Costco, Home Depot"
               className="w-full bg-dungeon-800 border border-dungeon-700 rounded px-4 py-2 text-slate-100 placeholder-dungeon-500 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/50"
             />
           </div>
@@ -761,7 +815,7 @@ export default function ShoppingPage() {
               Cancel
             </button>
             <button
-              onClick={handleCreateList}
+              onClick={() => handleCreateList()}
               disabled={!newListName.trim()}
               className="px-4 py-2 bg-red-400 hover:bg-red-500 disabled:bg-dungeon-700 disabled:cursor-not-allowed text-slate-950 font-medium rounded transition-colors"
             >
