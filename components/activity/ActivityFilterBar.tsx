@@ -348,7 +348,7 @@ export default function ActivityFilterBar({
               + Restore ({totalRestorableCount})
             </button>
             {showRestoreMenu && (
-              <div className="absolute top-full left-0 mt-1 bg-dungeon-900 border border-dungeon-700 rounded-lg shadow-xl z-50 py-1 min-w-[140px]">
+              <div className="absolute bottom-full left-0 mb-1 bg-dungeon-900 border border-dungeon-700 rounded-lg shadow-xl z-50 py-1 min-w-[140px]">
                 {hiddenDefaultViews.map((view) => (
                   <button
                     key={view.name}

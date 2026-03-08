@@ -125,6 +125,11 @@ export async function POST(request: NextRequest) {
     updateFields.status = STATUS_MAP[pipeline_status];
   }
 
+  // Mark terminal statuses as completed
+  if (pipeline_status === "shipped" || pipeline_status === "rejected") {
+    updateFields.completed_at = new Date().toISOString();
+  }
+
   const { data: feedback, error } = await platform(supabase)
     .from("feedback")
     .update(updateFields)
