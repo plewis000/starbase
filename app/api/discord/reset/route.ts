@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
         "",
         "Then try these:",
         "• `/help` — see all commands",
-        "• `/ask` — talk to Zev (he'll walk you through onboarding)",
+        "• `/ask` — talk to Zev (she'll walk you through onboarding)",
         "• `/task` — create a task",
         "• `/habit` — check in to a habit",
         "• `/dashboard` — your daily overview",
