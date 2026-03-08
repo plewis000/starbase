@@ -7,7 +7,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { platform, config } from "@/lib/supabase/schemas";
-import { sendEmbed, SYSTEM_COLOR } from "@/lib/discord";
+import { sendEmbed, SYSTEM_COLOR, findChannelByName, CHANNELS } from "@/lib/discord";
 import { checkAchievements } from "@/lib/gamification";
 import { triggerNotification } from "@/lib/notify";
 
@@ -90,9 +90,9 @@ export async function GET(request: NextRequest) {
     }).catch(() => {});
   }
 
-  const channelId = process.env.PIPELINE_CHANNEL_ID;
+  const channelId = await findChannelByName(CHANNELS.GENERAL);
   if (!channelId) {
-    return NextResponse.json({ error: "No PIPELINE_CHANNEL_ID" }, { status: 500 });
+    return NextResponse.json({ error: "No #general channel found" }, { status: 500 });
   }
 
   const lines = missed.slice(0, 10).map(h =>

@@ -114,13 +114,18 @@ export async function registerSlashCommands() {
           { name: "Medium", value: "medium" },
           { name: "Low", value: "low" },
         ]},
+        { name: "assign", description: "Assign to household member (name)", type: 3, required: false },
       ],
     },
     {
       name: "habit",
-      description: "Check in to a habit",
+      description: "Check in or create a habit",
       options: [
-        { name: "name", description: "Habit name (search)", type: 3, required: true },
+        { name: "name", description: "Habit name (search or title for create)", type: 3, required: true },
+        { name: "action", description: "Check in or create", type: 3, required: false, choices: [
+          { name: "Check in", value: "checkin" },
+          { name: "Create", value: "create" },
+        ]},
       ],
     },
     {
@@ -241,16 +246,15 @@ function splitMessage(content: string, maxLength: number): string[] {
   return chunks;
 }
 
-// Channel name constants
+// Channel name constants (consolidated: general, activity, pipeline)
 export const CHANNELS = {
   GENERAL: "general",
-  BUDGET: "budget",
-  TASKS: "tasks",
-  GOALS: "goals",
-  SHOPPING: "shopping",
-  LOGS: "logs",
+  ACTIVITY: "activity",
   PIPELINE: "pipeline",
 } as const;
+
+// Legacy channel names (for cleanup during reset)
+export const LEGACY_CHANNELS = ["budget", "tasks", "goals", "shopping", "logs"];
 
 // Bot embed colors — The Keep theme
 export const ZEV_COLOR = 0xD4A857;      // Warm gold — Zev's personal color
@@ -276,6 +280,16 @@ export async function deleteChannel(channelId: string): Promise<boolean> {
     console.error("[discord] deleteChannel failed:", err);
     return false;
   }
+}
+
+// Find a channel by name (cached for 5 minutes)
+let channelCache: { channels: DiscordChannel[]; ts: number } | null = null;
+export async function findChannelByName(name: string): Promise<string | null> {
+  const now = Date.now();
+  if (!channelCache || now - channelCache.ts > 5 * 60 * 1000) {
+    channelCache = { channels: await getGuildChannels(), ts: now };
+  }
+  return channelCache.channels.find(c => c.name === name)?.id || null;
 }
 
 export { DISCORD_API, GUILD_ID };

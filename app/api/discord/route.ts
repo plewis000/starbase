@@ -447,6 +447,7 @@ async function handleTask(supabase: Supabase, userId: string, options: Record<st
   const title = options.title as string;
   const due = options.due as string | undefined;
   const priorityName = options.priority as string | undefined;
+  const assignName = options.assign as string | undefined;
 
   // Resolve priority name to UUID
   let priorityId: string | undefined;
@@ -457,6 +458,31 @@ async function handleTask(supabase: Supabase, userId: string, options: Record<st
       .eq("active", true);
     const match = priorities?.find((p) => p.name.toLowerCase() === priorityName.toLowerCase());
     if (match) priorityId = match.id;
+  }
+
+  // Resolve assign name to household member
+  let assigneeId = userId;
+  let assigneeName: string | undefined;
+  if (assignName) {
+    const { getHouseholdContext, getHouseholdMemberIds } = await import("@/lib/household");
+    const hCtx = await getHouseholdContext(supabase, userId);
+    if (hCtx) {
+      const memberIds = await getHouseholdMemberIds(supabase, hCtx.household_id);
+      const { data: members } = await platform(supabase)
+        .from("users")
+        .select("id, full_name")
+        .in("id", memberIds);
+      const assignMatch = members?.find((m) =>
+        m.full_name?.toLowerCase().includes(assignName.toLowerCase())
+      );
+      if (assignMatch) {
+        assigneeId = assignMatch.id;
+        assigneeName = assignMatch.full_name || undefined;
+      } else {
+        await sendWebhook(webhookUrl, { content: `No household member matching "${assignName}".` });
+        return;
+      }
+    }
   }
 
   // Get default status (first active status, usually "To Do")
@@ -471,7 +497,7 @@ async function handleTask(supabase: Supabase, userId: string, options: Record<st
 
   const insertData: Record<string, unknown> = {
     title,
-    assigned_to: userId,
+    assigned_to: assigneeId,
     created_by: userId,
   };
   if (statusId) insertData.status_id = statusId;
@@ -493,6 +519,7 @@ async function handleTask(supabase: Supabase, userId: string, options: Record<st
   const fields = [];
   if (due) fields.push({ name: "Due", value: due, inline: true });
   if (priorityName) fields.push({ name: "Priority", value: priorityName.charAt(0).toUpperCase() + priorityName.slice(1), inline: true });
+  if (assigneeName && assigneeId !== userId) fields.push({ name: "Assigned to", value: assigneeName, inline: true });
 
   await sendWebhook(webhookUrl, {
     embeds: [{
@@ -506,7 +533,58 @@ async function handleTask(supabase: Supabase, userId: string, options: Record<st
 }
 
 async function handleHabit(supabase: Supabase, userId: string, options: Record<string, unknown>, webhookUrl: string) {
-  const searchName = (options.name as string).toLowerCase();
+  const habitName = options.name as string;
+  const action = (options.action as string) || "checkin";
+
+  // Handle create action
+  if (action === "create") {
+    // Get default frequency (daily)
+    const { data: defaultFreq } = await config(supabase)
+      .from("habit_frequencies")
+      .select("id")
+      .eq("target_type", "daily")
+      .limit(1)
+      .single();
+
+    if (!defaultFreq) {
+      await sendWebhook(webhookUrl, { content: "Couldn't create habit — no frequency config found." });
+      return;
+    }
+
+    const today = new Date().toISOString().slice(0, 10);
+    const { data: newHabit, error } = await platform(supabase)
+      .from("habits")
+      .insert({
+        title: habitName,
+        owner_id: userId,
+        frequency_id: defaultFreq.id,
+        status: "active",
+        target_count: 1,
+        started_on: today,
+        current_streak: 0,
+        longest_streak: 0,
+      })
+      .select("id, title")
+      .single();
+
+    if (error) {
+      console.error("Discord habit create failed:", error.message);
+      await sendWebhook(webhookUrl, { content: "Couldn't create habit. Something went wrong." });
+      return;
+    }
+
+    await sendWebhook(webhookUrl, {
+      embeds: [{
+        title: "Habit created",
+        description: `**${newHabit.title}** — daily, starting today.\nCheck in with \`/habit ${newHabit.title}\``,
+        color: ZEV_COLOR,
+        footer: { text: "Free command — no API cost" },
+      }],
+    });
+    return;
+  }
+
+  const searchName = habitName.toLowerCase();
 
   // Find habit by name (fuzzy match) — include frequency for streak engine
   const { data: habits } = await platform(supabase)
@@ -516,7 +594,12 @@ async function handleHabit(supabase: Supabase, userId: string, options: Record<s
     .eq("status", "active");
 
   if (!habits || habits.length === 0) {
-    await sendWebhook(webhookUrl, { content: "You don't have any active habits. Create one on the web first." });
+    await sendWebhook(webhookUrl, {
+      embeds: [{
+        description: `You don't have any habits yet. Create one:\n\`/habit ${habitName} action:Create\``,
+        color: ZEV_COLOR,
+      }],
+    });
     return;
   }
 
@@ -527,7 +610,12 @@ async function handleHabit(supabase: Supabase, userId: string, options: Record<s
 
   if (!match) {
     const names = habits.map((h) => h.title).join(", ");
-    await sendWebhook(webhookUrl, { content: `No habit matching "${options.name}". Your habits: ${names}` });
+    await sendWebhook(webhookUrl, {
+      embeds: [{
+        description: `No habit matching "${habitName}".\n\nYour habits: ${names}\n\nOr create it: \`/habit ${habitName} action:Create\``,
+        color: ZEV_COLOR,
+      }],
+    });
     return;
   }
 
@@ -1952,7 +2040,7 @@ function ensureAlternation(messages: { role: "user" | "assistant"; content: stri
 async function logToChannel(summary: string) {
   try {
     const channels = await getGuildChannels();
-    const logsChannel = channels.find((c) => c.name === CHANNELS.LOGS);
+    const logsChannel = channels.find((c) => c.name === CHANNELS.PIPELINE);
     if (logsChannel) {
       await sendMessage(logsChannel.id, `\`${new Date().toISOString().slice(11, 19)}\` ${summary}`);
     }

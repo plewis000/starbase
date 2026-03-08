@@ -9,6 +9,7 @@ import {
   registerSlashCommands,
   sendEmbed,
   CHANNELS,
+  LEGACY_CHANNELS,
   ZEV_COLOR,
   SYSTEM_COLOR,
 } from "@/lib/discord";
@@ -30,11 +31,11 @@ export async function POST(request: NextRequest) {
   // 1. Delete ALL existing Zev channels + category
   const existingChannels = await getGuildChannels();
   const zevCategory = existingChannels.find((c) => c.name.toLowerCase() === "zev" && c.type === 4);
-  const channelNames = new Set<string>(Object.values(CHANNELS));
+  const allChannelNames = new Set<string>([...Object.values(CHANNELS), ...LEGACY_CHANNELS]);
 
-  // Delete channels under Zev category or matching channel names
+  // Delete channels under Zev category or matching channel names (including legacy)
   const toDelete = existingChannels.filter(
-    (c) => (zevCategory && c.parent_id === zevCategory.id) || channelNames.has(c.name)
+    (c) => (zevCategory && c.parent_id === zevCategory.id) || allChannelNames.has(c.name)
   );
 
   const deleted: string[] = [];

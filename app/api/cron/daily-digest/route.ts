@@ -7,7 +7,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { platform } from "@/lib/supabase/schemas";
-import { sendEmbed, ZEV_COLOR } from "@/lib/discord";
+import { sendEmbed, ZEV_COLOR, findChannelByName, CHANNELS } from "@/lib/discord";
 import { triggerNotification } from "@/lib/notify";
 import { generateDailyBriefing } from "@/lib/briefing-engine";
 
@@ -85,9 +85,9 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // Also send to shared channel as fallback
-      const channelId = process.env.PIPELINE_CHANNEL_ID;
-      if (channelId && !webhookUrl) {
+      // Also send to #general as fallback
+      const channelId = !webhookUrl ? await findChannelByName(CHANNELS.GENERAL) : null;
+      if (channelId) {
         await sendEmbed(channelId, {
           title: `Morning Briefing — ${userName}`,
           description: briefing,
