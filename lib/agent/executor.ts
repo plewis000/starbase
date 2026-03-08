@@ -885,11 +885,11 @@ async function submitFeedback(supabase: Supabase, userId: string, input: Record<
 
   if (error) return { success: false, error: error.message };
 
-  // Post to #feedback channel with approve/backlog/decline buttons
-  const feedbackChannelId = await findChannelByName(CHANNELS.FEEDBACK);
-  if (feedbackChannelId) {
+  // Post approval buttons to #pipeline for admin review
+  const pipelineChannelId = await findChannelByName(CHANNELS.PIPELINE);
+  if (pipelineChannelId) {
     const typeEmoji: Record<string, string> = { bug: "\u{1F41B}", wish: "\u2B50", feedback: "\u{1F4AC}", question: "\u2753" };
-    const messageId = await sendMessageWithButtons(feedbackChannelId, {
+    const messageId = await sendMessageWithButtons(pipelineChannelId, {
       embeds: [{
         title: `${typeEmoji[type] || "\u{1F4AC}"} New ${type}`,
         description: body.trim().slice(0, 2000),

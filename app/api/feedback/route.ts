@@ -175,14 +175,14 @@ export const POST = withUser(async (request: NextRequest, { supabase, user }) =>
       } catch { /* ignore notification failures */ }
     }
 
-    // Post to #feedback with Approve/Backlog/Won't Fix buttons
-    const feedbackChannelId = await findChannelByName(CHANNELS.FEEDBACK);
-    if (feedbackChannelId) {
+    // Post approval buttons to #pipeline for admin review
+    const pipelineChannelId = await findChannelByName(CHANNELS.PIPELINE);
+    if (pipelineChannelId) {
       try {
         const typeEmoji: Record<string, string> = {
           bug: "🐛", wish: "⭐", feedback: "💬", question: "❓",
         };
-        const messageId = await sendMessageWithButtons(feedbackChannelId, {
+        const messageId = await sendMessageWithButtons(pipelineChannelId, {
           embeds: [{
             title: `${typeEmoji[type] || "💬"} New ${type}`,
             description: content.slice(0, 2000),

@@ -1771,11 +1771,11 @@ async function handleFeedback(supabase: Supabase, userId: string | null, discord
     Promise.resolve(platform(supabase).from("feedback_votes").insert({ feedback_id: feedback.id, user_id: userId })).catch(() => {});
   }
 
-  // Post to #feedback channel with approve/backlog/decline buttons
-  const feedbackChannelId = await findChannelByName(CHANNELS.FEEDBACK);
-  if (feedbackChannelId) {
+  // Post approval buttons to #pipeline for admin review
+  const pipelineChannelId = await findChannelByName(CHANNELS.PIPELINE);
+  if (pipelineChannelId) {
     const typeEmoji: Record<string, string> = { bug: "🐛", wish: "⭐", feedback: "💬", question: "❓" };
-    const messageId = await sendMessageWithButtons(feedbackChannelId, {
+    const messageId = await sendMessageWithButtons(pipelineChannelId, {
       embeds: [{
         title: `${typeEmoji[type] || "💬"} New ${type}`,
         description: description.slice(0, 2000),
@@ -1805,7 +1805,7 @@ async function handleFeedback(supabase: Supabase, userId: string | null, discord
   const typeLabel: Record<string, string> = { bug: "Bug logged", wish: "Wish captured", feedback: "Feedback received", question: "Question submitted" };
   await sendWebhook(webhookUrl, {
     embeds: [{
-      description: `**${typeLabel[type] || "Received"}:** ${description.slice(0, 200)}${description.length > 200 ? "..." : ""}\n\nPosted to #feedback for review.`,
+      description: `**${typeLabel[type] || "Received"}:** ${description.slice(0, 200)}${description.length > 200 ? "..." : ""}\n\nPosted to #pipeline for review.`,
       color: ZEV_COLOR,
       footer: { text: "Free command — no API cost" },
     }],
@@ -2156,7 +2156,7 @@ async function handleModalSubmit(
       await sendWebhookFollowup(webhookUrl, { content: confirmMsg });
 
       // Remove buttons from original embed
-      const approveChannelId = await findChannelByName(CHANNELS.FEEDBACK);
+      const approveChannelId = await findChannelByName(CHANNELS.PIPELINE);
       if (existing.discord_message_id && approveChannelId) {
         const typeEmoji: Record<string, string> = { bug: "🐛", wish: "⭐", feedback: "💬", question: "❓" };
         await editMessage(approveChannelId, existing.discord_message_id, {
@@ -2211,7 +2211,7 @@ async function handleModalSubmit(
       await sendWebhookFollowup(webhookUrl, { content: confirmMsg });
 
       // Update embed
-      const feedbackChannelId = await findChannelByName(CHANNELS.FEEDBACK);
+      const feedbackChannelId = await findChannelByName(CHANNELS.PIPELINE);
       if (existing.discord_message_id && feedbackChannelId) {
         const typeEmoji: Record<string, string> = { bug: "🐛", wish: "⭐", feedback: "💬", question: "❓" };
         await editMessage(feedbackChannelId, existing.discord_message_id, {
@@ -2271,7 +2271,7 @@ async function handleModalSubmit(
       await sendWebhookFollowup(webhookUrl, { content: confirmMsg });
 
       // Remove buttons from original embed
-      const declineChannelId = await findChannelByName(CHANNELS.FEEDBACK);
+      const declineChannelId = await findChannelByName(CHANNELS.PIPELINE);
       if (existing.discord_message_id && declineChannelId) {
         const typeEmoji: Record<string, string> = { bug: "🐛", wish: "⭐", feedback: "💬", question: "❓" };
         await editMessage(declineChannelId, existing.discord_message_id, {

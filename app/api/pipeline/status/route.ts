@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Discord notifications (using after() for serverless safety)
-  const channelId = await findChannelByName(CHANNELS.FEEDBACK);
+  const channelId = await findChannelByName(CHANNELS.PIPELINE);
   if (channelId) {
     const bodyPreview = feedback.body.slice(0, 100);
     after(async () => {
