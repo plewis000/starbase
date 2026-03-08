@@ -236,15 +236,32 @@ async function createTask(supabase: Supabase, userId: string, input: Record<stri
     }
   }
 
+  // Handle recurrence + smart due date
+  const recurrenceRule = (input.recurrence_rule as string) || null;
+  let dueDate = (input.due_date as string) || null;
+
+  // If recurring but no due date, calculate the first occurrence
+  if (recurrenceRule && !dueDate) {
+    const { getNextOccurrence, formatDateOnly } = await import("@/lib/recurrence");
+    const nextDate = getNextOccurrence(recurrenceRule);
+    if (nextDate) dueDate = formatDateOnly(nextDate);
+  }
+
+  // Default due date to today if still null
+  if (!dueDate) {
+    dueDate = new Date().toISOString().split("T")[0];
+  }
+
   const insertData: Record<string, unknown> = {
     title: input.title as string,
     description: (input.description as string) || null,
-    due_date: (input.due_date as string) || null,
+    due_date: dueDate,
     priority_id: priorityId || null,
     status_id: defaultStatus?.id || null,
     owner_ids: [assigneeId],
     assigned_to: assigneeId,
     created_by: userId,
+    recurrence_rule: recurrenceRule,
   };
   if (input.completion_mode && ["solo", "coop", "competitive"].includes(input.completion_mode as string)) {
     insertData.completion_mode = input.completion_mode;
@@ -360,7 +377,7 @@ async function completeTask(supabase: Supabase, userId: string, input: Record<st
   const ctx = await getHouseholdContext(supabase, userId);
   if (!ctx) return { success: false, error: "No household found" };
   const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
-  const { data: taskCheck } = await platform(supabase).from("tasks").select("created_by").eq("id", id).single();
+  const { data: taskCheck } = await platform(supabase).from("tasks").select("created_by, title, recurrence_rule").eq("id", id).single();
   if (!taskCheck || !memberIds.includes(taskCheck.created_by)) {
     return { success: false, error: "Task not found" };
   }
@@ -379,14 +396,28 @@ async function completeTask(supabase: Supabase, userId: string, input: Record<st
     .update({
       status_id: doneStatus.id,
       completed_at: new Date().toISOString(),
+      completed_by: userId,
+      credited_to: userId,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)
-    .select("id, title")
+    .select("id, title, description, status_id, priority_id, task_type_id, assigned_to, created_by, effort_level_id, location_context_id, recurrence_rule, recurrence_source_id, parent_task_id, metadata, owner_ids")
     .single();
 
   if (error) return { success: false, error: error.message };
-  return { success: true, data: { task: data, message: `Task "${data.title}" completed` } };
+
+  // Handle recurrence — create next occurrence if recurring
+  let nextRecurrenceId: string | null = null;
+  if (data.recurrence_rule) {
+    const { createNextRecurrence } = await import("@/lib/recurrence-engine");
+    nextRecurrenceId = await createNextRecurrence(supabase, data, userId);
+  }
+
+  const message = nextRecurrenceId
+    ? `Task "${data.title}" completed. Next occurrence created.`
+    : `Task "${data.title}" completed`;
+
+  return { success: true, data: { task: { id: data.id, title: data.title }, next_recurrence_id: nextRecurrenceId, message } };
 }
 
 // ── HABIT IMPLEMENTATIONS ──

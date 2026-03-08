@@ -290,6 +290,14 @@ export const POST = withAuth(async (request, { supabase, user, ctx }) => {
     effectiveStatusId = todoStatus?.id;
   }
 
+  // Smart due date: if recurring but no due date, calculate first occurrence
+  let effectiveDueDate = due_date || null;
+  if (recurrence_rule && !effectiveDueDate) {
+    const { getNextOccurrence, formatDateOnly } = await import("@/lib/recurrence");
+    const nextDate = getNextOccurrence(recurrence_rule);
+    if (nextDate) effectiveDueDate = formatDateOnly(nextDate);
+  }
+
   // 1. Insert task
   const { data: task, error: taskError } = await platform(supabase)
     .from("tasks")
@@ -302,7 +310,7 @@ export const POST = withAuth(async (request, { supabase, user, ctx }) => {
       assigned_to: ownerIds[0] || null,
       owner_ids: ownerIds,
       created_by: user.id,
-      due_date: due_date || null,
+      due_date: effectiveDueDate,
       schedule_date: schedule_date || null,
       effort_level_id: effort_level_id || null,
       location_context_id: location_context_id || null,
