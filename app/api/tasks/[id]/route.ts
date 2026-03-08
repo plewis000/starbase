@@ -266,10 +266,20 @@ export const PATCH = withAuth(async (request, { supabase, user, ctx }, params) =
     if (newStatus?.name === "Done") {
       updateFields.completed_at = new Date().toISOString();
       updateFields.completed_by = user.id;
-      // If credited_to wasn't explicitly provided, default to owner_ids (or [completer])
+      // Credit assignment based on completion_mode
       if (!updateFields.credited_to) {
+        const mode = (currentTask as Record<string, unknown>).completion_mode as string || "solo";
         const taskOwnerIds: string[] = (updateFields.owner_ids as string[]) || currentTask.owner_ids || [];
-        updateFields.credited_to = taskOwnerIds.length > 0 ? taskOwnerIds : [user.id];
+        if (mode === "competitive") {
+          // Race mode: only the person who completed it gets credit
+          updateFields.credited_to = [user.id];
+        } else if (mode === "coop") {
+          // Co-op: all owners get credit
+          updateFields.credited_to = taskOwnerIds.length > 0 ? taskOwnerIds : [user.id];
+        } else {
+          // Solo (default): completer gets credit, fallback to owners
+          updateFields.credited_to = taskOwnerIds.length > 0 ? taskOwnerIds : [user.id];
+        }
       }
       isCompletingTask = true;
     } else if (currentTask.completed_at) {

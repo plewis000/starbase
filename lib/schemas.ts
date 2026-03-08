@@ -21,6 +21,8 @@ const specificDays = z.array(z.number().int().min(0).max(6)).max(7).transform(v 
 
 // ---- Task Schemas ----
 
+const completionMode = z.enum(["solo", "coop", "competitive"]).optional();
+
 export const createTaskSchema = z.object({
   title: trimmedString(300),
   description: optionalTrimmedString(5000),
@@ -38,6 +40,7 @@ export const createTaskSchema = z.object({
   domain_slugs: z.array(z.string().max(50)).max(10).optional(),
   tag_ids: uuidArray.optional(),
   checklist_items: z.array(z.string().max(500)).max(100).optional(),
+  completion_mode: completionMode,
 });
 
 export const updateTaskSchema = z.object({
@@ -56,6 +59,7 @@ export const updateTaskSchema = z.object({
   parent_task_id: optionalUuid,
   completed_at: z.string().datetime().nullish().transform(v => v ?? null),
   sort_order: z.number().int().min(0).max(100000).optional(),
+  completion_mode: completionMode,
 }).partial();
 
 // ---- Habit Schemas ----

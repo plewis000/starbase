@@ -76,7 +76,7 @@ export const PATCH = withAuth(async (request, { supabase, user, ctx }) => {
       isCompletingTasks = true;
       updateData.completed_at = new Date().toISOString();
       updateData.completed_by = user.id;
-      updateData.credited_to = [user.id];
+      // credited_to set per-task below based on completion_mode
     }
   }
 
@@ -85,7 +85,7 @@ export const PATCH = withAuth(async (request, { supabase, user, ctx }) => {
     // Get tasks that are already completed (to exclude from completion side effects)
     const { data: existingTasks } = await platform(supabase)
       .from("tasks")
-      .select("id, completed_at, priority_id")
+      .select("id, completed_at, priority_id, completion_mode, owner_ids")
       .in("id", task_ids);
 
     const alreadyCompleted = new Set(
@@ -93,15 +93,28 @@ export const PATCH = withAuth(async (request, { supabase, user, ctx }) => {
     );
     const newlyCompleting = task_ids.filter((tid: string) => !alreadyCompleted.has(tid));
 
-    // Update all tasks
-    const { error } = await platform(supabase)
-      .from("tasks")
-      .update(updateData)
-      .in("id", task_ids);
-
-    if (error) {
-      console.error("Bulk update error:", error.message);
-      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    // Update tasks individually to set mode-aware credited_to
+    const taskMap = new Map((existingTasks || []).map(t => [t.id, t]));
+    for (const taskId of task_ids) {
+      const task = taskMap.get(taskId);
+      const mode = task?.completion_mode || "solo";
+      const ownerIds: string[] = task?.owner_ids || [];
+      let creditedTo: string[];
+      if (mode === "competitive") {
+        creditedTo = [user.id];
+      } else if (mode === "coop") {
+        creditedTo = ownerIds.length > 0 ? ownerIds : [user.id];
+      } else {
+        creditedTo = ownerIds.length > 0 ? ownerIds : [user.id];
+      }
+      const { error } = await platform(supabase)
+        .from("tasks")
+        .update({ ...updateData, credited_to: creditedTo })
+        .eq("id", taskId);
+      if (error) {
+        console.error("Bulk update error:", error.message);
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+      }
     }
 
     // Award XP for newly completed tasks (after response)
@@ -127,26 +140,37 @@ export const PATCH = withAuth(async (request, { supabase, user, ctx }) => {
           };
 
           for (const taskId of newlyCompleting) {
-            const alreadyAwarded = await hasXpBeenAwarded(svc, user.id, taskId);
-            if (alreadyAwarded) continue;
+            const task = taskMap.get(taskId);
+            const mode = task?.completion_mode || "solo";
+            const ownerIds: string[] = task?.owner_ids || [];
+            const creditedUsers = mode === "competitive"
+              ? [user.id]
+              : mode === "coop" && ownerIds.length > 0
+                ? ownerIds
+                : [user.id];
 
             const priorityName = priorityNameMap.get(taskPriorityMap.get(taskId) || "") || "Medium";
             const xpAmount = priorityXp[priorityName] || 25;
 
-            await awardXp(
-              svc,
-              user.id,
-              xpAmount,
-              "task_complete",
-              `Completed (bulk): task`,
-              "task",
-              taskId
-            );
+            for (const creditUserId of creditedUsers) {
+              const alreadyAwarded = await hasXpBeenAwarded(svc, creditUserId, taskId);
+              if (alreadyAwarded) continue;
 
-            await checkAchievements(svc, user.id, "task_count", {
-              taskId,
-              priority: priorityName,
-            });
+              await awardXp(
+                svc,
+                creditUserId,
+                xpAmount,
+                "task_complete",
+                `Completed (bulk): task`,
+                "task",
+                taskId
+              );
+
+              await checkAchievements(svc, creditUserId, "task_count", {
+                taskId,
+                priority: priorityName,
+              });
+            }
           }
         } catch (err) {
           console.error("Bulk gamification error:", err);
