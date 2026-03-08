@@ -23,13 +23,27 @@ export const POST = withAuth(async (request: NextRequest, { supabase, user }, pa
     return NextResponse.json({ error: "Meal plan not found" }, { status: 404 });
   }
 
-  const entries = plan.entries || [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const entries: any[] = plan.entries || [];
   const recipeIds = entries
-    .map((e: { recipe_id: string | null }) => e.recipe_id)
-    .filter((id: string | null): id is string => !!id);
+    .map((e) => e.recipe_id)
+    .filter((id): id is string => !!id);
 
   if (recipeIds.length === 0) {
     return NextResponse.json({ error: "Meal plan has no recipes" }, { status: 400 });
+  }
+
+  // Build servings multiplier per recipe (servings_override / base_servings)
+  // If a recipe appears multiple times, we sum the multipliers
+  const recipeMultipliers = new Map<string, number>();
+  for (const entry of entries) {
+    if (!entry.recipe_id) continue;
+    // Supabase join returns recipe as array or object
+    const recipe = Array.isArray(entry.recipe) ? entry.recipe[0] : entry.recipe;
+    if (!recipe) continue;
+    const baseServings = recipe.servings || 1;
+    const multiplier = entry.servings_override ? entry.servings_override / baseServings : 1;
+    recipeMultipliers.set(entry.recipe_id, (recipeMultipliers.get(entry.recipe_id) || 0) + multiplier);
   }
 
   // Fetch all ingredients for all recipes in the plan
@@ -48,14 +62,17 @@ export const POST = withAuth(async (request: NextRequest, { supabase, user }, pa
   for (const ing of allIngredients) {
     if (ing.is_optional) continue;
     const key = ing.name.toLowerCase().trim();
+    // Scale quantity by recipe multiplier
+    const multiplier = recipeMultipliers.get(ing.recipe_id) || 1;
+    const scaledQty = scaleQuantity(ing.quantity, multiplier);
     const existing = aggregated.get(key);
     if (existing) {
-      if (ing.quantity) existing.quantities.push(ing.quantity);
+      if (scaledQty) existing.quantities.push(scaledQty);
       if (!existing.category_id && ing.category_id) existing.category_id = ing.category_id;
     } else {
       aggregated.set(key, {
         name: ing.name,
-        quantities: ing.quantity ? [ing.quantity] : [],
+        quantities: scaledQty ? [scaledQty] : [],
         category_id: ing.category_id,
       });
     }
@@ -139,6 +156,26 @@ export const POST = withAuth(async (request: NextRequest, { supabase, user }, pa
     items: created,
   }, { status: 201 });
 });
+
+/** Scale a quantity string by a multiplier. */
+function scaleQuantity(quantity: string | null, multiplier: number): string | null {
+  if (!quantity || multiplier === 1) return quantity;
+  const match = quantity.match(/^(\d+\.?\d*)\s*(.*)/);
+  if (match) {
+    const num = parseFloat(match[1]) * multiplier;
+    const unit = match[2];
+    const formatted = num % 1 === 0 ? num.toString() : num.toFixed(1);
+    return unit ? `${formatted} ${unit}` : formatted;
+  }
+  const fracMatch = quantity.match(/^(\d+)\/(\d+)\s*(.*)/);
+  if (fracMatch) {
+    const num = (parseInt(fracMatch[1]) / parseInt(fracMatch[2])) * multiplier;
+    const unit = fracMatch[3];
+    const formatted = num % 1 === 0 ? num.toString() : num.toFixed(1);
+    return unit ? `${formatted} ${unit}` : formatted;
+  }
+  return quantity;
+}
 
 /**
  * Smart quantity merging: combines quantities with matching units.
