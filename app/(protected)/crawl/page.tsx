@@ -216,6 +216,79 @@ interface ActivationReadiness {
   hasRewards: boolean;
 }
 
+function ResetSection({ onReset }: { onReset: () => void }) {
+  const [confirming, setConfirming] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
+  const toast = useToast();
+
+  const handleReset = async () => {
+    if (confirmText !== "RESET") return;
+    setResetting(true);
+    try {
+      const res = await fetch("/api/gamification/reset", { method: "POST" });
+      if (!res.ok) {
+        const data = await res.json();
+        toast.error(data.error || "Reset failed");
+        return;
+      }
+      const data = await res.json();
+      toast.success(`Gamification reset. ${data.users_reset} profile(s) cleared.`);
+      setConfirming(false);
+      setConfirmText("");
+      onReset();
+    } catch {
+      toast.error("Reset failed — network error");
+    } finally {
+      setResetting(false);
+    }
+  };
+
+  return (
+    <div className="dcc-card p-4 border-red-900/30">
+      <h3 className="text-sm font-semibold text-slate-100 mb-2">Admin</h3>
+      {!confirming ? (
+        <button
+          onClick={() => setConfirming(true)}
+          className="text-xs text-dungeon-500 hover:text-red-400 transition-colors"
+        >
+          Reset gamification data...
+        </button>
+      ) : (
+        <div className="space-y-3">
+          <p className="text-xs text-slate-400">
+            This will erase all XP, achievements, loot boxes, and stats for the entire household.
+            Tasks, habits, goals, and reward pool are kept. Type <span className="text-red-400 font-mono">RESET</span> to confirm.
+          </p>
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder="Type RESET"
+              className="w-28 bg-dungeon-800 border border-dungeon-700 rounded px-3 py-1.5 text-sm text-slate-100 font-mono focus:outline-none focus:border-red-400"
+              autoFocus
+            />
+            <button
+              onClick={handleReset}
+              disabled={confirmText !== "RESET" || resetting}
+              className="px-3 py-1.5 bg-red-500/20 text-red-400 border border-red-500/40 rounded text-xs font-medium hover:bg-red-500/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              {resetting ? "Resetting..." : "Confirm Reset"}
+            </button>
+            <button
+              onClick={() => { setConfirming(false); setConfirmText(""); }}
+              className="px-3 py-1.5 text-dungeon-500 text-xs hover:text-slate-300 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function CrawlPage() {
   const toast = useToast();
   const searchParams = useSearchParams();
@@ -774,6 +847,9 @@ export default function CrawlPage() {
                 </div>
               )}
             </div>
+
+            {/* Admin: Reset Gamification */}
+            <ResetSection onReset={() => { fetchProfile(); }} />
           </div>
         ) : tab === "achievements" ? (
           <div className="space-y-4">
