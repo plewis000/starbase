@@ -136,8 +136,108 @@ function StatBars({ stats }: { stats: { str: number; dex: number; con: number; i
   );
 }
 
+// --- Loot Box Sound Effects (Web Audio API — no files needed) ---
+function playLootSound(type: "rumble" | "burst" | "reveal" | "sparkle") {
+  try {
+    const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    const now = ctx.currentTime;
+
+    if (type === "rumble") {
+      // Low rumble with increasing intensity
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(40, now);
+      osc.frequency.linearRampToValueAtTime(80, now + 1.2);
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.15, now + 0.3);
+      gain.gain.linearRampToValueAtTime(0.25, now + 1.0);
+      gain.gain.linearRampToValueAtTime(0, now + 1.4);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 1.4);
+      // Rattling clicks
+      for (let i = 0; i < 8; i++) {
+        const click = ctx.createOscillator();
+        const clickGain = ctx.createGain();
+        click.type = "square";
+        click.frequency.value = 200 + Math.random() * 400;
+        clickGain.gain.setValueAtTime(0.08, now + i * 0.15);
+        clickGain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.15 + 0.05);
+        click.connect(clickGain).connect(ctx.destination);
+        click.start(now + i * 0.15);
+        click.stop(now + i * 0.15 + 0.06);
+      }
+    } else if (type === "burst") {
+      // Explosion burst — noise + low boom
+      const bufferSize = ctx.sampleRate * 0.3;
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+      const noise = ctx.createBufferSource();
+      noise.buffer = buffer;
+      const noiseGain = ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.4, now);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+      noise.connect(noiseGain).connect(ctx.destination);
+      noise.start(now);
+      // Sub boom
+      const boom = ctx.createOscillator();
+      const boomGain = ctx.createGain();
+      boom.type = "sine";
+      boom.frequency.setValueAtTime(100, now);
+      boom.frequency.exponentialRampToValueAtTime(30, now + 0.4);
+      boomGain.gain.setValueAtTime(0.5, now);
+      boomGain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+      boom.connect(boomGain).connect(ctx.destination);
+      boom.start(now);
+      boom.stop(now + 0.5);
+    } else if (type === "reveal") {
+      // Ascending chime — major chord arpeggio
+      const notes = [523.25, 659.25, 783.99, 1046.5]; // C5 E5 G5 C6
+      notes.forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0, now + i * 0.12);
+        gain.gain.linearRampToValueAtTime(0.2, now + i * 0.12 + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.12 + 0.8);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(now + i * 0.12);
+        osc.stop(now + i * 0.12 + 0.9);
+      });
+    } else if (type === "sparkle") {
+      // Twinkling sparkles
+      for (let i = 0; i < 5; i++) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.value = 2000 + Math.random() * 3000;
+        const t = now + i * 0.1 + Math.random() * 0.05;
+        gain.gain.setValueAtTime(0.1, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.2);
+      }
+    }
+  } catch {
+    // Audio not available — ceremony continues without sound
+  }
+}
+
 // --- Loot Box Opening Ceremony ---
-type CeremonyStage = "idle" | "shaking" | "bursting" | "revealing" | "done";
+type CeremonyStage = "idle" | "shaking" | "bursting" | "flash" | "revealing" | "done";
+
+const TIER_EMOJIS: Record<string, string[]> = {
+  bronze:    ["⚡", "✨", "💫"],
+  silver:    ["✨", "💎", "⭐"],
+  gold:      ["🌟", "💰", "👑", "✨"],
+  platinum:  ["💎", "🌟", "⚡", "👑", "🔥"],
+  legendary: ["🔥", "⚔️", "💀", "🌟", "💎", "👑"],
+  celestial: ["🌌", "💫", "✨", "🔮", "💎", "🌟", "⚡"],
+};
 
 function LootBoxCeremony({
   result,
@@ -147,53 +247,150 @@ function LootBoxCeremony({
   onDismiss: () => void;
 }) {
   const [stage, setStage] = useState<CeremonyStage>("idle");
-  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const [particles, setParticles] = useState<Array<{ id: number; emoji: string; x: number; y: number; tx: number; ty: number }>>([]);
+  const [canDismiss, setCanDismiss] = useState(false);
+  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const style = BOX_COLORS[result.tierSlug] || BOX_COLORS.bronze;
 
-  useEffect(() => {
-    setStage("shaking");
-    timerRef.current = setTimeout(() => setStage("bursting"), 800);
-    return () => clearTimeout(timerRef.current);
-  }, []);
+  const addTimer = (fn: () => void, ms: number) => {
+    const t = setTimeout(fn, ms);
+    timersRef.current.push(t);
+    return t;
+  };
 
+  // Spawn particles on burst
+  const spawnParticles = useCallback(() => {
+    const emojis = TIER_EMOJIS[result.tierSlug] || TIER_EMOJIS.bronze;
+    const count = result.tierSlug === "legendary" || result.tierSlug === "celestial" ? 18 : result.tierSlug === "platinum" || result.tierSlug === "gold" ? 14 : 10;
+    const newParticles = Array.from({ length: count }, (_, i) => {
+      const angle = ((360 / count) * i + (Math.random() - 0.5) * 30) * (Math.PI / 180);
+      const speed = 60 + Math.random() * 80;
+      return {
+        id: Date.now() + i,
+        emoji: emojis[Math.floor(Math.random() * emojis.length)],
+        x: 50 + (Math.random() - 0.5) * 20,
+        y: 45 + (Math.random() - 0.5) * 10,
+        tx: Math.cos(angle) * speed,
+        ty: Math.sin(angle) * speed,
+      };
+    });
+    setParticles(newParticles);
+  }, [result.tierSlug]);
+
+  // Stage progression with sounds
   useEffect(() => {
-    if (stage === "bursting") {
-      timerRef.current = setTimeout(() => setStage("revealing"), 500);
-    }
-    if (stage === "revealing") {
-      timerRef.current = setTimeout(() => setStage("done"), 900);
-    }
-    return () => clearTimeout(timerRef.current);
-  }, [stage]);
+    // Start shaking immediately
+    setStage("shaking");
+    playLootSound("rumble");
+
+    addTimer(() => {
+      setStage("bursting");
+      playLootSound("burst");
+      spawnParticles();
+    }, 1400);
+
+    addTimer(() => {
+      setStage("flash");
+    }, 1900);
+
+    addTimer(() => {
+      setStage("revealing");
+      playLootSound("reveal");
+    }, 2200);
+
+    addTimer(() => {
+      playLootSound("sparkle");
+    }, 2600);
+
+    addTimer(() => {
+      setStage("done");
+      setCanDismiss(true);
+    }, 3100);
+
+    // Safety: always allow dismiss after 5s
+    addTimer(() => setCanDismiss(true), 5000);
+
+    return () => timersRef.current.forEach(clearTimeout);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Escape key to dismiss
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onDismiss();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onDismiss]);
+
+  const handleBackdropClick = () => {
+    if (canDismiss || stage === "done") onDismiss();
+  };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={stage === "done" ? onDismiss : undefined}>
-      <div className={`relative p-8 rounded-2xl border-2 ${style.border} ${style.bg} max-w-sm w-full mx-4 text-center ${style.glow || ""}`}>
-        {/* Box shaking phase */}
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm cursor-pointer"
+      onClick={handleBackdropClick}
+    >
+      {/* Screen flash on burst */}
+      {stage === "flash" && (
+        <div className="fixed inset-0 z-[51] dcc-screen-flash pointer-events-none" style={{
+          background: style.text.includes("amber") ? "rgba(217,119,6,0.3)"
+            : style.text.includes("slate") ? "rgba(203,213,225,0.25)"
+            : style.text.includes("gold") ? "rgba(212,168,87,0.3)"
+            : style.text.includes("orange") ? "rgba(249,115,22,0.35)"
+            : style.text.includes("fuchsia") ? "rgba(217,70,239,0.3)"
+            : "rgba(255,255,255,0.2)",
+        }} />
+      )}
+
+      {/* Emoji particles */}
+      {particles.map(p => (
+        <span
+          key={p.id}
+          className="fixed text-2xl pointer-events-none dcc-particle-burst z-[52]"
+          style={{
+            left: `${p.x}%`,
+            top: `${p.y}%`,
+            ["--tx" as string]: `${p.tx}px`,
+            ["--ty" as string]: `${p.ty}px`,
+          }}
+        >
+          {p.emoji}
+        </span>
+      ))}
+
+      <div
+        className={`relative p-8 rounded-2xl border-2 ${style.border} ${style.bg} max-w-sm w-full mx-4 text-center ${style.glow || ""} z-[53] ${stage === "bursting" || stage === "flash" ? "dcc-screen-shake" : ""}`}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Shaking phase — box rattles with increasing intensity */}
         {(stage === "shaking" || stage === "idle") && (
           <div className={stage === "shaking" ? "dcc-box-shake" : ""}>
-            <span className="text-7xl block mb-4">📦</span>
-            <p className={`font-semibold dcc-heading ${style.text}`}>{result.tierName}</p>
+            <span className="text-8xl block mb-4 drop-shadow-lg">📦</span>
+            <p className={`font-semibold dcc-heading ${style.text} text-lg tracking-wider`}>{result.tierName}</p>
+            <p className="text-dungeon-500 text-xs font-mono mt-2 animate-pulse">Opening...</p>
           </div>
         )}
-        {/* Burst phase */}
-        {stage === "bursting" && (
+
+        {/* Burst phase — box explodes */}
+        {(stage === "bursting" || stage === "flash") && (
           <div className="dcc-box-burst">
-            <span className="text-7xl block mb-4">📦</span>
+            <span className="text-8xl block mb-4">💥</span>
           </div>
         )}
-        {/* Reveal phase */}
+
+        {/* Reveal phase — reward appears */}
         {(stage === "revealing" || stage === "done") && (
-          <div className={stage === "revealing" ? "dcc-reward-reveal" : ""}>
-            <span className="text-6xl block mb-4">{result.rewardIcon || "🎁"}</span>
+          <div className={stage === "revealing" ? "dcc-reward-reveal" : "dcc-reward-idle"}>
+            <span className="text-7xl block mb-4 drop-shadow-xl">{result.rewardIcon || "🎁"}</span>
             <h3 className={`text-2xl font-bold mb-2 dcc-heading ${style.text}`}>{result.tierName}</h3>
-            <p className="text-lg text-slate-100 font-medium mb-3">{result.rewardName}</p>
-            <p className="text-dungeon-500 text-sm italic font-mono mb-4">
+            <p className="text-xl text-slate-100 font-medium mb-3">{result.rewardName}</p>
+            <p className="text-dungeon-500 text-sm italic font-mono mb-5">
               The System does not understand your reward system but acknowledges its importance to crawler morale.
             </p>
-            {stage === "done" && (
-              <button onClick={onDismiss} className="dcc-btn-primary">
-                Claim Reward
+            {(stage === "done" || canDismiss) && (
+              <button onClick={onDismiss} className="dcc-btn-primary text-lg px-6 py-3 dcc-claim-pulse">
+                ⚔️ Claim Reward
               </button>
             )}
           </div>
@@ -414,20 +611,27 @@ export default function CrawlPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ loot_box_id: boxId }),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to open");
+      }
       const data = await res.json();
+      if (!data.result?.rewardName) throw new Error("No reward returned");
       // Find the box to get the tier slug
       const box = lootBoxes.find(b => b.id === boxId);
       setCeremonyResult({
-        tierName: data.result.tierName,
+        tierName: data.result.tierName || "Loot Box",
         tierSlug: box?.tier?.slug || "bronze",
         rewardName: data.result.rewardName,
         rewardIcon: data.result.rewardIcon,
       });
       fetchLootBoxes();
       fetchProfile();
-    } catch {
-      toast.error("Failed to open loot box. Make sure you have rewards configured!");
+    } catch (err) {
+      const msg = err instanceof Error && err.message !== "Failed to open"
+        ? err.message
+        : "Failed to open loot box. Make sure you have rewards configured!";
+      toast.error(msg);
     } finally {
       setOpeningBox(null);
     }
