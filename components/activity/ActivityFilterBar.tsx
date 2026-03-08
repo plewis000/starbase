@@ -28,8 +28,10 @@ export interface SavedView {
 interface ConfigData {
   statuses?: { id: string; name: string; color?: string; sort_order: number }[];
   priorities?: { id: string; name: string; color?: string; sort_order: number }[];
-  members?: { user_id: string; display_name?: string; user?: { full_name: string } | null }[];
-  [key: string]: any;
+  members?: { user_id: string; display_name?: string; user?: { id: string; full_name: string; email: string; avatar_url?: string | null } | null }[];
+  task_types?: { id: string; name: string; display_color?: string; icon?: string; sort_order: number }[];
+  effort_levels?: { id: string; name: string; display_color?: string; icon?: string; sort_order: number }[];
+  tags?: { id: string; name: string; display_color?: string; slug?: string }[];
 }
 
 interface Props {
@@ -131,6 +133,63 @@ const HIDE_DONE_OPTIONS = [
 
 const EMOJI_PICKS = ["📋", "🔴", "📅", "📆", "🔥", "⭐", "🎯", "🏷️", "👤", "🚀", "💡", "🐛", "📌", "⚡", "🎨", "🔧"];
 
+// Count active non-default filters
+function countActiveFilters(filters: ActivityFilters): number {
+  let count = 0;
+  if (filters.status && filters.status !== "All") count++;
+  if (filters.priority && filters.priority !== "All") count++;
+  if (filters.due && filters.due !== "All") count++;
+  if (filters.owner === "me") count++;
+  if (filters.groupBy && filters.groupBy !== "none") count++;
+  if (filters.hideDoneDays && filters.hideDoneDays !== 0) count++;
+  if (filters.search) count++;
+  return count;
+}
+
+// Build list of active filter chips for display
+function getActiveFilterChips(filters: ActivityFilters): { key: string; label: string; clear: Partial<ActivityFilters> }[] {
+  const chips: { key: string; label: string; clear: Partial<ActivityFilters> }[] = [];
+
+  if (filters.status && filters.status !== "All") {
+    const statuses = filters.status.split(",");
+    chips.push({
+      key: "status",
+      label: `Status: ${statuses.length > 2 ? `${statuses.length} selected` : statuses.join(", ")}`,
+      clear: { status: "All" },
+    });
+  }
+  if (filters.priority && filters.priority !== "All") {
+    const priorities = filters.priority.split(",");
+    chips.push({
+      key: "priority",
+      label: `Priority: ${priorities.length > 2 ? `${priorities.length} selected` : priorities.join(", ")}`,
+      clear: { priority: "All" },
+    });
+  }
+  if (filters.due && filters.due !== "All") {
+    const dueLabel = DUE_OPTIONS.find(o => o.value === filters.due)?.label || filters.due;
+    chips.push({ key: "due", label: `Due: ${dueLabel}`, clear: { due: "All" } });
+  }
+  if (filters.owner === "me") {
+    chips.push({ key: "owner", label: "Mine only", clear: { owner: "" } });
+  }
+  if (filters.groupBy && filters.groupBy !== "none") {
+    const groupLabel = GROUP_BY_OPTIONS.find(o => o.value === filters.groupBy)?.label || filters.groupBy;
+    chips.push({ key: "groupBy", label: `Group: ${groupLabel}`, clear: { groupBy: "none" } });
+  }
+  if (filters.hideDoneDays && filters.hideDoneDays !== 0) {
+    chips.push({
+      key: "hideDone",
+      label: filters.hideDoneDays === -1 ? "Hide done" : `Hide done > ${filters.hideDoneDays}d`,
+      clear: { hideDoneDays: 0 },
+    });
+  }
+  if (filters.search) {
+    chips.push({ key: "search", label: `"${filters.search}"`, clear: { search: "" } });
+  }
+  return chips;
+}
+
 export default function ActivityFilterBar({
   filters,
   onFilterChange,
@@ -162,6 +221,7 @@ export default function ActivityFilterBar({
   const [editIcon, setEditIcon] = useState("");
   const [showRestoreMenu, setShowRestoreMenu] = useState(false);
   const searchTimeout = useRef<NodeJS.Timeout | null>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
   const filtersRef = useRef(filters);
   filtersRef.current = filters;
 
@@ -169,9 +229,29 @@ export default function ActivityFilterBar({
   const hiddenDefaultViews = (allDefaultViews || []).filter(v => hiddenDefaults?.includes(v.name));
   const totalRestorableCount = hiddenDefaultViews.length + (archivedViews?.length || 0);
 
+  const activeFilterCount = countActiveFilters(filters);
+  const filterChips = getActiveFilterChips(filters);
+
   const update = useCallback((key: keyof ActivityFilters, value: string | number | undefined) => {
     const next = { ...filters, [key]: value };
     onFilterChange(next);
+  }, [filters, onFilterChange]);
+
+  const clearAllFilters = useCallback(() => {
+    const defaults: ActivityFilters = { status: "All", priority: "All", due: "All", owner: "", sort: "due_date", direction: "asc", search: "", groupBy: "none", hideDoneDays: 0 };
+    onFilterChange(defaults);
+    setActiveView("All Tasks");
+    if (searchRef.current) searchRef.current.value = "";
+  }, [onFilterChange]);
+
+  // Remove a single filter chip
+  const removeChip = useCallback((clear: Partial<ActivityFilters>) => {
+    const next = { ...filters, ...clear };
+    onFilterChange(next);
+    // If clearing search, also reset the input
+    if ("search" in clear && searchRef.current) {
+      searchRef.current.value = "";
+    }
   }, [filters, onFilterChange]);
 
   // Detect if current filters differ from active view's filters
@@ -179,7 +259,6 @@ export default function ActivityFilterBar({
   const computedFiltersModified = (() => {
     if (!activeViewData) return false;
     const defaults: ActivityFilters = { status: "All", priority: "All", due: "All", owner: "", sort: "due_date", direction: "asc" };
-    // Normalize both to the same shape: defaults + view overrides vs current (both without search)
     const normalize = (f: Partial<ActivityFilters>) => {
       const { search, ...rest } = { ...defaults, ...f };
       return JSON.stringify(rest, Object.keys(rest).sort());
@@ -189,17 +268,16 @@ export default function ActivityFilterBar({
   const isModified = filtersModified ?? computedFiltersModified;
 
   const applyView = useCallback((view: SavedView) => {
-    // Start from clean defaults, then apply view filters — don't carry over stale filter state
     const defaults: ActivityFilters = { status: "All", priority: "All", due: "All", owner: "", sort: "due_date", direction: "asc", search: "" };
     const next: ActivityFilters = { ...defaults, ...view.filters, search: "" };
     setActiveView(view.name);
     onFilterChange(next);
+    if (searchRef.current) searchRef.current.value = "";
   }, [onFilterChange]);
 
   const handleSearch = useCallback((value: string) => {
     if (searchTimeout.current) clearTimeout(searchTimeout.current);
     searchTimeout.current = setTimeout(() => {
-      // Use functional-style update via onFilterChange to avoid stale filters capture
       onFilterChange({ ...filtersRef.current, search: value });
     }, 300);
   }, [onFilterChange]);
@@ -227,8 +305,6 @@ export default function ActivityFilterBar({
     if (!editName.trim() || !editingView) return;
     const view = savedViews.find((v) => v.name === editingView);
     if (view) {
-      // Archive old name, then save with new name — onDeleteView archives, onSaveView adds
-      // Do save first so the view exists before archive removes the old one
       onSaveView({ ...view, name: editName.trim(), icon: editIcon });
       if (editName.trim() !== editingView) {
         onDeleteView?.(editingView);
@@ -254,7 +330,6 @@ export default function ActivityFilterBar({
   // Active default view for the modification bar
   const activeDefaultView = activeView ? savedViews.find(v => v.name === activeView && v.isDefault) : null;
   const hasOverride = !!(activeDefaultView && hasViewOverride?.(activeDefaultView.name));
-  // Show bar when: filters are modified (unsaved changes) OR view has a saved override (show Edit/Reset)
   const showModifiedBar = !!(activeDefaultView && onUpdateDefaultView && (isModified || hasOverride));
 
   return (
@@ -417,7 +492,7 @@ export default function ActivityFilterBar({
         </div>
       )}
 
-      {/* Compact filter row — Mine/All + Filters left, search right */}
+      {/* Compact filter row — Mine/All + Filters (with count badge) + search */}
       <div className="flex items-center gap-2">
         {/* Mine / All toggle */}
         <div className="flex items-center gap-0.5 bg-dungeon-900 border border-dungeon-800 rounded-lg p-0.5 flex-shrink-0">
@@ -441,21 +516,59 @@ export default function ActivityFilterBar({
 
         <button
           onClick={() => setExpanded(!expanded)}
-          className={`px-2.5 py-1.5 rounded-lg text-xs border transition-all flex-shrink-0 ${
-            expanded ? "bg-crimson-900/20 border-crimson-700 text-crimson-400" : "bg-dungeon-900 border-dungeon-800 text-slate-500 hover:text-slate-300"
+          className={`relative px-2.5 py-1.5 rounded-lg text-xs border transition-all flex-shrink-0 ${
+            expanded || activeFilterCount > 0
+              ? "bg-crimson-900/20 border-crimson-700 text-crimson-400"
+              : "bg-dungeon-900 border-dungeon-800 text-slate-500 hover:text-slate-300"
           }`}
         >
           {expanded ? "Less" : "Filters"}
+          {activeFilterCount > 0 && !expanded && (
+            <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 flex items-center justify-center bg-crimson-600 text-white text-[10px] font-bold rounded-full px-1">
+              {activeFilterCount}
+            </span>
+          )}
         </button>
+
+        {/* Clear all — only show when filters are active */}
+        {activeFilterCount > 0 && (
+          <button
+            onClick={clearAllFilters}
+            className="px-2 py-1.5 rounded-lg text-xs text-slate-500 hover:text-slate-300 transition-colors flex-shrink-0"
+          >
+            Clear all
+          </button>
+        )}
 
         <input
           type="text"
+          ref={searchRef}
           defaultValue={filters.search || ""}
           onChange={(e) => handleSearch(e.target.value)}
           placeholder="Search..."
           className="flex-1 min-w-0 bg-dungeon-900/80 border border-dungeon-800 rounded-lg px-3 py-1.5 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-crimson-500/50"
         />
       </div>
+
+      {/* Active filter chips — removable pills showing what's filtered */}
+      {filterChips.length > 0 && !expanded && (
+        <div className="flex flex-wrap gap-1.5">
+          {filterChips.map((chip) => (
+            <span
+              key={chip.key}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-crimson-900/20 border border-crimson-800/50 text-crimson-300"
+            >
+              {chip.label}
+              <button
+                onClick={() => removeChip(chip.clear)}
+                className="ml-0.5 text-crimson-500 hover:text-crimson-300 transition-colors leading-none"
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* Expanded filters */}
       {expanded && (

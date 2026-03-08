@@ -540,22 +540,9 @@ export default function ActivityTaskBoard({
         </div>
       </div>
 
-      {/* Quick add bar with + button */}
+      {/* Quick add bar */}
       <div className="flex-shrink-0 px-4 py-2 border-b border-dungeon-800/50">
-        <div className="flex items-center gap-2">
-          {onCreateTask && (
-            <button
-              onClick={onCreateTask}
-              className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-red-600 hover:bg-red-500 text-white text-lg font-bold transition-all"
-              title="New task (full form)"
-            >
-              +
-            </button>
-          )}
-          <div className="flex-1 min-w-0">
-            <QuickAddBar onAdd={handleQuickCreate} config={config} />
-          </div>
-        </div>
+        <QuickAddBar onAdd={handleQuickCreate} config={config} onOpenFullForm={onCreateTask} />
       </div>
 
       {/* Filters */}

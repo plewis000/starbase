@@ -126,9 +126,10 @@ const TOKEN_COLORS: Record<string, string> = {
 interface QuickAddBarProps {
   onAdd: (title: string, dueDate?: string, extra?: { priority_id?: string; assigned_to?: string; tag_ids?: string[] }) => Promise<boolean>;
   config?: ConfigData | null;
+  onOpenFullForm?: () => void;
 }
 
-export default function QuickAddBar({ onAdd, config }: QuickAddBarProps) {
+export default function QuickAddBar({ onAdd, config, onOpenFullForm }: QuickAddBarProps) {
   const [value, setValue] = useState("");
   const [adding, setAdding] = useState(false);
   const [flash, setFlash] = useState<"success" | "error" | null>(null);
@@ -203,8 +204,20 @@ export default function QuickAddBar({ onAdd, config }: QuickAddBarProps) {
           disabled={!value.trim() || adding}
           className="px-3 py-2 bg-crimson-600 hover:bg-crimson-500 disabled:bg-dungeon-800 disabled:text-slate-600 text-white text-sm font-medium rounded-lg transition-all flex-shrink-0"
         >
-          {adding ? "..." : "+"}
+          {adding ? "..." : "Add"}
         </button>
+        {onOpenFullForm && (
+          <button
+            onClick={onOpenFullForm}
+            type="button"
+            className="px-2 py-2 text-dungeon-400 hover:text-slate-200 text-sm transition-colors flex-shrink-0"
+            title="Open full task form"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* Parsed token pills */}
