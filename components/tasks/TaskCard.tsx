@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import StatusBadge from "@/components/ui/StatusBadge";
 import PriorityBadge from "@/components/ui/PriorityBadge";
 import { UserSummary } from "@/lib/types";
+import { formatRelativeDate, getDateColor } from "@/lib/dateUtils";
 
 interface HouseholdMember {
   user_id: string;
@@ -69,42 +70,7 @@ interface TaskCardProps {
   onOwnersChanged?: (taskId: string, ownerIds: string[]) => void;
 }
 
-// Format relative date
-const formatRelativeDate = (dateString?: string): string => {
-  if (!dateString) return "No date";
-
-  const date = new Date(dateString);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  date.setHours(0, 0, 0, 0);
-
-  const diffTime = date.getTime() - today.getTime();
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-  if (diffDays < 0) return `Overdue (${Math.abs(diffDays)}d ago)`;
-  if (diffDays === 0) return "Today";
-  if (diffDays === 1) return "Tomorrow";
-  if (diffDays <= 7) return `In ${diffDays}d`;
-
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-};
-
-// Get date display color
-const getDateColor = (dateString?: string): string => {
-  if (!dateString) return "text-dungeon-400";
-
-  const date = new Date(dateString);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  date.setHours(0, 0, 0, 0);
-
-  const diffTime = date.getTime() - today.getTime();
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-  if (diffDays < 0) return "text-red-400"; // Overdue
-  if (diffDays === 0 || diffDays === 1) return "text-amber-400"; // Today or Tomorrow
-  return "text-dungeon-400";
-};
+// formatRelativeDate and getDateColor imported from @/lib/dateUtils
 
 // Get initials for avatar
 const getInitials = (fullName?: string): string => {

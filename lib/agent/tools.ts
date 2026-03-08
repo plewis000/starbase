@@ -33,7 +33,7 @@ export const AGENT_TOOLS: Tool[] = [
         due_date: { type: "string", description: "Due date in YYYY-MM-DD format" },
         priority: { type: "string", description: "Priority: 'high', 'medium', 'low', or priority config ID" },
         assign_to: { type: "string", description: "Name of household member to assign to (e.g. 'Parker', 'Lenale'). Defaults to current user." },
-        completion_mode: { type: "string", enum: ["solo", "coop", "competitive"], description: "How XP is awarded: solo (default, owners get credit), coop (all owners get full XP), competitive (only completer gets XP — race format)" },
+        completion_mode: { type: "string", enum: ["coop", "competitive"], description: "How XP is awarded: coop (default, all owners get full XP), competitive (only completer gets XP — race format)" },
         recurrence_rule: { type: "string", description: "RRULE string for recurring tasks (e.g. 'FREQ=WEEKLY;INTERVAL=1;BYDAY=SA' for weekly on Saturday, 'FREQ=DAILY;INTERVAL=1' for daily). Due date auto-calculates to the first matching date." },
       },
       required: ["title"],

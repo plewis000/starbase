@@ -263,7 +263,7 @@ async function createTask(supabase: Supabase, userId: string, input: Record<stri
     created_by: userId,
     recurrence_rule: recurrenceRule,
   };
-  if (input.completion_mode && ["solo", "coop", "competitive"].includes(input.completion_mode as string)) {
+  if (input.completion_mode && ["coop", "competitive"].includes(input.completion_mode as string)) {
     insertData.completion_mode = input.completion_mode;
   }
 

@@ -84,7 +84,7 @@ export interface Task {
   task_type?: { id: string; name: string; icon?: string };
   effort_level?: { id: string; name: string; icon?: string };
   location_context?: { id: string; name: string; icon?: string };
-  completion_mode?: "solo" | "coop" | "competitive";
+  completion_mode?: "coop" | "competitive";
   created_at?: string;
   updated_at?: string;
   completed_at?: string | null;

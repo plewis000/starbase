@@ -6,6 +6,7 @@ import ChecklistWidget from "./ChecklistWidget";
 import CommentThread from "@/components/ui/CommentThread";
 import EntityLinksSection from "@/components/ui/EntityLinksSection";
 import CompletionCreditModal, { needsCreditModal } from "./CompletionCreditModal";
+import { formatRelativeDate, getDateColor } from "@/lib/dateUtils";
 import {
   InlineStatusPicker,
   InlinePriorityPicker,
@@ -29,33 +30,7 @@ interface TaskDetailProps {
   onTaskUpdated?: () => void;
 }
 
-const formatRelativeDate = (dateString?: string): string => {
-  if (!dateString) return "No date";
-  const date = new Date(dateString);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  date.setHours(0, 0, 0, 0);
-  const diffTime = date.getTime() - today.getTime();
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  if (diffDays < 0) return `Overdue (${Math.abs(diffDays)}d ago)`;
-  if (diffDays === 0) return "Today";
-  if (diffDays === 1) return "Tomorrow";
-  if (diffDays <= 7) return `In ${diffDays}d`;
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-};
-
-const getDateColor = (dateString?: string): string => {
-  if (!dateString) return "text-dungeon-400";
-  const date = new Date(dateString);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  date.setHours(0, 0, 0, 0);
-  const diffTime = date.getTime() - today.getTime();
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  if (diffDays < 0) return "text-red-400";
-  if (diffDays === 0 || diffDays === 1) return "text-amber-400";
-  return "text-dungeon-400";
-};
+// formatRelativeDate and getDateColor imported from @/lib/dateUtils
 
 const formatRelativeTime = (dateString: string): string => {
   const date = new Date(dateString);
@@ -477,7 +452,6 @@ export default function TaskDetail({
                 <p className="text-xs text-dungeon-400 mb-1.5">Completion Mode</p>
                 <div className="flex gap-1.5">
                   {([
-                    { value: "solo", label: "Solo", desc: "One person completes" },
                     { value: "coop", label: "Co-op", desc: "Everyone gets credit" },
                     { value: "competitive", label: "Competitive", desc: "First to finish" },
                   ] as const).map((mode) => (
@@ -486,7 +460,7 @@ export default function TaskDetail({
                       onClick={() => handleOptimisticUpdate({ completion_mode: mode.value })}
                       title={mode.desc}
                       className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
-                        task.completion_mode === mode.value || (!(task.completion_mode) && mode.value === "solo")
+                        (task.completion_mode || "coop") === mode.value
                           ? "bg-crimson-900/30 border-crimson-700 text-crimson-300"
                           : "bg-dungeon-800 border-dungeon-700 text-dungeon-400 hover:text-slate-200 hover:border-dungeon-600"
                       }`}

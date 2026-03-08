@@ -34,7 +34,7 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
     locationContextId: task?.location_context_id || "",
     scheduleDate: task?.schedule_date || "",
     estimatedMinutes: task?.estimated_minutes || 0,
-    completionMode: task?.completion_mode || "solo",
+    completionMode: task?.completion_mode || "coop",
   });
 
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>(
@@ -283,7 +283,6 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
           <label className={SECTION_LABEL}>Completion Mode</label>
           <div className="flex gap-2">
             {[
-              { value: "solo", label: "Solo", desc: "One person completes, they get XP" },
               { value: "coop", label: "Co-op", desc: "Everyone gets full XP" },
               { value: "competitive", label: "Competitive", desc: "First to finish gets XP" },
             ].map((mode) => (
@@ -304,7 +303,6 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
             ))}
           </div>
           <p className="text-xs text-dungeon-500 mt-1">
-            {formData.completionMode === "solo" && "One person completes it and gets the XP"}
             {formData.completionMode === "coop" && "Everyone gets full XP when completed"}
             {formData.completionMode === "competitive" && "First to finish gets the XP"}
           </p>

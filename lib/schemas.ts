@@ -21,7 +21,7 @@ const specificDays = z.array(z.number().int().min(0).max(6)).max(7).transform(v 
 
 // ---- Task Schemas ----
 
-const completionMode = z.enum(["solo", "coop", "competitive"]).optional();
+const completionMode = z.enum(["coop", "competitive"]).optional();
 
 export const createTaskSchema = z.object({
   title: trimmedString(300),

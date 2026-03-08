@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { dayDiff } from "@/lib/dateUtils";
 
 interface GoalCardProps {
   goal: {
@@ -33,14 +34,12 @@ const PROGRESS_COLORS: Record<string, string> = {
 
 const formatRelativeDate = (dateString?: string): string => {
   if (!dateString) return "";
-  const date = new Date(dateString);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  date.setHours(0, 0, 0, 0);
-  const diffDays = Math.ceil((date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-  if (diffDays < 0) return `${Math.abs(diffDays)}d overdue`;
-  if (diffDays === 0) return "Due today";
-  if (diffDays <= 30) return `${diffDays}d left`;
+  const diff = dayDiff(dateString);
+  if (diff < 0) return `${Math.abs(diff)}d overdue`;
+  if (diff === 0) return "Due today";
+  if (diff <= 30) return `${diff}d left`;
+  const parts = dateString.split("-").map(Number);
+  const date = new Date(parts[0], parts[1] - 1, parts[2]);
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 };
 

@@ -97,16 +97,11 @@ export const PATCH = withAuth(async (request, { supabase, user, ctx }) => {
     const taskMap = new Map((existingTasks || []).map(t => [t.id, t]));
     for (const taskId of task_ids) {
       const task = taskMap.get(taskId);
-      const mode = task?.completion_mode || "solo";
+      const mode = task?.completion_mode || "coop";
       const ownerIds: string[] = task?.owner_ids || [];
-      let creditedTo: string[];
-      if (mode === "competitive") {
-        creditedTo = [user.id];
-      } else if (mode === "coop") {
-        creditedTo = ownerIds.length > 0 ? ownerIds : [user.id];
-      } else {
-        creditedTo = ownerIds.length > 0 ? ownerIds : [user.id];
-      }
+      const creditedTo = mode === "competitive"
+        ? [user.id]
+        : ownerIds.length > 0 ? ownerIds : [user.id];
       const { error } = await platform(supabase)
         .from("tasks")
         .update({ ...updateData, credited_to: creditedTo })
@@ -141,13 +136,11 @@ export const PATCH = withAuth(async (request, { supabase, user, ctx }) => {
 
           for (const taskId of newlyCompleting) {
             const task = taskMap.get(taskId);
-            const mode = task?.completion_mode || "solo";
+            const mode = task?.completion_mode || "coop";
             const ownerIds: string[] = task?.owner_ids || [];
             const creditedUsers = mode === "competitive"
               ? [user.id]
-              : mode === "coop" && ownerIds.length > 0
-                ? ownerIds
-                : [user.id];
+              : ownerIds.length > 0 ? ownerIds : [user.id];
 
             const priorityName = priorityNameMap.get(taskPriorityMap.get(taskId) || "") || "Medium";
             const xpAmount = priorityXp[priorityName] || 25;

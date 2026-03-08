@@ -411,6 +411,7 @@ function RecipesTab({
             fetchRecipes();
             toast.success(editingRecipe ? "Recipe updated" : "Recipe created");
           }}
+          onError={(msg) => toast.error(msg)}
         />
       )}
     </>
@@ -515,11 +516,12 @@ function RecipeDetail({
 // ─── Recipe Form Modal ────────────────────────────────────
 
 function RecipeFormModal({
-  recipe, onClose, onSaved,
+  recipe, onClose, onSaved, onError,
 }: {
   recipe: Recipe | null;
   onClose: () => void;
   onSaved: () => void;
+  onError?: (msg: string) => void;
 }) {
   const [title, setTitle] = useState(recipe?.title || "");
   const [sourceUrl, setSourceUrl] = useState(recipe?.source_url || "");
@@ -559,16 +561,16 @@ function RecipeFormModal({
 
     const payload = {
       title: title.trim(),
-      source_url: sourceUrl.trim() || undefined,
+      source_url: sourceUrl.trim() || null,
       servings: parseInt(servings) || 4,
-      prep_time_minutes: parseInt(prepTime) || undefined,
-      cook_time_minutes: parseInt(cookTime) || undefined,
-      instructions: instructions.trim() || undefined,
+      prep_time_minutes: parseInt(prepTime) || null,
+      cook_time_minutes: parseInt(cookTime) || null,
+      instructions: instructions.trim() || null,
       tags: tags.split(",").map(t => t.trim()).filter(Boolean),
-      notes: notes.trim() || undefined,
+      notes: notes.trim() || null,
       ingredients: ingredients.filter(i => i.name.trim()).map(i => ({
         name: i.name.trim(),
-        quantity: i.quantity.trim() || undefined,
+        quantity: i.quantity.trim() || null,
         is_optional: i.is_optional,
       })),
     };
@@ -583,7 +585,12 @@ function RecipeFormModal({
       });
       if (res.ok) {
         onSaved();
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        onError?.(errData.error || `Save failed (${res.status})`);
       }
+    } catch {
+      onError?.("Network error — could not save");
     } finally {
       setSaving(false);
     }
