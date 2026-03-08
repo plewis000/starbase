@@ -267,4 +267,15 @@ export async function editMessage(channelId: string, messageId: string, payload:
   }
 }
 
+// Delete a channel by ID
+export async function deleteChannel(channelId: string): Promise<boolean> {
+  try {
+    await rest.delete(Routes.channel(channelId));
+    return true;
+  } catch (err) {
+    console.error("[discord] deleteChannel failed:", err);
+    return false;
+  }
+}
+
 export { DISCORD_API, GUILD_ID };

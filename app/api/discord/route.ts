@@ -396,9 +396,40 @@ async function handleLink(supabase: Supabase, discordUserId: string, options: Re
   }
 
   const name = user.full_name || email.split("@")[0];
-  await sendWebhook(webhookUrl, {
-    content: `Linked! Welcome, **${name}**. You now have full access to all slash commands.\n\nTry these:\n• **/dashboard** — your daily overview\n• **/task** — create a task\n• **/shop** — add to shopping list\n• **/habit** — check in to a habit\n• **/ask** — ask me anything`,
-  });
+
+  // Check if user has completed onboarding
+  const { data: onboardingState } = await platform(supabase)
+    .from("onboarding_state")
+    .select("current_phase")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  const isNew = !onboardingState || onboardingState.current_phase === "not_started";
+
+  if (isNew) {
+    await sendWebhook(webhookUrl, {
+      content: [
+        `Linked! Welcome to The Keep, **${name}**.`,
+        "",
+        "I'm Zev — your household's executive assistant. I handle tasks, habits, shopping, budgets, and keeping you two organized.",
+        "",
+        "**Let's get you set up (takes ~5 min):**",
+        "Type `/ask Hey Zev, let's do the onboarding` and I'll walk you through it.",
+        "",
+        "**Or jump straight in:**",
+        "• `/task Buy groceries` — create your first task",
+        "• `/habit Morning workout` — start tracking a habit",
+        "• `/dashboard` — see your daily overview",
+        "• `/help` — see all commands",
+        "",
+        "I'll learn your patterns over time and get smarter about helping you. The more you use me, the more useful I get.",
+      ].join("\n"),
+    });
+  } else {
+    await sendWebhook(webhookUrl, {
+      content: `Linked! Welcome back, **${name}**. You now have full access to all slash commands.\n\nTry these:\n• **/dashboard** — your daily overview\n• **/task** — create a task\n• **/shop** — add to shopping list\n• **/habit** — check in to a habit\n• **/ask** — ask me anything`,
+    });
+  }
 }
 
 async function checkIsAdmin(supabase: Supabase, userId: string): Promise<boolean> {
