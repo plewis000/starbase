@@ -236,19 +236,24 @@ async function createTask(supabase: Supabase, userId: string, input: Record<stri
     }
   }
 
+  const insertData: Record<string, unknown> = {
+    title: input.title as string,
+    description: (input.description as string) || null,
+    due_date: (input.due_date as string) || null,
+    priority_id: priorityId || null,
+    status_id: defaultStatus?.id || null,
+    owner_ids: [assigneeId],
+    assigned_to: assigneeId,
+    created_by: userId,
+  };
+  if (input.completion_mode && ["solo", "coop", "competitive"].includes(input.completion_mode as string)) {
+    insertData.completion_mode = input.completion_mode;
+  }
+
   const { data, error } = await platform(supabase)
     .from("tasks")
-    .insert({
-      title: input.title as string,
-      description: (input.description as string) || null,
-      due_date: (input.due_date as string) || null,
-      priority_id: priorityId || null,
-      status_id: defaultStatus?.id || null,
-      owner_ids: [assigneeId],
-      assigned_to: assigneeId,
-      created_by: userId,
-    })
-    .select("id, title, due_date, assigned_to")
+    .insert(insertData)
+    .select("id, title, due_date, assigned_to, completion_mode")
     .single();
 
   if (error) return { success: false, error: error.message };

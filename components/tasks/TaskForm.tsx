@@ -31,6 +31,7 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
     recurrenceRule: task?.recurrence_rule || "",
     taskTypeId: (task as unknown as Record<string, unknown>)?.task_type_id as string || "",
     effortLevelId: (task as unknown as Record<string, unknown>)?.effort_level_id as string || "",
+    completionMode: (task as unknown as Record<string, unknown>)?.completion_mode as string || "solo",
   });
 
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>(
@@ -91,6 +92,7 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
         effort_level_id: formData.effortLevelId || null,
         tag_ids: selectedTagIds,
         checklist_items: checklistItems.filter((item) => item.title.trim()).map((item) => item.title.trim()),
+        completion_mode: formData.completionMode || "solo",
       };
 
       const method = isEditing ? "PATCH" : "POST";
@@ -237,6 +239,40 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
           </p>
         )}
       </div>
+
+      {/* 7. Completion Mode (only show when 2+ owners) */}
+      {selectedOwnerIds.length > 1 && (
+        <div>
+          <label className={SECTION_LABEL}>Completion Mode</label>
+          <div className="flex gap-2">
+            {[
+              { value: "solo", label: "Solo", desc: "One person completes, they get XP" },
+              { value: "coop", label: "Co-op", desc: "Everyone gets full XP" },
+              { value: "competitive", label: "Competitive", desc: "First to finish gets XP" },
+            ].map((mode) => (
+              <button
+                key={mode.value}
+                type="button"
+                onClick={() => setField("completionMode", mode.value)}
+                disabled={submitting}
+                className={`flex-1 px-3 py-2 rounded text-sm font-medium transition-colors disabled:opacity-50 ${
+                  formData.completionMode === mode.value
+                    ? "bg-red-400/20 border border-red-400/50 text-red-300"
+                    : "bg-dungeon-800 border border-dungeon-700 text-dungeon-400 hover:border-dungeon-600"
+                }`}
+                title={mode.desc}
+              >
+                {mode.label}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-dungeon-500 mt-1">
+            {formData.completionMode === "solo" && "One person completes it and gets the XP"}
+            {formData.completionMode === "coop" && "Everyone gets full XP when completed"}
+            {formData.completionMode === "competitive" && "First to finish gets the XP"}
+          </p>
+        </div>
+      )}
 
       {/* 8. Tags toggle pills */}
       {tags.length > 0 && (

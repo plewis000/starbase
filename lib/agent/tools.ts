@@ -33,6 +33,7 @@ export const AGENT_TOOLS: Tool[] = [
         due_date: { type: "string", description: "Due date in YYYY-MM-DD format" },
         priority: { type: "string", description: "Priority: 'high', 'medium', 'low', or priority config ID" },
         assign_to: { type: "string", description: "Name of household member to assign to (e.g. 'Parker', 'Lenale'). Defaults to current user." },
+        completion_mode: { type: "string", enum: ["solo", "coop", "competitive"], description: "How XP is awarded: solo (default, owners get credit), coop (all owners get full XP), competitive (only completer gets XP — race format)" },
       },
       required: ["title"],
     },
