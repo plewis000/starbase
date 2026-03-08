@@ -22,15 +22,14 @@ export async function GET(request: NextRequest) {
   tomorrow.setDate(tomorrow.getDate() + 1);
   const tomorrowStr = tomorrow.toISOString().slice(0, 10);
 
-  // Get open (non-terminal) status IDs
+  // Get open (non-terminal) status IDs using is_done flag
   const { data: activeStatuses } = await config(supabase)
     .from("task_statuses")
-    .select("id, name")
+    .select("id, is_done")
     .eq("active", true);
 
-  const terminalNames = new Set(["done", "shipped", "completed", "abandoned", "cancelled"]);
   const openStatusIds = (activeStatuses || [])
-    .filter(s => !terminalNames.has(s.name.toLowerCase()))
+    .filter(s => !s.is_done)
     .map(s => s.id);
 
   if (openStatusIds.length === 0) {

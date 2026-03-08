@@ -1910,12 +1910,11 @@ async function getWorkloadBalance(supabase: Supabase, userId: string): Promise<T
   // Get open status IDs
   const { data: activeStatuses } = await config(supabase)
     .from("task_statuses")
-    .select("id, name")
+    .select("id, is_done")
     .eq("active", true);
 
-  const terminalNames = new Set(["done", "shipped", "completed", "abandoned", "cancelled"]);
   const openStatusIds = (activeStatuses || [])
-    .filter((s) => !terminalNames.has(s.name.toLowerCase()))
+    .filter((s) => !s.is_done)
     .map((s) => s.id);
 
   const balanceData: {
@@ -2004,12 +2003,11 @@ async function getFocusTasks(supabase: Supabase, userId: string, input: Record<s
   // Get open status IDs
   const { data: statuses } = await config(supabase)
     .from("task_statuses")
-    .select("id, name")
+    .select("id, is_done")
     .eq("active", true);
 
-  const terminalNames = new Set(["done", "shipped", "completed", "abandoned", "cancelled"]);
   const openStatusIds = (statuses || [])
-    .filter((s) => !terminalNames.has(s.name.toLowerCase()))
+    .filter((s) => !s.is_done)
     .map((s) => s.id);
 
   if (openStatusIds.length === 0) return { success: true, data: { focus_items: [], message: "No open tasks" } };
@@ -2181,12 +2179,11 @@ async function smartReschedule(supabase: Supabase, userId: string, input: Record
   // Get open status IDs for counting existing load
   const { data: statuses } = await config(supabase)
     .from("task_statuses")
-    .select("id, name")
+    .select("id, is_done")
     .eq("active", true);
 
-  const terminalNames = new Set(["done", "shipped", "completed", "abandoned", "cancelled"]);
   const openStatusIds = (statuses || [])
-    .filter((s) => !terminalNames.has(s.name.toLowerCase()))
+    .filter((s) => !s.is_done)
     .map((s) => s.id);
 
   // Analyze completion patterns: which days of week does user complete most tasks?

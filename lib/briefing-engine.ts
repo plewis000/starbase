@@ -192,12 +192,11 @@ async function gatherBriefingData(
   // Get open status IDs
   const { data: activeStatuses } = await config(supabase)
     .from("task_statuses")
-    .select("id, name")
+    .select("id, is_done")
     .eq("active", true);
 
-  const terminalNames = new Set(["done", "shipped", "completed", "abandoned", "cancelled"]);
   const openStatusIds = (activeStatuses || [])
-    .filter((s) => !terminalNames.has(s.name.toLowerCase()))
+    .filter((s) => !s.is_done)
     .map((s) => s.id);
 
   // Parallel data fetch

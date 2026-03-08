@@ -91,12 +91,11 @@ export async function GET(request: NextRequest) {
       // 2. Check tasks due today that aren't done
       const { data: activeStatuses } = await config(supabase)
         .from("task_statuses")
-        .select("id, name")
+        .select("id, is_done")
         .eq("active", true);
 
-      const terminalNames = new Set(["done", "shipped", "completed", "abandoned", "cancelled"]);
       const openStatusIds = (activeStatuses || [])
-        .filter((s) => !terminalNames.has(s.name.toLowerCase()))
+        .filter((s) => !s.is_done)
         .map((s) => s.id);
 
       if (openStatusIds.length > 0) {
