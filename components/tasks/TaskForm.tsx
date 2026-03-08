@@ -29,9 +29,9 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
     priorityId: task?.priority?.id || task?.priority_id || "",
     dueDate: task?.due_date || new Date().toISOString().split("T")[0],
     recurrenceRule: task?.recurrence_rule || "",
-    taskTypeId: (task as unknown as Record<string, unknown>)?.task_type_id as string || "",
-    effortLevelId: (task as unknown as Record<string, unknown>)?.effort_level_id as string || "",
-    completionMode: (task as unknown as Record<string, unknown>)?.completion_mode as string || "solo",
+    taskTypeId: task?.task_type_id || "",
+    effortLevelId: task?.effort_level_id || "",
+    completionMode: task?.completion_mode || "solo",
   });
 
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>(

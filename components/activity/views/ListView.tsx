@@ -19,6 +19,8 @@ interface Task {
   owners?: { id: string; full_name: string; email?: string; avatar_url?: string | null }[];
   task_type_id?: string;
   effort_level_id?: string;
+  task_type?: { id: string; name: string; icon?: string };
+  effort_level?: { id: string; name: string; icon?: string };
   status?: { id: string; name: string; color?: string; icon?: string; sort_order: number };
   priority?: { id: string; name: string; color?: string; icon?: string; sort_order: number };
   assignee?: { id: string; full_name: string; email: string; avatar_url?: string | null };
@@ -645,7 +647,7 @@ export default function ListView({ tasks, onQuickComplete, completedTaskId, conf
             />
           );
         }
-        return <span className="text-[10px] text-slate-500">{(task as any).task_type?.name || "—"}</span>;
+        return <span className="text-[10px] text-slate-500">{task.task_type?.name || "—"}</span>;
 
       case "effort":
         if (config?.effort_levels) {
@@ -658,7 +660,7 @@ export default function ListView({ tasks, onQuickComplete, completedTaskId, conf
             />
           );
         }
-        return <span className="text-[10px] text-slate-500">{(task as any).effort_level?.name || "—"}</span>;
+        return <span className="text-[10px] text-slate-500">{task.effort_level?.name || "—"}</span>;
 
       case "tags":
         return <InlineCellTags task={task} availableTags={config?.tags || []} onUpdate={handleTagUpdate} />;
