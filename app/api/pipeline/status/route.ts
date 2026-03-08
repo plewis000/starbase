@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { platform } from "@/lib/supabase/schemas";
-import { sendMessageWithButtons, sendMessage, ZEV_COLOR } from "@/lib/discord";
+import { sendMessageWithButtons, sendMessage, findChannelByName, CHANNELS, ZEV_COLOR } from "@/lib/discord";
 import { isValidUUID } from "@/lib/validation";
 
 const PIPELINE_SECRET = process.env.PIPELINE_SECRET;
@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Discord notifications (using after() for serverless safety)
-  const channelId = process.env.PIPELINE_CHANNEL_ID;
+  const channelId = await findChannelByName(CHANNELS.FEEDBACK);
   if (channelId) {
     const bodyPreview = feedback.body.slice(0, 100);
     after(async () => {
