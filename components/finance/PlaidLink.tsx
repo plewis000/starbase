@@ -9,6 +9,7 @@ interface Props {
 export default function PlaidLink({ onSuccess }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showConsent, setShowConsent] = useState(false);
 
   const handleLink = async () => {
     setLoading(true);
@@ -72,10 +73,64 @@ export default function PlaidLink({ onSuccess }: Props) {
 
   return (
     <div>
+      {/* Consent dialog */}
+      {showConsent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-dungeon-900 border border-slate-700 rounded-xl max-w-md w-full p-6 shadow-2xl">
+            <h3 className="text-lg font-semibold text-slate-100 mb-3">
+              Connect Your Bank Account
+            </h3>
+            <div className="text-sm text-slate-300 space-y-3 mb-6">
+              <p>
+                By connecting a bank account, you authorize The Keep to access the following
+                data through Plaid:
+              </p>
+              <ul className="list-disc pl-5 space-y-1 text-slate-400">
+                <li>Account names, types, and masked numbers</li>
+                <li>Account balances</li>
+                <li>Transaction history (amounts, dates, merchants)</li>
+              </ul>
+              <p>
+                This data is used to categorize spending, track budgets, and generate financial
+                summaries. We do not access your bank login credentials.
+              </p>
+              <p>
+                You can disconnect at any time. See our{" "}
+                <a
+                  href="/privacy"
+                  target="_blank"
+                  className="text-gold-400 underline hover:text-gold-300"
+                >
+                  Privacy Policy
+                </a>{" "}
+                for full details on data handling, retention, and your rights.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowConsent(false);
+                  handleLink();
+                }}
+                className="flex-1 px-4 py-2.5 text-sm font-medium bg-green-600 text-white rounded-lg hover:bg-green-500 transition-colors"
+              >
+                I Agree — Connect Account
+              </button>
+              <button
+                onClick={() => setShowConsent(false)}
+                className="px-4 py-2.5 text-sm text-slate-400 border border-slate-600 rounded-lg hover:bg-slate-800 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <button
-        onClick={handleLink}
+        onClick={() => setShowConsent(true)}
         disabled={loading}
-        className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-red-500 transition-colors disabled:opacity-50"
+        className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-500 transition-colors disabled:opacity-50"
       >
         {loading ? "Connecting..." : "Link Bank Account"}
       </button>
