@@ -61,7 +61,7 @@ function BulkSelect({
         {label}
       </button>
       {open && (
-        <div className="absolute bottom-full left-0 mb-2 z-[60] bg-dungeon-800 border border-dungeon-700 rounded-lg shadow-xl py-1 min-w-[130px] max-h-48 overflow-y-auto">
+        <div className="absolute bottom-full left-0 mb-2 z-[60] bg-dungeon-800 border border-dungeon-700 rounded-lg shadow-xl py-1 min-w-[130px] max-h-[40vh] overflow-y-auto">
           {allowNone && (
             <button
               onClick={() => { onSelect(null); setOpen(false); }}
@@ -295,7 +295,7 @@ export default function BulkActionBar({
   const disabled = selectedCount === 0;
 
   return (
-    <div className="fixed bottom-20 lg:bottom-4 left-1/2 -translate-x-1/2 z-50 bg-dungeon-900 border border-dungeon-700 rounded-xl shadow-2xl px-4 py-2.5 flex items-center gap-2 animate-in slide-in-from-bottom duration-200 overflow-x-auto max-w-[95vw]">
+    <div className="fixed bottom-20 lg:bottom-4 left-1/2 -translate-x-1/2 z-50 bg-dungeon-900 border border-dungeon-700 rounded-xl shadow-2xl px-4 py-2.5 flex items-center gap-2 flex-wrap animate-in slide-in-from-bottom duration-200 max-w-[95vw]">
       {/* Count */}
       <span className="text-sm font-medium text-slate-200 whitespace-nowrap">
         {selectedCount} of {totalCount}

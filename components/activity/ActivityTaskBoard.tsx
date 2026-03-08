@@ -407,13 +407,17 @@ export default function ActivityTaskBoard({
     const ids = Array.from(selectedTaskIds);
     if (ids.length === 0) return;
     try {
-      await apiFetch("/api/tasks/bulk", {
+      const res = await apiFetch("/api/tasks/bulk", {
         method: "PATCH",
         body: JSON.stringify({ task_ids: ids, patch }),
       });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        console.error("Bulk update failed:", errData.error || res.status);
+      }
       setSelectedTaskIds(new Set());
       fetchTasks(filtersRef.current);
-    } catch { /* silent */ }
+    } catch (err) { console.error("Bulk update failed:", err); }
   }, [selectedTaskIds, fetchTasks]);
 
   const exitBulkMode = useCallback(() => {
@@ -440,12 +444,16 @@ export default function ActivityTaskBoard({
     const ids = Array.from(selectedTaskIds);
     if (ids.length === 0) return;
     try {
-      await apiFetch("/api/tasks/bulk/tags", {
+      const res = await apiFetch("/api/tasks/bulk/tags", {
         method: "POST",
         body: JSON.stringify({ task_ids: ids, action, tag_id: tagId }),
       });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        console.error("Bulk tag update failed:", errData.error || res.status);
+      }
       fetchTasks(filtersRef.current);
-    } catch { /* silent */ }
+    } catch (err) { console.error("Bulk tag update failed:", err); }
   }, [selectedTaskIds, fetchTasks]);
 
   // Auto-exit bulk mode on view change

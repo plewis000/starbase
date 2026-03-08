@@ -177,10 +177,14 @@ export default function TaskDetail({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(patch),
       });
-      if (!response.ok) throw new Error("Update failed");
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || `Update failed (${response.status})`);
+      }
       // Notify parent for list refresh, but don't refetch this task
       onTaskUpdated?.();
-    } catch {
+    } catch (err) {
+      console.error("Task update failed:", err instanceof Error ? err.message : err, "patch:", patch);
       // Revert on error
       setTask(snapshot);
     }
@@ -212,7 +216,7 @@ export default function TaskDetail({
       if (!response.ok) return;
       const data = await response.json();
       setTask(data.task);
-    } catch { /* silent */ }
+    } catch (err) { console.error("Task refetch failed:", err); }
   };
 
   const handleConfigAdded = () => {

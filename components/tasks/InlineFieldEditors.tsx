@@ -12,7 +12,10 @@ async function patchTask(taskId: string, data: Record<string, unknown>) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error("Update failed");
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error || `Update failed (${res.status})`);
+  }
   return res.json();
 }
 
@@ -68,7 +71,7 @@ export function InlineStatusPicker({
     try {
       await patchTask(taskId, { status_id: id });
       onUpdated();
-    } catch { /* silent */ }
+    } catch (err) { console.error("Task update failed:", err instanceof Error ? err.message : err); }
     setSaving(false);
   };
 
@@ -79,7 +82,7 @@ export function InlineStatusPicker({
       setNewName("");
       setShowAdd(false);
       onConfigAdded?.();
-    } catch { /* silent */ }
+    } catch (err) { console.error("Task update failed:", err instanceof Error ? err.message : err); }
   };
 
   return (
@@ -155,7 +158,7 @@ export function InlinePriorityPicker({
     try {
       await patchTask(taskId, { priority_id: id });
       onUpdated();
-    } catch { /* silent */ }
+    } catch (err) { console.error("Task update failed:", err instanceof Error ? err.message : err); }
     setSaving(false);
   };
 
@@ -166,7 +169,7 @@ export function InlinePriorityPicker({
       setNewName("");
       setShowAdd(false);
       onConfigAdded?.();
-    } catch { /* silent */ }
+    } catch (err) { console.error("Task update failed:", err instanceof Error ? err.message : err); }
   };
 
   return (
@@ -233,7 +236,7 @@ export function InlineTypePicker({
     try {
       await patchTask(taskId, { task_type_id: id === currentValue ? null : id });
       onUpdated();
-    } catch { /* silent */ }
+    } catch (err) { console.error("Task update failed:", err instanceof Error ? err.message : err); }
     setSaving(false);
   };
 
@@ -244,7 +247,7 @@ export function InlineTypePicker({
       setNewName("");
       setShowAdd(false);
       onConfigAdded?.();
-    } catch { /* silent */ }
+    } catch (err) { console.error("Task update failed:", err instanceof Error ? err.message : err); }
   };
 
   return (
@@ -310,7 +313,7 @@ export function InlineEffortPicker({
     try {
       await patchTask(taskId, { effort_level_id: id === currentValue ? null : id });
       onUpdated();
-    } catch { /* silent */ }
+    } catch (err) { console.error("Task update failed:", err instanceof Error ? err.message : err); }
     setSaving(false);
   };
 
@@ -321,7 +324,7 @@ export function InlineEffortPicker({
       setNewName("");
       setShowAdd(false);
       onConfigAdded?.();
-    } catch { /* silent */ }
+    } catch (err) { console.error("Task update failed:", err instanceof Error ? err.message : err); }
   };
 
   return (
@@ -380,7 +383,7 @@ export function InlineDatePicker({
     try {
       await patchTask(taskId, { due_date: dateStr || null });
       onUpdated();
-    } catch { /* silent */ }
+    } catch (err) { console.error("Task update failed:", err instanceof Error ? err.message : err); }
     setSaving(false);
   };
 
@@ -413,7 +416,7 @@ export function InlineScheduleDatePicker({
     try {
       await patchTask(taskId, { schedule_date: dateStr || null });
       onUpdated();
-    } catch { /* silent */ }
+    } catch (err) { console.error("Task update failed:", err instanceof Error ? err.message : err); }
     setSaving(false);
   };
 
@@ -449,7 +452,7 @@ export function InlineLocationPicker({
     try {
       await patchTask(taskId, { location_context_id: id === currentValue ? null : id });
       onUpdated();
-    } catch { /* silent */ }
+    } catch (err) { console.error("Task update failed:", err instanceof Error ? err.message : err); }
     setSaving(false);
   };
 
@@ -499,7 +502,7 @@ export function InlineTimeEstimate({
         actual_minutes: act || null,
       });
       onUpdated();
-    } catch { /* silent */ }
+    } catch (err) { console.error("Task update failed:", err instanceof Error ? err.message : err); }
     setSaving(false);
     setEditing(false);
   };
@@ -584,7 +587,7 @@ export function InlineAssigneePicker({
     try {
       await patchTask(taskId, { assigned_to: userId || null });
       onUpdated();
-    } catch { /* silent */ }
+    } catch (err) { console.error("Task update failed:", err instanceof Error ? err.message : err); }
     setSaving(false);
   };
 
@@ -633,7 +636,7 @@ export function InlineTagEditor({
         body: JSON.stringify({ tag_id: tagId }),
       });
       onUpdated();
-    } catch { /* silent */ }
+    } catch (err) { console.error("Task update failed:", err instanceof Error ? err.message : err); }
     setSaving(false);
     setShowDropdown(false);
   };
@@ -643,7 +646,7 @@ export function InlineTagEditor({
     try {
       await fetch(`/api/tasks/${taskId}/tags/${assocId}`, { method: "DELETE" });
       onUpdated();
-    } catch { /* silent */ }
+    } catch (err) { console.error("Task update failed:", err instanceof Error ? err.message : err); }
     setSaving(false);
   };
 
