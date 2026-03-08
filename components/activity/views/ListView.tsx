@@ -545,8 +545,16 @@ export default function ListView({ tasks, onQuickComplete, completedTaskId, conf
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(patch),
       });
-      if (res.ok) onTaskUpdated?.();
-    } catch {}
+      if (res.ok) {
+        onTaskUpdated?.();
+      } else {
+        console.error("Task update failed:", res.status);
+        onTaskUpdated?.(); // Refresh to revert optimistic state
+      }
+    } catch (err) {
+      console.error("Task update error:", err);
+      onTaskUpdated?.(); // Refresh to revert
+    }
   }, [onTaskUpdated]);
 
   const handleTagUpdate = useCallback(async (taskId: string, action: { type: "addTag" | "removeTag"; tagId: string; assocId?: string }) => {
@@ -561,8 +569,16 @@ export default function ListView({ tasks, onQuickComplete, completedTaskId, conf
       } else {
         res = await fetch(`/api/tasks/${taskId}/tags/${action.assocId}`, { method: "DELETE" });
       }
-      if (res?.ok) onTaskUpdated?.();
-    } catch {}
+      if (res?.ok) {
+        onTaskUpdated?.();
+      } else {
+        console.error("Tag update failed:", res?.status);
+        onTaskUpdated?.();
+      }
+    } catch (err) {
+      console.error("Tag update error:", err);
+      onTaskUpdated?.();
+    }
   }, [onTaskUpdated]);
 
   const activeColumns = columnOrder

@@ -47,9 +47,10 @@ async function fetchConfig(): Promise<TaskConfig> {
       fetch("/api/household/members"),
       fetch("/api/tags"),
     ]);
-    const configData = await configRes.json();
-    const membersData = await membersRes.json();
-    const tagsData = await tagsRes.json();
+
+    const configData = configRes.ok ? await configRes.json() : {};
+    const membersData = membersRes.ok ? await membersRes.json() : {};
+    const tagsData = tagsRes.ok ? await tagsRes.json() : {};
 
     cachedConfig = {
       statuses: configData.statuses || [],

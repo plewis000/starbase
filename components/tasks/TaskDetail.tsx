@@ -112,6 +112,12 @@ const FIELD_LABELS: Record<string, string> = {
   task_type_id: "type",
   recurrence_rule: "recurrence",
   effort_level_id: "effort",
+  location_context_id: "location",
+  completion_mode: "completion mode",
+  schedule_date: "start date",
+  estimated_minutes: "time estimate",
+  actual_minutes: "actual time",
+  owner_ids: "owners",
 };
 
 export default function TaskDetail({
@@ -680,20 +686,20 @@ export default function TaskDetail({
             {showActivityLog && (
               <div className="space-y-2 text-sm">
                 {task.activity.map((entry: ActivityEntry, idx: number) => {
-                  const fieldLabel = FIELD_LABELS[(entry as any).field_name] || (entry as any).field_name;
-                  const performerName = resolveMemberName((entry as any).performed_by);
-                  const hasFieldChange = (entry as any).field_name && (entry as any).old_value !== undefined;
+                  const fieldLabel = FIELD_LABELS[entry.field_name || ""] || entry.field_name;
+                  const performerName = resolveMemberName(entry.performed_by);
+                  const hasFieldChange = entry.field_name && entry.old_value !== undefined;
 
                   // Resolve UUID values to human-readable names
-                  let oldVal = (entry as any).old_value;
-                  let newVal = (entry as any).new_value;
-                  if ((entry as any).field_name === "status_id") {
+                  let oldVal = entry.old_value;
+                  let newVal = entry.new_value;
+                  if (entry.field_name === "status_id") {
                     oldVal = resolveStatusName(oldVal) || oldVal;
                     newVal = resolveStatusName(newVal) || newVal;
-                  } else if ((entry as any).field_name === "priority_id") {
+                  } else if (entry.field_name === "priority_id") {
                     oldVal = resolvePriorityName(oldVal) || oldVal;
                     newVal = resolvePriorityName(newVal) || newVal;
-                  } else if ((entry as any).field_name === "assigned_to") {
+                  } else if (entry.field_name === "assigned_to") {
                     oldVal = resolveMemberName(oldVal) || oldVal;
                     newVal = resolveMemberName(newVal) || newVal;
                   }
