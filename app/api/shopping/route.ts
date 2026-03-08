@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { withAuth } from "@/lib/api/withAuth";
 import { household } from "@/lib/supabase/schemas";
 import { getHouseholdMemberIds } from "@/lib/household";
@@ -62,6 +62,47 @@ export const POST = withAuth(async (request: NextRequest, { supabase, user }) =>
     .single();
 
   if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
+
+  // Auto-populate staple items from other lists (runs after response)
+  if (list) {
+    after(async () => {
+      try {
+        // Find unique staple items across all lists (deduplicated by lowercase name)
+        const { data: staples } = await household(supabase)
+          .from("shopping_items")
+          .select("name, quantity, category_id")
+          .eq("is_staple", true)
+          .neq("list_id", list.id);
+
+        if (staples && staples.length > 0) {
+          // Deduplicate by name
+          const seen = new Set<string>();
+          const uniqueStaples = staples.filter(s => {
+            const key = s.name.toLowerCase().trim();
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+
+          if (uniqueStaples.length > 0) {
+            await household(supabase)
+              .from("shopping_items")
+              .insert(uniqueStaples.map(s => ({
+                list_id: list.id,
+                name: s.name,
+                quantity: s.quantity,
+                category_id: s.category_id,
+                is_staple: true,
+                added_by: user.id,
+                source: "staple_auto",
+              })));
+          }
+        }
+      } catch (err) {
+        console.error("[shopping] Staple auto-populate failed:", err);
+      }
+    });
+  }
 
   return NextResponse.json({ list }, { status: 201 });
 });
