@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import ChecklistWidget from "./ChecklistWidget";
 import CommentThread from "@/components/ui/CommentThread";
@@ -126,6 +126,7 @@ export default function TaskDetail({
   onTaskUpdated,
 }: TaskDetailProps) {
   const [task, setTask] = useState<Task | null>(null);
+  const pendingOwnerIdsRef = useRef<string[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [editingTitle, setEditingTitle] = useState(false);
@@ -433,10 +434,13 @@ export default function TaskDetail({
                       <button
                         key={m.user_id}
                         onClick={async () => {
-                          const nextIds = isOwner
-                            ? currentOwnerIds.filter((id: string) => id !== m.user_id)
-                            : [...currentOwnerIds, m.user_id];
-                          // Build UserSummary[] for optimistic local state
+                          // Use ref to track latest owner_ids across rapid clicks
+                          const latestOwnerIds = pendingOwnerIdsRef.current || task.owner_ids || [];
+                          const alreadyOwner = latestOwnerIds.includes(m.user_id);
+                          const nextIds = alreadyOwner
+                            ? latestOwnerIds.filter((id: string) => id !== m.user_id)
+                            : [...latestOwnerIds, m.user_id];
+                          pendingOwnerIdsRef.current = nextIds;
                           const nextOwners = nextIds
                             .map((id: string) => {
                               const member = config.members.find((cm: any) => cm.user_id === id);
@@ -458,8 +462,10 @@ export default function TaskDetail({
                               body: JSON.stringify({ owner_ids: nextIds }),
                             });
                             if (!response.ok) throw new Error("Update failed");
+                            pendingOwnerIdsRef.current = null;
                             onTaskUpdated?.();
                           } catch {
+                            pendingOwnerIdsRef.current = null;
                             setTask(snapshot);
                           }
                         }}

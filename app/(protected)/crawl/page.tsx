@@ -696,9 +696,9 @@ export default function CrawlPage() {
   if (!user) return <LoadingSpinner size="lg" />;
 
   const tabs: { id: Tab; label: string; icon: string }[] = [
-    { id: "profile", label: "Crawler Card", icon: "🗡️" },
+    { id: "profile", label: "Profile", icon: "👤" },
     { id: "achievements", label: "Achievements", icon: "🏆" },
-    { id: "loot", label: "Loot Boxes", icon: "📦" },
+    { id: "loot", label: "Rewards", icon: "🎁" },
     { id: "leaderboard", label: "Leaderboard", icon: "📊" },
   ];
 
