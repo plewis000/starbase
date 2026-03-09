@@ -35,7 +35,7 @@ export default function LinkPicker({
       case "goal":
         return "/api/goals?status=active";
       case "habit":
-        return "/api/habits?status=active";
+        return "/api/tasks?is_habit=true&hide_done_days=-1";
       case "task":
         return "/api/tasks?status=active";
       default:
@@ -71,7 +71,9 @@ export default function LinkPicker({
         }
 
         const data = await res.json();
-        const items = Array.isArray(data) ? data : data[`${entityType}s`] || data[entityType] || [];
+        // Habits now come from /api/tasks, so response key is "tasks" not "habits"
+        const responseKey = entityType === "habit" ? "tasks" : `${entityType}s`;
+        const items = Array.isArray(data) ? data : data[responseKey] || data[entityType] || [];
 
         // Filter out excluded IDs
         const filtered = items.filter((item: Entity) => !excludeIds.includes(item.id));

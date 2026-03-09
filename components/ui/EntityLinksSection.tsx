@@ -103,7 +103,7 @@ export default function EntityLinksSection({
           try {
             let url = "";
             if (type === "task") url = `/api/tasks/${id}`;
-            else if (type === "habit") url = `/api/habits/${id}`;
+            else if (type === "habit") url = `/api/tasks/${id}`;
             else if (type === "goal") url = `/api/goals/${id}`;
             else return; // shopping_item has no individual fetch endpoint
 

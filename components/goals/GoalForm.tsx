@@ -13,8 +13,8 @@ interface ConfigItem {
 interface Habit {
   id: string;
   title: string;
-  status: string;
-  current_streak: number;
+  completed_at?: string | null;
+  streak_current: number;
 }
 
 interface GoalFormProps {
@@ -62,10 +62,10 @@ export default function GoalForm({ onSave, onCancel }: GoalFormProps) {
   useEffect(() => {
     const fetchHabits = async () => {
       try {
-        const res = await fetch("/api/habits?status=active");
+        const res = await fetch("/api/tasks?is_habit=true&hide_done_days=-1");
         if (res.ok) {
           const data = await res.json();
-          setHabits(data.habits || []);
+          setHabits(data.tasks || []);
         }
       } catch {
         toast.error("Failed to load habits");
@@ -337,7 +337,7 @@ export default function GoalForm({ onSave, onCancel }: GoalFormProps) {
                       <span className={`text-sm font-medium ${selectedHabitIds.includes(h.id) ? "text-red-400" : "text-slate-100"}`}>
                         {h.title}
                       </span>
-                      <span className="block text-xs text-dungeon-400 mt-0.5">🔥 {h.current_streak}d streak</span>
+                      <span className="block text-xs text-dungeon-400 mt-0.5">🔥 {h.streak_current}d streak</span>
                     </div>
                   </div>
                 </button>

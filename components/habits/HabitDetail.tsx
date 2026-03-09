@@ -18,13 +18,13 @@ interface HabitFull {
   id: string;
   title: string;
   description?: string;
-  status: string;
-  current_streak: number;
-  longest_streak: number;
+  completed_at?: string | null;
+  streak_current: number;
+  streak_longest: number;
   total_completions: number;
   last_completed_at?: string;
   started_on: string;
-  frequency?: { name: string } | null;
+  frequency_name?: string | null;
   category?: { name: string; icon?: string } | null;
   time_preference?: { name: string } | null;
   specific_days?: number[];
@@ -72,10 +72,10 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
     const fetchHabit = async () => {
       try {
         setLoading(true);
-        const res = await fetch(`/api/habits/${habitId}`);
+        const res = await fetch(`/api/tasks/${habitId}`);
         if (!res.ok) throw new Error("Failed to fetch");
         const data = await res.json();
-        setHabit(data.habit);
+        setHabit(data.task);
       } catch {
         toast.error("Failed to load habit");
       } finally {
@@ -87,11 +87,11 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
 
   const handleCheckIn = async () => {
     const today = new Date().toISOString().split("T")[0];
-    const body: Record<string, unknown> = { check_date: today };
+    const body: Record<string, unknown> = { completed_date: today };
     if (checkInNote) body.note = checkInNote;
     if (checkInMood) body.mood = checkInMood;
 
-    const res = await fetch(`/api/habits/${habitId}/check-in`, {
+    const res = await fetch(`/api/tasks/${habitId}/completions`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -101,26 +101,32 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
       setCheckInNote("");
       setCheckInMood("");
       // Refresh
-      const data = await (await fetch(`/api/habits/${habitId}`)).json();
-      setHabit(data.habit);
+      const data = await (await fetch(`/api/tasks/${habitId}`)).json();
+      setHabit(data.task);
       onHabitUpdated?.();
     } else if (res.status === 409) {
       toast.warning("Already checked in for today");
       // Refresh to sync UI state
-      const data = await (await fetch(`/api/habits/${habitId}`)).json();
-      setHabit(data.habit);
+      const data = await (await fetch(`/api/tasks/${habitId}`)).json();
+      setHabit(data.task);
     }
   };
 
   const handleStatusChange = async (newStatus: string) => {
-    const res = await fetch(`/api/habits/${habitId}`, {
+    const body: Record<string, unknown> = {};
+    if (newStatus === "retired") {
+      body.completed_at = new Date().toISOString();
+    } else if (newStatus === "active") {
+      body.completed_at = null;
+    }
+    const res = await fetch(`/api/tasks/${habitId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: newStatus }),
+      body: JSON.stringify(body),
     });
     if (res.ok) {
-      const data = await (await fetch(`/api/habits/${habitId}`)).json();
-      setHabit(data.habit);
+      const data = await (await fetch(`/api/tasks/${habitId}`)).json();
+      setHabit(data.task);
       onHabitUpdated?.();
     }
   };
@@ -149,14 +155,14 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
     try {
       const currentGoalIds = (habit.linked_goals || []).map((g) => g.id);
       const allGoalIds = [...currentGoalIds, ...selectedGoalsToAdd];
-      const res = await fetch(`/api/habits/${habitId}`, {
+      const res = await fetch(`/api/tasks/${habitId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ goal_ids: allGoalIds }),
       });
       if (res.ok) {
-        const data = await (await fetch(`/api/habits/${habitId}`)).json();
-        setHabit(data.habit);
+        const data = await (await fetch(`/api/tasks/${habitId}`)).json();
+        setHabit(data.task);
         setShowGoalPicker(false);
         setSelectedGoalsToAdd([]);
         onHabitUpdated?.();
@@ -193,8 +199,8 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
             {habit.category && (
               <span className="text-xs text-dungeon-400">{habit.category.icon} {habit.category.name}</span>
             )}
-            {habit.frequency && (
-              <span className="text-xs text-dungeon-500">{habit.frequency.name}</span>
+            {habit.frequency_name && (
+              <span className="text-xs text-dungeon-500">{habit.frequency_name}</span>
             )}
           </div>
           <button onClick={onClose} className="text-dungeon-400 hover:text-slate-100 transition-colors p-1">
@@ -210,11 +216,11 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
         {/* Streak stats */}
         <div className="grid grid-cols-3 gap-3">
           <div className="bg-dungeon-800/50 rounded-lg p-3 text-center">
-            <div className="text-2xl font-bold text-amber-400">🔥 {habit.current_streak}</div>
+            <div className="text-2xl font-bold text-amber-400">🔥 {habit.streak_current}</div>
             <div className="text-xs text-dungeon-400 mt-1">Current</div>
           </div>
           <div className="bg-dungeon-800/50 rounded-lg p-3 text-center">
-            <div className="text-2xl font-bold text-slate-100">{habit.longest_streak}</div>
+            <div className="text-2xl font-bold text-slate-100">{habit.streak_longest}</div>
             <div className="text-xs text-dungeon-400 mt-1">Best</div>
           </div>
           <div className="bg-dungeon-800/50 rounded-lg p-3 text-center">
@@ -252,7 +258,7 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
         </div>
 
         {/* Check-in form (if not checked today) */}
-        {habit.status === "active" && !habit.checked_today && (
+        {!habit.completed_at && !habit.checked_today && (
           <div className="bg-dungeon-800/50 rounded-lg p-4 space-y-3">
             <h3 className="text-sm font-semibold text-slate-100">Check In</h3>
             {/* Mood picker */}
@@ -432,14 +438,8 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
         ) : null}
 
         {/* Status actions */}
-        {habit.status === "active" && (
+        {!habit.completed_at && (
           <div className="flex items-center gap-2 pt-4 border-t border-dungeon-800">
-            <button
-              onClick={() => handleStatusChange("paused")}
-              className="px-4 py-2 bg-dungeon-800 hover:bg-dungeon-700 text-slate-300 font-medium rounded-lg transition-colors text-sm"
-            >
-              Pause
-            </button>
             <button
               onClick={() => handleStatusChange("retired")}
               className="px-4 py-2 text-dungeon-500 hover:text-red-400 font-medium rounded-lg transition-colors text-sm"
@@ -448,7 +448,7 @@ export default function HabitDetail({ habitId, onClose, onHabitUpdated }: HabitD
             </button>
           </div>
         )}
-        {habit.status === "paused" && (
+        {habit.completed_at && (
           <div className="pt-4 border-t border-dungeon-800">
             <button
               onClick={() => handleStatusChange("active")}

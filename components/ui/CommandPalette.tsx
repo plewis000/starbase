@@ -66,14 +66,10 @@ export default function CommandPalette() {
   const quickCreateHabit = useCallback(async (title: string) => {
     setCreating(true);
     try {
-      const configRes = await fetch("/api/config");
-      const configData = await configRes.json();
-      const dailyFreq = configData.habit_frequencies?.find((f: { name: string }) => f.name.toLowerCase() === "daily");
-
-      await fetch("/api/habits", {
+      await fetch("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, frequency_id: dailyFreq?.id }),
+        body: JSON.stringify({ title, is_habit: true, recurrence_rule: "FREQ=DAILY", recurrence_mode: "flexible" }),
       });
       setIsOpen(false);
       router.push("/habits");

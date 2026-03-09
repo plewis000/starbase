@@ -7,6 +7,7 @@ import { sanitizeSearchInput, validatePagination, isValidUUID } from "@/lib/vali
 import { getHouseholdMemberIds } from "@/lib/household";
 import { createTaskSchema, parseBody } from "@/lib/schemas";
 import { inferRecurrenceMode } from "@/lib/recurrence-inference";
+import { inferFrequencyName } from "@/lib/habit-tasks";
 
 // =============================================================
 // GET /api/tasks — List tasks with filtering, sorting, pagination
@@ -244,7 +245,32 @@ export const GET = withAuth(async (request, { supabase, user, ctx }) => {
     subtask_progress: subtaskCountMap[t.id] || undefined,
   }));
 
-  return NextResponse.json({ tasks: tasksWithProgress, total: count || 0 });
+  // Habit enrichment: compute checked_today for habit tasks
+  const habitTasks = tasksWithProgress.filter((t: any) => t.is_habit);
+  let checkedTodaySet = new Set<string>();
+  if (habitTasks.length > 0) {
+    const today = new Date().toISOString().split("T")[0];
+    const habitIds = habitTasks.map((t: any) => t.id);
+    const { data: todayCompletions } = await platform(supabase)
+      .from("task_completions")
+      .select("task_id")
+      .in("task_id", habitIds)
+      .eq("completed_date", today)
+      .eq("completed_by", user.id);
+    for (const c of todayCompletions || []) checkedTodaySet.add(c.task_id);
+  }
+
+  const finalTasks = tasksWithProgress.map((t: any) => ({
+    ...t,
+    ...(t.is_habit
+      ? {
+          checked_today: checkedTodaySet.has(t.id),
+          frequency_name: inferFrequencyName(t.recurrence_rule),
+        }
+      : {}),
+  }));
+
+  return NextResponse.json({ tasks: finalTasks, total: count || 0 });
 });
 
 // =============================================================

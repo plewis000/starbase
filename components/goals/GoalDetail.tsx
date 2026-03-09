@@ -20,8 +20,8 @@ interface Milestone {
 interface LinkedHabit {
   id: string;
   title: string;
-  status: string;
-  current_streak: number;
+  completed_at?: string | null;
+  streak_current: number;
   weight: number;
   check_in_history?: { check_date: string }[];
 }
@@ -29,8 +29,8 @@ interface LinkedHabit {
 interface AvailableHabit {
   id: string;
   title: string;
-  status: string;
-  current_streak: number;
+  completed_at?: string | null;
+  streak_current: number;
 }
 
 interface LinkedTask {
@@ -189,11 +189,11 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
     setPickerLoading(true);
     setSelectedHabitsToAdd([]);
     try {
-      const res = await fetch("/api/habits?status=active");
+      const res = await fetch("/api/tasks?is_habit=true&hide_done_days=-1");
       if (res.ok) {
         const data = await res.json();
         const linkedIds = new Set((goal?.linked_habits || []).map((h) => h.id));
-        const available = (data.habits || []).filter((h: AvailableHabit) => !linkedIds.has(h.id));
+        const available = (data.tasks || []).filter((h: AvailableHabit) => !linkedIds.has(h.id));
         setAvailableHabits(available);
       }
     } catch {
@@ -489,7 +489,7 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
                             <span className={selectedHabitsToAdd.includes(h.id) ? "text-red-400 font-medium" : "text-slate-100"}>
                               {h.title}
                             </span>
-                            <span className="text-xs text-amber-400 ml-auto">🔥 {h.current_streak}</span>
+                            <span className="text-xs text-amber-400 ml-auto">🔥 {h.streak_current}</span>
                           </div>
                         </button>
                       ))}
@@ -531,7 +531,7 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
                     <div key={h.id} className="p-3 bg-dungeon-900 rounded-lg border border-dungeon-800 space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium text-slate-100">{h.title}</span>
-                        <span className="text-xs text-amber-400 font-medium">🔥 {h.current_streak}d</span>
+                        <span className="text-xs text-amber-400 font-medium">🔥 {h.streak_current}d</span>
                       </div>
                       <div className="flex items-center gap-1">
                         {grid.map((completed, i) => (

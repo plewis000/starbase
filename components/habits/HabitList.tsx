@@ -10,12 +10,12 @@ import { useToast } from "@/components/ui/Toast";
 interface Habit {
   id: string;
   title: string;
-  status: string;
-  current_streak: number;
-  longest_streak: number;
+  completed_at?: string | null;
+  streak_current: number;
+  streak_longest: number;
   total_completions: number;
   checked_today?: boolean;
-  frequency?: { name: string } | null;
+  frequency_name?: string | null;
   category?: { name: string; icon?: string } | null;
 }
 
@@ -35,14 +35,10 @@ function QuickAddHabit({ onCreated }: { onCreated: () => void }) {
     if (!t || adding) return;
     setAdding(true);
     try {
-      const configRes = await fetch("/api/config");
-      const configData = await configRes.json();
-      const dailyFreq = configData.habit_frequencies?.find((f: { name: string }) => f.name.toLowerCase() === "daily");
-
-      const res = await fetch("/api/habits", {
+      const res = await fetch("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: t, frequency_id: dailyFreq?.id }),
+        body: JSON.stringify({ title: t, is_habit: true, recurrence_rule: "FREQ=DAILY", recurrence_mode: "flexible" }),
       });
       if (res.ok) { setTitle(""); onCreated(); toast.success("Habit created"); }
       else { toast.error("Failed to create habit"); }
@@ -81,14 +77,10 @@ function HabitSuggestions({ onCreated }: { onCreated: () => void }) {
   const handleCreate = async (title: string) => {
     setCreating(title);
     try {
-      const configRes = await fetch("/api/config");
-      const configData = await configRes.json();
-      const dailyFreq = configData.habit_frequencies?.find((f: { name: string }) => f.name.toLowerCase() === "daily");
-
-      const res = await fetch("/api/habits", {
+      const res = await fetch("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, frequency_id: dailyFreq?.id }),
+        body: JSON.stringify({ title, is_habit: true, recurrence_rule: "FREQ=DAILY", recurrence_mode: "flexible" }),
       });
       if (res.ok) { onCreated(); toast.success(`Added "${title}"`); }
       else { toast.error("Failed to create habit"); }
@@ -127,13 +119,14 @@ export default function HabitList({ onSelectHabit, onCreateHabit, selectedHabitI
     try {
       setLoading(true);
       const params = new URLSearchParams();
-      if (filter !== "all") params.append("status", filter);
+      params.append("is_habit", "true");
+      if (filter === "active") params.append("hide_done_days", "-1");
       params.append("limit", "100");
 
-      const res = await fetch(`/api/habits?${params}`);
+      const res = await fetch(`/api/tasks?${params}`);
       if (!res.ok) throw new Error("Failed to fetch");
       const data = await res.json();
-      setHabits(data.habits || []);
+      setHabits(data.tasks || []);
     } catch {
       // Silently fail on fetch — empty state will show
     } finally {
@@ -153,14 +146,14 @@ export default function HabitList({ onSelectHabit, onCreateHabit, selectedHabitI
 
     if (habit.checked_today) {
       // Undo check-in
-      await fetch(`/api/habits/${habitId}/check-in?date=${today}`, { method: "DELETE" });
+      await fetch(`/api/tasks/${habitId}/completions?date=${today}`, { method: "DELETE" });
       toast.success("Check-in removed");
     } else {
       // Create check-in
-      const res = await fetch(`/api/habits/${habitId}/check-in`, {
+      const res = await fetch(`/api/tasks/${habitId}/completions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ check_date: today }),
+        body: JSON.stringify({ completed_date: today }),
       });
       // Trigger completion sync for linked entities (fire-and-forget)
       fetch("/api/entity-links/sync", {
@@ -170,14 +163,14 @@ export default function HabitList({ onSelectHabit, onCreateHabit, selectedHabitI
       }).catch(() => {});
 
       // Calculate XP for toast (mirrors server formula)
-      const newStreak = res.ok ? ((await res.json()).streak?.current_streak ?? (habit.current_streak || 0) + 1) : (habit.current_streak || 0) + 1;
+      const newStreak = res.ok ? ((await res.json()).streak?.current_streak ?? (habit.streak_current || 0) + 1) : (habit.streak_current || 0) + 1;
       let xp = 15;
       if (newStreak >= 90) xp += 50;
       else if (newStreak >= 30) xp += 25;
       else if (newStreak >= 7) xp += 10;
 
       // Check if all habits are now done → celebrate
-      const willBeAllDone = habits.filter((h) => h.status === "active").every(
+      const willBeAllDone = habits.filter((h) => !h.completed_at).every(
         (h) => h.checked_today || h.id === habitId
       );
       if (willBeAllDone && activeCount > 0) {
@@ -197,7 +190,7 @@ export default function HabitList({ onSelectHabit, onCreateHabit, selectedHabitI
   };
 
   const checkedCount = habits.filter((h) => h.checked_today).length;
-  const activeCount = habits.filter((h) => h.status === "active").length;
+  const activeCount = habits.filter((h) => !h.completed_at).length;
   const completionRate = activeCount > 0 ? Math.round((checkedCount / activeCount) * 100) : 0;
 
   return (

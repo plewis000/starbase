@@ -3,7 +3,7 @@ import { withAuth } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
 import { logActivity } from "@/lib/activity-log";
 import { recalculateAndUpdateGoalProgress } from "@/lib/goal-progress";
-import { taskToHabit } from "@/lib/habit-tasks";
+import { inferFrequencyName } from "@/lib/habit-tasks";
 
 // ---- GET: List habits linked to a goal (backed by tasks via goal_tasks) ----
 
@@ -45,12 +45,18 @@ export const GET = withAuth(async (request, { supabase, user }, params) => {
     .eq("is_habit", true)
     .in("id", taskIds);
 
-  // Merge link data (weight) with habit-shaped details
+  // Merge link data (weight) with task details
   const enrichedHabits = (tasks || []).map((t) => {
     const link = links.find((l) => l.task_id === t.id);
-    const habit = taskToHabit(t);
     return {
-      ...habit,
+      id: t.id,
+      title: t.title,
+      description: t.description,
+      streak_current: t.streak_current || 0,
+      streak_longest: t.streak_longest || 0,
+      recurrence_rule: t.recurrence_rule,
+      frequency_name: inferFrequencyName(t.recurrence_rule),
+      completed_at: t.completed_at,
       weight: link?.weight ?? 1.0,
       link_id: link?.id,
       linked_at: link?.created_at,

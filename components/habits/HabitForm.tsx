@@ -107,18 +107,33 @@ export default function HabitForm({ onSave, onCancel }: HabitFormProps) {
     setError("");
 
     try {
+      // Build recurrence rule from frequency selection
+      const selectedFreq = frequencies.find((f) => f.id === frequencyId);
+      const freqName = (selectedFreq?.name || "daily").toLowerCase();
+      let recurrenceRule = "FREQ=DAILY";
+      if (freqName === "weekly") {
+        if (specificDays.length > 0) {
+          const dayCodes = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
+          const byDay = specificDays.map((d) => dayCodes[d]).join(",");
+          recurrenceRule = `FREQ=WEEKLY;BYDAY=${byDay}`;
+        } else {
+          recurrenceRule = "FREQ=WEEKLY";
+        }
+      } else if (freqName === "monthly") {
+        recurrenceRule = "FREQ=MONTHLY";
+      }
+
       const body: Record<string, unknown> = {
         title: title.trim(),
         description: description.trim() || undefined,
-        frequency_id: frequencyId,
-        target_count: parseInt(targetCount) || 1,
+        is_habit: true,
+        recurrence_rule: recurrenceRule,
+        recurrence_mode: "flexible",
+        start_date: new Date().toISOString().split("T")[0],
       };
-      if (categoryId) body.category_id = categoryId;
-      if (timePreferenceId) body.time_preference_id = timePreferenceId;
-      if (specificDays.length > 0) body.specific_days = specificDays;
       if (selectedGoalIds.length > 0) body.goal_ids = selectedGoalIds;
 
-      const res = await fetch("/api/habits", {
+      const res = await fetch("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -130,7 +145,7 @@ export default function HabitForm({ onSave, onCancel }: HabitFormProps) {
       }
 
       const data = await res.json();
-      onSave(data.habit);
+      onSave(data.task);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create habit");
     } finally {
@@ -288,7 +303,7 @@ export default function HabitForm({ onSave, onCancel }: HabitFormProps) {
         </button>
         <button
           type="submit"
-          disabled={saving || !title.trim() || !frequencyId}
+          disabled={saving || !title.trim()}
           className="px-6 py-2 bg-red-400 hover:bg-red-500 text-slate-950 font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {saving ? "Creating..." : "Create Habit"}

@@ -6,12 +6,12 @@ interface HabitCardProps {
   habit: {
     id: string;
     title: string;
-    status: string;
-    current_streak: number;
-    longest_streak: number;
+    completed_at?: string | null;
+    streak_current: number;
+    streak_longest: number;
     total_completions: number;
     checked_today?: boolean;
-    frequency?: { name: string } | null;
+    frequency_name?: string | null;
     category?: { name: string; icon?: string } | null;
   };
   onSelect: (id: string) => void;
@@ -56,8 +56,8 @@ export default function HabitCard({ habit, onSelect, onCheckIn, isSelected = fal
       <div className="flex-1 min-w-0">
         <h3 className="text-slate-100 font-medium truncate">{habit.title}</h3>
         <div className="flex items-center gap-3 mt-1">
-          {habit.frequency && (
-            <span className="text-xs text-dungeon-400">{habit.frequency.name}</span>
+          {habit.frequency_name && (
+            <span className="text-xs text-dungeon-400">{habit.frequency_name}</span>
           )}
           {habit.category && (
             <span className="text-xs text-dungeon-500">
@@ -69,13 +69,13 @@ export default function HabitCard({ habit, onSelect, onCheckIn, isSelected = fal
 
       {/* Streak */}
       <div className="flex items-center gap-2 flex-shrink-0">
-        {habit.current_streak > 0 && (
+        {habit.streak_current > 0 && (
           <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-400/10 border border-amber-400/20">
             <span className="text-sm">🔥</span>
-            <span className="text-sm font-bold text-amber-400">{habit.current_streak}</span>
+            <span className="text-sm font-bold text-amber-400">{habit.streak_current}</span>
           </div>
         )}
-        {habit.status === "paused" && (
+        {habit.completed_at && (
           <span className="px-2 py-0.5 rounded-full text-xs font-medium text-amber-400 bg-amber-400/10 border border-amber-400/30">
             paused
           </span>
