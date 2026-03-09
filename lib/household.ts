@@ -12,9 +12,10 @@ export interface HouseholdContext {
   household_id: string;
   role: string;
   user_id: string;
+  timezone: string;
 }
 
-// Resolve the current user's household membership.
+// Resolve the current user's household membership + household timezone.
 // Returns null if user has no household — callers should return 404 or prompt onboarding.
 export async function getHouseholdContext(
   supabase: SupabaseClient,
@@ -28,10 +29,18 @@ export async function getHouseholdContext(
 
   if (!membership) return null;
 
+  // Fetch household timezone
+  const { data: household } = await platform(supabase)
+    .from("households")
+    .select("timezone")
+    .eq("id", membership.household_id)
+    .single();
+
   return {
     household_id: membership.household_id,
     role: membership.role,
     user_id: userId,
+    timezone: household?.timezone || "America/Chicago",
   };
 }
 

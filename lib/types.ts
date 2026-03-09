@@ -112,8 +112,13 @@ export interface Task {
     full_name: string;
   };
   due_date?: string;
+  start_date?: string;
   schedule_date?: string;
   recurrence_rule?: string;
+  recurrence_mode?: "fixed" | "flexible";
+  is_habit?: boolean;
+  streak_current?: number;
+  streak_longest?: number;
   recurrence_context?: RecurrenceContext;
   tags: Tag[];
   checklist_items: ChecklistItem[];

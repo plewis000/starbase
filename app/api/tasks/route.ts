@@ -6,6 +6,7 @@ import { getConfigLookups, enrichTasks } from "@/lib/task-enrichment";
 import { sanitizeSearchInput, validatePagination, isValidUUID } from "@/lib/validation";
 import { getHouseholdMemberIds } from "@/lib/household";
 import { createTaskSchema, parseBody } from "@/lib/schemas";
+import { inferRecurrenceMode } from "@/lib/recurrence-inference";
 
 // =============================================================
 // GET /api/tasks — List tasks with filtering, sorting, pagination
@@ -81,6 +82,14 @@ export const GET = withAuth(async (request, { supabase, user, ctx }) => {
     if (isValidUUID(ownerId)) {
       query = query.contains("owner_ids", [ownerId]);
     }
+  }
+
+  // is_habit filter
+  const isHabit = params.get("is_habit");
+  if (isHabit === "true") {
+    query = query.eq("is_habit", true);
+  } else if (isHabit === "false") {
+    query = query.eq("is_habit", false);
   }
 
   // Hide old done tasks filter
@@ -258,10 +267,13 @@ export const POST = withAuth(async (request, { supabase, user, ctx }) => {
     assigned_to,
     owner_ids: rawOwnerIds,
     due_date,
+    start_date,
     schedule_date,
     effort_level_id,
     location_context_id,
     recurrence_rule,
+    recurrence_mode: explicitMode,
+    is_habit,
     parent_task_id,
     domain_slugs,
     tag_ids,
@@ -270,6 +282,11 @@ export const POST = withAuth(async (request, { supabase, user, ctx }) => {
     estimated_minutes,
     actual_minutes,
   } = parsed.data;
+
+  // Infer recurrence mode if not explicitly set
+  const recurrence_mode = recurrence_rule
+    ? inferRecurrenceMode({ is_habit: is_habit ?? false, explicit_mode: explicitMode })
+    : undefined;
 
   // Build owner_ids: prefer owner_ids, fall back to assigned_to, default to [current_user]
   let ownerIds: string[] = [];
@@ -297,7 +314,7 @@ export const POST = withAuth(async (request, { supabase, user, ctx }) => {
   let effectiveDueDate = due_date || null;
   if (recurrence_rule && !effectiveDueDate) {
     const { getNextOccurrence, formatDateOnly } = await import("@/lib/recurrence");
-    const nextDate = getNextOccurrence(recurrence_rule);
+    const nextDate = getNextOccurrence(recurrence_rule, new Date());
     if (nextDate) effectiveDueDate = formatDateOnly(nextDate);
   }
 
@@ -314,10 +331,13 @@ export const POST = withAuth(async (request, { supabase, user, ctx }) => {
       owner_ids: ownerIds,
       created_by: user.id,
       due_date: effectiveDueDate,
-      schedule_date: schedule_date || null,
+      start_date: start_date || null,
+      schedule_date: start_date || schedule_date || null,
       effort_level_id: effort_level_id || null,
       location_context_id: location_context_id || null,
       recurrence_rule: recurrence_rule || null,
+      recurrence_mode: recurrence_mode || "fixed",
+      is_habit: is_habit || false,
       parent_task_id: parent_task_id || null,
       completion_mode: completion_mode || "solo",
       estimated_minutes: estimated_minutes || null,

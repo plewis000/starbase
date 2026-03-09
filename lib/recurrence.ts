@@ -27,16 +27,46 @@ export function parseRRule(rruleString: string): RRule | null {
  * Get the next occurrence of a recurring event after a given date.
  * Returns null if the rule is invalid or there is no next occurrence
  * (e.g. COUNT exhausted or UNTIL passed).
+ *
+ * @param afterDate - Required. The date to find the next occurrence after.
+ *   For fixed recurrence: pass the task's due_date.
+ *   For flexible recurrence: pass the completion date.
+ * @param timezone - Optional IANA timezone. Used to anchor "after" to midnight in that timezone.
  */
 export function getNextOccurrence(
   rruleString: string,
-  afterDate: Date = new Date()
+  afterDate: Date,
+  timezone?: string
 ): Date | null {
   const rule = parseRRule(rruleString);
   if (!rule) return null;
 
-  const next = rule.after(afterDate, false);
+  // If timezone is provided, anchor afterDate to midnight in that timezone
+  const anchor = timezone ? midnightInTimezone(afterDate, timezone) : afterDate;
+  const next = rule.after(anchor, false);
   return next ?? null;
+}
+
+/**
+ * Get midnight of a date in a given timezone.
+ * Uses Intl.DateTimeFormat("en-CA") which outputs YYYY-MM-DD format.
+ */
+export function midnightInTimezone(date: Date, timezone: string): Date {
+  const dateStr = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+  return new Date(`${dateStr}T00:00:00`);
+}
+
+/**
+ * Parse a YYYY-MM-DD string as a local date (no UTC conversion).
+ */
+export function parseDateLocal(dateStr: string): Date {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(y, m - 1, d);
 }
 
 /**

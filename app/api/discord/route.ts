@@ -1738,7 +1738,7 @@ async function handleFeedback(supabase: Supabase, userId: string | null, discord
       .single();
     if (admin) {
       effectiveUserId = admin.user_id;
-      ctx = { household_id: admin.household_id, role: "admin", user_id: admin.user_id };
+      ctx = { household_id: admin.household_id, role: "admin", user_id: admin.user_id, timezone: "America/Chicago" };
     }
   }
 

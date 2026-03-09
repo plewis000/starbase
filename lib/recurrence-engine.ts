@@ -1,5 +1,5 @@
 import { SupabaseClient } from "@supabase/supabase-js";
-import { getNextOccurrence, formatDateOnly } from "@/lib/recurrence";
+import { getNextOccurrence, formatDateOnly, parseDateLocal } from "@/lib/recurrence";
 import { platform, config } from "@/lib/supabase/schemas";
 
 interface RecurrableTask {
@@ -17,18 +17,51 @@ interface RecurrableTask {
   recurrence_source_id: string | null;
   parent_task_id: string | null;
   metadata: Record<string, unknown> | null;
+  // Unified fields
+  due_date?: string | null;
+  completed_at?: string | null;
+  recurrence_mode?: string | null;
+  is_habit?: boolean;
+  owner_ids?: string[];
+  start_date?: string | null;
+  streak_current?: number;
+  streak_longest?: number;
+}
+
+interface RecurrenceOptions {
+  timezone?: string;
 }
 
 /**
  * When a recurring task is completed, create the next instance.
+ * Respects recurrence_mode:
+ *   - 'fixed': next occurrence calculated from due_date (calendar-anchored)
+ *   - 'flexible': next occurrence calculated from completion time (habit-style)
  * Returns the new task ID if created, null otherwise.
  */
 export async function createNextRecurrence(
   supabase: SupabaseClient,
   completedTask: RecurrableTask,
-  userId: string
+  userId: string,
+  options?: RecurrenceOptions
 ): Promise<string | null> {
-  const nextDate = getNextOccurrence(completedTask.recurrence_rule);
+  const mode = completedTask.recurrence_mode || "fixed";
+  const tz = options?.timezone;
+
+  // Determine the anchor date based on recurrence mode
+  let afterDate: Date;
+  if (mode === "flexible" && completedTask.completed_at) {
+    // Flexible: calculate from when the task was actually completed
+    afterDate = new Date(completedTask.completed_at);
+  } else if (completedTask.due_date) {
+    // Fixed: calculate from the task's due date
+    afterDate = parseDateLocal(completedTask.due_date);
+  } else {
+    // Fallback: use now
+    afterDate = new Date();
+  }
+
+  const nextDate = getNextOccurrence(completedTask.recurrence_rule, afterDate, tz);
   if (!nextDate) {
     return null;
   }
@@ -61,10 +94,16 @@ export async function createNextRecurrence(
       effort_level_id: completedTask.effort_level_id,
       location_context_id: completedTask.location_context_id,
       recurrence_rule: completedTask.recurrence_rule,
+      recurrence_mode: completedTask.recurrence_mode || "fixed",
       recurrence_source_id: sourceId,
       parent_task_id: completedTask.parent_task_id,
       due_date: dueDateStr,
+      start_date: dueDateStr,
       schedule_date: dueDateStr,
+      is_habit: completedTask.is_habit || false,
+      streak_current: completedTask.streak_current || 0,
+      streak_longest: completedTask.streak_longest || 0,
+      owner_ids: completedTask.owner_ids || [],
       source: "recurrence",
       metadata: completedTask.metadata,
     })

@@ -243,7 +243,7 @@ async function createTask(supabase: Supabase, userId: string, input: Record<stri
   // If recurring but no due date, calculate the first occurrence
   if (recurrenceRule && !dueDate) {
     const { getNextOccurrence, formatDateOnly } = await import("@/lib/recurrence");
-    const nextDate = getNextOccurrence(recurrenceRule);
+    const nextDate = getNextOccurrence(recurrenceRule, new Date());
     if (nextDate) dueDate = formatDateOnly(nextDate);
   }
 

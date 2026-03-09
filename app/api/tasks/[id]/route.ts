@@ -226,6 +226,11 @@ export const PATCH = withAuth(async (request, { supabase, user, ctx }, params) =
     }
   }
 
+  // Sync start_date ↔ schedule_date for backward compat
+  if ("start_date" in body && updateFields.start_date !== undefined) {
+    updateFields.schedule_date = updateFields.start_date;
+  }
+
   // Handle fields not in Zod schema but still allowed
   for (const field of ["snoozed_until", "workflow_phase"]) {
     if (field in body && !(field in updateFields)) {
@@ -317,7 +322,8 @@ export const PATCH = withAuth(async (request, { supabase, user, ctx }, params) =
     nextRecurrenceId = await createNextRecurrence(
       supabase,
       { ...currentTask, ...updatedTask },
-      user.id
+      user.id,
+      { timezone: ctx.timezone }
     );
   }
 

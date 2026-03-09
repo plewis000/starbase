@@ -27,9 +27,13 @@ interface PeriodResult {
 
 // ---- HELPERS ----
 
-// Returns the ISO date string for a Date object (YYYY-MM-DD)
+// Returns the local date string for a Date object (YYYY-MM-DD)
+// Uses local getters (not UTC) to avoid off-by-one near midnight.
 function toDateStr(d: Date): string {
-  return d.toISOString().split("T")[0];
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 // Returns start of the ISO week (Monday) for a given date
@@ -263,7 +267,42 @@ function calculateCompletionRate(
   return Math.round((recentDates.length / periodsWithTarget) * 100);
 }
 
-// ---- DATABASE UPDATE ----
+// ---- TASK-BASED STREAK (Unified System) ----
+
+/**
+ * Recalculate and persist streak data for a habit-task (unified system).
+ * Reads from task_completions instead of habit_check_ins.
+ */
+export async function recalculateTaskStreak(
+  supabase: SupabaseClient,
+  taskId: string,
+  targetCount: number,
+  targetType: "daily" | "weekly" | "monthly",
+  startedOn: string
+): Promise<StreakResult> {
+  const { data: completions } = await platform(supabase)
+    .from("task_completions")
+    .select("completed_date")
+    .eq("task_id", taskId)
+    .order("completed_date", { ascending: true });
+
+  const dates = (completions || []).map((c: { completed_date: string }) => c.completed_date);
+  const result = calculateStreak(dates, targetCount, targetType, startedOn);
+
+  // Update denormalized streak fields on the task
+  await platform(supabase)
+    .from("tasks")
+    .update({
+      streak_current: result.current_streak,
+      streak_longest: result.longest_streak,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", taskId);
+
+  return result;
+}
+
+// ---- DATABASE UPDATE (Legacy Habits) ----
 
 /**
  * Recalculate and persist streak data for a habit.
