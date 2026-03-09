@@ -86,7 +86,7 @@ export const GET = withAuth(async (request, { supabase, user }, params) => {
   if (taskIds.length > 0) {
     const { data } = await platform(supabase)
       .from("tasks")
-      .select("id, title, status_id, completed_at")
+      .select("id, title, status_id, completed_at, due_date, start_date, schedule_date, parent_task_id, assigned_to, owner_ids, priority_id, is_habit, recurrence_rule")
       .in("id", taskIds);
     linkedTasks = data || [];
   }

@@ -19,6 +19,7 @@ import {
   InlineTagEditor,
 } from "./InlineFieldEditors";
 import RecurrenceEditor from "./RecurrenceEditor";
+import SubtaskList from "./SubtaskList";
 import { useTaskConfig } from "@/hooks/useTaskConfig";
 import {
   Task,
@@ -658,6 +659,14 @@ export default function TaskDetail({
             onUpdate={fetchTask}
           />
         </div>
+
+        {/* Subtasks */}
+        {(task.subtask_progress || task.subtasks?.length) && (
+          <div>
+            <h3 className="text-sm font-semibold text-slate-100 mb-3">Subtasks</h3>
+            <SubtaskList parentTaskId={task.id} />
+          </div>
+        )}
 
         {/* Linked Items */}
         <EntityLinksSection entityType="task" entityId={task.id} />
