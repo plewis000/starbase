@@ -15,13 +15,17 @@ interface Task {
   frequency_name?: string;
   recurrence_rule?: string;
   status_id?: string;
+  status?: { name: string; color?: string } | null;
   priority?: { id: string; name: string; color?: string; icon?: string; sort_order: number };
   task_type?: { name: string };
+  effort_level?: { name: string } | null;
   tags?: { id: string; name: string; display_color?: string }[];
   owner_ids?: string[];
   owners?: { id: string; full_name: string }[];
   snoozed_until?: string | null;
   snooze_count?: number;
+  estimated_minutes?: number | null;
+  subtask_progress?: { done: number; total: number };
 }
 
 interface Props {
@@ -42,6 +46,8 @@ const SNOOZE_OPTIONS = [
 
 function SnoozeMenu({ taskId, onSnooze }: { taskId: string; onSnooze: (taskId: string, until: string) => void }) {
   const [open, setOpen] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [customDate, setCustomDate] = useState("");
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -57,15 +63,13 @@ function SnoozeMenu({ taskId, onSnooze }: { taskId: string; onSnooze: (taskId: s
     <div ref={ref} className="relative flex-shrink-0">
       <button
         onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
-        className="p-1.5 rounded text-dungeon-500 hover:text-amber-400 hover:bg-dungeon-800 transition-colors opacity-0 group-hover:opacity-100"
+        className="px-2 py-1 rounded-md text-xs font-medium text-amber-500/70 hover:text-amber-400 hover:bg-amber-400/10 border border-transparent hover:border-amber-400/20 transition-all"
         title="Snooze"
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M4 4h6v6H4z" /><path d="M14 4h6v6h-6z" /><path d="M4 14h6v6H4z" /><path d="M17 17v5" /><path d="M14.5 19.5h5" />
-        </svg>
+        💤
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-50 bg-dungeon-800 border border-dungeon-700 rounded-lg shadow-xl py-1 min-w-[140px]">
+        <div className="absolute right-0 top-full mt-1 z-50 bg-dungeon-800 border border-dungeon-700 rounded-lg shadow-xl py-1 min-w-[160px]">
           {SNOOZE_OPTIONS.map((opt) => (
             <button
               key={opt.value}
@@ -79,10 +83,54 @@ function SnoozeMenu({ taskId, onSnooze }: { taskId: string; onSnooze: (taskId: s
               {opt.label}
             </button>
           ))}
+          <div className="border-t border-dungeon-700 mt-1 pt-1">
+            {!showDatePicker ? (
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowDatePicker(true); }}
+                className="w-full text-left px-3 py-2 text-xs text-dungeon-400 hover:bg-dungeon-700 hover:text-slate-100 transition-colors"
+              >
+                Pick a date...
+              </button>
+            ) : (
+              <div className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                <input
+                  type="date"
+                  value={customDate}
+                  min={new Date(Date.now() + 86400000).toISOString().split("T")[0]}
+                  onChange={(e) => setCustomDate(e.target.value)}
+                  className="w-full px-2 py-1.5 bg-dungeon-900 border border-dungeon-600 rounded text-xs text-slate-100 focus:outline-none focus:border-red-400/50"
+                  autoFocus
+                />
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (customDate) {
+                      onSnooze(taskId, customDate);
+                      setOpen(false);
+                      setShowDatePicker(false);
+                      setCustomDate("");
+                    }
+                  }}
+                  disabled={!customDate}
+                  className="w-full mt-1.5 px-2 py-1.5 bg-red-400 hover:bg-red-500 disabled:bg-dungeon-700 disabled:cursor-not-allowed text-slate-950 text-xs font-medium rounded transition-colors"
+                >
+                  Snooze
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
   );
+}
+
+/** Format estimated minutes nicely */
+function formatMinutes(mins: number): string {
+  if (mins < 60) return `${mins}m`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
 export default function TodayView({ tasks, onQuickComplete, onHabitCheckIn, completedTaskId, onSelect, activeTaskId, onTaskUpdated }: Props) {
@@ -136,6 +184,67 @@ export default function TodayView({ tasks, onQuickComplete, onHabitCheckIn, comp
     } catch {
       toast.error("Failed to unsnooze");
     }
+  };
+
+  /** Render metadata pills for a task */
+  const renderMeta = (task: Task, isHabit: boolean) => {
+    const pills: React.ReactNode[] = [];
+
+    // Type
+    if (task.task_type) {
+      pills.push(
+        <span key="type" className="text-[10px] text-dungeon-500">{task.task_type.name}</span>
+      );
+    }
+
+    // Effort
+    if (task.effort_level) {
+      pills.push(
+        <span key="effort" className="text-[10px] text-dungeon-500">{task.effort_level.name}</span>
+      );
+    }
+
+    // Estimated time
+    if (task.estimated_minutes) {
+      pills.push(
+        <span key="est" className="text-[10px] text-dungeon-500">{formatMinutes(task.estimated_minutes)}</span>
+      );
+    }
+
+    // Frequency for habits
+    if (isHabit && task.frequency_name) {
+      pills.push(
+        <span key="freq" className="text-[10px] text-dungeon-500">{task.frequency_name}</span>
+      );
+    }
+
+    // Subtask progress
+    if (task.subtask_progress && task.subtask_progress.total > 0) {
+      pills.push(
+        <span key="sub" className="text-[10px] text-dungeon-500">
+          {task.subtask_progress.done}/{task.subtask_progress.total} subtasks
+        </span>
+      );
+    }
+
+    // Snooze count
+    if (task.snooze_count && task.snooze_count > 0) {
+      pills.push(
+        <span key="snz" className="text-[10px] text-amber-500">snoozed {task.snooze_count}x</span>
+      );
+    }
+
+    if (pills.length === 0) return null;
+    return (
+      <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+        {pills.map((pill, i) => (
+          <React.Fragment key={i}>
+            {i > 0 && <span className="text-dungeon-700 text-[8px]">·</span>}
+            {pill}
+          </React.Fragment>
+        ))}
+      </div>
+    );
   };
 
   return (
@@ -231,14 +340,7 @@ export default function TodayView({ tasks, onQuickComplete, onHabitCheckIn, comp
                   >
                     {habit.title}
                   </span>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    {habit.frequency_name && (
-                      <span className="text-xs text-dungeon-500">{habit.frequency_name}</span>
-                    )}
-                    {habit.task_type && (
-                      <span className="text-xs text-dungeon-600">{habit.task_type.name}</span>
-                    )}
-                  </div>
+                  {renderMeta(habit, true)}
                 </div>
 
                 {/* Tags */}
@@ -322,17 +424,25 @@ export default function TodayView({ tasks, onQuickComplete, onHabitCheckIn, comp
                     >
                       {task.title}
                     </span>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      {task.task_type && (
-                        <span className="text-xs text-dungeon-600">{task.task_type.name}</span>
-                      )}
-                      {task.snooze_count && task.snooze_count > 0 && (
-                        <span className="text-xs text-amber-500" title={`Snoozed ${task.snooze_count} time${task.snooze_count > 1 ? "s" : ""}`}>
-                          snoozed {task.snooze_count}x
-                        </span>
-                      )}
-                    </div>
+                    {renderMeta(task, false)}
                   </div>
+
+                  {/* Owners (if multiple) */}
+                  {task.owners && task.owners.length > 1 && (
+                    <div className="flex -space-x-1.5 flex-shrink-0">
+                      {task.owners.slice(0, 3).map((o) => (
+                        <div
+                          key={o.id}
+                          className="w-5 h-5 rounded-full bg-dungeon-700 border border-dungeon-900 flex items-center justify-center"
+                          title={o.full_name}
+                        >
+                          <span className="text-[8px] font-bold text-dungeon-400">
+                            {o.full_name?.split(" ").map(n => n[0]).join("").slice(0, 2)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
                   {/* Priority pill */}
                   {task.priority && task.priority.name !== "None" && (
@@ -397,16 +507,19 @@ export default function TodayView({ tasks, onQuickComplete, onHabitCheckIn, comp
                   className="flex items-center gap-3 px-4 py-2.5 rounded-lg border border-dungeon-800/50 bg-dungeon-900/30 opacity-60 hover:opacity-80 transition-all cursor-pointer group"
                   onClick={() => onSelect?.(task.id)}
                 >
-                  <span className="text-sm text-dungeon-500 flex-shrink-0">💤</span>
+                  <span className="text-sm flex-shrink-0">💤</span>
                   <div className="flex-1 min-w-0">
                     <span className="text-sm text-dungeon-400 truncate block">{task.title}</span>
                     <span className="text-xs text-dungeon-600">
                       Until {new Date(task.snoozed_until + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                      {task.snooze_count && task.snooze_count > 1 && (
+                        <span className="ml-1.5 text-amber-600">· snoozed {task.snooze_count}x</span>
+                      )}
                     </span>
                   </div>
                   <button
                     onClick={(e) => { e.stopPropagation(); handleUnsnooze(task.id); }}
-                    className="text-xs text-dungeon-500 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 px-2 py-1"
+                    className="text-xs text-dungeon-500 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 px-2 py-1 border border-transparent hover:border-red-400/20 rounded"
                   >
                     Wake up
                   </button>
