@@ -4,7 +4,7 @@ import { platform } from "@/lib/supabase/schemas";
 import { isValidUUID } from "@/lib/validation";
 import { createEntityLinkSchema, parseBody } from "@/lib/schemas";
 
-const VALID_ENTITY_TYPES = ["task", "habit", "goal", "shopping_item"] as const;
+const VALID_ENTITY_TYPES = ["task", "goal", "shopping_item"] as const;
 
 type EntityType = (typeof VALID_ENTITY_TYPES)[number];
 
@@ -96,9 +96,9 @@ export const POST = withAuth(async (req: NextRequest, { supabase, user }) => {
     console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
-  // Sync: when linking a task/habit to a goal, also create goal_tasks row
+  // Sync: when linking a task to a goal, also create goal_tasks row
   const goalType = source_type === "goal" ? "source" : target_type === "goal" ? "target" : null;
-  const taskType = source_type === "task" || source_type === "habit" ? "source" : target_type === "task" || target_type === "habit" ? "target" : null;
+  const taskType = source_type === "task" ? "source" : target_type === "task" ? "target" : null;
   if (goalType && taskType) {
     const goalId = goalType === "source" ? source_id : target_id;
     const taskId = taskType === "source" ? source_id : target_id;

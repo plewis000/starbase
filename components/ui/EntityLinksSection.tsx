@@ -27,23 +27,20 @@ const LINK_TYPE_LABELS: Record<EntityLinkType, { outgoing: string; incoming: str
 
 const ENTITY_TYPE_ICONS: Record<LinkableEntityType, string> = {
   task: "☐",
-  habit: "↻",
   goal: "◎",
   shopping_item: "🛒",
 };
 
 const ENTITY_TYPE_LABELS: Record<LinkableEntityType, string> = {
   task: "Task",
-  habit: "Habit",
   goal: "Goal",
   shopping_item: "Shopping",
 };
 
 // Linkable target types per entity type (only types with searchable APIs for the picker)
-const LINKABLE_PICKER_TYPES: Record<LinkableEntityType, Array<"task" | "habit" | "goal">> = {
-  task: ["habit", "goal"],
-  habit: ["task", "goal"],
-  goal: ["task", "habit"],
+const LINKABLE_PICKER_TYPES: Record<LinkableEntityType, Array<"task" | "goal">> = {
+  task: ["goal"],
+  goal: ["task"],
   shopping_item: ["task"],
 };
 
@@ -56,7 +53,7 @@ export default function EntityLinksSection({
   const [loading, setLoading] = useState(true);
   const [entityNames, setEntityNames] = useState<Record<string, string>>({});
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [pickerTargetType, setPickerTargetType] = useState<"task" | "habit" | "goal">("task");
+  const [pickerTargetType, setPickerTargetType] = useState<"task" | "goal">("task");
 
   const fetchLinks = useCallback(async () => {
     try {
@@ -103,7 +100,6 @@ export default function EntityLinksSection({
           try {
             let url = "";
             if (type === "task") url = `/api/tasks/${id}`;
-            else if (type === "habit") url = `/api/tasks/${id}`;
             else if (type === "goal") url = `/api/goals/${id}`;
             else return; // shopping_item has no individual fetch endpoint
 
@@ -182,7 +178,7 @@ export default function EntityLinksSection({
     }
   };
 
-  const openPicker = (targetType: "task" | "habit" | "goal") => {
+  const openPicker = (targetType: "task" | "goal") => {
     setPickerTargetType(targetType);
     setPickerOpen(true);
   };

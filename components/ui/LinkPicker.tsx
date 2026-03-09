@@ -10,7 +10,7 @@ interface Entity {
 }
 
 interface LinkPickerProps {
-  entityType: "goal" | "habit" | "task";
+  entityType: "goal" | "task";
   onSelect: (ids: string[]) => void;
   excludeIds?: string[];
   isOpen: boolean;
@@ -34,10 +34,8 @@ export default function LinkPicker({
     switch (entityType) {
       case "goal":
         return "/api/goals?status=active";
-      case "habit":
-        return "/api/tasks?is_habit=true&hide_done_days=-1";
       case "task":
-        return "/api/tasks?status=active";
+        return "/api/tasks?status=active&include_someday=true";
       default:
         return "";
     }
@@ -47,8 +45,6 @@ export default function LinkPicker({
     switch (entityType) {
       case "goal":
         return "Goals";
-      case "habit":
-        return "Habits";
       case "task":
         return "Tasks";
       default:
@@ -71,8 +67,7 @@ export default function LinkPicker({
         }
 
         const data = await res.json();
-        // Habits now come from /api/tasks, so response key is "tasks" not "habits"
-        const responseKey = entityType === "habit" ? "tasks" : `${entityType}s`;
+        const responseKey = `${entityType}s`;
         const items = Array.isArray(data) ? data : data[responseKey] || data[entityType] || [];
 
         // Filter out excluded IDs

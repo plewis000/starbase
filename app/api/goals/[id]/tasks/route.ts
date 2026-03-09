@@ -39,7 +39,7 @@ export const GET = withAuth(async (request, { supabase, user }, params) => {
   const taskIds = links.map((l) => l.task_id);
   const { data: tasks } = await platform(supabase)
     .from("tasks")
-    .select("id, title, status_id, priority_id, due_date, completed_at, assigned_to")
+    .select("id, title, status_id, priority_id, due_date, completed_at, assigned_to, is_habit, recurrence_rule, streak_current")
     .in("id", taskIds);
 
   // Merge link data
@@ -48,6 +48,7 @@ export const GET = withAuth(async (request, { supabase, user }, params) => {
     return {
       ...t,
       link_id: link?.id,
+      weight: link?.weight ?? 1.0,
       linked_at: link?.created_at,
     };
   });
@@ -61,10 +62,16 @@ export const POST = withAuth(async (request, { supabase, user }, params) => {
   const goalId = params!.id;
   let body;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
-  const { task_id } = body;
+  const { task_id, weight } = body;
 
   if (!task_id || typeof task_id !== "string") {
     return NextResponse.json({ error: "task_id is required" }, { status: 400 });
+  }
+
+  if (weight !== undefined) {
+    if (typeof weight !== "number" || weight <= 0 || weight > 10) {
+      return NextResponse.json({ error: "weight must be a number between 0 and 10" }, { status: 400 });
+    }
   }
 
   // Verify goal belongs to user
@@ -79,7 +86,7 @@ export const POST = withAuth(async (request, { supabase, user }, params) => {
     return NextResponse.json({ error: "Goal not found" }, { status: 404 });
   }
 
-  // Verify task exists (tasks are shared household, so just check it exists)
+  // Verify task exists
   const { data: task } = await platform(supabase)
     .from("tasks")
     .select("id, title")
@@ -96,6 +103,7 @@ export const POST = withAuth(async (request, { supabase, user }, params) => {
     .insert({
       goal_id: goalId,
       task_id: task_id,
+      ...(weight ? { weight } : {}),
     })
     .select("*")
     .single();
@@ -118,8 +126,8 @@ export const POST = withAuth(async (request, { supabase, user }, params) => {
     metadata: { goal_id: goalId, task_id: task_id, task_title: task.title },
   }).catch(console.error);
 
-  // Recalculate progress if task-driven
-  if (goal.progress_type === "task_driven") {
+  // Recalculate progress for both task-driven and habit-driven goals
+  if (goal.progress_type === "task_driven" || goal.progress_type === "habit_driven") {
     await recalculateAndUpdateGoalProgress(supabase, goalId).catch(console.error);
   }
 
@@ -170,8 +178,8 @@ export const DELETE = withAuth(async (request, { supabase, user }, params) => {
     metadata: { goal_id: goalId, task_id: taskId },
   }).catch(console.error);
 
-  // Recalculate progress if task-driven
-  if (goal.progress_type === "task_driven") {
+  // Recalculate progress for both task-driven and habit-driven goals
+  if (goal.progress_type === "task_driven" || goal.progress_type === "habit_driven") {
     await recalculateAndUpdateGoalProgress(supabase, goalId).catch(console.error);
   }
 

@@ -286,7 +286,7 @@ export interface CheckInFormData {
 // ---- ENTITY LINKS (cross-module) ----
 
 export type EntityLinkType = "derived_from" | "tracks" | "syncs_with";
-export type LinkableEntityType = "task" | "habit" | "goal" | "shopping_item";
+export type LinkableEntityType = "task" | "goal" | "shopping_item";
 
 export interface EntityLink {
   id: string;

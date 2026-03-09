@@ -238,9 +238,9 @@ export const createFeedbackSchema = z.object({
 // ---- Entity Link Schemas ----
 
 export const createEntityLinkSchema = z.object({
-  source_type: z.enum(["task", "habit", "goal", "shopping_item"]),
+  source_type: z.enum(["task", "goal", "shopping_item"]),
   source_id: uuid,
-  target_type: z.enum(["task", "habit", "goal", "shopping_item"]),
+  target_type: z.enum(["task", "goal", "shopping_item"]),
   target_id: uuid,
   link_type: z.enum(["derived_from", "tracks", "syncs_with"]),
   sync_completion: z.boolean().default(false),
