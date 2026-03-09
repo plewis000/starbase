@@ -125,7 +125,8 @@ export const GET = withAuth(async (request, { supabase, user, ctx }) => {
 
     switch (due) {
       case "today":
-        query = query.eq("due_date", todayStr);
+        // Include tasks due today OR active habits (habits don't rotate due_date)
+        query = query.or(`due_date.eq.${todayStr},and(is_habit.eq.true,completed_at.is.null)`);
         break;
       case "this_week":
         query = query.gte("due_date", todayStr).lte("due_date", endOfWeekStr);
