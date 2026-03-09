@@ -785,7 +785,7 @@ export default function DashboardPage() {
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           <QuickActionButton href="/chat" icon="💬" label="Ask Zev" />
           <QuickActionButton href="/tasks" icon="📋" label="Tasks" />
-          <QuickActionButton href="/goals" icon="🎯" label="Goals & Habits" />
+          <QuickActionButton href="/goals" icon="🎯" label="Goals" />
           <QuickActionButton href="/crawl" icon="🎮" label="Gamification" />
           <QuickActionButton href="/budget" icon="💰" label="Budget" />
         </div>

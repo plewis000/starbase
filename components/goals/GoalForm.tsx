@@ -10,13 +10,6 @@ interface ConfigItem {
   icon?: string;
 }
 
-interface Habit {
-  id: string;
-  title: string;
-  completed_at?: string | null;
-  streak_current: number;
-}
-
 interface GoalFormProps {
   onSave: (goal: Record<string, unknown>) => void;
   onCancel: () => void;
@@ -36,11 +29,9 @@ export default function GoalForm({ onSave, onCancel }: GoalFormProps) {
   const [newMilestone, setNewMilestone] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [selectedHabitIds, setSelectedHabitIds] = useState<string[]>([]);
 
   const [categories, setCategories] = useState<ConfigItem[]>([]);
   const [timeframes, setTimeframes] = useState<ConfigItem[]>([]);
-  const [habits, setHabits] = useState<Habit[]>([]);
 
   // Fetch config and habits
   useEffect(() => {
@@ -59,23 +50,6 @@ export default function GoalForm({ onSave, onCancel }: GoalFormProps) {
     fetchConfig();
   }, []);
 
-  useEffect(() => {
-    const fetchHabits = async () => {
-      try {
-        const res = await fetch("/api/tasks?is_habit=true&hide_done_days=-1");
-        if (res.ok) {
-          const data = await res.json();
-          setHabits(data.tasks || []);
-        }
-      } catch {
-        toast.error("Failed to load habits");
-      }
-    };
-    if (progressType === "habit_driven") {
-      fetchHabits();
-    }
-  }, [progressType]);
-
   const addMilestone = () => {
     if (newMilestone.trim()) {
       setMilestones([...milestones, { title: newMilestone.trim() }]);
@@ -87,11 +61,6 @@ export default function GoalForm({ onSave, onCancel }: GoalFormProps) {
     setMilestones(milestones.filter((_, i) => i !== index));
   };
 
-  const toggleHabit = (habitId: string) => {
-    setSelectedHabitIds((prev) =>
-      prev.includes(habitId) ? prev.filter((id) => id !== habitId) : [...prev, habitId]
-    );
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,7 +86,6 @@ export default function GoalForm({ onSave, onCancel }: GoalFormProps) {
       if (targetValue) body.target_value = parseFloat(targetValue);
       if (unit) body.unit = unit;
       if (milestones.length > 0) body.milestones = milestones;
-      if (selectedHabitIds.length > 0) body.task_ids = selectedHabitIds;
 
       const res = await fetch("/api/goals", {
         method: "POST",
@@ -209,7 +177,7 @@ export default function GoalForm({ onSave, onCancel }: GoalFormProps) {
           {[
             { value: "manual", label: "Manual %", desc: "Slide to update" },
             { value: "milestone", label: "Milestones", desc: "Check off steps" },
-            { value: "habit_driven", label: "Habits", desc: "Linked habit streaks" },
+            { value: "habit_driven", label: "Consistency", desc: "30-day habit completion rate" },
             { value: "task_driven", label: "Tasks", desc: "Linked task completion" },
           ].map((opt) => (
             <button
@@ -308,44 +276,10 @@ export default function GoalForm({ onSave, onCancel }: GoalFormProps) {
         </div>
       )}
 
-      {/* Habit-driven: Link habits */}
+      {/* Habit-driven: Info */}
       {progressType === "habit_driven" && (
-        <div>
-          <label className="block text-sm font-medium text-slate-300 mb-2">Link Habits (optional)</label>
-          <p className="text-xs text-dungeon-400 mb-3">Select active habits to drive this goal's progress</p>
-          {habits.length > 0 ? (
-            <div className="space-y-2">
-              {habits.map((h) => (
-                <button
-                  key={h.id}
-                  type="button"
-                  onClick={() => toggleHabit(h.id)}
-                  className={`w-full p-3 rounded-lg border text-left transition-colors ${
-                    selectedHabitIds.includes(h.id)
-                      ? "border-red-400 bg-red-400/10"
-                      : "border-dungeon-700 bg-dungeon-800 hover:border-dungeon-600"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      checked={selectedHabitIds.includes(h.id)}
-                      onChange={() => {}}
-                      className="rounded accent-red-400"
-                    />
-                    <div className="flex-1">
-                      <span className={`text-sm font-medium ${selectedHabitIds.includes(h.id) ? "text-red-400" : "text-slate-100"}`}>
-                        {h.title}
-                      </span>
-                      <span className="block text-xs text-dungeon-400 mt-0.5">🔥 {h.streak_current}d streak</span>
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-dungeon-400 p-3 bg-dungeon-800 rounded-lg">No active habits available. Create a habit first.</p>
-          )}
+        <div className="p-3 bg-amber-400/10 border border-amber-400/30 rounded-lg">
+          <p className="text-sm text-amber-400">Progress is calculated from linked habit completion rates over 30 days. Link habits after creating the goal.</p>
         </div>
       )}
 
