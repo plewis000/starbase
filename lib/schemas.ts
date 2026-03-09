@@ -121,7 +121,6 @@ export const createGoalSchema = z.object({
     title: trimmedString(300),
     target_date: optionalDate,
   })).max(50).optional(),
-  habit_ids: uuidArray.optional(),
   task_ids: uuidArray.optional(),
 });
 
@@ -137,7 +136,6 @@ export const updateGoalSchema = z.object({
   target_value: z.number().min(0).max(1000000).optional(),
   unit: z.string().max(50).nullish().transform(v => v ?? null),
   status: z.enum(["active", "completed", "paused", "abandoned"]).optional(),
-  habit_ids: z.array(z.string().uuid()).optional(),
 }).partial();
 
 // ---- Shopping Schemas ----

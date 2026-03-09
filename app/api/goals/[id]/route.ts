@@ -138,9 +138,8 @@ export const PATCH = withAuth(async (request, { supabase, user }, params) => {
     return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  const { habit_ids: habitIds, ...rest } = parsed.data as Record<string, unknown> & { habit_ids?: string[] };
   const updates: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(rest)) {
+  for (const [key, value] of Object.entries(parsed.data as Record<string, unknown>)) {
     if (key in parsed.body) {
       updates[key] = value;
     }
@@ -185,36 +184,6 @@ export const PATCH = withAuth(async (request, { supabase, user }, params) => {
         console.error("[goals] Gamification error on completion:", err);
       }
     });
-  }
-
-  // Sync habit links if provided (habits are now tasks, linked via goal_tasks)
-  if (habitIds !== undefined) {
-    // Remove existing habit-task links (only those that are habits)
-    const { data: existingLinks } = await platform(supabase)
-      .from("goal_tasks")
-      .select("task_id")
-      .eq("goal_id", id);
-    if (existingLinks && existingLinks.length > 0) {
-      const existingTaskIds = existingLinks.map(l => l.task_id);
-      const { data: habitTasksToRemove } = await platform(supabase)
-        .from("tasks")
-        .select("id")
-        .eq("is_habit", true)
-        .in("id", existingTaskIds);
-      if (habitTasksToRemove && habitTasksToRemove.length > 0) {
-        await platform(supabase)
-          .from("goal_tasks")
-          .delete()
-          .eq("goal_id", id)
-          .in("task_id", habitTasksToRemove.map(t => t.id));
-      }
-    }
-    // Insert new habit-task links
-    if (habitIds.length > 0) {
-      await platform(supabase).from("goal_tasks").insert(
-        habitIds.map((hid: string) => ({ goal_id: id, task_id: hid }))
-      );
-    }
   }
 
   const lookups = await getGoalHabitLookups(supabase);

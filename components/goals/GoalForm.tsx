@@ -117,7 +117,7 @@ export default function GoalForm({ onSave, onCancel }: GoalFormProps) {
       if (targetValue) body.target_value = parseFloat(targetValue);
       if (unit) body.unit = unit;
       if (milestones.length > 0) body.milestones = milestones;
-      if (selectedHabitIds.length > 0) body.habit_ids = selectedHabitIds;
+      if (selectedHabitIds.length > 0) body.task_ids = selectedHabitIds;
 
       const res = await fetch("/api/goals", {
         method: "POST",

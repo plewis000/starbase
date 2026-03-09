@@ -67,16 +67,12 @@ export const GET = withAuth(async (request, { supabase, user }) => {
   if (includeProgress && enrichedGoals.length > 0) {
     const goalIds = enrichedGoals.map((g) => g.id as string);
 
-    const [milestonesRes, habitsRes, tasksRes, subgoalsRes] = await Promise.all([
+    const [milestonesRes, tasksRes, subgoalsRes] = await Promise.all([
       platform(supabase)
         .from("goal_milestones")
         .select("*")
         .in("goal_id", goalIds)
         .order("sort_order"),
-      platform(supabase)
-        .from("goal_habits")
-        .select("*")
-        .in("goal_id", goalIds),
       platform(supabase)
         .from("goal_tasks")
         .select("*")
@@ -89,14 +85,12 @@ export const GET = withAuth(async (request, { supabase, user }) => {
 
     // Group by goal_id
     const milestonesByGoal = groupBy(milestonesRes.data || [], "goal_id");
-    const habitLinksByGoal = groupBy(habitsRes.data || [], "goal_id");
     const taskLinksByGoal = groupBy(tasksRes.data || [], "goal_id");
     const subgoalsByGoal = groupBy(subgoalsRes.data || [], "parent_goal_id");
 
     enrichedGoals = enrichedGoals.map((g) => ({
       ...g,
       milestones: milestonesByGoal.get(g.id as string) || [],
-      linked_habits: habitLinksByGoal.get(g.id as string) || [],
       linked_tasks: taskLinksByGoal.get(g.id as string) || [],
       sub_goals: subgoalsByGoal.get(g.id as string) || [],
     }));
@@ -114,7 +108,7 @@ export const POST = withAuth(async (request, { supabase, user }) => {
   }
   const { title, description, category_id, timeframe_id, start_date, target_date,
           progress_type, target_value, unit, parent_goal_id,
-          milestones, habit_ids, task_ids } = parsed.data;
+          milestones, task_ids } = parsed.data;
 
   // Insert goal
   const { data: goal, error } = await platform(supabase)
@@ -151,17 +145,6 @@ export const POST = withAuth(async (request, { supabase, user }) => {
     }));
     const { error: msErr } = await platform(supabase).from("goal_milestones").insert(milestoneRows);
     if (msErr) linkErrors.push(`milestones: ${msErr.message}`);
-  }
-
-  // Link habits if provided
-  if (habit_ids && habit_ids.length > 0) {
-    const habitLinks = habit_ids.map((hid: string) => ({
-      goal_id: goal.id,
-      habit_id: hid,
-      weight: 1.0,
-    }));
-    const { error: hlErr } = await platform(supabase).from("goal_habits").insert(habitLinks);
-    if (hlErr) linkErrors.push(`habit_links: ${hlErr.message}`);
   }
 
   // Link tasks if provided

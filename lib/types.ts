@@ -206,7 +206,6 @@ export interface GoalFormData {
   unit?: string;
   parent_goal_id?: string;
   milestones?: { title: string; target_date?: string }[];
-  habit_ids?: string[];
   task_ids?: string[];
 }
 
