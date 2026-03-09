@@ -6,7 +6,7 @@ import { getHouseholdMemberIds, verifyTaskHouseholdAccess } from "@/lib/househol
 import { parseBody } from "@/lib/schemas";
 import { recalculateTaskStreak } from "@/lib/streak-engine";
 import { awardXp, checkAchievements } from "@/lib/gamification";
-import { formatDateOnly } from "@/lib/recurrence";
+import { formatDateOnly, getNextOccurrence, parseDateLocal } from "@/lib/recurrence";
 
 const completionSchema = z.object({
   completed_date: z
@@ -91,7 +91,7 @@ export const POST = withAuth(async (request, { supabase, user, ctx }, params) =>
   // Get the task
   const { data: task } = await platform(supabase)
     .from("tasks")
-    .select("id, recurrence_source_id, is_habit, recurrence_rule")
+    .select("id, recurrence_source_id, is_habit, recurrence_rule, due_date, recurrence_mode")
     .eq("id", taskId!)
     .single();
 
@@ -165,6 +165,26 @@ export const POST = withAuth(async (request, { supabase, user, ctx }, params) =>
     await checkAchievements(supabase, user.id, "streak", {
       streak: streakResult.current_streak,
     }).catch((err) => console.error("Achievement check error:", err));
+
+    // Advance due_date to next occurrence so the habit shows correctly tomorrow
+    if (task.recurrence_rule) {
+      const anchor = task.due_date
+        ? parseDateLocal(task.due_date)
+        : new Date();
+      // Keep advancing until we get a date after today
+      let nextDate = getNextOccurrence(task.recurrence_rule, anchor);
+      const todayMidnight = new Date();
+      todayMidnight.setHours(0, 0, 0, 0);
+      while (nextDate && nextDate <= todayMidnight) {
+        nextDate = getNextOccurrence(task.recurrence_rule, nextDate);
+      }
+      if (nextDate) {
+        await platform(supabase)
+          .from("tasks")
+          .update({ due_date: formatDateOnly(nextDate) })
+          .eq("id", taskId!);
+      }
+    }
   }
 
   return NextResponse.json(
@@ -232,6 +252,12 @@ export const DELETE = withAuth(
         targetType,
         dateStr
       );
+
+      // Restore due_date to the unchecked date so habit shows as due again
+      await platform(supabase)
+        .from("tasks")
+        .update({ due_date: dateStr })
+        .eq("id", taskId!);
     }
 
     return NextResponse.json({ success: true, streak: streakResult });
