@@ -62,7 +62,8 @@ export default function RecipesPage() {
       setSelectedRecipe(null);
       fetchRecipes();
     } else {
-      toast.error("Failed to delete recipe");
+      const errData = await res.json().catch(() => ({}));
+      toast.error(errData.error || "Failed to delete recipe");
     }
   };
 
@@ -76,7 +77,8 @@ export default function RecipesPage() {
       const data = await res.json();
       toast.success(`Added ${data.items_added} items to shopping list`);
     } else {
-      toast.error("Failed to add to shopping list");
+      const errData = await res.json().catch(() => ({}));
+      toast.error(errData.error || "Failed to add to shopping list");
     }
   };
 

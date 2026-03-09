@@ -137,7 +137,7 @@ export async function checkActivationReadiness(
       .eq("owner_id", userId),
     supabase.schema("platform").from("loot_box_rewards")
       .select("*", { count: "exact", head: true })
-      .eq("user_id", userId)
+      .or(`user_id.eq.${userId},is_household.eq.true`)
       .eq("active", true),
   ]);
 
@@ -615,6 +615,7 @@ async function evaluateTrigger(
 export interface LootBoxOpenResult {
   lootBoxId: string;
   tierName: string;
+  tierSlug?: string;
   rewardName: string;
   rewardDescription?: string;
   rewardIcon?: string;
@@ -703,6 +704,7 @@ async function finishOpen(
   return {
     lootBoxId: box.id as string,
     tierName: tier?.name || "Box",
+    tierSlug: tier?.slug || undefined,
     rewardName: reward.name as string,
     rewardDescription: reward.description as string | undefined,
     rewardIcon: reward.icon as string | undefined,

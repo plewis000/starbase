@@ -12,7 +12,7 @@ export const GET = withAuth(async (request: NextRequest, { supabase }) => {
 
   let query = household(supabase)
     .from("recipes")
-    .select("id, title, source_url, servings, prep_time_minutes, cook_time_minutes, tags, created_at, updated_at")
+    .select("id, title, source_url, servings, prep_time_minutes, cook_time_minutes, tags, created_by, created_at, updated_at")
     .order("updated_at", { ascending: false });
 
   if (tag) {
