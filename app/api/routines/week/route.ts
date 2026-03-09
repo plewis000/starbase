@@ -12,7 +12,7 @@ function toDateStr(d: Date): string {
 function getWeekStart(d: Date): Date {
   const date = new Date(d);
   const day = date.getDay();
-  const diff = day === 0 ? -6 : 1 - day; // Monday = start of week
+  const diff = day === 0 ? -6 : 1 - day;
   date.setDate(date.getDate() + diff);
   date.setHours(0, 0, 0, 0);
   return date;
@@ -32,113 +32,166 @@ function getMonthEnd(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth() + 1, 0);
 }
 
-type Frequency = "daily" | "weekly" | "monthly";
+function getYearStart(d: Date): Date {
+  return new Date(d.getFullYear(), 0, 1);
+}
+
+function getYearEnd(d: Date): Date {
+  return new Date(d.getFullYear(), 11, 31);
+}
+
+function getQuarterStart(d: Date): Date {
+  const q = Math.floor(d.getMonth() / 3);
+  return new Date(d.getFullYear(), q * 3, 1);
+}
+
+function getQuarterEnd(d: Date): Date {
+  const q = Math.floor(d.getMonth() / 3);
+  return new Date(d.getFullYear(), (q + 1) * 3, 0);
+}
+
+type Frequency = "daily" | "weekly" | "biweekly" | "monthly" | "quarterly" | "biannual" | "yearly";
 
 function inferFrequency(rrule?: string | null): Frequency {
   if (!rrule) return "daily";
-  if (rrule.includes("FREQ=WEEKLY")) return "weekly";
-  if (rrule.includes("FREQ=MONTHLY")) return "monthly";
+  const parts = Object.fromEntries(rrule.split(";").map((p) => p.split("=")));
+  const freq = parts.FREQ;
+  const interval = parseInt(parts.INTERVAL || "1");
+
+  if (freq === "YEARLY") return "yearly";
+  if (freq === "MONTHLY") {
+    if (interval >= 6) return "biannual";
+    if (interval >= 3) return "quarterly";
+    return "monthly";
+  }
+  if (freq === "WEEKLY") {
+    if (interval >= 2) return "biweekly";
+    return "weekly";
+  }
   return "daily";
 }
 
+/** For sorting in the checklist: daily tasks first, then less frequent */
+const FREQ_ORDER: Record<Frequency, number> = {
+  daily: 0, weekly: 1, biweekly: 2, monthly: 3, quarterly: 4, biannual: 5, yearly: 6,
+};
+
 /**
- * Determine if a routine's period is satisfied given completions in the window.
- * Returns which dates are "actually completed" and which are "satisfied by proxy".
+ * Compute satisfaction for a routine within its natural period.
  */
 function computeSatisfaction(
   frequency: Frequency,
   completionDates: string[],
+  todayStr: string,
   weekStart: Date,
   weekEnd: Date
 ): {
   completions: Record<string, boolean>;
-  satisfied: Record<string, boolean>;
   period_satisfied: boolean;
   satisfied_on: string | null;
+  period_label: string;
 } {
   const completions: Record<string, boolean> = {};
-  const satisfied: Record<string, boolean> = {};
 
-  // Mark actual completions
+  // Mark actual completions within the visible week
   for (const date of completionDates) {
-    if (date >= toDateStr(weekStart) && date <= toDateStr(weekEnd)) {
-      completions[date] = true;
-    }
+    completions[date] = true;
   }
 
+  const today = new Date(todayStr + "T12:00:00");
+
   if (frequency === "daily") {
-    // Daily: each day is independent
+    const doneToday = completionDates.includes(todayStr);
     return {
       completions,
-      satisfied: {},
-      period_satisfied: false, // not meaningful for daily in week context
-      satisfied_on: null,
+      period_satisfied: doneToday,
+      satisfied_on: doneToday ? todayStr : null,
+      period_label: "today",
     };
   }
 
-  if (frequency === "weekly") {
-    // Check if any completion exists this week
-    const weekStartStr = toDateStr(weekStart);
-    const weekEndStr = toDateStr(weekEnd);
-    const completedThisWeek = completionDates.filter(
-      (d) => d >= weekStartStr && d <= weekEndStr
-    );
-
+  if (frequency === "weekly" || frequency === "biweekly") {
+    const ws = toDateStr(weekStart);
+    const we = toDateStr(weekEnd);
+    const completedThisWeek = completionDates.filter((d) => d >= ws && d <= we);
     if (completedThisWeek.length > 0) {
-      const firstCompletion = completedThisWeek.sort()[0];
-      // Mark all days after the completion as "satisfied"
-      const cursor = new Date(weekStart);
-      while (cursor <= weekEnd) {
-        const ds = toDateStr(cursor);
-        if (ds !== firstCompletion && !completions[ds]) {
-          satisfied[ds] = true;
-        }
-        cursor.setDate(cursor.getDate() + 1);
-      }
       return {
         completions,
-        satisfied,
         period_satisfied: true,
-        satisfied_on: firstCompletion,
+        satisfied_on: completedThisWeek.sort()[0],
+        period_label: "this week",
       };
     }
-
-    return { completions, satisfied, period_satisfied: false, satisfied_on: null };
+    return { completions, period_satisfied: false, satisfied_on: null, period_label: "this week" };
   }
 
   if (frequency === "monthly") {
-    // Check if any completion exists this month
-    const monthStart = getMonthStart(weekStart);
-    const monthEnd = getMonthEnd(weekStart);
-    const monthStartStr = toDateStr(monthStart);
-    const monthEndStr = toDateStr(monthEnd);
-    const completedThisMonth = completionDates.filter(
-      (d) => d >= monthStartStr && d <= monthEndStr
-    );
-
+    const ms = toDateStr(getMonthStart(today));
+    const me = toDateStr(getMonthEnd(today));
+    const completedThisMonth = completionDates.filter((d) => d >= ms && d <= me);
     if (completedThisMonth.length > 0) {
-      const firstCompletion = completedThisMonth.sort()[0];
-      // All days in visible week range are satisfied
-      const cursor = new Date(weekStart);
-      while (cursor <= weekEnd) {
-        const ds = toDateStr(cursor);
-        if (!completions[ds]) {
-          satisfied[ds] = true;
-        }
-        cursor.setDate(cursor.getDate() + 1);
-      }
       return {
         completions,
-        satisfied,
         period_satisfied: true,
-        satisfied_on: firstCompletion,
+        satisfied_on: completedThisMonth.sort()[0],
+        period_label: "this month",
       };
     }
-
-    return { completions, satisfied, period_satisfied: false, satisfied_on: null };
+    return { completions, period_satisfied: false, satisfied_on: null, period_label: "this month" };
   }
 
-  return { completions, satisfied, period_satisfied: false, satisfied_on: null };
+  if (frequency === "quarterly") {
+    const qs = toDateStr(getQuarterStart(today));
+    const qe = toDateStr(getQuarterEnd(today));
+    const completedThisQuarter = completionDates.filter((d) => d >= qs && d <= qe);
+    if (completedThisQuarter.length > 0) {
+      return {
+        completions,
+        period_satisfied: true,
+        satisfied_on: completedThisQuarter.sort()[0],
+        period_label: "this quarter",
+      };
+    }
+    return { completions, period_satisfied: false, satisfied_on: null, period_label: "this quarter" };
+  }
+
+  if (frequency === "biannual") {
+    const halfStart = today.getMonth() < 6
+      ? new Date(today.getFullYear(), 0, 1)
+      : new Date(today.getFullYear(), 6, 1);
+    const halfEnd = today.getMonth() < 6
+      ? new Date(today.getFullYear(), 5, 30)
+      : new Date(today.getFullYear(), 11, 31);
+    const hs = toDateStr(halfStart);
+    const he = toDateStr(halfEnd);
+    const completedThisHalf = completionDates.filter((d) => d >= hs && d <= he);
+    if (completedThisHalf.length > 0) {
+      return {
+        completions,
+        period_satisfied: true,
+        satisfied_on: completedThisHalf.sort()[0],
+        period_label: "this half-year",
+      };
+    }
+    return { completions, period_satisfied: false, satisfied_on: null, period_label: "this half-year" };
+  }
+
+  if (frequency === "yearly") {
+    const ys = toDateStr(getYearStart(today));
+    const ye = toDateStr(getYearEnd(today));
+    const completedThisYear = completionDates.filter((d) => d >= ys && d <= ye);
+    if (completedThisYear.length > 0) {
+      return {
+        completions,
+        period_satisfied: true,
+        satisfied_on: completedThisYear.sort()[0],
+        period_label: "this year",
+      };
+    }
+    return { completions, period_satisfied: false, satisfied_on: null, period_label: "this year" };
+  }
+
+  return { completions, period_satisfied: false, satisfied_on: null, period_label: "" };
 }
 
 // GET /api/routines/week?date=2026-03-09
@@ -146,18 +199,18 @@ export const GET = withAuth(async (request: NextRequest, { supabase, user, ctx }
   const params = request.nextUrl.searchParams;
   const dateParam = params.get("date") || toDateStr(new Date());
 
-  // Calculate week boundaries (Mon-Sun)
   const targetDate = new Date(dateParam + "T12:00:00");
+  const todayStr = toDateStr(new Date());
   const weekStart = getWeekStart(targetDate);
   const weekEnd = getWeekEnd(weekStart);
   const weekStartStr = toDateStr(weekStart);
   const weekEndStr = toDateStr(weekEnd);
 
-  // Also need month boundaries for monthly routines
-  const monthStart = getMonthStart(targetDate);
-  const monthEnd = getMonthEnd(targetDate);
-  const monthStartStr = toDateStr(monthStart);
-  const monthEndStr = toDateStr(monthEnd);
+  // Use year-wide window for completions (covers yearly routines)
+  const yearStart = getYearStart(targetDate);
+  const yearEnd = getYearEnd(targetDate);
+  const yearStartStr = toDateStr(yearStart);
+  const yearEndStr = toDateStr(yearEnd);
 
   const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
 
@@ -180,26 +233,24 @@ export const GET = withAuth(async (request: NextRequest, { supabase, user, ctx }
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
-  // 2. Fetch completions for the broader window (month range for monthly routines)
+  // 2. Fetch completions for the year window
   const routineIds = (routines || []).map((r: any) => r.id);
-
   let completionsMap: Record<string, string[]> = {};
 
   if (routineIds.length > 0) {
-    // Use task_completions table
     const { data: completions } = await platform(supabase)
       .from("task_completions")
       .select("task_id, completed_date")
       .in("task_id", routineIds)
-      .gte("completed_date", monthStartStr)
-      .lte("completed_date", monthEndStr);
+      .gte("completed_date", yearStartStr)
+      .lte("completed_date", yearEndStr);
 
     for (const c of completions || []) {
       if (!completionsMap[c.task_id]) completionsMap[c.task_id] = [];
       completionsMap[c.task_id].push(c.completed_date);
     }
 
-    // Also check for completed recurrence instances (tasks with recurrence_source_id)
+    // Also check completed recurrence instances
     for (const r of routines || []) {
       const sourceId = r.recurrence_source_id || r.id;
       const { data: completedInstances } = await platform(supabase)
@@ -208,8 +259,8 @@ export const GET = withAuth(async (request: NextRequest, { supabase, user, ctx }
         .or(`id.eq.${sourceId},recurrence_source_id.eq.${sourceId}`)
         .not("completed_at", "is", null)
         .not("due_date", "is", null)
-        .gte("due_date", monthStartStr)
-        .lte("due_date", monthEndStr);
+        .gte("due_date", yearStartStr)
+        .lte("due_date", yearEndStr);
 
       for (const inst of completedInstances || []) {
         if (!completionsMap[r.id]) completionsMap[r.id] = [];
@@ -228,7 +279,7 @@ export const GET = withAuth(async (request: NextRequest, { supabase, user, ctx }
   const result = enriched.map((routine: any) => {
     const frequency = inferFrequency(routine.recurrence_rule);
     const completionDates = completionsMap[routine.id] || [];
-    const satisfaction = computeSatisfaction(frequency, completionDates, weekStart, weekEnd);
+    const satisfaction = computeSatisfaction(frequency, completionDates, todayStr, weekStart, weekEnd);
 
     return {
       id: routine.id,
@@ -245,17 +296,26 @@ export const GET = withAuth(async (request: NextRequest, { supabase, user, ctx }
       streak_longest: routine.streak_longest || 0,
       is_habit: routine.is_habit,
       created_at: routine.created_at,
-      ...satisfaction,
+      due_date: routine.due_date,
+      completions: satisfaction.completions,
+      period_satisfied: satisfaction.period_satisfied,
+      satisfied_on: satisfaction.satisfied_on,
+      period_label: satisfaction.period_label,
     };
   });
 
-  // 5. Sort: daily first, then weekly, then monthly
-  const freqOrder: Record<string, number> = { daily: 0, weekly: 1, monthly: 2 };
-  result.sort((a: any, b: any) => (freqOrder[a.frequency] || 0) - (freqOrder[b.frequency] || 0));
+  // 5. Sort: unsatisfied first, then by frequency (daily -> yearly)
+  result.sort((a: any, b: any) => {
+    // Unsatisfied first
+    if (a.period_satisfied !== b.period_satisfied) return a.period_satisfied ? 1 : -1;
+    // Then by frequency
+    return (FREQ_ORDER[a.frequency as Frequency] || 0) - (FREQ_ORDER[b.frequency as Frequency] || 0);
+  });
 
   return NextResponse.json({
     routines: result,
     week_start: weekStartStr,
     week_end: weekEndStr,
+    today: todayStr,
   });
 });

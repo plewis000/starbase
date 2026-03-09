@@ -371,7 +371,8 @@ export const PATCH = withAuth(async (request, { supabase, user, ctx }, params) =
   if (isCompletingTask && currentTask.recurrence_rule) {
     // Recalculate streak for habit-tasks before creating next instance
     if (currentTask.is_habit) {
-      const freqType = currentTask.recurrence_rule?.includes("FREQ=WEEKLY") ? "weekly" as const
+      const freqType = currentTask.recurrence_rule?.includes("FREQ=YEARLY") ? "monthly" as const
+        : currentTask.recurrence_rule?.includes("FREQ=WEEKLY") ? "weekly" as const
         : currentTask.recurrence_rule?.includes("FREQ=MONTHLY") ? "monthly" as const
         : "daily" as const;
       const streakResult = await recalculateTaskStreak(supabase, id!, 1, freqType);

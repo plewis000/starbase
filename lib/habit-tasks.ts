@@ -13,17 +13,36 @@ import { config } from "@/lib/supabase/schemas";
  */
 export function inferFrequencyName(rrule?: string | null): string {
   if (!rrule) return "Daily";
-  if (rrule.includes("FREQ=DAILY")) return "Daily";
-  if (rrule.includes("FREQ=WEEKLY")) return "Weekly";
-  if (rrule.includes("FREQ=MONTHLY")) return "Monthly";
+  const parts = Object.fromEntries(rrule.split(";").map((p) => p.split("=")));
+  const freq = parts.FREQ;
+  const interval = parseInt(parts.INTERVAL || "1");
+
+  if (freq === "YEARLY") return interval === 1 ? "Yearly" : `Every ${interval} years`;
+  if (freq === "MONTHLY") {
+    if (interval === 3) return "Quarterly";
+    if (interval === 6) return "Biannual";
+    if (interval === 1) return "Monthly";
+    return `Every ${interval} months`;
+  }
+  if (freq === "WEEKLY") {
+    if (interval === 2) return "Biweekly";
+    if (interval === 1) return "Weekly";
+    return `Every ${interval} weeks`;
+  }
+  if (freq === "DAILY") {
+    if (interval === 1) return "Daily";
+    return `Every ${interval} days`;
+  }
   return "Daily";
 }
 
 /**
  * Infer target_type from RRULE (for streak calculation).
+ * Note: yearly maps to "monthly" since the streak engine only supports daily/weekly/monthly.
  */
 export function inferTargetType(rrule?: string | null): "daily" | "weekly" | "monthly" {
   if (!rrule) return "daily";
+  if (rrule.includes("FREQ=YEARLY")) return "monthly";
   if (rrule.includes("FREQ=WEEKLY")) return "weekly";
   if (rrule.includes("FREQ=MONTHLY")) return "monthly";
   return "daily";

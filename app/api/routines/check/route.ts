@@ -142,8 +142,8 @@ export const POST = withAuth(async (request: NextRequest, { supabase, user }) =>
     }
 
     // Recalculate streak
-    const targetType = inferTargetType(task.recurrence_rule);
-    const streakResult = await recalculateTaskStreak(supabase, task_id, 1, targetType);
+    const targetType2 = inferTargetType(task.recurrence_rule);
+    const streakResult = await recalculateTaskStreak(supabase, task_id, 1, targetType2);
 
     return NextResponse.json({
       success: true,

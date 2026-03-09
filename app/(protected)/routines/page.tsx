@@ -1,15 +1,15 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
-import RoutineWeeklyGrid from "@/components/routines/RoutineWeeklyGrid";
+import RoutineChecklist from "@/components/routines/RoutineChecklist";
 import RoutineMonthlyDots from "@/components/routines/RoutineMonthlyDots";
 import RoutineTimeline from "@/components/routines/RoutineTimeline";
 import RoutineDetail from "@/components/routines/RoutineDetail";
 
-type ViewMode = "grid" | "dots" | "timeline";
+type ViewMode = "checklist" | "dots" | "timeline";
 
 export default function RoutinesPage() {
-  const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const [viewMode, setViewMode] = useState<ViewMode>("checklist");
   const [selectedRoutineId, setSelectedRoutineId] = useState<string | undefined>();
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -28,7 +28,7 @@ export default function RoutinesPage() {
               <h1 className="text-lg font-bold text-slate-100 tracking-wide">Routines</h1>
               <div className="flex items-center gap-0.5 bg-dungeon-900 border border-dungeon-800 rounded-lg p-0.5">
                 {([
-                  { key: "grid" as ViewMode, icon: "▦", label: "Grid" },
+                  { key: "checklist" as ViewMode, icon: "☰", label: "Checklist" },
                   { key: "dots" as ViewMode, icon: "●", label: "Dots" },
                   { key: "timeline" as ViewMode, icon: "═", label: "Timeline" },
                 ]).map(({ key, icon, label }) => (
@@ -52,8 +52,8 @@ export default function RoutinesPage() {
 
           {/* Main content */}
           <div className="flex-1 overflow-auto p-4">
-            {viewMode === "grid" && (
-              <RoutineWeeklyGrid
+            {viewMode === "checklist" && (
+              <RoutineChecklist
                 onSelectRoutine={setSelectedRoutineId}
                 selectedRoutineId={selectedRoutineId}
                 refreshTrigger={refreshTrigger}
@@ -94,7 +94,7 @@ export default function RoutinesPage() {
             <h1 className="text-lg font-bold text-slate-100 tracking-wide">Routines</h1>
             <div className="flex items-center gap-0.5 bg-dungeon-900 border border-dungeon-800 rounded-lg p-0.5">
               {([
-                { key: "grid" as ViewMode, icon: "▦", label: "Grid" },
+                { key: "checklist" as ViewMode, icon: "☰", label: "Checklist" },
                 { key: "dots" as ViewMode, icon: "●", label: "Dots" },
                 { key: "timeline" as ViewMode, icon: "═", label: "Timeline" },
               ]).map(({ key, icon, label }) => (
@@ -116,8 +116,8 @@ export default function RoutinesPage() {
         </div>
 
         <div className="p-4">
-          {viewMode === "grid" && (
-            <RoutineWeeklyGrid
+          {viewMode === "checklist" && (
+            <RoutineChecklist
               onSelectRoutine={setSelectedRoutineId}
               selectedRoutineId={selectedRoutineId}
               refreshTrigger={refreshTrigger}
