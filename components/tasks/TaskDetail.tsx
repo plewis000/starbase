@@ -13,8 +13,6 @@ import {
   InlineTypePicker,
   InlineEffortPicker,
   InlineDatePicker,
-  InlineStartDatePicker,
-  InlineLocationPicker,
   InlineTimeEstimate,
   InlineTagEditor,
 } from "./InlineFieldEditors";
@@ -358,32 +356,22 @@ export default function TaskDetail({
 
         {/* Meta information card */}
         <div className="bg-dungeon-800 border border-dungeon-700 rounded-lg p-4 space-y-4">
-          {/* Dates — inline editable */}
+          {/* Due Date — inline editable */}
           <div className="flex items-center gap-3">
             <span className="text-dungeon-500 text-sm">📅</span>
-            <div className="flex-1 grid grid-cols-2 gap-3">
-              <div>
-                <p className="text-xs text-dungeon-400 mb-1">Start</p>
-                <InlineStartDatePicker
+            <div className="flex-1">
+              <p className="text-xs text-dungeon-400 mb-1">Due</p>
+              <div className="flex items-center gap-2">
+                <InlineDatePicker
                   taskId={task.id}
-                  currentValue={task.start_date}
+                  currentValue={task.due_date}
                   onUpdated={handleFieldUpdated}
                 />
-              </div>
-              <div>
-                <p className="text-xs text-dungeon-400 mb-1">Due</p>
-                <div className="flex items-center gap-2">
-                  <InlineDatePicker
-                    taskId={task.id}
-                    currentValue={task.due_date}
-                    onUpdated={handleFieldUpdated}
-                  />
-                  {task.due_date && (
-                    <span className={`text-xs font-medium ${getDateColor(task.due_date)}`}>
-                      {formatRelativeDate(task.due_date)}
-                    </span>
-                  )}
-                </div>
+                {task.due_date && (
+                  <span className={`text-xs font-medium ${getDateColor(task.due_date)}`}>
+                    {formatRelativeDate(task.due_date)}
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -407,13 +395,23 @@ export default function TaskDetail({
           )}
 
           {/* Recurrence mode indicator */}
-          {task.recurrence_rule && (
+          {task.recurrence_rule && task.due_date && (
             <div className="flex items-center gap-3">
               <span className="text-dungeon-500 text-sm">🔄</span>
               <div className="flex-1">
-                <p className="text-xs text-dungeon-400 mb-1">Recurrence</p>
-                <span className="text-xs text-dungeon-500">
-                  {task.recurrence_mode === "flexible" ? "Next due: after completion" : "Next due: from schedule"}
+                <p className="text-xs text-dungeon-400 mb-1">Next Due</p>
+                <span className="text-sm text-slate-100">
+                  {(() => {
+                    const due = new Date(task.due_date + "T00:00:00");
+                    const now = new Date();
+                    now.setHours(0, 0, 0, 0);
+                    const diffDays = Math.round((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                    const dateStr = due.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                    if (diffDays < 0) return <span className="text-red-400">{dateStr} ({Math.abs(diffDays)}d overdue)</span>;
+                    if (diffDays === 0) return <span className="text-amber-400">Today</span>;
+                    if (diffDays === 1) return <span className="text-amber-400">Tomorrow</span>;
+                    return <span>{dateStr} ({diffDays}d)</span>;
+                  })()}
                 </span>
               </div>
             </div>
@@ -516,21 +514,6 @@ export default function TaskDetail({
             </div>
           )}
 
-          {/* Location Context */}
-          {config && config.locations.length > 0 && (
-            <div className="flex items-start gap-3">
-              <span className="text-dungeon-500 text-sm mt-1">📍</span>
-              <div className="flex-1">
-                <p className="text-xs text-dungeon-400 mb-1.5">Location</p>
-                <InlineLocationPicker
-                  taskId={task.id}
-                  currentValue={task.location_context_id}
-                  options={config.locations}
-                  onUpdated={handleFieldUpdated}
-                />
-              </div>
-            </div>
-          )}
 
           {/* Time Estimate */}
           <div className="flex items-start gap-3">
