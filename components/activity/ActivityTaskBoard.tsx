@@ -5,6 +5,7 @@ import ListView from "./views/ListView";
 import BoardView from "./views/BoardView";
 import TimelineView from "./views/TimelineView";
 import GanttView from "./views/GanttView";
+import TodayView from "./views/TodayView";
 import CalendarView, { type CalendarItem } from "@/components/ui/CalendarView";
 import QuickAddBar from "./QuickAddBar";
 import ActivityFilterBar, { type ActivityFilters, type SavedView, type GroupBy } from "./ActivityFilterBar";
@@ -13,7 +14,7 @@ import CompletionCelebration from "@/components/ui/CompletionCelebration";
 import { useUserPreference } from "@/hooks/useUserPreferences";
 import { useHouseholdTimezone } from "@/hooks/useHouseholdTimezone";
 
-type ViewMode = "list" | "board" | "timeline" | "gantt" | "calendar";
+type ViewMode = "list" | "board" | "timeline" | "gantt" | "calendar" | "today";
 
 interface Task {
   id: string;
@@ -154,11 +155,16 @@ export default function ActivityTaskBoard({
     setViewModeLocal(newMode);
     setPersistedViewMode(newMode);
     // Restore target mode's filters or defaults
-    const restored = currentModeFilters?.[newMode];
-    if (restored) {
-      setFilters(prev => ({ ...restored, search: prev.search }));
+    if (newMode === "today") {
+      // Today view always shows items due today (tasks + habits)
+      setFilters(prev => ({ status: "All", priority: "All", due: "today", owner: "", sort: "priority_id", direction: "asc", search: prev.search }));
     } else {
-      setFilters(prev => ({ status: "All", priority: "All", due: "All", owner: "", sort: "due_date", direction: "asc", search: prev.search }));
+      const restored = currentModeFilters?.[newMode];
+      if (restored) {
+        setFilters(prev => ({ ...restored, search: prev.search }));
+      } else {
+        setFilters(prev => ({ status: "All", priority: "All", due: "All", owner: "", sort: "due_date", direction: "asc", search: prev.search }));
+      }
     }
   }, [setModeFilters, setPersistedViewMode]);
 
@@ -300,6 +306,42 @@ export default function ActivityTaskBoard({
       fetchTasks(filtersRef.current);
     }
   }, [tasks, config, fetchTasks, apiBasePath]);
+
+  // Habit check-in handler (for TodayView)
+  const handleHabitCheckIn = useCallback(async (taskId: string) => {
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task) return;
+    const today = new Date().toISOString().split("T")[0];
+    const wasChecked = !!(task as any).checked_today;
+
+    // Optimistic update
+    setTasks((prev) =>
+      prev.map((t) =>
+        t.id === taskId ? { ...t, checked_today: !wasChecked } as any : t
+      )
+    );
+
+    try {
+      if (wasChecked) {
+        await apiFetch(`${apiBasePath}/${taskId}/completions?date=${today}`, { method: "DELETE" });
+      } else {
+        await apiFetch(`${apiBasePath}/${taskId}/completions`, {
+          method: "POST",
+          body: JSON.stringify({ completed_date: today }),
+        });
+        // Fire-and-forget entity link sync
+        fetch("/api/entity-links/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ entity_type: "habit", entity_id: taskId }),
+        }).catch(() => {});
+        setCompletedTaskId(taskId);
+        setTimeout(() => setCompletedTaskId(null), 2000);
+      }
+    } catch {
+      fetchTasks(filtersRef.current);
+    }
+  }, [tasks, fetchTasks, apiBasePath]);
 
   // Quick create handler (extended with priority, assignee, tags)
   const handleQuickCreate = useCallback(async (
@@ -518,6 +560,7 @@ export default function ActivityTaskBoard({
 
           <div className="flex items-center gap-0.5 bg-dungeon-900 border border-dungeon-800 rounded-lg p-0.5 overflow-x-auto flex-shrink-0">
             {([
+              { key: "today" as ViewMode, icon: "⚡", label: "Today" },
               { key: "list" as ViewMode, icon: "☰", label: "List" },
               { key: "board" as ViewMode, icon: "▦", label: "Board" },
               { key: "timeline" as ViewMode, icon: "═", label: "Timeline" },
@@ -569,6 +612,14 @@ export default function ActivityTaskBoard({
           <div className="flex items-center justify-center h-48">
             <div className="animate-spin w-8 h-8 border-2 border-dungeon-700 border-t-red-500 rounded-full" />
           </div>
+        ) : viewMode === "today" ? (
+          <TodayView
+            tasks={tasks}
+            onQuickComplete={handleQuickComplete}
+            onHabitCheckIn={handleHabitCheckIn}
+            completedTaskId={completedTaskId}
+            onSelect={handleSelectTask}
+          />
         ) : tasks.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 text-center">
             <div className="text-4xl mb-3">📋</div>
