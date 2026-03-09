@@ -37,6 +37,7 @@ interface Props {
   completedTaskId: string | null;
   config: any;
   onSelect?: (id: string) => void;
+  activeTaskId?: string;
   selectedTaskIds?: Set<string>;
   onToggleSelect?: (id: string, shiftKey: boolean) => void;
   groupBy?: GroupBy;
@@ -509,7 +510,7 @@ function groupTasks(tasks: Task[], groupBy: GroupBy): { label: string; tasks: Ta
   return Object.entries(groups).map(([label, tasks]) => ({ label, tasks }));
 }
 
-export default function ListView({ tasks, onQuickComplete, completedTaskId, config, onSelect, selectedTaskIds, onToggleSelect, groupBy, totalCount, onSelectAll, bulkMode, onToggleBulkMode, onTaskUpdated }: Props) {
+export default function ListView({ tasks, onQuickComplete, completedTaskId, config, onSelect, activeTaskId, selectedTaskIds, onToggleSelect, groupBy, totalCount, onSelectAll, bulkMode, onToggleBulkMode, onTaskUpdated }: Props) {
   const { value: visibleColumns, setValue: setVisibleColumns } = useUserPreference<ColumnKey[]>("task_list_columns", DEFAULT_COLUMNS);
   const { value: columnOrder, setValue: setColumnOrder } = useUserPreference<ColumnKey[]>("task_list_column_order", DEFAULT_COLUMN_ORDER);
   const [showColumnPicker, setShowColumnPicker] = useState(false);
@@ -697,6 +698,7 @@ export default function ListView({ tasks, onQuickComplete, completedTaskId, conf
   const renderMobileCard = (task: Task) => {
     const isCompleted = !!task.completed_at;
     const justCompleted = task.id === completedTaskId;
+    const isActive = task.id === activeTaskId;
 
     return (
       <div
@@ -704,7 +706,7 @@ export default function ListView({ tasks, onQuickComplete, completedTaskId, conf
         onClick={() => onSelect?.(task.id)}
         className={`flex items-center gap-3 px-3 py-3 rounded-lg transition-all hover:bg-dungeon-900/80 cursor-pointer active:bg-dungeon-800/60 ${
           justCompleted ? "bg-green-900/10 ring-1 ring-green-500/20" : ""
-        } ${isCompleted ? "opacity-50" : ""}`}
+        } ${isCompleted ? "opacity-50" : ""} ${isActive ? "bg-red-900/15 border-l-2 border-red-500" : ""}`}
       >
         {/* Complete button — 44px touch target */}
         <button
@@ -878,6 +880,7 @@ export default function ListView({ tasks, onQuickComplete, completedTaskId, conf
           const isCompleted = !!task.completed_at;
           const justCompleted = task.id === completedTaskId;
           const isSelected = selectedTaskIds?.has(task.id);
+          const isActive = task.id === activeTaskId;
           const checklist = task.checklist_items || [];
           const checkDone = checklist.filter((c) => c.checked).length;
 
@@ -887,7 +890,7 @@ export default function ListView({ tasks, onQuickComplete, completedTaskId, conf
               onClick={() => onSelect?.(task.id)}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all hover:bg-dungeon-900/80 group cursor-pointer ${
                 justCompleted ? "bg-green-900/10 ring-1 ring-green-500/20" : ""
-              } ${isCompleted ? "opacity-50" : ""} ${isSelected ? "bg-red-900/10 ring-1 ring-red-500/20" : ""}`}
+              } ${isCompleted ? "opacity-50" : ""} ${isSelected ? "bg-red-900/10 ring-1 ring-red-500/20" : ""} ${isActive ? "bg-red-900/15 border-l-2 border-red-500" : ""}`}
             >
               {/* Selection checkbox */}
               {onToggleSelect && (

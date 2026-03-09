@@ -17,22 +17,6 @@ interface Milestone {
   sort_order: number;
 }
 
-interface LinkedHabit {
-  id: string;
-  title: string;
-  completed_at?: string | null;
-  streak_current: number;
-  weight: number;
-  check_in_history?: { check_date: string }[];
-}
-
-interface AvailableHabit {
-  id: string;
-  title: string;
-  completed_at?: string | null;
-  streak_current: number;
-}
-
 interface LinkedTask {
   id: string;
   title: string;
@@ -65,7 +49,6 @@ interface GoalFull {
   category?: { name: string; icon?: string } | null;
   timeframe?: { name: string } | null;
   milestones?: Milestone[];
-  linked_habits?: LinkedHabit[];
   linked_tasks?: LinkedTask[];
   activity?: { action: string; performed_at: string; metadata?: Record<string, unknown> }[];
 }
@@ -89,10 +72,6 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [confirmAbandoned, setConfirmAbandoned] = useState(false);
-  const [showHabitPicker, setShowHabitPicker] = useState(false);
-  const [availableHabits, setAvailableHabits] = useState<AvailableHabit[]>([]);
-  const [pickerLoading, setPickerLoading] = useState(false);
-  const [selectedHabitsToAdd, setSelectedHabitsToAdd] = useState<string[]>([]);
   const [togglingMilestone, setTogglingMilestone] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "project">("overview");
   const [addingTask, setAddingTask] = useState(false);
@@ -184,72 +163,6 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
     }
   };
 
-  const openHabitPicker = async () => {
-    setShowHabitPicker(true);
-    setPickerLoading(true);
-    setSelectedHabitsToAdd([]);
-    try {
-      const res = await fetch("/api/tasks?is_habit=true&hide_done_days=-1");
-      if (res.ok) {
-        const data = await res.json();
-        const linkedIds = new Set((goal?.linked_habits || []).map((h) => h.id));
-        const available = (data.tasks || []).filter((h: AvailableHabit) => !linkedIds.has(h.id));
-        setAvailableHabits(available);
-      }
-    } catch {
-      toast.error("Failed to load habits");
-    } finally {
-      setPickerLoading(false);
-    }
-  };
-
-  const handleAddHabits = async () => {
-    if (!goal || selectedHabitsToAdd.length === 0) return;
-    try {
-      const currentHabitIds = (goal.linked_habits || []).map((h) => h.id);
-      const allHabitIds = [...currentHabitIds, ...selectedHabitsToAdd];
-      const res = await fetch(`/api/goals/${goalId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ habit_ids: allHabitIds }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setGoal(data.goal);
-        setShowHabitPicker(false);
-        setSelectedHabitsToAdd([]);
-        onGoalUpdated?.();
-      }
-    } catch {
-      toast.error("Failed to link habits");
-    }
-  };
-
-  const toggleHabitToAdd = (habitId: string) => {
-    setSelectedHabitsToAdd((prev) =>
-      prev.includes(habitId) ? prev.filter((id) => id !== habitId) : [...prev, habitId]
-    );
-  };
-
-  const get7DayGrid = (habit: LinkedHabit) => {
-    const last7Days = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - (6 - i));
-      return d.toISOString().split("T")[0];
-    });
-    const checkInDates = new Set((habit.check_in_history || []).map((c) => c.check_date));
-    return last7Days.map((date) => checkInDates.has(date));
-  };
-
-  const getHabitHealthCount = () => {
-    if (!goal || goal.progress_type !== "habit_driven" || !goal.linked_habits) return 0;
-    const today = new Date().toISOString().split("T")[0];
-    return goal.linked_habits.filter((h) => {
-      const checkInDates = new Set((h.check_in_history || []).map((c) => c.check_date));
-      return checkInDates.has(today);
-    }).length;
-  };
-
   if (loading) {
     return (
       <div className="flex justify-center py-12">
@@ -266,7 +179,6 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
 
   const milestones = goal.milestones || [];
   const completedMilestones = milestones.filter((m) => m.completed_at).length;
-  const linkedHabits = goal.linked_habits || [];
   const linkedTasks = goal.linked_tasks || [];
   const progressPercent = Math.min(100, Math.round(goal.progress_value));
   const isProject = linkedTasks.length > 0 || goal.progress_type === "task_driven";
@@ -437,132 +349,6 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
                 </button>
               ))}
             </div>
-          </div>
-        )}
-
-        {/* Linked Habits */}
-        {(linkedHabits.length > 0 || goal.progress_type === "habit_driven") && (
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-slate-100">
-                Linked Habits {linkedHabits.length > 0 && `(${linkedHabits.length})`}
-              </h3>
-              {goal.progress_type === "habit_driven" && (
-                <span className="text-xs text-red-400 font-medium">
-                  {getHabitHealthCount()}/{linkedHabits.length} done today
-                </span>
-              )}
-            </div>
-            {goal.progress_type === "habit_driven" && linkedHabits.length === 0 && !showHabitPicker && (
-              <button
-                onClick={openHabitPicker}
-                className="w-full px-4 py-2.5 bg-red-400 hover:bg-red-500 text-slate-950 font-medium rounded-lg transition-colors text-sm mb-3"
-              >
-                Link Habits
-              </button>
-            )}
-            {showHabitPicker && (
-              <div className="bg-dungeon-800/50 rounded-lg p-4 mb-3 space-y-3">
-                {pickerLoading ? (
-                  <p className="text-sm text-dungeon-400">Loading habits...</p>
-                ) : availableHabits.length > 0 ? (
-                  <>
-                    <div className="space-y-2">
-                      {availableHabits.map((h) => (
-                        <button
-                          key={h.id}
-                          type="button"
-                          onClick={() => toggleHabitToAdd(h.id)}
-                          className={`w-full p-2 rounded-lg border text-left transition-colors text-sm ${
-                            selectedHabitsToAdd.includes(h.id)
-                              ? "border-red-400 bg-red-400/10"
-                              : "border-dungeon-700 bg-dungeon-800 hover:border-dungeon-600"
-                          }`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={selectedHabitsToAdd.includes(h.id)}
-                              onChange={() => {}}
-                              className="rounded accent-red-400"
-                            />
-                            <span className={selectedHabitsToAdd.includes(h.id) ? "text-red-400 font-medium" : "text-slate-100"}>
-                              {h.title}
-                            </span>
-                            <span className="text-xs text-amber-400 ml-auto">🔥 {h.streak_current}</span>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setShowHabitPicker(false)}
-                        className="flex-1 px-3 py-2 text-dungeon-400 hover:text-slate-100 transition-colors text-sm font-medium"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={handleAddHabits}
-                        disabled={selectedHabitsToAdd.length === 0}
-                        className="flex-1 px-3 py-2 bg-red-400 hover:bg-red-500 text-slate-950 font-medium rounded-lg transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Add ({selectedHabitsToAdd.length})
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-sm text-dungeon-400">No more habits available to link</p>
-                    <button
-                      onClick={() => setShowHabitPicker(false)}
-                      className="w-full px-3 py-2 text-dungeon-400 hover:text-slate-100 transition-colors text-sm font-medium"
-                    >
-                      Close
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
-            {linkedHabits.length > 0 && (
-              <div className="space-y-2">
-                {linkedHabits.map((h) => {
-                  const grid = get7DayGrid(h);
-                  return (
-                    <div key={h.id} className="p-3 bg-dungeon-900 rounded-lg border border-dungeon-800 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-slate-100">{h.title}</span>
-                        <span className="text-xs text-amber-400 font-medium">🔥 {h.streak_current}d</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {grid.map((completed, i) => (
-                          <div
-                            key={i}
-                            className={`w-5 h-5 rounded-sm text-xs flex items-center justify-center transition-colors ${
-                              completed ? "bg-red-400" : "bg-dungeon-800 border border-dungeon-700"
-                            }`}
-                          >
-                            {completed && <span className="text-slate-950 font-bold">✓</span>}
-                          </div>
-                        ))}
-                      </div>
-                      {goal.progress_type === "habit_driven" && (
-                        <div className="text-xs text-dungeon-400">
-                          Weight: <span className="text-slate-300 font-medium">{(h.weight * 100).toFixed(0)}%</span>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-                {goal.progress_type === "habit_driven" && !showHabitPicker && (
-                  <button
-                    onClick={openHabitPicker}
-                    className="w-full px-3 py-2 border border-dungeon-700 hover:bg-dungeon-800 text-slate-300 font-medium rounded-lg transition-colors text-sm"
-                  >
-                    Link More Habits
-                  </button>
-                )}
-              </div>
-            )}
           </div>
         )}
 

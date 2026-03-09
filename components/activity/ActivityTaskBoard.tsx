@@ -51,10 +51,14 @@ interface ActivityTaskBoardProps {
   configPath?: string;
   /** Called when a task is selected */
   onSelectTask?: (taskId: string) => void;
+  /** The currently active (sidebar-open) task ID — used for visual highlight */
+  activeTaskId?: string;
   /** External refresh trigger — increment to refetch */
   refreshTrigger?: number;
   /** Called to open the create task modal */
   onCreateTask?: () => void;
+  /** Exposes the ordered list of visible task IDs for navigation */
+  onTaskListChange?: (taskIds: string[]) => void;
 }
 
 export default function ActivityTaskBoard({
@@ -62,8 +66,10 @@ export default function ActivityTaskBoard({
   apiBasePath = "/api/tasks",
   configPath = "/api/config",
   onSelectTask,
+  activeTaskId,
   refreshTrigger = 0,
   onCreateTask,
+  onTaskListChange,
 }: ActivityTaskBoardProps) {
   const apiFetch = customFetch || ((url: string, init?: RequestInit) =>
     fetch(url, {
@@ -105,6 +111,11 @@ export default function ActivityTaskBoard({
   filtersRef.current = filters;
   const viewModeRef = useRef(viewMode);
   viewModeRef.current = viewMode;
+
+  // Expose ordered task IDs for sidebar navigation
+  useEffect(() => {
+    onTaskListChange?.(tasks.map((t) => t.id));
+  }, [tasks, onTaskListChange]);
 
   // Seed default views on first load if user has no saved views
   const SEED_VIEWS: SavedView[] = [
@@ -633,6 +644,7 @@ export default function ActivityTaskBoard({
             completedTaskId={completedTaskId}
             config={config}
             onSelect={handleSelectTask}
+            activeTaskId={activeTaskId}
             selectedTaskIds={bulkMode ? selectedTaskIds : undefined}
             onToggleSelect={bulkMode ? handleToggleSelect : undefined}
             totalCount={bulkMode ? tasks.length : undefined}

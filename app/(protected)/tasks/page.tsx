@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import ActivityTaskBoard from "@/components/activity/ActivityTaskBoard";
 import TaskDetail from "@/components/tasks/TaskDetail";
 import Modal from "@/components/ui/Modal";
@@ -18,6 +18,26 @@ export default function TasksPage() {
   const [showSlashMenu, setShowSlashMenu] = useState(false);
   const [viewMode, setViewMode] = useState<string>("list");
   const boardRef = useRef<{ switchView?: (v: string) => void }>(null);
+  const taskIdsRef = useRef<string[]>([]);
+
+  const handleTaskListChange = useCallback((ids: string[]) => {
+    taskIdsRef.current = ids;
+  }, []);
+
+  const navigatePrev = selectedTaskId ? (() => {
+    const idx = taskIdsRef.current.indexOf(selectedTaskId);
+    if (idx > 0) setSelectedTaskId(taskIdsRef.current[idx - 1]);
+  }) : undefined;
+
+  const navigateNext = selectedTaskId ? (() => {
+    const idx = taskIdsRef.current.indexOf(selectedTaskId);
+    if (idx >= 0 && idx < taskIdsRef.current.length - 1) setSelectedTaskId(taskIdsRef.current[idx + 1]);
+  }) : undefined;
+
+  // Compute whether nav is possible (for disabling arrows)
+  const selectedIdx = selectedTaskId ? taskIdsRef.current.indexOf(selectedTaskId) : -1;
+  const hasPrev = selectedIdx > 0;
+  const hasNext = selectedIdx >= 0 && selectedIdx < taskIdsRef.current.length - 1;
 
   const handleSelectTask = (id: string) => {
     setSelectedTaskId(id);
@@ -61,8 +81,10 @@ export default function TasksPage() {
         <div className="flex-1 min-w-0 overflow-hidden">
           <ActivityTaskBoard
             onSelectTask={handleSelectTask}
+            activeTaskId={selectedTaskId}
             refreshTrigger={refreshTrigger}
             onCreateTask={() => setShowCreateModal(true)}
+            onTaskListChange={handleTaskListChange}
           />
         </div>
 
@@ -73,6 +95,8 @@ export default function TasksPage() {
               taskId={selectedTaskId}
               onClose={handleCloseTaskDetail}
               onTaskUpdated={handleTaskUpdated}
+              onNavigatePrev={hasPrev ? navigatePrev : undefined}
+              onNavigateNext={hasNext ? navigateNext : undefined}
             />
           </div>
         )}
@@ -109,6 +133,8 @@ export default function TasksPage() {
                 taskId={selectedTaskId}
                 onClose={handleCloseTaskDetail}
                 onTaskUpdated={handleTaskUpdated}
+                onNavigatePrev={hasPrev ? navigatePrev : undefined}
+                onNavigateNext={hasNext ? navigateNext : undefined}
               />
             </div>
             <style jsx>{`

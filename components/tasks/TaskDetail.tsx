@@ -28,6 +28,8 @@ interface TaskDetailProps {
   taskId: string;
   onClose: () => void;
   onTaskUpdated?: () => void;
+  onNavigatePrev?: () => void;
+  onNavigateNext?: () => void;
 }
 
 // formatRelativeDate and getDateColor imported from @/lib/dateUtils
@@ -97,6 +99,8 @@ export default function TaskDetail({
   taskId,
   onClose,
   onTaskUpdated,
+  onNavigatePrev,
+  onNavigateNext,
 }: TaskDetailProps) {
   const [task, setTask] = useState<Task | null>(null);
   const pendingOwnerIdsRef = useRef<string[] | null>(null);
@@ -252,9 +256,31 @@ export default function TaskDetail({
               </h1>
             )}
           </div>
-          <button onClick={onClose} className="flex-shrink-0 text-dungeon-400 hover:text-slate-100 transition-colors p-1">
-            ✕
-          </button>
+          <div className="flex-shrink-0 flex items-center gap-1">
+            {(onNavigatePrev || onNavigateNext) && (
+              <>
+                <button
+                  onClick={onNavigatePrev}
+                  disabled={!onNavigatePrev}
+                  className="p-1.5 rounded text-dungeon-400 hover:text-slate-100 hover:bg-dungeon-800 transition-colors disabled:opacity-25 disabled:cursor-not-allowed"
+                  title="Previous task"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15" /></svg>
+                </button>
+                <button
+                  onClick={onNavigateNext}
+                  disabled={!onNavigateNext}
+                  className="p-1.5 rounded text-dungeon-400 hover:text-slate-100 hover:bg-dungeon-800 transition-colors disabled:opacity-25 disabled:cursor-not-allowed"
+                  title="Next task"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
+                </button>
+              </>
+            )}
+            <button onClick={onClose} className="text-dungeon-400 hover:text-slate-100 transition-colors p-1.5">
+              ✕
+            </button>
+          </div>
         </div>
       </div>
 
