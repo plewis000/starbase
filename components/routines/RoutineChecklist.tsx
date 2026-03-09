@@ -22,6 +22,8 @@ interface Routine {
   due_date?: string;
 }
 
+type Scope = "today" | "week" | "month" | "all";
+
 interface Props {
   onSelectRoutine?: (id: string) => void;
   selectedRoutineId?: string;
@@ -30,6 +32,18 @@ interface Props {
 
 function toDateStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function getWeekEnd(d: Date): string {
+  const date = new Date(d);
+  const day = date.getDay();
+  const diff = day === 0 ? 0 : 7 - day; // Sunday end of week
+  date.setDate(date.getDate() + diff);
+  return toDateStr(date);
+}
+
+function getMonthEnd(d: Date): string {
+  return toDateStr(new Date(d.getFullYear(), d.getMonth() + 1, 0));
 }
 
 function getInitials(name?: string): string {
@@ -41,6 +55,26 @@ function formatOwnerNames(owners?: { id: string; full_name: string }[]): string 
   if (!owners || owners.length === 0) return "";
   if (owners.length === 1) return owners[0].full_name.split(" ")[0];
   return owners.map((o) => o.full_name.split(" ")[0]).join(", ");
+}
+
+function formatDueDate(dueDate: string, todayStr: string): { text: string; color: string } {
+  if (dueDate === todayStr) return { text: "Due today", color: "text-red-400" };
+  if (dueDate < todayStr) {
+    const d = new Date(dueDate + "T12:00:00");
+    const t = new Date(todayStr + "T12:00:00");
+    const diff = Math.round((t.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+    return { text: `${diff}d overdue`, color: "text-red-500" };
+  }
+  const d = new Date(dueDate + "T12:00:00");
+  const t = new Date(todayStr + "T12:00:00");
+  const diff = Math.round((d.getTime() - t.getTime()) / (1000 * 60 * 60 * 24));
+  if (diff === 1) return { text: "Due tomorrow", color: "text-amber-400" };
+  if (diff <= 7) {
+    const dayName = d.toLocaleDateString("en-US", { weekday: "short" });
+    return { text: `Due ${dayName}`, color: "text-dungeon-400" };
+  }
+  const formatted = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return { text: `Due ${formatted}`, color: "text-dungeon-500" };
 }
 
 const FREQ_COLORS: Record<string, { badge: string; dot: string }> = {
@@ -60,8 +94,11 @@ export default function RoutineChecklist({ onSelectRoutine, selectedRoutineId, r
   const [loading, setLoading] = useState(true);
   const [checking, setChecking] = useState<string | null>(null);
   const [showDone, setShowDone] = useState(false);
+  const [scope, setScope] = useState<Scope>("today");
 
   const todayStr = useMemo(() => toDateStr(new Date()), []);
+  const weekEndStr = useMemo(() => getWeekEnd(new Date()), []);
+  const monthEndStr = useMemo(() => getMonthEnd(new Date()), []);
 
   const fetchRoutines = useCallback(async () => {
     try {
@@ -79,6 +116,26 @@ export default function RoutineChecklist({ onSelectRoutine, selectedRoutineId, r
   useEffect(() => {
     fetchRoutines();
   }, [fetchRoutines, refreshTrigger]);
+
+  // Filter routines by scope using due_date
+  const scopedRoutines = useMemo(() => {
+    if (scope === "all") return routines;
+    return routines.filter((r) => {
+      if (!r.due_date) {
+        // No due_date: daily routines are always "today", others show in their period
+        if (r.frequency === "daily") return true;
+        if (scope === "today") return false;
+        if (scope === "week") return r.frequency === "weekly" || r.frequency === "biweekly";
+        if (scope === "month") return ["weekly", "biweekly", "monthly"].includes(r.frequency);
+        return true;
+      }
+      const due = r.due_date;
+      if (scope === "today") return due <= todayStr;
+      if (scope === "week") return due <= weekEndStr;
+      if (scope === "month") return due <= monthEndStr;
+      return true;
+    });
+  }, [routines, scope, todayStr, weekEndStr, monthEndStr]);
 
   const handleCheck = async (routineId: string) => {
     const routine = routines.find((r) => r.id === routineId);
@@ -123,10 +180,10 @@ export default function RoutineChecklist({ onSelectRoutine, selectedRoutineId, r
     }
   };
 
-  // Split routines
-  const dueRoutines = routines.filter((r) => !r.period_satisfied);
-  const doneRoutines = routines.filter((r) => r.period_satisfied);
-  const totalCount = routines.length;
+  // Split scoped routines into due / done
+  const dueRoutines = scopedRoutines.filter((r) => !r.period_satisfied);
+  const doneRoutines = scopedRoutines.filter((r) => r.period_satisfied);
+  const totalCount = scopedRoutines.length;
   const doneCount = doneRoutines.length;
   const completionRate = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
 
@@ -141,7 +198,7 @@ export default function RoutineChecklist({ onSelectRoutine, selectedRoutineId, r
     return groups;
   }, [dueRoutines]);
 
-  // Recent completions (last 7 days) for a routine — mini dots
+  // Mini dots for last 7 days
   const getMiniDots = (routine: Routine) => {
     const dots: { date: string; done: boolean }[] = [];
     for (let i = 6; i >= 0; i--) {
@@ -153,10 +210,41 @@ export default function RoutineChecklist({ onSelectRoutine, selectedRoutineId, r
     return dots;
   };
 
+  // Scope tab counts
+  const scopeCounts = useMemo(() => {
+    const count = (s: Scope) => {
+      if (s === "all") return routines.filter((r) => !r.period_satisfied).length;
+      return routines.filter((r) => {
+        if (r.period_satisfied) return false;
+        if (!r.due_date) {
+          if (r.frequency === "daily") return true;
+          if (s === "today") return false;
+          if (s === "week") return r.frequency === "weekly" || r.frequency === "biweekly";
+          if (s === "month") return ["weekly", "biweekly", "monthly"].includes(r.frequency);
+          return true;
+        }
+        const due = r.due_date;
+        if (s === "today") return due <= todayStr;
+        if (s === "week") return due <= weekEndStr;
+        if (s === "month") return due <= monthEndStr;
+        return true;
+      }).length;
+    };
+    return { today: count("today"), week: count("week"), month: count("month"), all: count("all") };
+  }, [routines, todayStr, weekEndStr, monthEndStr]);
+
+  const SCOPE_LABELS: { key: Scope; label: string }[] = [
+    { key: "today", label: "Today" },
+    { key: "week", label: "This Week" },
+    { key: "month", label: "This Month" },
+    { key: "all", label: "All" },
+  ];
+
   const renderRoutineRow = (routine: Routine, isDone: boolean) => {
     const ownerNames = formatOwnerNames(routine.owners);
     const dots = getMiniDots(routine);
     const freqColor = FREQ_COLORS[routine.frequency] || FREQ_COLORS.daily;
+    const dueInfo = routine.due_date ? formatDueDate(routine.due_date, todayStr) : null;
 
     return (
       <div
@@ -188,7 +276,7 @@ export default function RoutineChecklist({ onSelectRoutine, selectedRoutineId, r
             ) : null}
           </button>
 
-          {/* Content — clickable to open detail */}
+          {/* Content */}
           <div
             className="flex-1 min-w-0 cursor-pointer"
             onClick={() => onSelectRoutine?.(routine.id)}
@@ -203,9 +291,9 @@ export default function RoutineChecklist({ onSelectRoutine, selectedRoutineId, r
               </span>
             </div>
 
-            {/* Row 2: Meta line — period, owners, tags */}
-            <div className="flex items-center gap-2 text-[11px] text-dungeon-500 flex-wrap">
-              {/* Period status */}
+            {/* Row 2: Due date, owners, tags */}
+            <div className="flex items-center gap-2 text-[11px] flex-wrap">
+              {/* Due date or completion status */}
               {isDone && routine.satisfied_on ? (
                 <span className="text-emerald-500/70">
                   Done {routine.satisfied_on === todayStr
@@ -216,21 +304,19 @@ export default function RoutineChecklist({ onSelectRoutine, selectedRoutineId, r
                         day: "numeric",
                       })}
                 </span>
+              ) : dueInfo ? (
+                <span className={dueInfo.color}>{dueInfo.text}</span>
               ) : (
-                <span className="text-dungeon-500">
-                  Due {routine.period_label}
-                </span>
+                <span className="text-dungeon-500">Due {routine.period_label}</span>
               )}
 
-              {/* Separator */}
-              {ownerNames && <span className="text-dungeon-700">·</span>}
-
-              {/* Owners */}
               {ownerNames && (
-                <span className="text-dungeon-500">{ownerNames}</span>
+                <>
+                  <span className="text-dungeon-700">·</span>
+                  <span className="text-dungeon-500">{ownerNames}</span>
+                </>
               )}
 
-              {/* Tags */}
               {routine.tags && routine.tags.length > 0 && (
                 <>
                   <span className="text-dungeon-700">·</span>
@@ -247,7 +333,7 @@ export default function RoutineChecklist({ onSelectRoutine, selectedRoutineId, r
             </div>
           </div>
 
-          {/* Right side: mini dots + streak */}
+          {/* Right side */}
           <div className="flex items-center gap-3 flex-shrink-0 mt-1">
             {/* Mini 7-day dots */}
             <div className="hidden sm:flex items-center gap-0.5" title="Last 7 days">
@@ -261,7 +347,7 @@ export default function RoutineChecklist({ onSelectRoutine, selectedRoutineId, r
               ))}
             </div>
 
-            {/* Streak badge */}
+            {/* Streak */}
             {routine.streak_current > 0 && (
               <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-amber-400/10 border border-amber-400/20">
                 <span className="text-[10px]">🔥</span>
@@ -298,19 +384,41 @@ export default function RoutineChecklist({ onSelectRoutine, selectedRoutineId, r
   }
 
   return (
-    <div className="space-y-6 max-w-2xl mx-auto">
-      {/* Progress bar */}
+    <div className="space-y-4 max-w-2xl mx-auto">
+      {/* Scope tabs */}
+      <div className="flex items-center gap-1 bg-dungeon-900 border border-dungeon-800 rounded-lg p-1">
+        {SCOPE_LABELS.map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => { setScope(key); setShowDone(false); }}
+            className={`flex-1 px-3 py-2 rounded-md text-xs font-medium transition-all ${
+              scope === key
+                ? "bg-red-500 text-white shadow-sm"
+                : "text-dungeon-400 hover:text-slate-200"
+            }`}
+          >
+            {label}
+            {scopeCounts[key] > 0 && (
+              <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                scope === key
+                  ? "bg-white/20 text-white"
+                  : "bg-dungeon-800 text-dungeon-500"
+              }`}>
+                {scopeCounts[key]}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Progress bar — scoped */}
       {totalCount > 0 && (
         <div className="bg-dungeon-900 rounded-lg p-4 border border-dungeon-800">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-slate-100">
               {completionRate === 100
-                ? "All routines done!"
-                : completionRate >= 75
-                  ? "Almost there!"
-                  : completionRate >= 50
-                    ? "Keep going!"
-                    : "Today's Routines"}
+                ? `All ${scope === "all" ? "" : scope === "today" ? "today's " : scope === "week" ? "this week's " : "this month's "}routines done!`
+                : `${dueRoutines.length} remaining`}
             </span>
             <span className={`text-sm font-bold font-mono ${completionRate === 100 ? "text-emerald-400" : "text-red-400"}`}>
               {doneCount}/{totalCount}
@@ -322,11 +430,6 @@ export default function RoutineChecklist({ onSelectRoutine, selectedRoutineId, r
               style={{ width: `${completionRate}%` }}
             />
           </div>
-          <p className="text-xs text-dungeon-500 mt-2">
-            {dueRoutines.length === 0
-              ? "Everything done for now. Great work!"
-              : `${dueRoutines.length} routine${dueRoutines.length > 1 ? "s" : ""} remaining`}
-          </p>
         </div>
       )}
 
@@ -377,11 +480,22 @@ export default function RoutineChecklist({ onSelectRoutine, selectedRoutineId, r
       )}
 
       {/* Empty state */}
-      {totalCount === 0 && (
-        <div className="flex flex-col items-center justify-center h-48 text-center">
-          <div className="text-4xl mb-3">🔄</div>
-          <p className="text-slate-400 text-sm">No routines yet</p>
-          <p className="text-dungeon-500 text-xs mt-1">Create a habit or recurring task to see it here</p>
+      {totalCount === 0 && !loading && (
+        <div className="flex flex-col items-center justify-center h-32 text-center">
+          <p className="text-emerald-400 text-sm font-medium">
+            {scope === "today" ? "Nothing due today!" :
+             scope === "week" ? "Nothing due this week!" :
+             scope === "month" ? "Nothing due this month!" :
+             "No routines yet"}
+          </p>
+          {scope !== "all" && (
+            <button
+              onClick={() => setScope("all")}
+              className="text-xs text-dungeon-500 hover:text-slate-300 mt-2 transition-colors"
+            >
+              View all routines
+            </button>
+          )}
         </div>
       )}
     </div>

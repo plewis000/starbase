@@ -108,12 +108,59 @@ export default function RoutineDetail({ routineId, onClose, onUpdated }: Props) 
     );
   }
 
-  // Build mini completion calendar (last 14 days)
-  const last14 = Array.from({ length: 14 }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (13 - i));
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  });
+  // Build frequency-appropriate completion history
+  const freq = routine.frequency;
+  const historyPeriods: { label: string; done: boolean; tooltip: string }[] = [];
+
+  if (freq === "daily") {
+    // Last 14 days
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      historyPeriods.push({
+        label: d.toLocaleDateString("en-US", { weekday: "narrow" }),
+        done: !!routine.completions[ds],
+        tooltip: `${ds}${routine.completions[ds] ? " - Done" : ""}`,
+      });
+    }
+  } else if (freq === "weekly" || freq === "biweekly") {
+    // Last 14 weeks
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i * 7);
+      // Get Mon-Sun of that week
+      const day = d.getDay();
+      const diff = day === 0 ? -6 : 1 - day;
+      const ws = new Date(d);
+      ws.setDate(ws.getDate() + diff);
+      const we = new Date(ws);
+      we.setDate(we.getDate() + 6);
+      const wsStr = `${ws.getFullYear()}-${String(ws.getMonth() + 1).padStart(2, "0")}-${String(ws.getDate()).padStart(2, "0")}`;
+      const weStr = `${we.getFullYear()}-${String(we.getMonth() + 1).padStart(2, "0")}-${String(we.getDate()).padStart(2, "0")}`;
+      const done = Object.keys(routine.completions).some((cd) => cd >= wsStr && cd <= weStr);
+      historyPeriods.push({
+        label: `W${Math.ceil(ws.getDate() / 7)}`,
+        done,
+        tooltip: `Week of ${ws.toLocaleDateString("en-US", { month: "short", day: "numeric" })}${done ? " - Done" : ""}`,
+      });
+    }
+  } else {
+    // Monthly/quarterly/yearly: last 12 months
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date();
+      d.setMonth(d.getMonth() - i);
+      const month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const done = Object.keys(routine.completions).some((cd) => cd.startsWith(month));
+      historyPeriods.push({
+        label: d.toLocaleDateString("en-US", { month: "narrow" }),
+        done,
+        tooltip: `${d.toLocaleDateString("en-US", { month: "long", year: "numeric" })}${done ? " - Done" : ""}`,
+      });
+    }
+  }
+
+  const historyLabel = freq === "daily" ? "Last 14 Days" : freq === "weekly" || freq === "biweekly" ? "Last 14 Weeks" : "Last 12 Months";
 
   return (
     <div className="bg-dungeon-900 border-l border-dungeon-800 w-full h-full flex flex-col">
@@ -177,25 +224,27 @@ export default function RoutineDetail({ routineId, onClose, onUpdated }: Props) 
             </div>
           </div>
 
-          {/* Mini completion history */}
+          {/* Completion history — frequency-aware */}
           <div className="bg-dungeon-800 border border-dungeon-700 rounded-lg p-4">
-            <h3 className="text-xs font-semibold text-dungeon-400 uppercase tracking-wider mb-3">Last 14 Days</h3>
+            <h3 className="text-xs font-semibold text-dungeon-400 uppercase tracking-wider mb-3">{historyLabel}</h3>
             <div className="flex gap-1">
-              {last14.map((date) => (
+              {historyPeriods.map((p, i) => (
                 <div
-                  key={date}
+                  key={i}
                   className={`flex-1 h-6 rounded-sm ${
-                    routine.completions[date]
-                      ? "bg-green-500"
-                      : "bg-dungeon-700/50"
+                    p.done ? "bg-green-500" : "bg-dungeon-700/50"
                   }`}
-                  title={`${date}${routine.completions[date] ? " - Done" : ""}`}
+                  title={p.tooltip}
                 />
               ))}
             </div>
             <div className="flex justify-between mt-1">
-              <span className="text-[9px] text-dungeon-600">{last14[0]}</span>
-              <span className="text-[9px] text-dungeon-600">Today</span>
+              {historyPeriods.length > 0 && (
+                <>
+                  <span className="text-[9px] text-dungeon-600">{historyPeriods[0].label}</span>
+                  <span className="text-[9px] text-dungeon-600">Now</span>
+                </>
+              )}
             </div>
           </div>
 
