@@ -126,9 +126,9 @@ export async function checkActivationReadiness(
       .select("*", { count: "exact", head: true })
       .or(`assigned_to.eq.${userId},created_by.eq.${userId}`)
       .not("completed_at", "is", null),
-    supabase.schema("platform").from("habit_check_ins")
+    supabase.schema("platform").from("task_completions")
       .select("*", { count: "exact", head: true })
-      .eq("checked_by", userId),
+      .eq("completed_by", userId),
     supabase.schema("finance").from("transactions")
       .select("*", { count: "exact", head: true })
       .eq("user_id", userId),
@@ -499,9 +499,9 @@ async function evaluateTrigger(
     case "habit_count": {
       const { count } = await supabase
         .schema("platform")
-        .from("habit_check_ins")
+        .from("task_completions")
         .select("*", { count: "exact", head: true })
-        .eq("checked_by", userId);
+        .eq("completed_by", userId);
       return (count || 0) >= threshold;
     }
 

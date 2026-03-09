@@ -572,33 +572,28 @@ async function handleHabit(supabase: Supabase, userId: string, options: Record<s
   const habitName = options.name as string;
   const action = (options.action as string) || "checkin";
 
-  // Handle create action
+  // Handle create action — create a task with is_habit=true
   if (action === "create") {
-    // Get default frequency (daily)
-    const { data: defaultFreq } = await config(supabase)
-      .from("habit_frequencies")
-      .select("id")
-      .eq("target_type", "daily")
-      .limit(1)
-      .single();
+    const { getDefaultStatusId } = await import("@/lib/habit-tasks");
+    const statusId = await getDefaultStatusId(supabase);
 
-    if (!defaultFreq) {
-      await sendWebhook(webhookUrl, { content: "Couldn't create habit — no frequency config found." });
-      return;
-    }
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
-    const today = new Date().toISOString().slice(0, 10);
-    const { data: newHabit, error } = await platform(supabase)
-      .from("habits")
+    const { data: newTask, error } = await platform(supabase)
+      .from("tasks")
       .insert({
         title: habitName,
-        owner_id: userId,
-        frequency_id: defaultFreq.id,
-        status: "active",
-        target_count: 1,
-        started_on: today,
-        current_streak: 0,
-        longest_streak: 0,
+        owner_ids: [userId],
+        assigned_to: userId,
+        is_habit: true,
+        recurrence_rule: "FREQ=DAILY",
+        recurrence_mode: "flexible",
+        start_date: today,
+        schedule_date: today,
+        status_id: statusId,
+        streak_current: 0,
+        streak_longest: 0,
       })
       .select("id, title")
       .single();
@@ -612,7 +607,7 @@ async function handleHabit(supabase: Supabase, userId: string, options: Record<s
     await sendWebhook(webhookUrl, {
       embeds: [{
         title: "Habit created",
-        description: `**${newHabit.title}** — daily, starting today.\nCheck in with \`/habit ${newHabit.title}\``,
+        description: `**${newTask.title}** — daily, starting today.\nCheck in with \`/habit ${newTask.title}\``,
         color: ZEV_COLOR,
         footer: { text: "Free command — no API cost" },
       }],
@@ -622,12 +617,13 @@ async function handleHabit(supabase: Supabase, userId: string, options: Record<s
 
   const searchName = habitName.toLowerCase();
 
-  // Find habit by name (fuzzy match) — include frequency for streak engine
+  // Find habit-tasks by name (fuzzy match)
   const { data: habits } = await platform(supabase)
-    .from("habits")
-    .select("id, title, current_streak, longest_streak, frequency_id, target_count, started_on")
-    .eq("owner_id", userId)
-    .eq("status", "active");
+    .from("tasks")
+    .select("id, title, streak_current, streak_longest, recurrence_rule, start_date")
+    .eq("is_habit", true)
+    .contains("owner_ids", [userId])
+    .is("completed_at", null);
 
   if (!habits || habits.length === 0) {
     await sendWebhook(webhookUrl, {
@@ -656,29 +652,30 @@ async function handleHabit(supabase: Supabase, userId: string, options: Record<s
   }
 
   // Check if already checked in today
-  const today = new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const { data: existing } = await platform(supabase)
-    .from("habit_check_ins")
+    .from("task_completions")
     .select("id")
-    .eq("habit_id", match.id)
-    .eq("checked_by", userId)
-    .eq("check_date", today)
+    .eq("task_id", match.id)
+    .eq("completed_by", userId)
+    .eq("completed_date", today)
     .limit(1);
 
   if (existing && existing.length > 0) {
     await sendWebhook(webhookUrl, {
       embeds: [{
-        description: `You already checked in **${match.title}** today. Streak: **${match.current_streak}** days.`,
+        description: `You already checked in **${match.title}** today. Streak: **${match.streak_current || 0}** days.`,
         color: ZEV_COLOR,
       }],
     });
     return;
   }
 
-  // Create check-in
+  // Create completion
   const { error } = await platform(supabase)
-    .from("habit_check_ins")
-    .insert({ habit_id: match.id, checked_by: userId, check_date: today });
+    .from("task_completions")
+    .insert({ task_id: match.id, completed_by: userId, completed_date: today, completed_at: new Date().toISOString() });
 
   if (error) {
     console.error("Discord habit check-in failed:", error.message);
@@ -686,20 +683,16 @@ async function handleHabit(supabase: Supabase, userId: string, options: Record<s
     return;
   }
 
-  // Recalculate streak using the proper engine (matches web behavior)
-  const { recalculateAndUpdateStreak } = await import("@/lib/streak-engine");
-  const { data: freq } = await config(supabase)
-    .from("habit_frequencies")
-    .select("target_type")
-    .eq("id", match.frequency_id)
-    .single();
-  const targetType = (freq?.target_type as "daily" | "weekly" | "monthly") || "daily";
-  const streakResult = await recalculateAndUpdateStreak(
-    supabase, match.id, match.target_count || 1, targetType, match.started_on || today
+  // Recalculate streak
+  const { recalculateTaskStreak } = await import("@/lib/streak-engine");
+  const { inferTargetType } = await import("@/lib/habit-tasks");
+  const targetType = inferTargetType(match.recurrence_rule);
+  const streakResult = await recalculateTaskStreak(
+    supabase, match.id, 1, targetType, match.start_date || today
   );
   const newStreak = streakResult.current_streak;
 
-  // Award XP for habit check-in (matches web: base 15 + streak bonus combined)
+  // Award XP for habit check-in
   await ensureProfile(supabase, userId);
   let xpAmount = 15;
   if (newStreak >= 90) xpAmount += 50;
@@ -891,19 +884,19 @@ async function handleDashboard(supabase: Supabase, userId: string, webhookUrl: s
       .eq("assigned_to", userId).is("completed_at", null).eq("due_date", today).limit(5),
     platform(supabase).from("goals").select("id", { count: "exact", head: true })
       .eq("owner_id", userId).eq("status", "active"),
-    platform(supabase).from("habits").select("id", { count: "exact", head: true })
-      .eq("owner_id", userId).eq("status", "active"),
-    platform(supabase).from("habits").select("title, current_streak")
-      .eq("owner_id", userId).eq("status", "active").gt("current_streak", 0)
-      .order("current_streak", { ascending: false }).limit(3),
+    platform(supabase).from("tasks").select("id", { count: "exact", head: true })
+      .eq("is_habit", true).contains("owner_ids", [userId]).is("completed_at", null),
+    platform(supabase).from("tasks").select("title, streak_current")
+      .eq("is_habit", true).contains("owner_ids", [userId]).is("completed_at", null).gt("streak_current", 0)
+      .order("streak_current", { ascending: false }).limit(3),
   ]);
 
   // Check today's habit completions
   const { count: habitsCompletedToday } = await platform(supabase)
-    .from("habit_check_ins")
+    .from("task_completions")
     .select("id", { count: "exact", head: true })
-    .eq("checked_by", userId)
-    .eq("check_date", today);
+    .eq("completed_by", userId)
+    .eq("completed_date", today);
 
   const overdueCount = overdueResult.count || 0;
   const todayCount = todayResult.count || 0;
@@ -918,7 +911,7 @@ async function handleDashboard(supabase: Supabase, userId: string, webhookUrl: s
     : "Nothing due today.";
 
   const streakList = topStreaks.length > 0
-    ? topStreaks.map((s) => `• ${s.title}: **${s.current_streak}** days`).join("\n")
+    ? topStreaks.map((s) => `• ${s.title}: **${s.streak_current}** days`).join("\n")
     : "No active streaks.";
 
   const overdueNote = overdueCount > 0 ? `⚠️ **${overdueCount} overdue task${overdueCount !== 1 ? "s" : ""}**` : "";
@@ -1249,14 +1242,15 @@ async function handleCrawl(supabase: Supabase, userId: string, webhookUrl: strin
     .eq("id", profile.current_floor_id)
     .single();
 
-  // Get active streaks count
+  // Get active streaks count (from habit-tasks)
   const { count: streakCount } = await supabase
     .schema("platform")
-    .from("habits")
+    .from("tasks")
     .select("*", { count: "exact", head: true })
-    .eq("owner_id", userId)
-    .eq("status", "active")
-    .gt("current_streak", 0);
+    .eq("is_habit", true)
+    .contains("owner_ids", [userId])
+    .is("completed_at", null)
+    .gt("streak_current", 0);
 
   // Get overdue tasks count (for this user only)
   const { count: overdueCount } = await supabase
@@ -1332,26 +1326,27 @@ async function handleNudge(supabase: Supabase, userId: string, webhookUrl: strin
   const todayStr = new Date().toISOString().slice(0, 10);
   const nudges: string[] = [];
 
-  // Unchecked habits
+  // Unchecked habits (from habit-tasks)
   const { data: activeHabits } = await platform(supabase)
-    .from("habits")
-    .select("id, title, current_streak")
-    .eq("owner_id", userId)
-    .eq("status", "active");
+    .from("tasks")
+    .select("id, title, streak_current")
+    .eq("is_habit", true)
+    .contains("owner_ids", [userId])
+    .is("completed_at", null);
 
   const { data: todayCheckIns } = await platform(supabase)
-    .from("habit_check_ins")
-    .select("habit_id")
-    .eq("checked_by", userId)
-    .eq("check_date", todayStr);
+    .from("task_completions")
+    .select("task_id")
+    .eq("completed_by", userId)
+    .eq("completed_date", todayStr);
 
-  const checkedIds = new Set((todayCheckIns || []).map((c) => c.habit_id));
+  const checkedIds = new Set((todayCheckIns || []).map((c) => c.task_id));
   const unchecked = (activeHabits || []).filter((h) => !checkedIds.has(h.id));
 
   if (unchecked.length > 0) {
-    const atRisk = unchecked.filter((h) => h.current_streak > 0);
+    const atRisk = unchecked.filter((h) => (h.streak_current || 0) > 0);
     if (atRisk.length > 0) {
-      const names = atRisk.slice(0, 3).map((h) => `**${h.title}** (${h.current_streak}d streak)`).join(", ");
+      const names = atRisk.slice(0, 3).map((h) => `**${h.title}** (${h.streak_current}d streak)`).join(", ");
       nudges.push(`🔥 Streaks at risk: ${names}`);
     } else {
       const names = unchecked.slice(0, 3).map((h) => h.title).join(", ");

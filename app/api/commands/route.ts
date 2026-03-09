@@ -165,28 +165,32 @@ async function executeCommand(
 
   // --- /habits ---
   if (lower === "habits") {
-    const today = new Date().toISOString().split("T")[0];
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
     const { data: habits } = await platform(supabase)
-      .from("habits")
-      .select("id, title, current_streak, best_streak, status")
-      .eq("owner_id", userId)
-      .eq("status", "active")
+      .from("tasks")
+      .select("id, title, streak_current, streak_longest")
+      .eq("is_habit", true)
+      .contains("owner_ids", [userId])
+      .is("completed_at", null)
       .order("title");
 
     if (!habits || habits.length === 0) return { response: "No active habits." };
 
     // Check which are done today
-    const { data: checkins } = await platform(supabase)
-      .from("habit_check_ins")
-      .select("habit_id")
-      .eq("checked_by", userId)
-      .eq("check_date", today);
+    const habitIds = habits.map(h => h.id);
+    const { data: completions } = await platform(supabase)
+      .from("task_completions")
+      .select("task_id")
+      .in("task_id", habitIds)
+      .eq("completed_by", userId)
+      .eq("completed_date", today);
 
-    const doneIds = new Set((checkins || []).map((c) => c.habit_id));
+    const doneIds = new Set((completions || []).map((c) => c.task_id));
 
     const lines = habits.map((h) => {
       const done = doneIds.has(h.id) ? "✅" : "⬜";
-      const streak = h.current_streak ? ` (🔥 ${h.current_streak}d)` : "";
+      const streak = h.streak_current ? ` (🔥 ${h.streak_current}d)` : "";
       return `${done} ${h.title}${streak}`;
     });
 
@@ -201,10 +205,11 @@ async function executeCommand(
     const habitSearch = sanitizeSearchInput(rawHabitSearch);
 
     const { data: habits } = await platform(supabase)
-      .from("habits")
-      .select("id, title, current_streak")
-      .eq("owner_id", userId)
-      .eq("status", "active")
+      .from("tasks")
+      .select("id, title, streak_current")
+      .eq("is_habit", true)
+      .contains("owner_ids", [userId])
+      .is("completed_at", null)
       .ilike("title", `%${habitSearch}%`)
       .limit(5);
 
@@ -215,15 +220,16 @@ async function executeCommand(
     }
 
     const habit = habits[0];
-    const today = new Date().toISOString().split("T")[0];
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
     // Check if already done today
     const { data: existing } = await platform(supabase)
-      .from("habit_check_ins")
+      .from("task_completions")
       .select("id")
-      .eq("habit_id", habit.id)
-      .eq("checked_by", userId)
-      .eq("check_date", today)
+      .eq("task_id", habit.id)
+      .eq("completed_by", userId)
+      .eq("completed_date", today)
       .limit(1);
 
     if (existing && existing.length > 0) {
@@ -231,17 +237,16 @@ async function executeCommand(
     }
 
     await platform(supabase)
-      .from("habit_check_ins")
-      .insert({ habit_id: habit.id, checked_by: userId, check_date: today });
+      .from("task_completions")
+      .insert({ task_id: habit.id, completed_by: userId, completed_date: today, completed_at: new Date().toISOString() });
 
-    // Update streak
-    const newStreak = (habit.current_streak || 0) + 1;
-    await platform(supabase)
-      .from("habits")
-      .update({ current_streak: newStreak, last_completed_at: new Date().toISOString() })
-      .eq("id", habit.id);
+    // Recalculate streak using proper engine
+    const { recalculateTaskStreak } = await import("@/lib/streak-engine");
+    const { inferTargetType } = await import("@/lib/habit-tasks");
+    const targetType = inferTargetType(null); // default daily
+    const streakResult = await recalculateTaskStreak(supabase, habit.id, 1, targetType, today);
 
-    return { response: `Checked in: **${habit.title}** ✓ (🔥 ${newStreak} day streak)`, data: habit };
+    return { response: `Checked in: **${habit.title}** ✓ (🔥 ${streakResult.current_streak} day streak)`, data: habit };
   }
 
   // --- /xp ---
@@ -357,19 +362,20 @@ async function executeCommand(
       .single();
 
     const { data: habits } = await platform(supabase)
-      .from("habits")
-      .select("title, current_streak, best_streak")
-      .eq("owner_id", userId)
-      .eq("status", "active")
-      .gt("current_streak", 0)
-      .order("current_streak", { ascending: false })
+      .from("tasks")
+      .select("title, streak_current, streak_longest")
+      .eq("is_habit", true)
+      .contains("owner_ids", [userId])
+      .is("completed_at", null)
+      .gt("streak_current", 0)
+      .order("streak_current", { ascending: false })
       .limit(10);
 
     let response = `**Streaks**\n\n🔑 Login: ${profile?.login_streak || 0}d (best: ${profile?.longest_login_streak || 0}d)`;
 
     if (habits && habits.length > 0) {
       response += "\n\n" + habits.map((h) =>
-        `🔥 ${h.title}: ${h.current_streak}d (best: ${h.best_streak || h.current_streak}d)`
+        `🔥 ${h.title}: ${h.streak_current}d (best: ${h.streak_longest || h.streak_current}d)`
       ).join("\n");
     } else {
       response += "\n\nNo active habit streaks.";
@@ -389,10 +395,10 @@ async function executeCommand(
         .or(`created_by.eq.${userId},assigned_to.eq.${userId}`)
         .gte("completed_at", `${today}T00:00:00`),
       platform(supabase)
-        .from("habit_check_ins")
+        .from("task_completions")
         .select("id", { count: "exact", head: true })
-        .eq("checked_by", userId)
-        .eq("check_date", today),
+        .eq("completed_by", userId)
+        .eq("completed_date", today),
       platform(supabase)
         .from("xp_ledger")
         .select("amount")

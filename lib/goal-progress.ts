@@ -97,9 +97,10 @@ async function calculateHabitDrivenProgress(
   goalId: string
 ): Promise<GoalProgressResult> {
   // Get linked habits with weights
+  // Habit-tasks linked to this goal via goal_tasks (with is_habit=true)
   const { data: links } = await platform(supabase)
-    .from("goal_habits")
-    .select("habit_id, weight")
+    .from("goal_tasks")
+    .select("task_id, weight")
     .eq("goal_id", goalId);
 
   if (!links || links.length === 0) {
@@ -110,12 +111,13 @@ async function calculateHabitDrivenProgress(
     };
   }
 
-  // Get habit details for each linked habit
-  const habitIds = links.map((l: { habit_id: string }) => l.habit_id);
+  // Get habit-task details
+  const taskIds = links.map((l: { task_id: string }) => l.task_id);
   const { data: habits } = await platform(supabase)
-    .from("habits")
-    .select("id, current_streak, total_completions, started_on")
-    .in("id", habitIds);
+    .from("tasks")
+    .select("id, streak_current, start_date, created_at")
+    .eq("is_habit", true)
+    .in("id", taskIds);
 
   if (!habits || habits.length === 0) {
     return {
@@ -125,22 +127,22 @@ async function calculateHabitDrivenProgress(
     };
   }
 
-  // Get 30-day check-in counts per habit
+  // Get 30-day completion counts per habit-task
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  const cutoff = thirtyDaysAgo.toISOString().split("T")[0];
+  const cutoff = `${thirtyDaysAgo.getFullYear()}-${String(thirtyDaysAgo.getMonth() + 1).padStart(2, "0")}-${String(thirtyDaysAgo.getDate()).padStart(2, "0")}`;
 
-  const { data: recentCheckIns } = await platform(supabase)
-    .from("habit_check_ins")
-    .select("habit_id, check_date")
-    .in("habit_id", habitIds)
-    .gte("check_date", cutoff);
+  const { data: recentCompletions } = await platform(supabase)
+    .from("task_completions")
+    .select("task_id, completed_date")
+    .in("task_id", taskIds)
+    .gte("completed_date", cutoff);
 
-  // Count check-ins per habit
+  // Count completions per task
   const countsByHabit = new Map<string, number>();
-  for (const ci of recentCheckIns || []) {
-    const current = countsByHabit.get(ci.habit_id) || 0;
-    countsByHabit.set(ci.habit_id, current + 1);
+  for (const ci of recentCompletions || []) {
+    const current = countsByHabit.get(ci.task_id) || 0;
+    countsByHabit.set(ci.task_id, current + 1);
   }
 
   // Weighted average: each habit's 30-day completion rate * weight
@@ -148,11 +150,11 @@ async function calculateHabitDrivenProgress(
   let weightedSum = 0;
 
   for (const link of links) {
-    const count = countsByHabit.get(link.habit_id) || 0;
+    const count = countsByHabit.get(link.task_id) || 0;
     // 30 days = max possible daily completions
     const rate = Math.min(100, Math.round((count / 30) * 100));
-    weightedSum += rate * link.weight;
-    totalWeight += link.weight;
+    weightedSum += rate * (link.weight || 1.0);
+    totalWeight += (link.weight || 1.0);
   }
 
   const pct = totalWeight > 0 ? Math.round(weightedSum / totalWeight) : 0;
@@ -163,10 +165,10 @@ async function calculateHabitDrivenProgress(
     details: {
       linked_habits: links.length,
       habit_rates: Object.fromEntries(
-        links.map((l: { habit_id: string; weight: number }) => [
-          l.habit_id,
+        links.map((l: { task_id: string; weight: number }) => [
+          l.task_id,
           {
-            completions_30d: countsByHabit.get(l.habit_id) || 0,
+            completions_30d: countsByHabit.get(l.task_id) || 0,
             weight: l.weight,
           },
         ])

@@ -90,39 +90,38 @@ export const GET = withUser(async (_request, { supabase, user }) => {
       .eq("status", "active")
       .order("target_date", { ascending: true, nullsFirst: false }),
 
-    // Goal-habits links — join table doesn't have owner_id, filter via goal_ids after
+    // Goal-task links (habits are now tasks)
     platform(supabase)
-      .from("goal_habits")
-      .select("goal_id, habit_id"),
+      .from("goal_tasks")
+      .select("goal_id, task_id"),
 
-    // Active habits with streak data
+    // Active habits (tasks with is_habit=true)
     platform(supabase)
-      .from("habits")
-      .select("id, title, current_streak, status")
-      .eq("owner_id", user.id)
-      .eq("status", "active"),
+      .from("tasks")
+      .select("id, title, streak_current")
+      .eq("is_habit", true)
+      .contains("owner_ids", [user.id])
+      .is("completed_at", null),
 
-    // Today's habit check-ins
+    // Today's habit completions
     platform(supabase)
-      .from("habit_check_ins")
-      .select("habit_id")
-      .eq("checked_by", user.id)
-      .eq("check_date", today),
+      .from("task_completions")
+      .select("task_id")
+      .eq("completed_by", user.id)
+      .eq("completed_date", today),
 
-    // Habit-goals links (same table, second reference for the habit→goal map)
-    // We'll reuse goalHabitsRes below, but keep the parallel call for cleaner structure
-    platform(supabase)
-      .from("goal_habits")
-      .select("goal_id, habit_id"),
+    // (removed — reusing goalHabitsRes for both directions)
+    Promise.resolve({ data: null }),
 
-    // Top 5 habits by current streak
+    // Top 5 habit-tasks by streak
     platform(supabase)
-      .from("habits")
-      .select("title, current_streak")
-      .eq("owner_id", user.id)
-      .eq("status", "active")
-      .gt("current_streak", 0)
-      .order("current_streak", { ascending: false })
+      .from("tasks")
+      .select("title, streak_current")
+      .eq("is_habit", true)
+      .contains("owner_ids", [user.id])
+      .is("completed_at", null)
+      .gt("streak_current", 0)
+      .order("streak_current", { ascending: false })
       .limit(5),
 
     // Recent household activity (last 10 meaningful actions)
@@ -154,31 +153,31 @@ export const GET = withUser(async (_request, { supabase, user }) => {
     ? (inProgressRes.data || []).filter((t: any) => t.status_id === inProgressStatusId).length
     : 0;
 
-  // Build goal-habit mapping
+  // Build goal-habit mapping (habits are now tasks linked via goal_tasks)
   const goalHabitMap: Record<string, string[]> = {};
   (goalHabitsRes.data || []).forEach((link) => {
     const goalId = link.goal_id as string;
-    const habitId = link.habit_id as string;
+    const taskId = link.task_id as string;
     if (!goalHabitMap[goalId]) {
       goalHabitMap[goalId] = [];
     }
-    goalHabitMap[goalId].push(habitId);
+    goalHabitMap[goalId].push(taskId);
   });
 
-  // Build habit-goal mapping
+  // Build habit-goal mapping (reverse of above)
   const habitGoalMap: Record<string, string[]> = {};
-  (habitGoalsRes.data || []).forEach((link) => {
+  (goalHabitsRes.data || []).forEach((link) => {
     const goalId = link.goal_id as string;
-    const habitId = link.habit_id as string;
-    if (!habitGoalMap[habitId]) {
-      habitGoalMap[habitId] = [];
+    const taskId = link.task_id as string;
+    if (!habitGoalMap[taskId]) {
+      habitGoalMap[taskId] = [];
     }
-    habitGoalMap[habitId].push(goalId);
+    habitGoalMap[taskId].push(goalId);
   });
 
   // Build set of habits checked today
   const checkedTodaySet = new Set(
-    (habitCheckInsRes.data || []).map((ci) => ci.habit_id as string)
+    (habitCheckInsRes.data || []).map((ci) => ci.task_id as string)
   );
 
   // Build goals summary list
@@ -195,7 +194,7 @@ export const GET = withUser(async (_request, { supabase, user }) => {
   const habitsList = (activeHabitsRes.data || []).map((habit) => ({
     id: habit.id as string,
     title: habit.title as string,
-    current_streak: habit.current_streak as number,
+    current_streak: (habit.streak_current || 0) as number,
     checked_today: checkedTodaySet.has(habit.id as string),
     linked_goal_ids: habitGoalMap[habit.id as string] || [],
   }));
@@ -209,7 +208,7 @@ export const GET = withUser(async (_request, { supabase, user }) => {
   // Streaks leaderboard
   const streaksLeaderboard = (topStreaksRes.data || []).map((habit) => ({
     title: habit.title as string,
-    current_streak: habit.current_streak as number,
+    current_streak: (habit.streak_current || 0) as number,
   }));
 
   // Get member names for activity feed

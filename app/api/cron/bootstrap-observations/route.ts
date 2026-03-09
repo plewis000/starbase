@@ -136,23 +136,36 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // 2. Habit check-in timing patterns
-      const { data: recentCheckIns } = await platform(supabase)
-        .from("habit_check_ins")
-        .select("habit_id, checked_at, habits!inner(title)")
-        .eq("checked_by", user.id)
-        .gte("checked_at", thirtyDaysAgo.toISOString())
+      // 2. Habit completion timing patterns (from task_completions)
+      const { data: recentCompletions } = await platform(supabase)
+        .from("task_completions")
+        .select("task_id, completed_at")
+        .eq("completed_by", user.id)
+        .gte("completed_at", thirtyDaysAgo.toISOString())
         .limit(200);
 
-      if (recentCheckIns && recentCheckIns.length >= 10) {
-        // Group by habit and find average check-in hour
+      // Get habit-task titles for completions
+      const completionTaskIds = [...new Set((recentCompletions || []).map(c => c.task_id))];
+      let taskTitleMap = new Map<string, string>();
+      if (completionTaskIds.length > 0) {
+        const { data: taskTitles } = await platform(supabase)
+          .from("tasks")
+          .select("id, title")
+          .eq("is_habit", true)
+          .in("id", completionTaskIds);
+        for (const t of taskTitles || []) {
+          taskTitleMap.set(t.id, t.title);
+        }
+      }
+
+      if (recentCompletions && recentCompletions.length >= 10) {
         const habitHours: Record<string, { title: string; hours: number[] }> = {};
-        for (const ci of recentCheckIns) {
-          const hid = ci.habit_id;
-          const habit = ci.habits as unknown as { title: string };
-          if (!habitHours[hid]) habitHours[hid] = { title: habit.title, hours: [] };
-          if (ci.checked_at) {
-            habitHours[hid].hours.push(new Date(ci.checked_at).getHours());
+        for (const ci of recentCompletions) {
+          const title = taskTitleMap.get(ci.task_id);
+          if (!title) continue;
+          if (!habitHours[ci.task_id]) habitHours[ci.task_id] = { title, hours: [] };
+          if (ci.completed_at) {
+            habitHours[ci.task_id].hours.push(new Date(ci.completed_at).getHours());
           }
         }
 
@@ -180,14 +193,15 @@ export async function GET(request: NextRequest) {
 
       // 3. Streak consistency — identify the "reliable" habits
       const { data: activeHabits } = await platform(supabase)
-        .from("habits")
-        .select("title, current_streak, best_streak")
-        .eq("owner_id", user.id)
-        .eq("status", "active");
+        .from("tasks")
+        .select("title, streak_current, streak_longest")
+        .eq("is_habit", true)
+        .contains("owner_ids", [user.id])
+        .is("completed_at", null);
 
       for (const h of activeHabits || []) {
-        if (h.current_streak >= 14) {
-          const obs = `${userName} is very consistent with "${h.title}" (${h.current_streak}-day streak)`;
+        if ((h.streak_current || 0) >= 14) {
+          const obs = `${userName} is very consistent with "${h.title}" (${h.streak_current}-day streak)`;
           if (isNew(obs)) {
             toInsert.push({
               user_id: user.id,
@@ -196,7 +210,7 @@ export async function GET(request: NextRequest) {
               observation: obs,
               confidence: 0.85,
               source_layer: "inferred",
-              data: { source: "bootstrap", streak: h.current_streak },
+              data: { source: "bootstrap", streak: h.streak_current },
               tags: ["habits", "consistency", "strength"],
               is_active: true,
             });

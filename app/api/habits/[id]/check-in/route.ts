@@ -1,64 +1,68 @@
 import { NextResponse, after } from "next/server";
 import { withAuth } from "@/lib/api/withAuth";
-import { platform, config } from "@/lib/supabase/schemas";
+import { platform } from "@/lib/supabase/schemas";
 import { logActivity } from "@/lib/activity-log";
-import { recalculateAndUpdateStreak } from "@/lib/streak-engine";
+import { recalculateTaskStreak } from "@/lib/streak-engine";
 import { recalculateAndUpdateGoalProgress } from "@/lib/goal-progress";
 import { habitCheckInSchema, parseBody } from "@/lib/schemas";
 import { isValidDate } from "@/lib/validation";
 import { awardXp, checkAchievements } from "@/lib/gamification";
+import { inferTargetType } from "@/lib/habit-tasks";
 
-// ---- POST: Check in to a habit ----
+// ---- POST: Check in to a habit (writes to task_completions) ----
 
 export const POST = withAuth(async (request, { supabase, user }, params) => {
-  const habitId = params!.id;
+  const taskId = params!.id;
   const parsed = await parseBody(request, habitCheckInSchema);
   if (!parsed.ok) {
     return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
   const { check_date, value, note, mood } = parsed.data;
 
-  // Default to today
-  const date = check_date || new Date().toISOString().split("T")[0];
+  // Default to today (local date)
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const date = check_date || todayStr;
 
   // Don't allow check-ins in the future
-  const today = new Date().toISOString().split("T")[0];
-  if (date > today) {
+  if (date > todayStr) {
     return NextResponse.json({ error: "Cannot check in for future dates" }, { status: 400 });
   }
 
   // Don't allow check-ins more than 1 year in the past
   const oneYearAgo = new Date();
   oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-  if (date < oneYearAgo.toISOString().split("T")[0]) {
+  const oneYearAgoStr = `${oneYearAgo.getFullYear()}-${String(oneYearAgo.getMonth() + 1).padStart(2, "0")}-${String(oneYearAgo.getDate()).padStart(2, "0")}`;
+  if (date < oneYearAgoStr) {
     return NextResponse.json({ error: "Cannot check in for dates more than 1 year ago" }, { status: 400 });
   }
 
-  // Verify habit exists and belongs to user
-  const { data: habit } = await platform(supabase)
-    .from("habits")
-    .select("id, frequency_id, target_count, started_on, status")
-    .eq("id", habitId)
-    .eq("owner_id", user.id)
+  // Verify task exists, is a habit, and belongs to user
+  const { data: task } = await platform(supabase)
+    .from("tasks")
+    .select("id, recurrence_rule, start_date, completed_at")
+    .eq("id", taskId)
+    .eq("is_habit", true)
+    .contains("owner_ids", [user.id])
     .single();
 
-  if (!habit) {
+  if (!task) {
     return NextResponse.json({ error: "Habit not found" }, { status: 404 });
   }
 
-  if (habit.status !== "active") {
-    return NextResponse.json({ error: "Cannot check in to a paused or retired habit" }, { status: 400 });
+  if (task.completed_at) {
+    return NextResponse.json({ error: "Cannot check in to a retired habit" }, { status: 400 });
   }
 
-  // Insert check-in (unique constraint prevents duplicates)
-  const { data: checkIn, error } = await platform(supabase)
-    .from("habit_check_ins")
+  // Insert completion (unique constraint prevents duplicates)
+  const { data: completion, error } = await platform(supabase)
+    .from("task_completions")
     .insert({
-      habit_id: habitId,
-      checked_by: user.id,
-      check_date: date,
+      task_id: taskId,
+      completed_by: user.id,
+      completed_date: date,
+      completed_at: new Date().toISOString(),
       value: value ?? null,
-      unit: null,
       note: note ?? null,
       mood: mood ?? null,
       source: "manual",
@@ -67,42 +71,36 @@ export const POST = withAuth(async (request, { supabase, user }, params) => {
     .single();
 
   if (error) {
-    // Handle duplicate check-in
     if (error.code === "23505") {
       return NextResponse.json(
         { error: "Already checked in for this date" },
         { status: 409 }
       );
     }
-    console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error(error.message);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
-  // Get frequency details for streak calculation
-  const { data: freq } = await config(supabase)
-    .from("habit_frequencies")
-    .select("target_type, default_target")
-    .eq("id", habit.frequency_id)
-    .single();
-
-  const targetType = freq ? (freq.target_type as "daily" | "weekly" | "monthly") : "daily";
-
   // Recalculate streak
-  const streakResult = await recalculateAndUpdateStreak(
+  const targetType = inferTargetType(task.recurrence_rule);
+  const startedOn = task.start_date || todayStr;
+
+  const streakResult = await recalculateTaskStreak(
     supabase,
-    habitId,
-    habit.target_count,
+    taskId,
+    1, // target_count
     targetType,
-    habit.started_on
+    startedOn
   );
 
   // Log activity
   await logActivity(supabase, {
     entity_type: "habit_check_in",
-    entity_id: checkIn.id,
+    entity_id: completion.id,
     action: "created",
     performed_by: user.id,
     metadata: {
-      habit_id: habitId,
+      habit_id: taskId,
       check_date: date,
       value,
       mood,
@@ -112,9 +110,9 @@ export const POST = withAuth(async (request, { supabase, user }, params) => {
 
   // Update progress on any linked goals
   const { data: goalLinks } = await platform(supabase)
-    .from("goal_habits")
+    .from("goal_tasks")
     .select("goal_id")
-    .eq("habit_id", habitId);
+    .eq("task_id", taskId);
 
   if (goalLinks && goalLinks.length > 0) {
     for (const link of goalLinks) {
@@ -122,12 +120,10 @@ export const POST = withAuth(async (request, { supabase, user }, params) => {
     }
   }
 
-  // Award XP for habit check-in (runs after response is sent — P024)
+  // Award XP for habit check-in (runs after response is sent)
   after(async () => {
     try {
-      let xpAmount = 15; // Base XP for check-in
-
-      // Streak milestone bonuses
+      let xpAmount = 15;
       const streak = streakResult.current_streak;
       if (streak >= 90) xpAmount += 50;
       else if (streak >= 30) xpAmount += 25;
@@ -140,26 +136,24 @@ export const POST = withAuth(async (request, { supabase, user }, params) => {
         "habit_check_in",
         `Habit check-in${streak > 1 ? ` (${streak}-day streak)` : ""}`,
         "habit",
-        habitId
+        taskId
       );
 
-      // Check for habit-related achievements (use correct trigger types from config)
       await checkAchievements(supabase, user.id, "habit_streak", {
         current_streak: streak,
-        habitId,
+        habitId: taskId,
       });
       await checkAchievements(supabase, user.id, "habit_count", {
-        habitId,
+        habitId: taskId,
       });
 
-      // Comeback kid: streak rebuilt (had a longest > current, and current is now 7+)
       if (streak >= 7 && streakResult.longest_streak > streak) {
         await checkAchievements(supabase, user.id, "custom", {
           custom_type: "streak_rebuilt",
         });
       }
 
-      // Household completion celebration: if this check-in means ALL members have finished ALL habits today
+      // Household completion celebration
       try {
         const { getHouseholdContext, getHouseholdMemberIds } = await import("@/lib/household");
         const { triggerNotification } = await import("@/lib/notify");
@@ -167,24 +161,23 @@ export const POST = withAuth(async (request, { supabase, user }, params) => {
         if (hCtx) {
           const memberIds = await getHouseholdMemberIds(supabase, hCtx.household_id);
           if (memberIds.length > 1) {
-            const todayStr = new Date().toISOString().slice(0, 10);
             let allComplete = true;
-
             for (const memberId of memberIds) {
               const { data: mHabits } = await platform(supabase)
-                .from("habits")
+                .from("tasks")
                 .select("id")
-                .eq("owner_id", memberId)
-                .eq("status", "active");
+                .eq("is_habit", true)
+                .contains("owner_ids", [memberId])
+                .is("completed_at", null);
 
-              const { data: mCheckIns } = await platform(supabase)
-                .from("habit_check_ins")
-                .select("habit_id")
-                .eq("checked_by", memberId)
-                .eq("check_date", todayStr);
+              const { data: mCompletions } = await platform(supabase)
+                .from("task_completions")
+                .select("task_id")
+                .eq("completed_by", memberId)
+                .eq("completed_date", todayStr);
 
               const mTotal = mHabits?.length || 0;
-              const mChecked = new Set((mCheckIns || []).map(c => c.habit_id)).size;
+              const mChecked = new Set((mCompletions || []).map(c => c.task_id)).size;
               if (mTotal === 0 || mChecked < mTotal) {
                 allComplete = false;
                 break;
@@ -192,7 +185,6 @@ export const POST = withAuth(async (request, { supabase, user }, params) => {
             }
 
             if (allComplete) {
-              // Both partners finished all habits — celebrate!
               for (const memberId of memberIds) {
                 triggerNotification(supabase, {
                   recipientUserId: memberId,
@@ -205,7 +197,7 @@ export const POST = withAuth(async (request, { supabase, user }, params) => {
           }
         }
       } catch {
-        // Non-critical — don't break the check-in flow
+        // Non-critical
       }
     } catch (err) {
       console.error("Gamification error:", err);
@@ -213,7 +205,7 @@ export const POST = withAuth(async (request, { supabase, user }, params) => {
   });
 
   return NextResponse.json({
-    check_in: checkIn,
+    check_in: completion,
     streak: streakResult,
   }, { status: 201 });
 });
@@ -221,7 +213,7 @@ export const POST = withAuth(async (request, { supabase, user }, params) => {
 // ---- DELETE: Undo a check-in ----
 
 export const DELETE = withAuth(async (request, { supabase, user }, params) => {
-  const habitId = params!.id;
+  const taskId = params!.id;
   const { searchParams } = new URL(request.url);
   const date = searchParams.get("date");
 
@@ -233,44 +225,42 @@ export const DELETE = withAuth(async (request, { supabase, user }, params) => {
     return NextResponse.json({ error: "Invalid date format. Use YYYY-MM-DD." }, { status: 400 });
   }
 
-  // Delete the check-in
+  // Delete the completion
   const { error } = await platform(supabase)
-    .from("habit_check_ins")
+    .from("task_completions")
     .delete()
-    .eq("habit_id", habitId)
-    .eq("checked_by", user.id)
-    .eq("check_date", date);
+    .eq("task_id", taskId)
+    .eq("completed_by", user.id)
+    .eq("completed_date", date);
 
   if (error) {
-    console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error(error.message);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
-  // Verify habit for streak recalc
-  const { data: habit } = await platform(supabase)
-    .from("habits")
-    .select("id, frequency_id, target_count, started_on")
-    .eq("id", habitId)
-    .eq("owner_id", user.id)
+  // Verify task for streak recalc
+  const { data: task } = await platform(supabase)
+    .from("tasks")
+    .select("id, recurrence_rule, start_date")
+    .eq("id", taskId)
+    .eq("is_habit", true)
+    .contains("owner_ids", [user.id])
     .single();
 
-  if (habit) {
-    const { data: freq } = await config(supabase)
-      .from("habit_frequencies")
-      .select("target_type")
-      .eq("id", habit.frequency_id)
-      .single();
+  if (task) {
+    const targetType = inferTargetType(task.recurrence_rule);
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
-    const targetType = freq ? (freq.target_type as "daily" | "weekly" | "monthly") : "daily";
-
-    await recalculateAndUpdateStreak(
-      supabase, habitId, habit.target_count, targetType, habit.started_on
+    await recalculateTaskStreak(
+      supabase, taskId, 1, targetType, task.start_date || todayStr
     );
 
     // Update linked goal progress
     const { data: goalLinks } = await platform(supabase)
-      .from("goal_habits")
+      .from("goal_tasks")
       .select("goal_id")
-      .eq("habit_id", habitId);
+      .eq("task_id", taskId);
 
     if (goalLinks && goalLinks.length > 0) {
       for (const link of goalLinks) {
@@ -281,7 +271,7 @@ export const DELETE = withAuth(async (request, { supabase, user }, params) => {
 
   await logActivity(supabase, {
     entity_type: "habit_check_in",
-    entity_id: habitId,
+    entity_id: taskId,
     action: "deleted",
     performed_by: user.id,
     metadata: { check_date: date },

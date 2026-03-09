@@ -255,35 +255,37 @@ async function countAllHabitsStreak(
   supabase: ReturnType<typeof createServiceClient>,
   userId: string,
 ): Promise<number> {
-  // Get all active daily habits for this user
+  // Get all active habit-tasks for this user
   const { data: activeHabits } = await platform(supabase)
-    .from("habits")
+    .from("tasks")
     .select("id")
-    .eq("owner_id", userId)
-    .eq("status", "active");
+    .eq("is_habit", true)
+    .contains("owner_ids", [userId])
+    .is("completed_at", null);
 
   if (!activeHabits || activeHabits.length === 0) return 0;
 
   const habitIds = activeHabits.map(h => h.id);
 
-  // Get check-ins for the last 90 days
+  // Get completions for the last 90 days
   const ninetyDaysAgo = new Date();
   ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+  const cutoffStr = `${ninetyDaysAgo.getFullYear()}-${String(ninetyDaysAgo.getMonth() + 1).padStart(2, "0")}-${String(ninetyDaysAgo.getDate()).padStart(2, "0")}`;
 
   const { data: checkIns } = await platform(supabase)
-    .from("habit_check_ins")
-    .select("habit_id, check_date")
-    .in("habit_id", habitIds)
-    .gte("check_date", ninetyDaysAgo.toISOString().split("T")[0])
-    .order("check_date", { ascending: false });
+    .from("task_completions")
+    .select("task_id, completed_date")
+    .in("task_id", habitIds)
+    .gte("completed_date", cutoffStr)
+    .order("completed_date", { ascending: false });
 
   if (!checkIns) return 0;
 
   // Group by date
   const byDate = new Map<string, Set<string>>();
   for (const ci of checkIns) {
-    if (!byDate.has(ci.check_date)) byDate.set(ci.check_date, new Set());
-    byDate.get(ci.check_date)!.add(ci.habit_id);
+    if (!byDate.has(ci.completed_date)) byDate.set(ci.completed_date, new Set());
+    byDate.get(ci.completed_date)!.add(ci.task_id);
   }
 
   // Count consecutive days from yesterday where all habits checked in
@@ -424,20 +426,25 @@ async function countPartyHabitSync(
   const members = await getHouseholdMembers(supabase, userId);
   if (members.length < 2) return 0;
 
-  // Find habits that both users share (same title or linked via household)
-  // Simplification: find habits owned by any household member
+  // Find habit-tasks owned by any household member
   const { data: habits } = await platform(supabase)
-    .from("habits")
-    .select("id, owner_id, title")
-    .in("owner_id", members)
-    .eq("status", "active");
+    .from("tasks")
+    .select("id, owner_ids, title")
+    .eq("is_habit", true)
+    .is("completed_at", null);
 
-  if (!habits || habits.length === 0) return 0;
+  // Filter to habits owned by household members
+  const memberSet = new Set(members);
+  const memberHabits = (habits || []).filter(h =>
+    Array.isArray(h.owner_ids) && h.owner_ids.some((oid: string) => memberSet.has(oid))
+  );
+
+  if (memberHabits.length === 0) return 0;
 
   // Group by title to find shared habits
   const byTitle = new Map<string, string[]>();
-  for (const h of habits) {
-    const key = h.title.toLowerCase().trim();
+  for (const h of memberHabits) {
+    const key = (h.title as string).toLowerCase().trim();
     if (!byTitle.has(key)) byTitle.set(key, []);
     byTitle.get(key)!.push(h.id);
   }
@@ -445,23 +452,25 @@ async function countPartyHabitSync(
   // Find titles that appear for multiple owners
   const sharedHabitIds: string[] = [];
   for (const [, ids] of byTitle) {
-    const owners = new Set(habits.filter(h => ids.includes(h.id)).map(h => h.owner_id));
-    if (owners.size >= 2) {
+    const owners = new Set(memberHabits.filter(h => ids.includes(h.id)).flatMap(h => h.owner_ids || []));
+    const memberOwners = [...owners].filter(o => memberSet.has(o as string));
+    if (memberOwners.length >= 2) {
       sharedHabitIds.push(...ids);
     }
   }
 
   if (sharedHabitIds.length === 0) return 0;
 
-  // Get check-ins for shared habits, last 30 days
+  // Get completions for shared habits, last 30 days
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const cutoffStr = `${thirtyDaysAgo.getFullYear()}-${String(thirtyDaysAgo.getMonth() + 1).padStart(2, "0")}-${String(thirtyDaysAgo.getDate()).padStart(2, "0")}`;
 
   const { data: checkIns } = await platform(supabase)
-    .from("habit_check_ins")
-    .select("habit_id, check_date, checked_by")
-    .in("habit_id", sharedHabitIds)
-    .gte("check_date", thirtyDaysAgo.toISOString().split("T")[0]);
+    .from("task_completions")
+    .select("task_id, completed_date, completed_by")
+    .in("task_id", sharedHabitIds)
+    .gte("completed_date", cutoffStr);
 
   if (!checkIns) return 0;
 
@@ -472,8 +481,8 @@ async function countPartyHabitSync(
 
   while (streak < 30) {
     const dateStr = d.toISOString().split("T")[0];
-    const dayChecks = checkIns.filter(ci => ci.check_date === dateStr);
-    const checkedByMember = new Set(dayChecks.map(ci => ci.checked_by));
+    const dayChecks = checkIns.filter(ci => ci.completed_date === dateStr);
+    const checkedByMember = new Set(dayChecks.map(ci => ci.completed_by));
 
     // Both members must have checked in
     const membersCovered = members.filter(m => checkedByMember.has(m));

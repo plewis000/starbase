@@ -24,16 +24,12 @@ export const GET = withAuth(async (request, { supabase, user }, params) => {
   }
 
   // Fetch all related data in parallel
-  const [milestonesRes, habitLinksRes, taskLinksRes, subgoalsRes, activityRes] = await Promise.all([
+  const [milestonesRes, taskLinksRes, subgoalsRes, activityRes] = await Promise.all([
     platform(supabase)
       .from("goal_milestones")
       .select("*")
       .eq("goal_id", id)
       .order("sort_order"),
-    platform(supabase)
-      .from("goal_habits")
-      .select("*")
-      .eq("goal_id", id),
     platform(supabase)
       .from("goal_tasks")
       .select("*")
@@ -51,44 +47,57 @@ export const GET = withAuth(async (request, { supabase, user }, params) => {
       .limit(20),
   ]);
 
-  // Fetch linked habit details with recent check-in history for 7-day grid
-  const habitIds = (habitLinksRes.data || []).map((l: Record<string, unknown>) => l.habit_id as string);
-  let linkedHabits: Record<string, unknown>[] = [];
-  if (habitIds.length > 0) {
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const { data } = await platform(supabase)
-      .from("habits")
-      .select("id, title, current_streak, longest_streak, total_completions, status")
-      .in("id", habitIds);
-    // Fetch check-in history for the last 7 days
-    const { data: checkIns } = await platform(supabase)
-      .from("habit_check_ins")
-      .select("habit_id, check_date")
-      .in("habit_id", habitIds)
-      .gte("check_date", sevenDaysAgo.toISOString().split("T")[0]);
-    // Group check-ins by habit
-    const checkInMap = new Map<string, { check_date: string }[]>();
-    for (const ci of checkIns || []) {
-      const arr = checkInMap.get(ci.habit_id) || [];
-      arr.push({ check_date: ci.check_date });
-      checkInMap.set(ci.habit_id, arr);
-    }
-    linkedHabits = (data || []).map(h => ({
-      ...h,
-      check_in_history: checkInMap.get(h.id as string) || [],
-    }));
-  }
-
-  // Fetch linked task details
+  // Fetch all linked task details (includes habit-tasks)
   const taskIds = (taskLinksRes.data || []).map((l: Record<string, unknown>) => l.task_id as string);
-  let linkedTasks: Record<string, unknown>[] = [];
+  let allLinkedTasks: Record<string, unknown>[] = [];
   if (taskIds.length > 0) {
     const { data } = await platform(supabase)
       .from("tasks")
-      .select("id, title, status_id, completed_at, due_date, start_date, schedule_date, parent_task_id, assigned_to, owner_ids, priority_id, is_habit, recurrence_rule")
+      .select("id, title, status_id, completed_at, due_date, start_date, schedule_date, parent_task_id, assigned_to, owner_ids, priority_id, is_habit, recurrence_rule, streak_current, streak_longest")
       .in("id", taskIds);
-    linkedTasks = data || [];
+    allLinkedTasks = data || [];
+  }
+
+  // Separate habit-tasks from regular tasks
+  const habitTasks = allLinkedTasks.filter(t => t.is_habit);
+  const regularTasks = allLinkedTasks.filter(t => !t.is_habit);
+
+  // Fetch 7-day completion history for habit-tasks
+  let linkedHabits: Record<string, unknown>[] = [];
+  if (habitTasks.length > 0) {
+    const habitTaskIds = habitTasks.map(t => t.id as string);
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const cutoff = `${sevenDaysAgo.getFullYear()}-${String(sevenDaysAgo.getMonth() + 1).padStart(2, "0")}-${String(sevenDaysAgo.getDate()).padStart(2, "0")}`;
+
+    const { data: completions } = await platform(supabase)
+      .from("task_completions")
+      .select("task_id, completed_date")
+      .in("task_id", habitTaskIds)
+      .gte("completed_date", cutoff);
+
+    const checkInMap = new Map<string, { check_date: string }[]>();
+    for (const ci of completions || []) {
+      const arr = checkInMap.get(ci.task_id) || [];
+      arr.push({ check_date: ci.completed_date });
+      checkInMap.set(ci.task_id, arr);
+    }
+
+    linkedHabits = habitTasks.map(t => {
+      const link = (taskLinksRes.data || []).find(
+        (l: Record<string, unknown>) => l.task_id === t.id
+      );
+      return {
+        id: t.id,
+        title: t.title,
+        current_streak: t.streak_current || 0,
+        longest_streak: t.streak_longest || 0,
+        total_completions: 0,
+        status: t.completed_at ? "retired" : "active",
+        check_in_history: checkInMap.get(t.id as string) || [],
+        weight: link ? (link as Record<string, unknown>).weight || 1.0 : 1.0,
+      };
+    });
   }
 
   // Enrich
@@ -99,13 +108,8 @@ export const GET = withAuth(async (request, { supabase, user }, params) => {
     goal: {
       ...enriched,
       milestones: milestonesRes.data || [],
-      linked_habits: linkedHabits.map((h) => {
-        const link = (habitLinksRes.data || []).find(
-          (l: Record<string, unknown>) => l.habit_id === h.id
-        );
-        return { ...h, weight: link ? (link as Record<string, unknown>).weight : 1.0 };
-      }),
-      linked_tasks: linkedTasks,
+      linked_habits: linkedHabits,
+      linked_tasks: regularTasks,
       sub_goals: subgoalsRes.data || [],
       activity: activityRes.data || [],
     },
@@ -183,12 +187,32 @@ export const PATCH = withAuth(async (request, { supabase, user }, params) => {
     });
   }
 
-  // Sync habit links if provided
+  // Sync habit links if provided (habits are now tasks, linked via goal_tasks)
   if (habitIds !== undefined) {
-    await platform(supabase).from("goal_habits").delete().eq("goal_id", id);
+    // Remove existing habit-task links (only those that are habits)
+    const { data: existingLinks } = await platform(supabase)
+      .from("goal_tasks")
+      .select("task_id")
+      .eq("goal_id", id);
+    if (existingLinks && existingLinks.length > 0) {
+      const existingTaskIds = existingLinks.map(l => l.task_id);
+      const { data: habitTasksToRemove } = await platform(supabase)
+        .from("tasks")
+        .select("id")
+        .eq("is_habit", true)
+        .in("id", existingTaskIds);
+      if (habitTasksToRemove && habitTasksToRemove.length > 0) {
+        await platform(supabase)
+          .from("goal_tasks")
+          .delete()
+          .eq("goal_id", id)
+          .in("task_id", habitTasksToRemove.map(t => t.id));
+      }
+    }
+    // Insert new habit-task links
     if (habitIds.length > 0) {
-      await platform(supabase).from("goal_habits").insert(
-        habitIds.map((hid: string) => ({ goal_id: id, habit_id: hid }))
+      await platform(supabase).from("goal_tasks").insert(
+        habitIds.map((hid: string) => ({ goal_id: id, task_id: hid }))
       );
     }
   }

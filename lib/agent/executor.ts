@@ -434,57 +434,76 @@ async function listHabits(supabase: Supabase, userId: string, input: Record<stri
   if (!ctx) return { success: false, error: "No household found" };
   const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
 
-  let query = platform(supabase)
-    .from("habits")
-    .select("id, title, description, status, frequency:habit_frequencies(name), current_streak, longest_streak, last_completed_at")
-    .in("owner_id", memberIds)
+  // Query habit-tasks (tasks with is_habit=true)
+  const { data: tasks, error } = await platform(supabase)
+    .from("tasks")
+    .select("id, title, description, streak_current, streak_longest, recurrence_rule, owner_ids, completed_at")
+    .eq("is_habit", true)
+    .is("completed_at", null)
     .order("title");
 
-  if (input.status) query = query.eq("status", input.status as string);
-  else query = query.eq("status", "active");
-
-  const { data, error } = await query;
   if (error) return { success: false, error: error.message };
-  return { success: true, data: { habits: data, count: data?.length || 0 } };
+
+  // Filter to household members
+  const memberSet = new Set(memberIds);
+  const filtered = (tasks || []).filter(t =>
+    Array.isArray(t.owner_ids) && t.owner_ids.some((oid: string) => memberSet.has(oid))
+  );
+
+  const { inferFrequencyName } = await import("@/lib/habit-tasks");
+  const habits = filtered.map(t => ({
+    id: t.id,
+    title: t.title,
+    description: t.description,
+    status: t.completed_at ? "retired" : "active",
+    frequency: { name: inferFrequencyName(t.recurrence_rule) },
+    current_streak: t.streak_current || 0,
+    longest_streak: t.streak_longest || 0,
+  }));
+
+  return { success: true, data: { habits, count: habits.length } };
 }
 
 async function checkInHabit(supabase: Supabase, userId: string, input: Record<string, unknown>): Promise<ToolResult> {
-  const habitId = input.habit_id as string;
-  if (!habitId) return { success: false, error: "habit_id is required" };
+  const taskId = input.habit_id as string;
+  if (!taskId) return { success: false, error: "habit_id is required" };
 
-  const checkDate = (input.date as string) || new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const checkDate = (input.date as string) || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
   const { data, error } = await platform(supabase)
-    .from("habit_check_ins")
+    .from("task_completions")
     .upsert({
-      habit_id: habitId,
-      checked_by: userId,
-      check_date: checkDate,
+      task_id: taskId,
+      completed_by: userId,
+      completed_date: checkDate,
+      completed_at: new Date().toISOString(),
       value: input.value ? Number(input.value) : null,
       note: (input.note as string) || null,
-    }, { onConflict: "habit_id,checked_by,check_date" })
-    .select("id, check_date, value")
+    }, { onConflict: "task_id,completed_by,completed_date" })
+    .select("id, completed_date, value")
     .single();
 
   if (error) return { success: false, error: error.message };
 
-  // Recalculate streak after check-in
+  // Recalculate streak
   try {
-    const { recalculateAndUpdateStreak } = await import("@/lib/streak-engine");
-    const { data: habit } = await platform(supabase)
-      .from("habits")
-      .select("target_count, started_on, frequency:habit_frequencies(target_type)")
-      .eq("id", habitId)
+    const { recalculateTaskStreak } = await import("@/lib/streak-engine");
+    const { inferTargetType } = await import("@/lib/habit-tasks");
+    const { data: task } = await platform(supabase)
+      .from("tasks")
+      .select("recurrence_rule, start_date")
+      .eq("id", taskId)
       .single();
-    if (habit) {
-      const targetType = (habit.frequency as any)?.target_type || "daily";
-      const streakResult = await recalculateAndUpdateStreak(
-        supabase, habitId, habit.target_count || 1, targetType, habit.started_on
+    if (task) {
+      const targetType = inferTargetType(task.recurrence_rule);
+      const streakResult = await recalculateTaskStreak(
+        supabase, taskId, 1, targetType, task.start_date || checkDate
       );
       return { success: true, data: { check_in: data, streak: streakResult, message: `Habit checked in for ${checkDate}` } };
     }
   } catch {
-    // Streak recalc failed — still return success for the check-in
+    // Streak recalc failed — still return success
   }
   return { success: true, data: { check_in: data, message: `Habit checked in for ${checkDate}` } };
 }
@@ -492,26 +511,34 @@ async function checkInHabit(supabase: Supabase, userId: string, input: Record<st
 async function createHabit(supabase: Supabase, userId: string, input: Record<string, unknown>): Promise<ToolResult> {
   if (!input.title) return { success: false, error: "title is required" };
 
-  // Resolve frequency name to ID
-  let frequencyId: string | null = null;
+  // Build RRULE from frequency name
+  let rrule = "FREQ=DAILY";
   if (input.frequency) {
-    const { data: freq } = await config(supabase)
-      .from("habit_frequencies")
-      .select("id")
-      .ilike("name", input.frequency as string)
-      .single();
-    frequencyId = freq?.id || null;
+    const freq = (input.frequency as string).toLowerCase();
+    if (freq.includes("week")) rrule = "FREQ=WEEKLY";
+    else if (freq.includes("month")) rrule = "FREQ=MONTHLY";
   }
 
+  const { getDefaultStatusId } = await import("@/lib/habit-tasks");
+  const statusId = await getDefaultStatusId(supabase);
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+
   const { data, error } = await platform(supabase)
-    .from("habits")
+    .from("tasks")
     .insert({
       title: input.title as string,
       description: (input.description as string) || null,
-      frequency_id: frequencyId,
-      target_count: input.target_count ? Number(input.target_count) : 1,
-      owner_id: userId,
-      started_on: new Date().toISOString().slice(0, 10),
+      is_habit: true,
+      recurrence_rule: rrule,
+      recurrence_mode: "flexible",
+      owner_ids: [userId],
+      assigned_to: userId,
+      start_date: today,
+      schedule_date: today,
+      status_id: statusId,
+      streak_current: 0,
+      streak_longest: 0,
     })
     .select("id, title")
     .single();
@@ -975,13 +1002,27 @@ async function getDashboard(supabase: Supabase, userId: string): Promise<ToolRes
     .eq("owner_id", userId)
     .limit(10);
 
-  // Active habits with streaks
+  // Active habits with streaks (from habit-tasks)
   const { data: habits } = await platform(supabase)
-    .from("habits")
-    .select("id, title, current_streak, last_check_in")
-    .eq("status", "active")
-    .eq("owner_id", userId)
+    .from("tasks")
+    .select("id, title, streak_current")
+    .eq("is_habit", true)
+    .contains("owner_ids", [userId])
+    .is("completed_at", null)
     .limit(10);
+
+  // Check which habits were completed today
+  const habitIds = (habits || []).map((h) => h.id);
+  const checkedTodaySet = new Set<string>();
+  if (habitIds.length > 0) {
+    const { data: todayCompletions } = await platform(supabase)
+      .from("task_completions")
+      .select("task_id")
+      .in("task_id", habitIds)
+      .eq("completed_date", today)
+      .eq("completed_by", userId);
+    for (const c of todayCompletions || []) checkedTodaySet.add(c.task_id);
+  }
 
   // Unread notifications count
   const { count: unreadCount } = await platform(supabase)
@@ -1001,7 +1042,7 @@ async function getDashboard(supabase: Supabase, userId: string): Promise<ToolRes
       })),
       habits: (habits || []).map((h) => ({
         ...h,
-        checked_today: h.last_check_in === today,
+        checked_today: checkedTodaySet.has(h.id),
       })),
       unread_notifications: unreadCount || 0,
     },
@@ -1701,16 +1742,16 @@ async function getHouseholdOverview(supabase: Supabase, userId: string): Promise
       .in("assigned_to", memberIds)
       .is("completed_at", null)
       .lt("due_date", today),
-    // Active habits
-    platform(supabase).from("habits")
-      .select("id, title, owner_id, current_streak")
-      .in("owner_id", memberIds)
-      .eq("status", "active"),
-    // Today's check-ins
-    platform(supabase).from("habit_check_ins")
-      .select("habit_id, checked_by")
-      .in("checked_by", memberIds)
-      .eq("check_date", today),
+    // Active habits (from habit-tasks)
+    platform(supabase).from("tasks")
+      .select("id, title, owner_ids, streak_current")
+      .eq("is_habit", true)
+      .is("completed_at", null),
+    // Today's completions
+    platform(supabase).from("task_completions")
+      .select("task_id, completed_by")
+      .in("completed_by", memberIds)
+      .eq("completed_date", today),
     // Active goals
     platform(supabase).from("goals")
       .select("id, title, owner_id, progress, target_value, status")
@@ -1720,8 +1761,13 @@ async function getHouseholdOverview(supabase: Supabase, userId: string): Promise
 
   const todayTasks = tasksResult.data || [];
   const overdueTasks = overdueResult.data || [];
-  const habits = habitsResult.data || [];
-  const checkIns = new Set((checkInsResult.data || []).map(c => c.habit_id));
+  const allHabits = habitsResult.data || [];
+  // Filter habits to household members
+  const memberSet = new Set(memberIds);
+  const habits = allHabits.filter(h =>
+    Array.isArray(h.owner_ids) && h.owner_ids.some((oid: string) => memberSet.has(oid))
+  );
+  const checkIns = new Set((checkInsResult.data || []).map(c => c.task_id));
   const goals = goalsResult.data || [];
 
   // Build per-member summary
@@ -1729,11 +1775,11 @@ async function getHouseholdOverview(supabase: Supabase, userId: string): Promise
     const name = nameMap.get(id) || "Unknown";
     const myTodayTasks = todayTasks.filter(t => t.assigned_to === id);
     const myOverdue = overdueTasks.filter(t => t.assigned_to === id);
-    const myHabits = habits.filter(h => h.owner_id === id);
+    const myHabits = habits.filter(h => Array.isArray(h.owner_ids) && h.owner_ids.includes(id));
     const myCheckedIn = myHabits.filter(h => checkIns.has(h.id));
     const myGoals = goals.filter(g => g.owner_id === id);
-    const topStreaks = myHabits.filter(h => h.current_streak > 0)
-      .sort((a, b) => b.current_streak - a.current_streak)
+    const topStreaks = myHabits.filter(h => (h.streak_current || 0) > 0)
+      .sort((a, b) => (b.streak_current || 0) - (a.streak_current || 0))
       .slice(0, 3);
 
     return {
@@ -1745,7 +1791,7 @@ async function getHouseholdOverview(supabase: Supabase, userId: string): Promise
       overdue_titles: myOverdue.slice(0, 3).map(t => `${t.title} (due ${t.due_date})`),
       habits_total: myHabits.length,
       habits_done_today: myCheckedIn.length,
-      top_streaks: topStreaks.map(h => ({ title: h.title, streak: h.current_streak })),
+      top_streaks: topStreaks.map(h => ({ title: h.title, streak: h.streak_current || 0 })),
       active_goals: myGoals.map(g => ({
         title: g.title,
         progress: g.progress || 0,
@@ -1794,14 +1840,15 @@ async function getCrawlerStats(supabase: Supabase, userId: string): Promise<Tool
       .eq("user_id", userId)
       .order("unlocked_at", { ascending: false })
       .limit(5),
-    // Active habit streaks (buffs)
+    // Active habit streaks (buffs, from habit-tasks)
     platform(supabase)
-      .from("habits")
-      .select("title, current_streak")
-      .eq("owner_id", userId)
-      .eq("status", "active")
-      .gt("current_streak", 0)
-      .order("current_streak", { ascending: false })
+      .from("tasks")
+      .select("title, streak_current")
+      .eq("is_habit", true)
+      .contains("owner_ids", [userId])
+      .is("completed_at", null)
+      .gt("streak_current", 0)
+      .order("streak_current", { ascending: false })
       .limit(5),
     // Overdue tasks (debuffs)
     platform(supabase)
@@ -1858,7 +1905,7 @@ async function getCrawlerStats(supabase: Supabase, userId: string): Promise<Tool
         CHA: profile.stat_cha,
       },
       login_streak: profile.login_streak,
-      buffs: (streaksRes.data || []).map(h => `${h.title} (${h.current_streak}d streak)`),
+      buffs: (streaksRes.data || []).map(h => `${h.title} (${h.streak_current}d streak)`),
       debuffs: (overdueRes.data || []).map(t => `${t.title} (due ${t.due_date})`),
       recent_achievements: achievements,
       unopened_loot_boxes: lootRes.count || 0,
@@ -1992,15 +2039,16 @@ async function getWorkloadBalance(supabase: Supabase, userId: string): Promise<T
         .in("status_id", openStatusIds.length > 0 ? openStatusIds : ["__none__"])
         .contains("owner_ids", [memberId]),
       platform(supabase)
-        .from("habits")
+        .from("tasks")
         .select("id", { count: "exact", head: true })
-        .eq("owner_id", memberId)
-        .eq("status", "active"),
+        .eq("is_habit", true)
+        .contains("owner_ids", [memberId])
+        .is("completed_at", null),
       platform(supabase)
-        .from("habit_check_ins")
+        .from("task_completions")
         .select("id", { count: "exact", head: true })
-        .eq("checked_by", memberId)
-        .eq("check_date", todayStr),
+        .eq("completed_by", memberId)
+        .eq("completed_date", todayStr),
     ]);
 
     balanceData.push({
@@ -2061,23 +2109,24 @@ async function getFocusTasks(supabase: Supabase, userId: string, input: Record<s
 
   if (!tasks || tasks.length === 0) return { success: true, data: { focus_items: [], message: "No open tasks — you're clear!" } };
 
-  // Get habits at risk (unchecked today with active streaks)
-  const { data: habits } = await platform(supabase)
-    .from("habits")
-    .select("id, title, current_streak")
-    .eq("owner_id", userId)
-    .eq("status", "active");
+  // Get habits at risk (unchecked today with active streaks, from habit-tasks)
+  const { data: habitTasks } = await platform(supabase)
+    .from("tasks")
+    .select("id, title, streak_current")
+    .eq("is_habit", true)
+    .contains("owner_ids", [userId])
+    .is("completed_at", null);
 
-  const { data: checkIns } = await platform(supabase)
-    .from("habit_check_ins")
-    .select("habit_id")
-    .eq("checked_by", userId)
-    .eq("check_date", todayStr);
+  const { data: habitCompletions } = await platform(supabase)
+    .from("task_completions")
+    .select("task_id")
+    .eq("completed_by", userId)
+    .eq("completed_date", todayStr);
 
-  const checkedIds = new Set((checkIns || []).map((c) => c.habit_id));
-  const atRiskHabits = (habits || [])
-    .filter((h) => !checkedIds.has(h.id) && h.current_streak > 0)
-    .sort((a, b) => b.current_streak - a.current_streak);
+  const checkedIds = new Set((habitCompletions || []).map((c) => c.task_id));
+  const atRiskHabits = (habitTasks || [])
+    .filter((h) => !checkedIds.has(h.id) && (h.streak_current || 0) > 0)
+    .sort((a, b) => (b.streak_current || 0) - (a.streak_current || 0));
 
   // Get partner's tasks to identify shared/blocking items
   const otherIds = memberIds.filter((id) => id !== userId);
@@ -2166,8 +2215,8 @@ async function getFocusTasks(supabase: Supabase, userId: string, input: Record<s
     focusItems.push({
       type: "habit",
       title: `Check in: ${h.title}`,
-      urgency: h.current_streak >= 14 ? "critical" : h.current_streak >= 7 ? "high" : "medium",
-      reasons: [`${h.current_streak}-day streak at risk`],
+      urgency: h.streak_current >= 14 ? "critical" : h.streak_current >= 7 ? "high" : "medium",
+      reasons: [`${h.streak_current}-day streak at risk`],
     });
   }
 

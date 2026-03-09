@@ -1,41 +1,44 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
-import { getGoalHabitLookups, enrichHabit } from "@/lib/goal-habit-enrichment";
 import { logActivity, logFieldChanges } from "@/lib/activity-log";
-import { getStreakData } from "@/lib/streak-engine";
-import { getCheckInHistory } from "@/lib/streak-engine";
-import { z } from "zod";
+import { taskToHabit, inferTargetType } from "@/lib/habit-tasks";
 import { updateHabitSchema, parseBody } from "@/lib/schemas";
+import { z } from "zod";
 
-// ---- GET: Single habit with full details ----
+// ---- GET: Single habit with full details (backed by tasks) ----
 
 export const GET = withAuth(async (request, { supabase, user }, params) => {
   const id = params!.id;
 
-  const { data: habit, error } = await platform(supabase)
-    .from("habits")
+  const { data: task, error } = await platform(supabase)
+    .from("tasks")
     .select("*")
     .eq("id", id)
-    .eq("owner_id", user.id)
+    .eq("is_habit", true)
+    .contains("owner_ids", [user.id])
     .single();
 
-  if (error || !habit) {
+  if (error || !task) {
     return NextResponse.json({ error: "Habit not found" }, { status: 404 });
   }
 
-  // Fetch check-in history (last 90 days for heatmap)
+  // Fetch completion history (last 90 days for heatmap)
   const ninetyDaysAgo = new Date();
   ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-  const startDate = ninetyDaysAgo.toISOString().split("T")[0];
-  const endDate = new Date().toISOString().split("T")[0];
+  const startDate = `${ninetyDaysAgo.getFullYear()}-${String(ninetyDaysAgo.getMonth() + 1).padStart(2, "0")}-${String(ninetyDaysAgo.getDate()).padStart(2, "0")}`;
 
-  const [checkInHistory, goalLinksRes, activityRes] = await Promise.all([
-    getCheckInHistory(supabase, id, startDate, endDate),
+  const [completionsRes, goalLinksRes, activityRes] = await Promise.all([
     platform(supabase)
-      .from("goal_habits")
-      .select("goal_id, weight")
-      .eq("habit_id", id),
+      .from("task_completions")
+      .select("completed_date, note, mood, value, completed_at")
+      .eq("task_id", id)
+      .gte("completed_date", startDate)
+      .order("completed_date", { ascending: true }),
+    platform(supabase)
+      .from("goal_tasks")
+      .select("goal_id")
+      .eq("task_id", id),
     platform(supabase)
       .from("activity_log")
       .select("*")
@@ -56,42 +59,47 @@ export const GET = withAuth(async (request, { supabase, user }, params) => {
     linkedGoals = data || [];
   }
 
-  // Enrich
-  const lookups = await getGoalHabitLookups(supabase);
-  const enriched = enrichHabit(habit, lookups);
+  // Convert completions to check_in_history shape (compatible with existing UI)
+  const checkInHistory = (completionsRes.data || []).map((c: Record<string, unknown>) => ({
+    check_date: c.completed_date,
+    note: c.note,
+    mood: c.mood,
+    value: c.value,
+    checked_at: c.completed_at,
+  }));
 
-  // Get frequency details for streak context
-  const freq = lookups.frequencies.get(habit.frequency_id);
-  const targetType = freq ? (freq as Record<string, unknown>).target_type as string : "daily";
+  const habit = taskToHabit(task);
+  const targetType = inferTargetType(task.recurrence_rule);
 
   return NextResponse.json({
     habit: {
-      ...enriched,
+      ...habit,
       check_in_history: checkInHistory,
       linked_goals: linkedGoals,
       activity: activityRes.data || [],
       streak_context: {
         target_type: targetType,
-        target_count: habit.target_count,
+        target_count: 1,
       },
     },
   });
 });
 
-// ---- PATCH: Update a habit ----
+// ---- PATCH: Update a habit (updates the task) ----
 
 export const PATCH = withAuth(async (request, { supabase, user }, params) => {
   const id = params!.id;
 
-  // Fetch current for diff
-  const { data: currentHabit } = await platform(supabase)
-    .from("habits")
+  // Fetch current task
+  const { data: currentTask } = await platform(supabase)
+    .from("tasks")
     .select("*")
     .eq("id", id)
-    .eq("owner_id", user.id)
+    .eq("is_habit", true)
+    .contains("owner_ids", [user.id])
     .single();
 
-  if (!currentHabit) {
+  if (!currentTask) {
     return NextResponse.json({ error: "Habit not found" }, { status: 404 });
   }
 
@@ -105,82 +113,73 @@ export const PATCH = withAuth(async (request, { supabase, user }, params) => {
 
   const { goal_ids: parsedGoalIds, ...validatedFields } = parsed.data;
   const updates: Record<string, unknown> = {};
+
   for (const [key, val] of Object.entries(validatedFields)) {
     if (key in parsed.body) {
+      // Map habit fields to task fields
+      if (key === "status") {
+        if (val === "retired") {
+          updates.completed_at = new Date().toISOString();
+        } else if (val === "active" && currentTask.completed_at) {
+          updates.completed_at = null;
+        }
+        // "paused" → no task-level equivalent, just note it
+        continue;
+      }
       updates[key] = val;
     }
-  }
-
-  // Handle status transitions
-  if (updates.status === "paused" && currentHabit.status !== "paused") {
-    updates.paused_at = new Date().toISOString();
-  }
-  if (updates.status === "retired" && currentHabit.status !== "retired") {
-    updates.retired_at = new Date().toISOString();
-  }
-  if (updates.status === "active" && currentHabit.status === "paused") {
-    updates.paused_at = null;
   }
 
   updates.updated_at = new Date().toISOString();
 
   const { data: updated, error } = await platform(supabase)
-    .from("habits")
+    .from("tasks")
     .update(updates)
     .eq("id", id)
     .select("*")
     .single();
 
   if (error) {
-    console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error(error.message);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   // Handle goal linking if goal_ids provided
   if (parsedGoalIds !== undefined) {
-    // Remove existing links
-    await platform(supabase)
-      .from("goal_habits")
-      .delete()
-      .eq("habit_id", id);
-
-    // Insert new links
+    await platform(supabase).from("goal_tasks").delete().eq("task_id", id);
     if (parsedGoalIds.length > 0) {
       const links = parsedGoalIds.map((goalId: string) => ({
         goal_id: goalId,
-        habit_id: id,
-        weight: 1.0,
+        task_id: id,
       }));
-      await platform(supabase)
-        .from("goal_habits")
-        .insert(links);
+      await platform(supabase).from("goal_tasks").insert(links);
     }
   }
 
-  await logFieldChanges(supabase, "habit", id, user.id, currentHabit, updates).catch(console.error);
+  await logFieldChanges(supabase, "habit", id, user.id, currentTask, updates).catch(console.error);
 
-  const lookups = await getGoalHabitLookups(supabase);
-  const enriched = enrichHabit(updated, lookups);
-
-  return NextResponse.json({ habit: enriched });
+  const habit = taskToHabit(updated);
+  return NextResponse.json({ habit });
 });
 
-// ---- DELETE: Retire a habit (soft delete) ----
+// ---- DELETE: Retire a habit (soft delete — mark task completed) ----
 
 export const DELETE = withAuth(async (request, { supabase, user }, params) => {
   const id = params!.id;
 
   const { error } = await platform(supabase)
-    .from("habits")
+    .from("tasks")
     .update({
-      status: "retired",
-      retired_at: new Date().toISOString(),
+      completed_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)
-    .eq("owner_id", user.id);
+    .eq("is_habit", true)
+    .contains("owner_ids", [user.id]);
 
   if (error) {
-    console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error(error.message);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   await logActivity(supabase, {

@@ -124,15 +124,16 @@ export const GET = withUser(async (_request, { supabase, user }) => {
     }
   }
 
-  // Get active buffs (current streaks)
+  // Get active buffs (current streaks from habit-tasks)
   const { data: activeStreaks } = await supabase
     .schema("platform")
-    .from("habits")
-    .select("id, title, current_streak")
-    .eq("owner_id", user.id)
-    .eq("status", "active")
-    .gt("current_streak", 0)
-    .order("current_streak", { ascending: false });
+    .from("tasks")
+    .select("id, title, streak_current")
+    .eq("is_habit", true)
+    .contains("owner_ids", [user.id])
+    .is("completed_at", null)
+    .gt("streak_current", 0)
+    .order("streak_current", { ascending: false });
 
   // Get active debuffs (overdue tasks)
   const { data: overdueTasks } = await supabase
@@ -179,7 +180,7 @@ export const GET = withUser(async (_request, { supabase, user }) => {
     buffs: (activeStreaks || []).map(h => ({
       id: h.id,
       name: h.title,
-      streak: h.current_streak,
+      streak: h.streak_current,
     })),
     debuffs: (overdueTasks || []).map(t => ({
       id: t.id,

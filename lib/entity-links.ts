@@ -126,18 +126,19 @@ async function completeEntity(
     }
 
     case "habit": {
-      // Habits are "completed" via check-in, not status change
+      // Habits are tasks with is_habit=true, completed via task_completions
       const today = new Date().toISOString().split("T")[0];
       await platform(supabase)
-        .from("habit_check_ins")
+        .from("task_completions")
         .upsert(
           {
-            habit_id: entityId,
-            checked_by: userId,
-            check_date: today,
+            task_id: entityId,
+            completed_by: userId,
+            completed_date: today,
+            completed_at: new Date().toISOString(),
             source: "entity_link_sync",
           },
-          { onConflict: "habit_id,checked_by,check_date" }
+          { onConflict: "task_id,completed_by,completed_date" }
         );
       break;
     }

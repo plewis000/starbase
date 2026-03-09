@@ -101,23 +101,43 @@ export const GET = withUser(async (request: NextRequest, { supabase, user }) => 
     }
   } catch { /* silent */ }
 
-  // 4. Active habits — expand scheduled dates in range
+  // 4. Active habits (tasks with is_habit=true) — expand scheduled dates in range
   try {
     const { data: habits } = await platform(supabase)
-      .from("habits")
-      .select("id, title, frequency_id, specific_days, status")
-      .eq("owner_id", user.id)
-      .eq("status", "active");
+      .from("tasks")
+      .select("id, title, recurrence_rule")
+      .eq("is_habit", true)
+      .contains("owner_ids", [user.id])
+      .is("completed_at", null);
 
     const startDate = new Date(start);
     const endDate = new Date(end);
 
     for (const h of habits || []) {
-      const days = h.specific_days as number[] | null;
+      const rrule = (h.recurrence_rule as string) || "";
+      // Parse BYDAY from RRULE to get specific days (e.g., BYDAY=MO,WE,FR)
+      const byDayMatch = rrule.match(/BYDAY=([A-Z,]+)/);
+      const rruleDayMap: Record<string, number> = { SU: 0, MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6 };
+      const allowedDays = byDayMatch
+        ? byDayMatch[1].split(",").map(d => rruleDayMap[d]).filter(d => d !== undefined)
+        : null;
+
+      // Determine frequency
+      const isDaily = rrule.includes("FREQ=DAILY") || !rrule;
+      const isWeekly = rrule.includes("FREQ=WEEKLY");
+
       const current = new Date(startDate);
       while (current <= endDate) {
         const dayOfWeek = current.getDay();
-        const shouldShow = !days || days.length === 0 || days.includes(dayOfWeek);
+        let shouldShow = false;
+        if (isDaily) {
+          shouldShow = true;
+        } else if (isWeekly && allowedDays) {
+          shouldShow = allowedDays.includes(dayOfWeek);
+        } else if (isWeekly) {
+          shouldShow = true; // weekly without BYDAY — show every day
+        }
+        // Monthly habits: just show on the same day-of-month as start
         if (shouldShow) {
           items.push({
             type: "habit",

@@ -56,18 +56,19 @@ export const GET = withUser(async (_request, { supabase, user }) => {
             .gte("completed_at", weekAgo.toISOString())
             .not("completed_at", "is", null);
         })(),
-        // Active habits
+        // Active habits (tasks with is_habit=true)
         platform(supabase)
-          .from("habits")
-          .select("id, title, current_streak")
-          .eq("owner_id", member.id)
-          .eq("status", "active"),
-        // Today's check-ins
+          .from("tasks")
+          .select("id, title, streak_current")
+          .eq("is_habit", true)
+          .contains("owner_ids", [member.id])
+          .is("completed_at", null),
+        // Today's completions
         platform(supabase)
-          .from("habit_check_ins")
-          .select("habit_id")
-          .eq("checked_by", member.id)
-          .eq("check_date", today),
+          .from("task_completions")
+          .select("task_id")
+          .eq("completed_by", member.id)
+          .eq("completed_date", today),
         // Crawler profile
         platform(supabase)
           .from("crawler_profiles")
@@ -76,17 +77,18 @@ export const GET = withUser(async (_request, { supabase, user }) => {
           .single(),
         // Top streaks
         platform(supabase)
-          .from("habits")
-          .select("title, current_streak")
-          .eq("owner_id", member.id)
-          .eq("status", "active")
-          .gt("current_streak", 0)
-          .order("current_streak", { ascending: false })
+          .from("tasks")
+          .select("title, streak_current")
+          .eq("is_habit", true)
+          .contains("owner_ids", [member.id])
+          .is("completed_at", null)
+          .gt("streak_current", 0)
+          .order("streak_current", { ascending: false })
           .limit(3),
       ]);
 
       const habits = habitsRes.data || [];
-      const checkedIds = new Set((checkInsRes.data || []).map(c => c.habit_id));
+      const checkedIds = new Set((checkInsRes.data || []).map(c => c.task_id));
       const habitsChecked = habits.filter(h => checkedIds.has(h.id)).length;
       const habitsTotal = habits.length;
       const habitRate = habitsTotal > 0 ? Math.round((habitsChecked / habitsTotal) * 100) : 0;
@@ -106,7 +108,7 @@ export const GET = withUser(async (_request, { supabase, user }) => {
           rate: habitRate,
           top_streaks: (streaksRes.data || []).map(h => ({
             title: h.title,
-            streak: h.current_streak,
+            streak: h.streak_current,
           })),
         },
         crawler: crawlerRes.data ? {

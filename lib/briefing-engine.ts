@@ -237,18 +237,19 @@ async function gatherBriefingData(
       .in("status_id", openStatusIds.length > 0 ? openStatusIds : ["__none__"])
       .contains("owner_ids", [userId])
       .limit(5),
-    // Active habits
+    // Active habits (tasks with is_habit=true)
     platform(supabase)
-      .from("habits")
-      .select("id, title, current_streak")
-      .eq("owner_id", userId)
-      .eq("status", "active"),
-    // Today's habit check-ins
+      .from("tasks")
+      .select("id, title, streak_current")
+      .eq("is_habit", true)
+      .contains("owner_ids", [userId])
+      .is("completed_at", null),
+    // Today's habit completions
     platform(supabase)
-      .from("habit_check_ins")
-      .select("habit_id")
-      .eq("checked_by", userId)
-      .eq("check_date", todayStr),
+      .from("task_completions")
+      .select("task_id")
+      .eq("completed_by", userId)
+      .eq("completed_date", todayStr),
     // Active goals
     platform(supabase)
       .from("goals")
@@ -289,14 +290,14 @@ async function gatherBriefingData(
   const todayTasks = todayRes.data || [];
   const habits = habitsRes.data || [];
   const checkIns = checkInsRes.data || [];
-  const checkedHabitIds = new Set(checkIns.map((c) => c.habit_id));
+  const checkedHabitIds = new Set(checkIns.map((c) => c.task_id));
 
   // Habit streaks (top 3 by streak length)
   const habitStreaks = habits
-    .filter((h) => h.current_streak > 0)
-    .sort((a, b) => b.current_streak - a.current_streak)
+    .filter((h) => (h.streak_current || 0) > 0)
+    .sort((a, b) => (b.streak_current || 0) - (a.streak_current || 0))
     .slice(0, 3)
-    .map((h) => ({ title: h.title, streak: h.current_streak }));
+    .map((h) => ({ title: h.title, streak: h.streak_current || 0 }));
 
   // Goals with progress percentage
   const activeGoals = (goalsRes.data || []).map((g) => ({
@@ -339,15 +340,16 @@ async function gatherBriefingData(
           .in("status_id", openStatusIds.length > 0 ? openStatusIds : ["__none__"])
           .contains("owner_ids", [partnerId]),
         platform(supabase)
-          .from("habits")
+          .from("tasks")
           .select("id")
-          .eq("owner_id", partnerId)
-          .eq("status", "active"),
+          .eq("is_habit", true)
+          .contains("owner_ids", [partnerId])
+          .is("completed_at", null),
         platform(supabase)
-          .from("habit_check_ins")
-          .select("habit_id")
-          .eq("checked_by", partnerId)
-          .eq("check_date", todayStr),
+          .from("task_completions")
+          .select("task_id")
+          .eq("completed_by", partnerId)
+          .eq("completed_date", todayStr),
       ]);
 
       partnerOverdue = pOverdue.count || 0;
@@ -568,12 +570,13 @@ async function gatherWeeklyData(
       .select("level")
       .eq("user_id", userId)
       .single(),
-    // Active habits with streaks
+    // Active habits with streaks (tasks with is_habit=true)
     platform(supabase)
-      .from("habits")
-      .select("current_streak")
-      .eq("owner_id", userId)
-      .eq("status", "active"),
+      .from("tasks")
+      .select("streak_current")
+      .eq("is_habit", true)
+      .contains("owner_ids", [userId])
+      .is("completed_at", null),
     // Active goals
     platform(supabase)
       .from("goals")
@@ -612,8 +615,8 @@ async function gatherWeeklyData(
   const habitRate = habitTotal > 0 ? Math.round((totalHabitsChecked / habitTotal) * 100) : 0;
 
   const activeHabits = habitsRes.data || [];
-  const activeStreaks = activeHabits.filter((h) => h.current_streak > 0).length;
-  const brokenStreaks = activeHabits.filter((h) => h.current_streak === 0).length;
+  const activeStreaks = activeHabits.filter((h) => (h.streak_current || 0) > 0).length;
+  const brokenStreaks = activeHabits.filter((h) => (h.streak_current || 0) === 0).length;
 
   // Goals progress (simple — just current values)
   const goalsProgress = (goalsRes.data || []).map((g) => ({

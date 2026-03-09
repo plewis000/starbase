@@ -43,44 +43,45 @@ export async function GET(request: NextRequest) {
       const nudges: string[] = [];
       const userName = user.full_name || "there";
 
-      // 1. Check unchecked habits
+      // 1. Check unchecked habits (backed by tasks with is_habit=true)
       const { data: activeHabits } = await platform(supabase)
-        .from("habits")
-        .select("id, title, current_streak")
-        .eq("owner_id", user.id)
-        .eq("status", "active");
+        .from("tasks")
+        .select("id, title, streak_current")
+        .eq("is_habit", true)
+        .contains("owner_ids", [user.id])
+        .is("completed_at", null);
 
       const { data: todayCheckIns } = await platform(supabase)
-        .from("habit_check_ins")
-        .select("habit_id")
-        .eq("checked_by", user.id)
-        .eq("check_date", todayStr);
+        .from("task_completions")
+        .select("task_id")
+        .eq("completed_by", user.id)
+        .eq("completed_date", todayStr);
 
-      const checkedIds = new Set((todayCheckIns || []).map((c) => c.habit_id));
+      const checkedIds = new Set((todayCheckIns || []).map((c) => c.task_id));
       const unchecked = (activeHabits || []).filter((h) => !checkedIds.has(h.id));
 
       if (unchecked.length > 0) {
         // Sort by streak length descending — longest streaks are most precious
         const atRisk = unchecked
-          .filter((h) => h.current_streak > 0)
-          .sort((a, b) => b.current_streak - a.current_streak);
+          .filter((h) => (h.streak_current || 0) > 0)
+          .sort((a, b) => (b.streak_current || 0) - (a.streak_current || 0));
 
         if (atRisk.length > 0) {
           // Urgency tiers based on streak length
-          const critical = atRisk.filter((h) => h.current_streak >= 14);
-          const important = atRisk.filter((h) => h.current_streak >= 7 && h.current_streak < 14);
-          const moderate = atRisk.filter((h) => h.current_streak > 0 && h.current_streak < 7);
+          const critical = atRisk.filter((h) => (h.streak_current || 0) >= 14);
+          const important = atRisk.filter((h) => (h.streak_current || 0) >= 7 && (h.streak_current || 0) < 14);
+          const moderate = atRisk.filter((h) => (h.streak_current || 0) > 0 && (h.streak_current || 0) < 7);
 
           if (critical.length > 0) {
-            const names = critical.map((h) => `${h.title} (${h.current_streak}d)`).join(", ");
+            const names = critical.map((h) => `${h.title} (${h.streak_current}d)`).join(", ");
             nudges.push(`CRITICAL — Don't lose these streaks: ${names}. Check in NOW.`);
           }
           if (important.length > 0) {
-            const names = important.map((h) => `${h.title} (${h.current_streak}d)`).join(", ");
+            const names = important.map((h) => `${h.title} (${h.streak_current}d)`).join(", ");
             nudges.push(`Streaks at risk: ${names}. Check in before midnight.`);
           }
           if (moderate.length > 0 && critical.length === 0) {
-            const names = moderate.slice(0, 3).map((h) => `${h.title} (${h.current_streak}d)`).join(", ");
+            const names = moderate.slice(0, 3).map((h) => `${h.title} (${h.streak_current}d)`).join(", ");
             nudges.push(`${moderate.length} habit${moderate.length > 1 ? "s" : ""} building momentum: ${names}`);
           }
         } else {
@@ -145,16 +146,17 @@ export async function GET(request: NextRequest) {
           const partnerName = partnerRec?.full_name || "Your partner";
 
           const { data: partnerHabits } = await platform(supabase)
-            .from("habits")
+            .from("tasks")
             .select("id")
-            .eq("owner_id", partnerId)
-            .eq("status", "active");
+            .eq("is_habit", true)
+            .contains("owner_ids", [partnerId])
+            .is("completed_at", null);
 
           const { data: partnerCheckIns } = await platform(supabase)
-            .from("habit_check_ins")
-            .select("habit_id")
-            .eq("checked_by", partnerId)
-            .eq("check_date", todayStr);
+            .from("task_completions")
+            .select("task_id")
+            .eq("completed_by", partnerId)
+            .eq("completed_date", todayStr);
 
           const pTotal = partnerHabits?.length || 0;
           const pChecked = partnerCheckIns?.length || 0;

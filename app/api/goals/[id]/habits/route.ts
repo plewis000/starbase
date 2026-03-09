@@ -3,8 +3,9 @@ import { withAuth } from "@/lib/api/withAuth";
 import { platform } from "@/lib/supabase/schemas";
 import { logActivity } from "@/lib/activity-log";
 import { recalculateAndUpdateGoalProgress } from "@/lib/goal-progress";
+import { taskToHabit } from "@/lib/habit-tasks";
 
-// ---- GET: List habits linked to a goal ----
+// ---- GET: List habits linked to a goal (backed by tasks via goal_tasks) ----
 
 export const GET = withAuth(async (request, { supabase, user }, params) => {
   const goalId = params!.id;
@@ -21,32 +22,35 @@ export const GET = withAuth(async (request, { supabase, user }, params) => {
     return NextResponse.json({ error: "Goal not found" }, { status: 404 });
   }
 
-  // Get links with habit details
+  // Get links
   const { data: links, error } = await platform(supabase)
-    .from("goal_habits")
+    .from("goal_tasks")
     .select("*")
     .eq("goal_id", goalId);
 
   if (error) {
-    console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error(error.message);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   if (!links || links.length === 0) {
     return NextResponse.json({ habits: [] });
   }
 
-  // Fetch habit details
-  const habitIds = links.map((l) => l.habit_id);
-  const { data: habits } = await platform(supabase)
-    .from("habits")
-    .select("id, title, status, current_streak, longest_streak, total_completions, last_completed_at, frequency_id, category_id")
-    .in("id", habitIds);
+  // Fetch habit-task details
+  const taskIds = links.map((l) => l.task_id);
+  const { data: tasks } = await platform(supabase)
+    .from("tasks")
+    .select("*")
+    .eq("is_habit", true)
+    .in("id", taskIds);
 
-  // Merge link data (weight) with habit details
-  const enrichedHabits = (habits || []).map((h) => {
-    const link = links.find((l) => l.habit_id === h.id);
+  // Merge link data (weight) with habit-shaped details
+  const enrichedHabits = (tasks || []).map((t) => {
+    const link = links.find((l) => l.task_id === t.id);
+    const habit = taskToHabit(t);
     return {
-      ...h,
+      ...habit,
       weight: link?.weight ?? 1.0,
       link_id: link?.id,
       linked_at: link?.created_at,
@@ -56,20 +60,22 @@ export const GET = withAuth(async (request, { supabase, user }, params) => {
   return NextResponse.json({ habits: enrichedHabits });
 });
 
-// ---- POST: Link a habit to a goal ----
+// ---- POST: Link a habit-task to a goal ----
 
 export const POST = withAuth(async (request, { supabase, user }, params) => {
   const goalId = params!.id;
   let body;
-  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
   const { habit_id, weight } = body;
 
-  // Validate required fields
   if (!habit_id || typeof habit_id !== "string") {
     return NextResponse.json({ error: "habit_id is required" }, { status: 400 });
   }
 
-  // Validate weight if provided
   if (weight !== undefined) {
     if (typeof weight !== "number" || weight <= 0 || weight > 10) {
       return NextResponse.json(
@@ -91,24 +97,25 @@ export const POST = withAuth(async (request, { supabase, user }, params) => {
     return NextResponse.json({ error: "Goal not found" }, { status: 404 });
   }
 
-  // Verify habit belongs to user
-  const { data: habit } = await platform(supabase)
-    .from("habits")
+  // Verify habit-task belongs to user
+  const { data: task } = await platform(supabase)
+    .from("tasks")
     .select("id, title")
     .eq("id", habit_id)
-    .eq("owner_id", user.id)
+    .eq("is_habit", true)
+    .contains("owner_ids", [user.id])
     .single();
 
-  if (!habit) {
+  if (!task) {
     return NextResponse.json({ error: "Habit not found" }, { status: 404 });
   }
 
-  // Insert link
+  // Insert link via goal_tasks
   const { data: link, error } = await platform(supabase)
-    .from("goal_habits")
+    .from("goal_tasks")
     .insert({
       goal_id: goalId,
-      habit_id: habit_id,
+      task_id: habit_id,
       weight: weight || 1.0,
     })
     .select("*")
@@ -121,19 +128,18 @@ export const POST = withAuth(async (request, { supabase, user }, params) => {
         { status: 409 }
       );
     }
-    console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error(error.message);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
-  // Log activity
   await logActivity(supabase, {
     entity_type: "goal_habit",
     entity_id: link.id,
     action: "linked",
     performed_by: user.id,
-    metadata: { goal_id: goalId, habit_id: habit_id, habit_title: habit.title },
+    metadata: { goal_id: goalId, habit_id: habit_id, habit_title: task.title },
   }).catch(console.error);
 
-  // Recalculate progress if habit-driven
   if (goal.progress_type === "habit_driven") {
     await recalculateAndUpdateGoalProgress(supabase, goalId).catch(console.error);
   }
@@ -168,13 +174,14 @@ export const DELETE = withAuth(async (request, { supabase, user }, params) => {
   }
 
   const { error } = await platform(supabase)
-    .from("goal_habits")
+    .from("goal_tasks")
     .delete()
     .eq("goal_id", goalId)
-    .eq("habit_id", habitId);
+    .eq("task_id", habitId);
 
   if (error) {
-    console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error(error.message);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   await logActivity(supabase, {
@@ -185,7 +192,6 @@ export const DELETE = withAuth(async (request, { supabase, user }, params) => {
     metadata: { goal_id: goalId, habit_id: habitId },
   }).catch(console.error);
 
-  // Recalculate progress if habit-driven
   if (goal.progress_type === "habit_driven") {
     await recalculateAndUpdateGoalProgress(supabase, goalId).catch(console.error);
   }
