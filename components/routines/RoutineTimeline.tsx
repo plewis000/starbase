@@ -2,11 +2,19 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 
+interface CompletionEvent {
+  routine_id: string;
+  routine_title: string;
+  frequency: string;
+  frequency_name: string;
+  date: string;
+}
+
 interface Routine {
   id: string;
   title: string;
   frequency: string;
-  streak_current: number;
+  frequency_name: string;
   completions: Record<string, boolean>;
 }
 
@@ -19,46 +27,62 @@ function toDateStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function getWeekStart(d: Date): Date {
-  const date = new Date(d);
-  const day = date.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  date.setDate(date.getDate() + diff);
-  date.setHours(0, 0, 0, 0);
-  return date;
+const FREQ_COLORS: Record<string, string> = {
+  daily: "bg-blue-400",
+  weekly: "bg-purple-400",
+  biweekly: "bg-violet-400",
+  monthly: "bg-amber-400",
+  quarterly: "bg-orange-400",
+  biannual: "bg-rose-400",
+  yearly: "bg-emerald-400",
+};
+
+const FREQ_TEXT_COLORS: Record<string, string> = {
+  daily: "text-blue-400",
+  weekly: "text-purple-400",
+  biweekly: "text-violet-400",
+  monthly: "text-amber-400",
+  quarterly: "text-orange-400",
+  biannual: "text-rose-400",
+  yearly: "text-emerald-400",
+};
+
+function formatDate(dateStr: string): string {
+  const d = new Date(dateStr + "T12:00:00");
+  return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+}
+
+function getRelativeDay(dateStr: string, todayStr: string): string {
+  if (dateStr === todayStr) return "Today";
+  const d = new Date(dateStr + "T12:00:00");
+  const t = new Date(todayStr + "T12:00:00");
+  const diff = Math.round((t.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+  if (diff === 1) return "Yesterday";
+  if (diff <= 7) return `${diff} days ago`;
+  return "";
 }
 
 export default function RoutineTimeline({ onSelectRoutine, refreshTrigger }: Props) {
   const [routines, setRoutines] = useState<Routine[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filterFreq, setFilterFreq] = useState<string | null>(null);
 
   const today = useMemo(() => new Date(), []);
-
-  // Generate 12 weeks of data
-  const weeks = useMemo(() => {
-    const result: { start: string; end: string; label: string }[] = [];
-    for (let i = 11; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i * 7);
-      const ws = getWeekStart(d);
-      const we = new Date(ws);
-      we.setDate(we.getDate() + 6);
-      result.push({
-        start: toDateStr(ws),
-        end: toDateStr(we),
-        label: `${ws.toLocaleDateString("en-US", { month: "short" })} ${ws.getDate()}`,
-      });
-    }
-    return result;
-  }, [today]);
+  const todayStr = toDateStr(today);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const promises = weeks.map((week) =>
-          fetch(`/api/routines/week?date=${week.start}`).then((r) => r.json())
-        );
+        // Fetch 5 weeks to cover ~35 days of completions
+        const promises = [];
+        for (let weekOffset = -4; weekOffset <= 0; weekOffset++) {
+          const d = new Date(today);
+          d.setDate(d.getDate() + weekOffset * 7);
+          promises.push(
+            fetch(`/api/routines/week?date=${toDateStr(d)}`).then((r) => r.json())
+          );
+        }
         const results = await Promise.all(promises);
 
         const routineMap = new Map<string, Routine>();
@@ -79,52 +103,49 @@ export default function RoutineTimeline({ onSelectRoutine, refreshTrigger }: Pro
       }
     };
     fetchData();
-  }, [weeks, refreshTrigger]);
+  }, [today, refreshTrigger]);
 
-  // Calculate weekly completion rate per routine
-  const getWeekRate = (routine: Routine, weekStart: string, weekEnd: string): number => {
-    let completed = 0;
-    let expected = 0;
-
-    if (routine.frequency === "daily") {
-      expected = 7;
-      const cursor = new Date(weekStart + "T12:00:00");
-      const end = new Date(weekEnd + "T12:00:00");
-      const todayStr = toDateStr(today);
-      while (cursor <= end) {
-        const ds = toDateStr(cursor);
-        if (ds <= todayStr) {
-          if (routine.completions[ds]) completed++;
+  // Build flat completion event list, sorted newest first
+  const events = useMemo(() => {
+    const list: CompletionEvent[] = [];
+    for (const r of routines) {
+      if (filterFreq && r.frequency !== filterFreq) continue;
+      for (const [date, done] of Object.entries(r.completions)) {
+        if (done) {
+          list.push({
+            routine_id: r.id,
+            routine_title: r.title,
+            frequency: r.frequency,
+            frequency_name: r.frequency_name,
+            date,
+          });
         }
-        cursor.setDate(cursor.getDate() + 1);
-      }
-    } else if (routine.frequency === "weekly") {
-      expected = 1;
-      const cursor = new Date(weekStart + "T12:00:00");
-      const end = new Date(weekEnd + "T12:00:00");
-      while (cursor <= end) {
-        if (routine.completions[toDateStr(cursor)]) {
-          completed = 1;
-          break;
-        }
-        cursor.setDate(cursor.getDate() + 1);
-      }
-    } else {
-      // Monthly: check if any completion this week
-      expected = 1;
-      const cursor = new Date(weekStart + "T12:00:00");
-      const end = new Date(weekEnd + "T12:00:00");
-      while (cursor <= end) {
-        if (routine.completions[toDateStr(cursor)]) {
-          completed = 1;
-          break;
-        }
-        cursor.setDate(cursor.getDate() + 1);
       }
     }
+    list.sort((a, b) => b.date.localeCompare(a.date));
+    return list;
+  }, [routines, filterFreq]);
 
-    return expected > 0 ? completed / expected : 0;
-  };
+  // Group events by date
+  const groupedByDate = useMemo(() => {
+    const groups: { date: string; events: CompletionEvent[] }[] = [];
+    let currentDate = "";
+    for (const ev of events) {
+      if (ev.date !== currentDate) {
+        currentDate = ev.date;
+        groups.push({ date: ev.date, events: [] });
+      }
+      groups[groups.length - 1].events.push(ev);
+    }
+    return groups;
+  }, [events]);
+
+  // Get unique frequencies for filter
+  const frequencies = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of routines) set.add(r.frequency);
+    return Array.from(set).sort();
+  }, [routines]);
 
   if (loading) {
     return (
@@ -135,62 +156,92 @@ export default function RoutineTimeline({ onSelectRoutine, refreshTrigger }: Pro
   }
 
   return (
-    <div>
-      <h2 className="text-sm font-bold text-slate-100 mb-4 font-mono">12 Week Timeline</h2>
-
-      {/* Week labels */}
-      <div className="flex items-center gap-0 mb-1 pl-[160px]">
-        {weeks.map((week, i) => (
-          <div key={week.start} className="flex-1 min-w-0 text-center">
-            {i % 2 === 0 && (
-              <span className="text-[8px] text-dungeon-600 truncate block">{week.label}</span>
-            )}
-          </div>
-        ))}
-      </div>
-
-      {/* Routine rows */}
-      <div className="space-y-1">
-        {routines.map((routine) => (
-          <div key={routine.id} className="flex items-center gap-2">
+    <div className="max-w-2xl mx-auto">
+      {/* Header with filters */}
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-sm font-bold text-slate-100">Completion History</h2>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setFilterFreq(null)}
+            className={`px-2 py-1 rounded text-[10px] font-medium transition-colors ${
+              filterFreq === null
+                ? "bg-dungeon-700 text-slate-200"
+                : "text-dungeon-500 hover:text-slate-300"
+            }`}
+          >
+            All
+          </button>
+          {frequencies.map((freq) => (
             <button
-              onClick={() => onSelectRoutine?.(routine.id)}
-              className="w-[152px] flex-shrink-0 text-left"
+              key={freq}
+              onClick={() => setFilterFreq(filterFreq === freq ? null : freq)}
+              className={`px-2 py-1 rounded text-[10px] font-medium capitalize transition-colors ${
+                filterFreq === freq
+                  ? "bg-dungeon-700 text-slate-200"
+                  : "text-dungeon-500 hover:text-slate-300"
+              }`}
             >
-              <span className="text-xs text-slate-300 truncate block">{routine.title}</span>
+              {freq}
             </button>
-            <div className="flex-1 flex gap-0.5">
-              {weeks.map((week) => {
-                const rate = getWeekRate(routine, week.start, week.end);
-                const intensity = Math.round(rate * 4); // 0-4
-                const colors = [
-                  "bg-dungeon-800/60",     // 0 - no completions
-                  "bg-green-900/40",       // 1 - some
-                  "bg-green-700/50",       // 2 - half
-                  "bg-green-600/60",       // 3 - most
-                  "bg-green-500",          // 4 - all
-                ];
-                return (
-                  <div
-                    key={week.start}
-                    className={`flex-1 h-5 rounded-sm ${colors[intensity]}`}
-                    title={`${routine.title} — ${week.label}: ${Math.round(rate * 100)}%`}
-                  />
-                );
-              })}
-            </div>
-            {routine.streak_current > 0 && (
-              <span className="text-[10px] text-amber-400 font-mono flex-shrink-0 w-8 text-right">
-                {routine.streak_current}d
-              </span>
-            )}
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
-      {routines.length === 0 && (
+      {/* Timeline */}
+      {groupedByDate.length > 0 ? (
+        <div className="relative">
+          {/* Vertical line */}
+          <div className="absolute left-[7px] top-2 bottom-2 w-px bg-dungeon-800" />
+
+          <div className="space-y-6">
+            {groupedByDate.map((group) => {
+              const relative = getRelativeDay(group.date, todayStr);
+              return (
+                <div key={group.date}>
+                  {/* Date header */}
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-[15px] h-[15px] rounded-full bg-dungeon-800 border-2 border-dungeon-700 flex-shrink-0 z-10" />
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-xs font-semibold text-slate-300">
+                        {formatDate(group.date)}
+                      </span>
+                      {relative && (
+                        <span className="text-[10px] text-dungeon-500">{relative}</span>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-dungeon-600 font-mono">
+                      {group.events.length} completed
+                    </span>
+                  </div>
+
+                  {/* Events for this date */}
+                  <div className="ml-[30px] space-y-1">
+                    {group.events.map((ev) => (
+                      <button
+                        key={`${ev.routine_id}-${ev.date}`}
+                        onClick={() => onSelectRoutine?.(ev.routine_id)}
+                        className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-dungeon-900 border border-dungeon-800 hover:border-dungeon-700 transition-colors text-left group"
+                      >
+                        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${FREQ_COLORS[ev.frequency] || "bg-dungeon-500"}`} />
+                        <span className="text-sm text-slate-200 truncate flex-1 group-hover:text-slate-100">
+                          {ev.routine_title}
+                        </span>
+                        <span className={`text-[10px] font-medium flex-shrink-0 ${FREQ_TEXT_COLORS[ev.frequency] || "text-dungeon-400"}`}>
+                          {ev.frequency_name}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
         <div className="text-center py-12">
-          <p className="text-dungeon-500 text-sm">No routines to display</p>
+          <p className="text-dungeon-500 text-sm">
+            {filterFreq ? `No ${filterFreq} completions found` : "No completions recorded yet"}
+          </p>
         </div>
       )}
     </div>

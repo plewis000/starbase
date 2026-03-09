@@ -13,7 +13,8 @@ import { config } from "@/lib/supabase/schemas";
  */
 export function inferFrequencyName(rrule?: string | null): string {
   if (!rrule) return "Daily";
-  const parts = Object.fromEntries(rrule.split(";").map((p) => p.split("=")));
+  const cleaned = rrule.replace(/^RRULE:/i, "");
+  const parts = Object.fromEntries(cleaned.split(";").map((p) => p.split("=")));
   const freq = parts.FREQ;
   const interval = parseInt(parts.INTERVAL || "1");
 
@@ -42,9 +43,10 @@ export function inferFrequencyName(rrule?: string | null): string {
  */
 export function inferTargetType(rrule?: string | null): "daily" | "weekly" | "monthly" {
   if (!rrule) return "daily";
-  if (rrule.includes("FREQ=YEARLY")) return "monthly";
-  if (rrule.includes("FREQ=WEEKLY")) return "weekly";
-  if (rrule.includes("FREQ=MONTHLY")) return "monthly";
+  const cleaned = rrule.replace(/^RRULE:/i, "");
+  if (cleaned.includes("FREQ=YEARLY")) return "monthly";
+  if (cleaned.includes("FREQ=WEEKLY")) return "weekly";
+  if (cleaned.includes("FREQ=MONTHLY")) return "monthly";
   return "daily";
 }
 

@@ -23,7 +23,8 @@ const DAY_OPTIONS = [
 
 export function parseRRule(rule: string): ParsedRule {
   if (!rule) return { freq: "NONE", interval: 1, byDay: [] };
-  const parts = Object.fromEntries(rule.split(";").map((p) => p.split("=")));
+  const cleaned = rule.replace(/^RRULE:/i, "");
+  const parts = Object.fromEntries(cleaned.split(";").map((p) => p.split("=")));
   return {
     freq: (parts.FREQ as Frequency) || "NONE",
     interval: parts.INTERVAL ? parseInt(parts.INTERVAL) : 1,

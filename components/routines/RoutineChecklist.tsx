@@ -5,6 +5,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 interface Routine {
   id: string;
   title: string;
+  description?: string;
   frequency: string;
   frequency_name: string;
   recurrence_rule?: string;
@@ -18,6 +19,7 @@ interface Routine {
   satisfied_on: string | null;
   period_label: string;
   tags?: any[];
+  due_date?: string;
 }
 
 interface Props {
@@ -32,32 +34,23 @@ function toDateStr(d: Date): string {
 
 function getInitials(name?: string): string {
   if (!name) return "?";
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
+  return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
 }
 
-const FREQ_COLORS: Record<string, string> = {
-  daily: "text-blue-400 bg-blue-400/10 border-blue-400/20",
-  weekly: "text-purple-400 bg-purple-400/10 border-purple-400/20",
-  biweekly: "text-purple-400 bg-purple-400/10 border-purple-400/20",
-  monthly: "text-amber-400 bg-amber-400/10 border-amber-400/20",
-  quarterly: "text-orange-400 bg-orange-400/10 border-orange-400/20",
-  biannual: "text-rose-400 bg-rose-400/10 border-rose-400/20",
-  yearly: "text-emerald-400 bg-emerald-400/10 border-emerald-400/20",
-};
+function formatOwnerNames(owners?: { id: string; full_name: string }[]): string {
+  if (!owners || owners.length === 0) return "";
+  if (owners.length === 1) return owners[0].full_name.split(" ")[0];
+  return owners.map((o) => o.full_name.split(" ")[0]).join(", ");
+}
 
-const FREQ_LABELS: Record<string, string> = {
-  daily: "Daily",
-  weekly: "Weekly",
-  biweekly: "Biweekly",
-  monthly: "Monthly",
-  quarterly: "Quarterly",
-  biannual: "Biannual",
-  yearly: "Yearly",
+const FREQ_COLORS: Record<string, { badge: string; dot: string }> = {
+  daily: { badge: "text-blue-400 bg-blue-400/10 border-blue-400/20", dot: "bg-blue-400" },
+  weekly: { badge: "text-purple-400 bg-purple-400/10 border-purple-400/20", dot: "bg-purple-400" },
+  biweekly: { badge: "text-violet-400 bg-violet-400/10 border-violet-400/20", dot: "bg-violet-400" },
+  monthly: { badge: "text-amber-400 bg-amber-400/10 border-amber-400/20", dot: "bg-amber-400" },
+  quarterly: { badge: "text-orange-400 bg-orange-400/10 border-orange-400/20", dot: "bg-orange-400" },
+  biannual: { badge: "text-rose-400 bg-rose-400/10 border-rose-400/20", dot: "bg-rose-400" },
+  yearly: { badge: "text-emerald-400 bg-emerald-400/10 border-emerald-400/20", dot: "bg-emerald-400" },
 };
 
 const FREQ_ORDER = ["daily", "weekly", "biweekly", "monthly", "quarterly", "biannual", "yearly"];
@@ -122,7 +115,6 @@ export default function RoutineChecklist({ onSelectRoutine, selectedRoutineId, r
         body: JSON.stringify({ task_id: routineId, date, action }),
       });
       if (!res.ok) throw new Error("Check failed");
-      // Refetch for updated streaks
       setTimeout(() => fetchRoutines(), 300);
     } catch {
       fetchRoutines();
@@ -149,81 +141,153 @@ export default function RoutineChecklist({ onSelectRoutine, selectedRoutineId, r
     return groups;
   }, [dueRoutines]);
 
-  const renderRoutineRow = (routine: Routine, isDone: boolean) => (
-    <div
-      key={routine.id}
-      className={`flex items-center gap-3 px-4 py-3 rounded-lg border cursor-pointer transition-all hover:bg-dungeon-800/50 group ${
-        isDone
-          ? "bg-dungeon-900/50 border-dungeon-800/50"
-          : "bg-dungeon-900 border-dungeon-800 hover:border-dungeon-700"
-      } ${routine.id === selectedRoutineId ? "border-red-500/50 bg-red-900/10" : ""}`}
-    >
-      {/* Check button */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          handleCheck(routine.id);
-        }}
-        disabled={checking === routine.id}
-        className={`w-8 h-8 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+  // Recent completions (last 7 days) for a routine — mini dots
+  const getMiniDots = (routine: Routine) => {
+    const dots: { date: string; done: boolean }[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const ds = toDateStr(d);
+      dots.push({ date: ds, done: !!routine.completions[ds] });
+    }
+    return dots;
+  };
+
+  const renderRoutineRow = (routine: Routine, isDone: boolean) => {
+    const ownerNames = formatOwnerNames(routine.owners);
+    const dots = getMiniDots(routine);
+    const freqColor = FREQ_COLORS[routine.frequency] || FREQ_COLORS.daily;
+
+    return (
+      <div
+        key={routine.id}
+        className={`group rounded-lg border transition-all ${
           isDone
-            ? "border-emerald-400 bg-emerald-400/20 text-emerald-400"
-            : "border-dungeon-600 hover:border-green-400/50 text-dungeon-600 hover:text-green-400/50"
-        } ${checking === routine.id ? "opacity-50" : ""}`}
+            ? "bg-dungeon-900/40 border-dungeon-800/40"
+            : "bg-dungeon-900 border-dungeon-800 hover:border-dungeon-700"
+        } ${routine.id === selectedRoutineId ? "border-red-500/50 bg-red-900/10" : ""}`}
       >
-        {isDone ? (
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-          </svg>
-        ) : null}
-      </button>
+        <div className="flex items-start gap-3 px-4 py-3">
+          {/* Check button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleCheck(routine.id);
+            }}
+            disabled={checking === routine.id}
+            className={`w-7 h-7 mt-0.5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+              isDone
+                ? "border-emerald-400 bg-emerald-400/20 text-emerald-400"
+                : "border-dungeon-600 hover:border-green-400/50 text-dungeon-600 hover:text-green-400/50"
+            } ${checking === routine.id ? "opacity-50" : ""}`}
+          >
+            {isDone ? (
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+              </svg>
+            ) : null}
+          </button>
 
-      {/* Title + meta */}
-      <div className="flex-1 min-w-0" onClick={() => onSelectRoutine?.(routine.id)}>
-        <span
-          className={`text-sm font-medium truncate block ${isDone ? "text-dungeon-500 line-through" : "text-slate-100"}`}
-        >
-          {routine.title}
-        </span>
-        {isDone && routine.satisfied_on && (
-          <span className="text-[10px] text-dungeon-600">
-            Done{" "}
-            {routine.satisfied_on === todayStr
-              ? "today"
-              : new Date(routine.satisfied_on + "T12:00:00").toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                })}
-          </span>
-        )}
+          {/* Content — clickable to open detail */}
+          <div
+            className="flex-1 min-w-0 cursor-pointer"
+            onClick={() => onSelectRoutine?.(routine.id)}
+          >
+            {/* Row 1: Title + frequency badge */}
+            <div className="flex items-center gap-2 mb-1">
+              <span className={`text-sm font-medium truncate ${isDone ? "text-dungeon-500 line-through" : "text-slate-100"}`}>
+                {routine.title}
+              </span>
+              <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium border flex-shrink-0 ${freqColor.badge}`}>
+                {routine.frequency_name}
+              </span>
+            </div>
+
+            {/* Row 2: Meta line — period, owners, tags */}
+            <div className="flex items-center gap-2 text-[11px] text-dungeon-500 flex-wrap">
+              {/* Period status */}
+              {isDone && routine.satisfied_on ? (
+                <span className="text-emerald-500/70">
+                  Done {routine.satisfied_on === todayStr
+                    ? "today"
+                    : new Date(routine.satisfied_on + "T12:00:00").toLocaleDateString("en-US", {
+                        weekday: "short",
+                        month: "short",
+                        day: "numeric",
+                      })}
+                </span>
+              ) : (
+                <span className="text-dungeon-500">
+                  Due {routine.period_label}
+                </span>
+              )}
+
+              {/* Separator */}
+              {ownerNames && <span className="text-dungeon-700">·</span>}
+
+              {/* Owners */}
+              {ownerNames && (
+                <span className="text-dungeon-500">{ownerNames}</span>
+              )}
+
+              {/* Tags */}
+              {routine.tags && routine.tags.length > 0 && (
+                <>
+                  <span className="text-dungeon-700">·</span>
+                  {routine.tags.slice(0, 2).map((tag: any) => (
+                    <span
+                      key={tag.id || tag.tag_id}
+                      className="px-1.5 py-0 rounded text-[10px] bg-dungeon-800 text-dungeon-400 border border-dungeon-700"
+                    >
+                      {tag.name || tag.tag_name}
+                    </span>
+                  ))}
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Right side: mini dots + streak */}
+          <div className="flex items-center gap-3 flex-shrink-0 mt-1">
+            {/* Mini 7-day dots */}
+            <div className="hidden sm:flex items-center gap-0.5" title="Last 7 days">
+              {dots.map((dot) => (
+                <div
+                  key={dot.date}
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    dot.done ? freqColor.dot : "bg-dungeon-700/50"
+                  }`}
+                />
+              ))}
+            </div>
+
+            {/* Streak badge */}
+            {routine.streak_current > 0 && (
+              <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-amber-400/10 border border-amber-400/20">
+                <span className="text-[10px]">🔥</span>
+                <span className="text-[10px] font-bold text-amber-400 font-mono">{routine.streak_current}</span>
+              </div>
+            )}
+
+            {/* Owner avatars */}
+            {routine.owners && routine.owners.length > 0 && (
+              <div className="flex -space-x-1">
+                {routine.owners.slice(0, 2).map((owner) => (
+                  <div
+                    key={owner.id}
+                    className="w-5 h-5 rounded-full bg-dungeon-700 border border-dungeon-600 flex items-center justify-center"
+                    title={owner.full_name}
+                  >
+                    <span className="text-[7px] font-bold text-dungeon-300">{getInitials(owner.full_name)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
-
-      {/* Frequency badge */}
-      <span
-        className={`px-1.5 py-0.5 rounded text-[10px] font-medium border flex-shrink-0 ${FREQ_COLORS[routine.frequency] || "text-dungeon-400 bg-dungeon-800 border-dungeon-700"}`}
-      >
-        {routine.frequency_name || FREQ_LABELS[routine.frequency] || routine.frequency}
-      </span>
-
-      {/* Owner avatar */}
-      {routine.assignee && (
-        <div
-          className="w-5 h-5 rounded-full bg-dungeon-700 border border-dungeon-600 flex items-center justify-center flex-shrink-0"
-          title={routine.assignee.full_name}
-        >
-          <span className="text-[8px] font-bold text-dungeon-300">{getInitials(routine.assignee.full_name)}</span>
-        </div>
-      )}
-
-      {/* Streak badge */}
-      {routine.streak_current > 0 && (
-        <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-400/10 border border-amber-400/20 flex-shrink-0">
-          <span className="text-xs">🔥</span>
-          <span className="text-xs font-bold text-amber-400">{routine.streak_current}</span>
-        </div>
-      )}
-    </div>
-  );
+    );
+  };
 
   if (loading && routines.length === 0) {
     return (
@@ -248,9 +312,7 @@ export default function RoutineChecklist({ onSelectRoutine, selectedRoutineId, r
                     ? "Keep going!"
                     : "Today's Routines"}
             </span>
-            <span
-              className={`text-sm font-bold font-mono ${completionRate === 100 ? "text-emerald-400" : "text-red-400"}`}
-            >
+            <span className={`text-sm font-bold font-mono ${completionRate === 100 ? "text-emerald-400" : "text-red-400"}`}>
               {doneCount}/{totalCount}
             </span>
           </div>
@@ -268,17 +330,21 @@ export default function RoutineChecklist({ onSelectRoutine, selectedRoutineId, r
         </div>
       )}
 
-      {/* Due section */}
+      {/* Due section — grouped by frequency */}
       {dueRoutines.length > 0 && (
         <div>
           {FREQ_ORDER.map((freq) => {
             const items = groupedDue[freq];
             if (!items || items.length === 0) return null;
+            const freqColor = FREQ_COLORS[freq] || FREQ_COLORS.daily;
             return (
-              <div key={freq} className="mb-4">
-                <h2 className="text-xs font-semibold text-dungeon-400 uppercase tracking-wider mb-2 px-1">
-                  {FREQ_LABELS[freq] || freq} ({items.length})
-                </h2>
+              <div key={freq} className="mb-5">
+                <div className="flex items-center gap-2 mb-2 px-1">
+                  <div className={`w-2 h-2 rounded-full ${freqColor.dot}`} />
+                  <h2 className="text-xs font-semibold text-dungeon-400 uppercase tracking-wider">
+                    {items[0]?.frequency_name || freq} ({items.length})
+                  </h2>
+                </div>
                 <div className="space-y-1.5">{items.map((r) => renderRoutineRow(r, false))}</div>
               </div>
             );

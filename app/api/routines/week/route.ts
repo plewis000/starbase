@@ -54,7 +54,8 @@ type Frequency = "daily" | "weekly" | "biweekly" | "monthly" | "quarterly" | "bi
 
 function inferFrequency(rrule?: string | null): Frequency {
   if (!rrule) return "daily";
-  const parts = Object.fromEntries(rrule.split(";").map((p) => p.split("=")));
+  const cleaned = rrule.replace(/^RRULE:/i, "");
+  const parts = Object.fromEntries(cleaned.split(";").map((p) => p.split("=")));
   const freq = parts.FREQ;
   const interval = parseInt(parts.INTERVAL || "1");
 

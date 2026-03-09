@@ -65,8 +65,9 @@ function describeRRule(rule: string): string {
     "FREQ=MONTHLY;INTERVAL=1": "Monthly",
     "FREQ=MONTHLY;INTERVAL=3": "Quarterly",
   };
-  if (PRESETS[rule]) return PRESETS[rule];
-  const parts = Object.fromEntries(rule.split(";").map((p) => p.split("=")));
+  const cleaned = rule.replace(/^RRULE:/i, "");
+  if (PRESETS[cleaned]) return PRESETS[cleaned];
+  const parts = Object.fromEntries(cleaned.split(";").map((p) => p.split("=")));
   const freq = parts.FREQ?.toLowerCase() || "custom";
   const interval = parts.INTERVAL ? parseInt(parts.INTERVAL) : 1;
   const byDay = parts.BYDAY;
