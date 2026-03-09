@@ -107,10 +107,11 @@ export const GET = withAuth(async (request, { supabase, user, ctx }) => {
     } else {
       todayStr = new Date().toISOString().split("T")[0];
     }
-    const todayDate = new Date(todayStr + "T00:00:00");
+    const [ty, tm, td] = todayStr.split("-").map(Number);
+    const todayDate = new Date(ty, tm - 1, td);
     const endOfWeek = new Date(todayDate);
     endOfWeek.setDate(todayDate.getDate() + (7 - todayDate.getDay()));
-    const endOfWeekStr = endOfWeek.toISOString().split("T")[0];
+    const endOfWeekStr = `${endOfWeek.getFullYear()}-${String(endOfWeek.getMonth() + 1).padStart(2, "0")}-${String(endOfWeek.getDate()).padStart(2, "0")}`;
 
     switch (due) {
       case "today":

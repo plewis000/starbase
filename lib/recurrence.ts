@@ -40,8 +40,12 @@ export function getNextOccurrence(
 }
 
 /**
- * Format a Date as an ISO date string (YYYY-MM-DD).
+ * Format a Date as a local date string (YYYY-MM-DD).
+ * Uses local date parts (not UTC) to avoid off-by-one errors near midnight.
  */
 export function formatDateOnly(date: Date): string {
-  return date.toISOString().split("T")[0];
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }

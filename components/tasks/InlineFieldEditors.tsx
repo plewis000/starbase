@@ -446,33 +446,32 @@ export function InlineLocationPicker({
 }) {
   const [saving, setSaving] = useState(false);
 
-  const handleSelect = async (id: string) => {
+  const handleChange = async (newValue: string) => {
     if (saving) return;
+    const locationId = newValue || null;
+    if (locationId === (currentValue || null)) return;
     setSaving(true);
     try {
-      await patchTask(taskId, { location_context_id: id === currentValue ? null : id });
+      await patchTask(taskId, { location_context_id: locationId });
       onUpdated();
     } catch (err) { console.error("Task update failed:", err instanceof Error ? err.message : err); }
     setSaving(false);
   };
 
   return (
-    <div className={`flex flex-wrap gap-1.5 ${saving ? "opacity-60 pointer-events-none" : ""}`}>
+    <select
+      value={currentValue || ""}
+      onChange={(e) => handleChange(e.target.value)}
+      disabled={saving}
+      className={`w-full px-3 py-1.5 bg-dungeon-800 border border-dungeon-700 rounded text-xs text-slate-200 focus:outline-none focus:border-red-400 cursor-pointer ${saving ? "opacity-60" : ""}`}
+    >
+      <option value="">No location</option>
       {options.map((opt) => (
-        <button
-          key={opt.id}
-          onClick={() => handleSelect(opt.id)}
-          className={`min-h-[44px] px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
-            opt.id === currentValue
-              ? "bg-red-500/20 text-red-300 ring-2 ring-red-400/60 border-transparent"
-              : "bg-dungeon-700 text-slate-300 border-dungeon-600 hover:ring-1 hover:ring-dungeon-500"
-          }`}
-        >
-          {opt.icon && <span className="mr-1">{opt.icon}</span>}
-          {opt.name}
-        </button>
+        <option key={opt.id} value={opt.id}>
+          {opt.icon ? `${opt.icon} ${opt.name}` : opt.name}
+        </option>
       ))}
-    </div>
+    </select>
   );
 }
 
