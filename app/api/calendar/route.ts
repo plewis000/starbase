@@ -105,7 +105,7 @@ export const GET = withUser(async (request: NextRequest, { supabase, user }) => 
   try {
     const { data: habits } = await platform(supabase)
       .from("tasks")
-      .select("id, title, recurrence_rule")
+      .select("id, title, recurrence_rule, start_date")
       .eq("is_habit", true)
       .contains("owner_ids", [user.id])
       .is("completed_at", null);
@@ -125,6 +125,8 @@ export const GET = withUser(async (request: NextRequest, { supabase, user }) => 
       // Determine frequency
       const isDaily = rrule.includes("FREQ=DAILY") || !rrule;
       const isWeekly = rrule.includes("FREQ=WEEKLY");
+      const isMonthly = rrule.includes("FREQ=MONTHLY");
+      const habitStartDay = h.start_date ? new Date(h.start_date + "T00:00:00").getDate() : 1;
 
       const current = new Date(startDate);
       while (current <= endDate) {
@@ -136,8 +138,9 @@ export const GET = withUser(async (request: NextRequest, { supabase, user }) => 
           shouldShow = allowedDays.includes(dayOfWeek);
         } else if (isWeekly) {
           shouldShow = true; // weekly without BYDAY — show every day
+        } else if (isMonthly) {
+          shouldShow = current.getDate() === habitStartDay;
         }
-        // Monthly habits: just show on the same day-of-month as start
         if (shouldShow) {
           items.push({
             type: "habit",

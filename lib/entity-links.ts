@@ -140,6 +140,21 @@ async function completeEntity(
           },
           { onConflict: "task_id,completed_by,completed_date" }
         );
+      // Recalculate streak
+      try {
+        const { recalculateTaskStreak } = await import("@/lib/streak-engine");
+        const { inferTargetType } = await import("@/lib/habit-tasks");
+        const { data: task } = await platform(supabase)
+          .from("tasks")
+          .select("recurrence_rule, start_date")
+          .eq("id", entityId)
+          .single();
+        if (task) {
+          await recalculateTaskStreak(supabase, entityId, 1, inferTargetType(task.recurrence_rule), task.start_date || today);
+        }
+      } catch (err) {
+        console.error("[entity-links] Streak recalc error:", err);
+      }
       break;
     }
 

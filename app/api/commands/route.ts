@@ -206,7 +206,7 @@ async function executeCommand(
 
     const { data: habits } = await platform(supabase)
       .from("tasks")
-      .select("id, title, streak_current")
+      .select("id, title, streak_current, recurrence_rule, start_date")
       .eq("is_habit", true)
       .contains("owner_ids", [userId])
       .is("completed_at", null)
@@ -243,8 +243,8 @@ async function executeCommand(
     // Recalculate streak using proper engine
     const { recalculateTaskStreak } = await import("@/lib/streak-engine");
     const { inferTargetType } = await import("@/lib/habit-tasks");
-    const targetType = inferTargetType(null); // default daily
-    const streakResult = await recalculateTaskStreak(supabase, habit.id, 1, targetType, today);
+    const targetType = inferTargetType(habit.recurrence_rule);
+    const streakResult = await recalculateTaskStreak(supabase, habit.id, 1, targetType, habit.start_date || today);
 
     return { response: `Checked in: **${habit.title}** ✓ (🔥 ${streakResult.current_streak} day streak)`, data: habit };
   }
