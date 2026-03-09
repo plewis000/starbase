@@ -92,22 +92,36 @@ export default function ActivityTaskBoard({
     owner: "",
   });
   const { value: savedViews, setValue: setSavedViews, loading: savedViewsLoading } = useUserPreference<SavedView[]>("activity_saved_views", []);
-  const { value: viewOverrides, setValue: setViewOverrides, loading: viewOverridesLoading } = useUserPreference<Record<string, Partial<ActivityFilters>>>("activity_view_overrides", {});
-  const { value: hiddenDefaults, setValue: setHiddenDefaults } = useUserPreference<string[]>("activity_hidden_defaults", []);
   const { value: modeFilters, setValue: setModeFilters, loading: modeFiltersLoading } = useUserPreference<Record<string, Partial<ActivityFilters>>>("activity_mode_filters", {});
-  const appliedOverridesRef = useRef(false);
+  const seededRef = useRef(false);
 
   // Refs to avoid stale closures in callbacks
   const savedViewsRef = useRef(savedViews);
   savedViewsRef.current = savedViews;
-  const viewOverridesRef = useRef(viewOverrides);
-  viewOverridesRef.current = viewOverrides;
   const modeFiltersRef = useRef(modeFilters);
   modeFiltersRef.current = modeFilters;
   const filtersRef = useRef(filters);
   filtersRef.current = filters;
   const viewModeRef = useRef(viewMode);
   viewModeRef.current = viewMode;
+
+  // Seed default views on first load if user has no saved views
+  const SEED_VIEWS: SavedView[] = [
+    { name: "All Tasks", icon: "📋", filters: { status: "All", priority: "All", due: "All", owner: "", sort: "due_date", direction: "asc" } },
+    { name: "My Overdue", icon: "🔴", filters: { owner: "me", due: "overdue", status: "All", priority: "All", sort: "due_date", direction: "asc" } },
+    { name: "Due Today", icon: "📅", filters: { due: "today", status: "All", priority: "All", owner: "", sort: "priority_id", direction: "asc" } },
+    { name: "This Week", icon: "📆", filters: { due: "this_week", status: "All", priority: "All", owner: "", sort: "due_date", direction: "asc" } },
+    { name: "High Priority", icon: "🔥", filters: { priority: "Urgent,High", status: "All", due: "All", owner: "", sort: "due_date", direction: "asc" } },
+  ];
+
+  useEffect(() => {
+    if (savedViewsLoading || seededRef.current) return;
+    seededRef.current = true;
+    // If user has no views at all, seed with defaults
+    if (savedViews.length === 0) {
+      setSavedViews(SEED_VIEWS);
+    }
+  }, [savedViewsLoading, savedViews]);
 
   // Sync persisted view mode on first load
   useEffect(() => {
@@ -116,19 +130,17 @@ export default function ActivityTaskBoard({
     }
   }, [persistedViewMode]);
 
-  // Apply saved overrides / per-mode filters once preferences finish loading
+  // Apply per-mode filters once preferences finish loading
+  const appliedModeFiltersRef = useRef(false);
   useEffect(() => {
-    if (modeFiltersLoading || viewOverridesLoading) return;
-    if (appliedOverridesRef.current) return;
-    appliedOverridesRef.current = true;
+    if (modeFiltersLoading || savedViewsLoading) return;
+    if (appliedModeFiltersRef.current) return;
+    appliedModeFiltersRef.current = true;
     const modeF = modeFilters?.[viewMode];
-    const viewOverride = viewOverrides?.["All Tasks"];
     if (modeF) {
       setFilters(prev => ({ ...prev, ...modeF, search: prev.search }));
-    } else if (viewOverride) {
-      setFilters(prev => ({ ...prev, ...viewOverride, search: prev.search }));
     }
-  }, [modeFiltersLoading, viewOverridesLoading, modeFilters, viewOverrides, viewMode]);
+  }, [modeFiltersLoading, savedViewsLoading]);
 
   // Mode switch handler — saves current mode's filters, restores target mode's
   const handleViewModeChange = useCallback((newMode: ViewMode) => {
@@ -321,36 +333,47 @@ export default function ActivityTaskBoard({
     setFilters(newFilters);
   }, []);
 
-  const handleSaveView = useCallback((view: SavedView) => {
-    const currentViewMode = viewModeRef.current;
-    const viewWithMode = { ...view, mode: currentViewMode };
+  const handleSaveView = useCallback((view: SavedView, oldName?: string) => {
     const current = savedViewsRef.current;
-    const existing = current.findIndex((v) => v.name === view.name && (!v.mode || v.mode === currentViewMode));
     let next: SavedView[];
-    if (existing >= 0) {
-      next = [...current];
-      next[existing] = viewWithMode;
+    if (oldName && oldName !== view.name) {
+      // Rename: replace the old entry with the new one
+      next = current.map((v) => v.name === oldName ? view : v);
     } else {
-      next = [...current, viewWithMode];
+      const existing = current.findIndex((v) => v.name === view.name);
+      if (existing >= 0) {
+        next = [...current];
+        next[existing] = view;
+      } else {
+        next = [...current, view];
+      }
     }
     setSavedViews(next);
   }, [setSavedViews]);
 
   const handleDeleteView = useCallback((viewName: string) => {
-    // Archive instead of delete (no deletion principle)
+    const current = savedViewsRef.current;
+    setSavedViews(current.filter((v) => v.name !== viewName));
+  }, [setSavedViews]);
+
+  const handleUpdateViewFilters = useCallback((viewName: string, newFilters: Partial<ActivityFilters>) => {
     const current = savedViewsRef.current;
     setSavedViews(current.map((v) =>
-      v.name === viewName ? { ...v, archived: true } as any : v
+      v.name === viewName ? { ...v, filters: { ...newFilters } } : v
     ));
   }, [setSavedViews]);
 
-  const handleRestoreArchivedView = useCallback((viewName: string) => {
-    const current = savedViewsRef.current;
-    setSavedViews(current.map((v) => {
-      if (v.name !== viewName) return v;
-      const { archived, ...rest } = v as any;
-      return rest;
-    }));
+  const handleResetView = useCallback((viewName: string) => {
+    // Check if it's a seeded view — if so, restore to seed defaults
+    const seed = SEED_VIEWS.find(v => v.name === viewName);
+    if (seed) {
+      const current = savedViewsRef.current;
+      setSavedViews(current.map((v) =>
+        v.name === viewName ? { ...v, filters: { ...seed.filters } } : v
+      ));
+      // Also reset current filters to the seed values
+      setFilters({ ...seed.filters, search: "" } as ActivityFilters);
+    }
   }, [setSavedViews]);
 
   // Drag-and-drop status change handler (optimistic)
@@ -474,37 +497,16 @@ export default function ActivityTaskBoard({
     onSelectTask?.(taskId);
   }, [onSelectTask]);
 
-  const handleUpdateDefaultView = useCallback((viewName: string, newFilters: Partial<ActivityFilters>) => {
-    const current = viewOverridesRef.current;
-    setViewOverrides({ ...current, [viewName]: newFilters });
-  }, [setViewOverrides]);
-
-  const handleResetDefaultView = useCallback((viewName: string) => {
-    const current = { ...viewOverridesRef.current };
-    delete current[viewName];
-    setViewOverrides(current);
-    // Also reset current filters to the original default view
-    const originalView = defaultViews.find(v => v.name === viewName);
-    if (originalView) {
-      setFilters(prev => ({ ...prev, ...originalView.filters, search: prev.search }));
-    }
-  }, [setViewOverrides]);
-
-  const hasViewOverride = useCallback((viewName: string) => {
-    return !!viewOverridesRef.current[viewName];
+  // Check if a view has been modified from its seed defaults
+  const isViewModifiedFromSeed = useCallback((viewName: string) => {
+    const seed = SEED_VIEWS.find(v => v.name === viewName);
+    if (!seed) return false; // Not a seeded view, no "reset" concept
+    const current = savedViewsRef.current.find(v => v.name === viewName);
+    if (!current) return false;
+    return JSON.stringify(seed.filters) !== JSON.stringify(current.filters);
   }, []);
 
-  const visibleDefaults = defaultViews
-    .filter(v => !hiddenDefaults?.includes(v.name))
-    .map(v => ({
-      ...v,
-      filters: viewOverrides[v.name] ? { ...v.filters, ...viewOverrides[v.name] } : v.filters,
-    }));
-
-  const modeCustomViews = savedViews.filter((v: any) => !v.archived && (!v.mode || v.mode === viewMode));
-  const archivedCustomViews = savedViews.filter((v: any) => v.archived);
-
-  const allViews = [...visibleDefaults, ...modeCustomViews];
+  const activeViews = savedViews.filter((v: any) => !v.archived);
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -550,19 +552,14 @@ export default function ActivityTaskBoard({
         <ActivityFilterBar
           filters={filters}
           onFilterChange={handleFilterChange}
-          savedViews={allViews}
+          savedViews={activeViews}
           onSaveView={handleSaveView}
           onDeleteView={handleDeleteView}
           config={config}
-          onUpdateDefaultView={handleUpdateDefaultView}
-          onResetDefaultView={handleResetDefaultView}
-          hasViewOverride={hasViewOverride}
-          hiddenDefaults={hiddenDefaults || []}
-          onHideDefault={(name) => setHiddenDefaults([...(hiddenDefaults || []), name])}
-          onRestoreDefault={(name) => setHiddenDefaults((hiddenDefaults || []).filter(n => n !== name))}
-          allDefaultViews={defaultViews}
-          archivedViews={archivedCustomViews}
-          onRestoreArchivedView={handleRestoreArchivedView}
+          onUpdateViewFilters={handleUpdateViewFilters}
+          onResetView={handleResetView}
+          isViewModifiedFromSeed={isViewModifiedFromSeed}
+          seedViewNames={SEED_VIEWS.map(v => v.name)}
         />
       </div>
 

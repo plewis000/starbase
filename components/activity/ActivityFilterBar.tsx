@@ -38,20 +38,13 @@ interface Props {
   filters: ActivityFilters;
   onFilterChange: (f: ActivityFilters) => void;
   savedViews: SavedView[];
-  onSaveView: (view: SavedView) => void;
+  onSaveView: (view: SavedView, oldName?: string) => void;
   onDeleteView?: (viewName: string) => void;
   config?: ConfigData | null;
-  onUpdateDefaultView?: (viewName: string, filters: Partial<ActivityFilters>) => void;
-  onResetDefaultView?: (viewName: string) => void;
-  hasViewOverride?: (viewName: string) => boolean;
-  activeViewName?: string | null;
-  filtersModified?: boolean;
-  hiddenDefaults?: string[];
-  onHideDefault?: (name: string) => void;
-  onRestoreDefault?: (name: string) => void;
-  allDefaultViews?: SavedView[];
-  archivedViews?: SavedView[];
-  onRestoreArchivedView?: (name: string) => void;
+  onUpdateViewFilters?: (viewName: string, filters: Partial<ActivityFilters>) => void;
+  onResetView?: (viewName: string) => void;
+  isViewModifiedFromSeed?: (viewName: string) => boolean;
+  seedViewNames?: string[];
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -197,21 +190,14 @@ export default function ActivityFilterBar({
   onSaveView,
   onDeleteView,
   config,
-  onUpdateDefaultView,
-  onResetDefaultView,
-  hasViewOverride,
-  activeViewName,
-  filtersModified,
-  hiddenDefaults,
-  onHideDefault,
-  onRestoreDefault,
-  allDefaultViews,
-  archivedViews,
-  onRestoreArchivedView,
+  onUpdateViewFilters,
+  onResetView,
+  isViewModifiedFromSeed,
+  seedViewNames,
 }: Props) {
   const statusOptions = buildStatusMultiOptions(config);
   const priorityOptions = buildPriorityMultiOptions(config);
-  const [activeView, setActiveView] = useState<string | null>(activeViewName ?? "All Tasks");
+  const [activeView, setActiveView] = useState<string | null>("All Tasks");
   const [expanded, setExpanded] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [saveName, setSaveName] = useState("");
@@ -219,15 +205,10 @@ export default function ActivityFilterBar({
   const [editingView, setEditingView] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editIcon, setEditIcon] = useState("");
-  const [showRestoreMenu, setShowRestoreMenu] = useState(false);
   const searchTimeout = useRef<NodeJS.Timeout | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const filtersRef = useRef(filters);
   filtersRef.current = filters;
-
-  // Hidden defaults + archived custom views for restore menu
-  const hiddenDefaultViews = (allDefaultViews || []).filter(v => hiddenDefaults?.includes(v.name));
-  const totalRestorableCount = hiddenDefaultViews.length + (archivedViews?.length || 0);
 
   const activeFilterCount = countActiveFilters(filters);
   const filterChips = getActiveFilterChips(filters);
@@ -265,7 +246,7 @@ export default function ActivityFilterBar({
     };
     return normalize(filters) !== normalize(activeViewData.filters);
   })();
-  const isModified = filtersModified ?? computedFiltersModified;
+  const isModified = computedFiltersModified;
 
   const applyView = useCallback((view: SavedView) => {
     const defaults: ActivityFilters = { status: "All", priority: "All", due: "All", owner: "", sort: "due_date", direction: "asc", search: "" };
@@ -295,7 +276,6 @@ export default function ActivityFilterBar({
   }, [saveName, saveIcon, filters, onSaveView]);
 
   const handleEditView = useCallback((view: SavedView) => {
-    if (view.isDefault) return;
     setEditingView(view.name);
     setEditName(view.name);
     setEditIcon(view.icon);
@@ -305,13 +285,14 @@ export default function ActivityFilterBar({
     if (!editName.trim() || !editingView) return;
     const view = savedViews.find((v) => v.name === editingView);
     if (view) {
-      onSaveView({ ...view, name: editName.trim(), icon: editIcon });
-      if (editName.trim() !== editingView) {
-        onDeleteView?.(editingView);
+      const renamed = editName.trim() !== editingView;
+      onSaveView({ ...view, name: editName.trim(), icon: editIcon }, renamed ? editingView : undefined);
+      if (renamed && activeView === editingView) {
+        setActiveView(editName.trim());
       }
     }
     setEditingView(null);
-  }, [editName, editIcon, editingView, savedViews, onDeleteView, onSaveView]);
+  }, [editName, editIcon, editingView, savedViews, onSaveView, activeView]);
 
   // Parse comma-separated filter string to array
   const statusSelected = filters.status && filters.status !== "All" ? filters.status.split(",") : [];
@@ -327,10 +308,11 @@ export default function ActivityFilterBar({
     update("priority", value);
   }, [update]);
 
-  // Active default view for the modification bar
-  const activeDefaultView = activeView ? savedViews.find(v => v.name === activeView && v.isDefault) : null;
-  const hasOverride = !!(activeDefaultView && hasViewOverride?.(activeDefaultView.name));
-  const showModifiedBar = !!(activeDefaultView && onUpdateDefaultView && (isModified || hasOverride));
+  // Active view for the modification bar
+  const activeViewData2 = activeView ? savedViews.find(v => v.name === activeView) : null;
+  const isSeedView = !!(activeView && seedViewNames?.includes(activeView));
+  const seedModified = !!(activeView && isViewModifiedFromSeed?.(activeView));
+  const showModifiedBar = !!(activeViewData2 && onUpdateViewFilters && (isModified || seedModified));
 
   return (
     <div className="space-y-2">
@@ -369,21 +351,13 @@ export default function ActivityFilterBar({
               >
                 <span>{view.icon}</span>
                 {view.name}
-                {/* Dot indicator for customized default views */}
-                {view.isDefault && hasViewOverride?.(view.name) && (
+                {/* Dot indicator for views modified from seed defaults */}
+                {seedViewNames?.includes(view.name) && isViewModifiedFromSeed?.(view.name) && (
                   <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-crimson-500 rounded-full" />
                 )}
-                {view.isDefault && onHideDefault && (
+                {onDeleteView && (
                   <span
-                    onClick={(e) => { e.stopPropagation(); onHideDefault(view.name); if (activeView === view.name) setActiveView(null); }}
-                    className="hidden group-hover:inline ml-1 text-slate-600 hover:text-red-400 cursor-pointer"
-                  >
-                    ×
-                  </span>
-                )}
-                {!view.isDefault && onDeleteView && (
-                  <span
-                    onClick={(e) => { e.stopPropagation(); onDeleteView(view.name); }}
+                    onClick={(e) => { e.stopPropagation(); onDeleteView(view.name); if (activeView === view.name) setActiveView(null); }}
                     className="hidden group-hover:inline ml-1 text-slate-600 hover:text-red-400 cursor-pointer"
                   >
                     ×
@@ -401,46 +375,45 @@ export default function ActivityFilterBar({
           + Save View
         </button>
 
-        {totalRestorableCount > 0 && (
-          <button
-            onClick={() => setShowRestoreMenu(true)}
-            className="px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap border border-dashed border-dungeon-700 text-slate-600 hover:text-slate-400 hover:border-dungeon-600 transition-all flex-shrink-0"
-          >
-            + Restore ({totalRestorableCount})
-          </button>
-        )}
       </div>
 
-      {/* View override notification bar */}
-      {showModifiedBar && activeDefaultView && (
+      {/* View modification bar — shows when active view's filters have been changed */}
+      {showModifiedBar && activeViewData2 && (
         <div className="flex items-center gap-2 px-2.5 py-1.5 bg-dungeon-900/60 border border-dungeon-800 rounded-lg text-xs">
           {isModified ? (
             <>
               <span className="text-slate-400">
-                <span className="font-medium text-slate-300">{activeDefaultView.name}</span> filters modified
+                <span className="font-medium text-slate-300">{activeViewData2.name}</span> filters modified
               </span>
               <button
-                onClick={() => onUpdateDefaultView!(activeDefaultView.name, { ...filters, search: undefined })}
+                onClick={() => onUpdateViewFilters!(activeViewData2.name, { ...filters, search: undefined })}
                 className="text-green-400 hover:text-green-300 font-medium transition-colors"
               >
-                Save
+                Save to view
               </button>
-              {hasOverride && onResetDefaultView && (
+              <span className="text-slate-700">|</span>
+              <button
+                onClick={() => applyView(activeViewData2)}
+                className="text-slate-500 hover:text-slate-300 transition-colors"
+              >
+                Discard
+              </button>
+              {isSeedView && seedModified && onResetView && (
                 <>
                   <span className="text-slate-700">|</span>
                   <button
-                    onClick={() => onResetDefaultView(activeDefaultView.name)}
-                    className="text-slate-500 hover:text-slate-300 transition-colors"
+                    onClick={() => onResetView(activeViewData2.name)}
+                    className="text-amber-500 hover:text-amber-300 transition-colors"
                   >
-                    Reset
+                    Reset to default
                   </button>
                 </>
               )}
             </>
-          ) : (
+          ) : seedModified ? (
             <>
               <span className="text-slate-400">
-                <span className="font-medium text-slate-300">{activeDefaultView.name}</span> customized
+                <span className="font-medium text-slate-300">{activeViewData2.name}</span> customized from default
               </span>
               <button
                 onClick={() => setExpanded(true)}
@@ -448,19 +421,19 @@ export default function ActivityFilterBar({
               >
                 Edit
               </button>
-              {onResetDefaultView && (
+              {onResetView && (
                 <>
                   <span className="text-slate-700">|</span>
                   <button
-                    onClick={() => onResetDefaultView(activeDefaultView.name)}
-                    className="text-slate-500 hover:text-slate-300 transition-colors"
+                    onClick={() => onResetView(activeViewData2.name)}
+                    className="text-amber-500 hover:text-amber-300 transition-colors"
                   >
-                    Reset
+                    Reset to default
                   </button>
                 </>
               )}
             </>
-          )}
+          ) : null}
         </div>
       )}
 
@@ -613,60 +586,6 @@ export default function ActivityFilterBar({
         </div>
       )}
 
-      {/* Restore / Archive dialog */}
-      {showRestoreMenu && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowRestoreMenu(false)}>
-          <div className="bg-dungeon-900 border border-dungeon-700 rounded-xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-4 py-3 border-b border-dungeon-800">
-              <h3 className="text-sm font-semibold text-slate-200">Restore Views</h3>
-              <button onClick={() => setShowRestoreMenu(false)} className="text-slate-500 hover:text-slate-300 text-lg leading-none">&times;</button>
-            </div>
-            <div className="p-2 max-h-64 overflow-y-auto">
-              {hiddenDefaultViews.length > 0 && (
-                <div className="mb-2">
-                  <p className="px-2 py-1 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Hidden Defaults</p>
-                  {hiddenDefaultViews.map((view) => (
-                    <div key={view.name} className="flex items-center justify-between px-2 py-2 rounded-lg hover:bg-dungeon-800 transition-colors">
-                      <span className="flex items-center gap-2 text-xs text-slate-300">
-                        <span>{view.icon}</span>
-                        {view.name}
-                      </span>
-                      <button
-                        onClick={() => { onRestoreDefault?.(view.name); }}
-                        className="px-2.5 py-1 text-[11px] font-medium text-green-400 hover:text-green-300 bg-green-500/10 hover:bg-green-500/20 rounded transition-colors"
-                      >
-                        Restore
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {(archivedViews?.length || 0) > 0 && (
-                <div>
-                  <p className="px-2 py-1 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Archived Custom Views</p>
-                  {archivedViews?.map((view) => (
-                    <div key={view.name} className="flex items-center justify-between px-2 py-2 rounded-lg hover:bg-dungeon-800 transition-colors">
-                      <span className="flex items-center gap-2 text-xs text-slate-300">
-                        <span>{view.icon}</span>
-                        {view.name}
-                      </span>
-                      <button
-                        onClick={() => { onRestoreArchivedView?.(view.name); }}
-                        className="px-2.5 py-1 text-[11px] font-medium text-green-400 hover:text-green-300 bg-green-500/10 hover:bg-green-500/20 rounded transition-colors"
-                      >
-                        Restore
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {totalRestorableCount === 0 && (
-                <p className="px-2 py-4 text-xs text-slate-500 text-center">No views to restore.</p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
