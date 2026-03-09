@@ -226,9 +226,9 @@ export default function TaskDetail({
   const allOwners = task.owners || (task.assignee ? [task.assignee] : []);
 
   return (
-    <div className="bg-dungeon-900 border-l border-dungeon-800 w-full h-full overflow-y-auto">
-      <div className="p-6 space-y-6 max-w-full">
-        {/* Header */}
+    <div className="bg-dungeon-900 border-l border-dungeon-800 w-full h-full flex flex-col">
+      {/* Sticky header */}
+      <div className="flex-shrink-0 px-6 py-4 bg-dungeon-900 border-b border-dungeon-800 sticky top-0 z-10">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
             {editingTitle ? (
@@ -256,6 +256,10 @@ export default function TaskDetail({
             ✕
           </button>
         </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto">
+      <div className="p-6 space-y-6 max-w-full">
 
         {/* Completion credit modal */}
         {creditModal.open && task && config && (
@@ -390,29 +394,6 @@ export default function TaskDetail({
                     Best: {task.streak_longest || 0}
                   </span>
                 </div>
-              </div>
-            </div>
-          )}
-
-          {/* Recurrence mode indicator */}
-          {task.recurrence_rule && task.due_date && (
-            <div className="flex items-center gap-3">
-              <span className="text-dungeon-500 text-sm">🔄</span>
-              <div className="flex-1">
-                <p className="text-xs text-dungeon-400 mb-1">Next Due</p>
-                <span className="text-sm text-slate-100">
-                  {(() => {
-                    const due = new Date(task.due_date + "T00:00:00");
-                    const now = new Date();
-                    now.setHours(0, 0, 0, 0);
-                    const diffDays = Math.round((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-                    const dateStr = due.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-                    if (diffDays < 0) return <span className="text-red-400">{dateStr} ({Math.abs(diffDays)}d overdue)</span>;
-                    if (diffDays === 0) return <span className="text-amber-400">Today</span>;
-                    if (diffDays === 1) return <span className="text-amber-400">Tomorrow</span>;
-                    return <span>{dateStr} ({diffDays}d)</span>;
-                  })()}
-                </span>
               </div>
             </div>
           )}
@@ -739,6 +720,7 @@ export default function TaskDetail({
             )}
           </div>
         )}
+      </div>
       </div>
     </div>
   );

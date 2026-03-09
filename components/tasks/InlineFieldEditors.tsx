@@ -665,7 +665,7 @@ export function InlineTagEditor({
       await fetch(`/api/tasks/${taskId}/tags`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tag_id: tagId }),
+        body: JSON.stringify({ tag_ids: [tagId] }),
       });
       onUpdated();
     } catch (err) { console.error("Task update failed:", err instanceof Error ? err.message : err); }
@@ -673,10 +673,10 @@ export function InlineTagEditor({
     setShowDropdown(false);
   };
 
-  const handleRemoveTag = async (assocId: string) => {
+  const handleRemoveTag = async (tagId: string) => {
     setSaving(true);
     try {
-      await fetch(`/api/tasks/${taskId}/tags/${assocId}`, { method: "DELETE" });
+      await fetch(`/api/tasks/${taskId}/tags/${tagId}`, { method: "DELETE" });
       onUpdated();
     } catch (err) { console.error("Task update failed:", err instanceof Error ? err.message : err); }
     setSaving(false);

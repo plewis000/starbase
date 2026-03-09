@@ -96,6 +96,17 @@ export const POST = withAuth(async (req: NextRequest, { supabase, user }) => {
     console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
+  // Sync: when linking a task/habit to a goal, also create goal_tasks row
+  const goalType = source_type === "goal" ? "source" : target_type === "goal" ? "target" : null;
+  const taskType = source_type === "task" || source_type === "habit" ? "source" : target_type === "task" || target_type === "habit" ? "target" : null;
+  if (goalType && taskType) {
+    const goalId = goalType === "source" ? source_id : target_id;
+    const taskId = taskType === "source" ? source_id : target_id;
+    await platform(supabase)
+      .from("goal_tasks")
+      .upsert({ goal_id: goalId, task_id: taskId }, { onConflict: "goal_id,task_id" });
+  }
+
   return NextResponse.json({ link: data }, { status: 201 });
 });
 

@@ -68,7 +68,7 @@ export default function TasksPage() {
 
         {/* Task detail slide-over panel — shrinks on smaller desktops */}
         {selectedTaskId && (
-          <div className="w-[360px] xl:w-[480px] flex-shrink-0 overflow-y-auto border-l border-dungeon-800 animate-in slide-in-from-right duration-200">
+          <div className="w-[480px] xl:w-[560px] flex-shrink-0 overflow-y-auto border-l border-dungeon-800 animate-in slide-in-from-right duration-200">
             <TaskDetail
               taskId={selectedTaskId}
               onClose={handleCloseTaskDetail}
