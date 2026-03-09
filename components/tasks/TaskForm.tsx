@@ -32,9 +32,10 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
     taskTypeId: task?.task_type_id || "",
     effortLevelId: task?.effort_level_id || "",
     locationContextId: task?.location_context_id || "",
-    scheduleDate: task?.schedule_date || "",
+    startDate: task?.start_date || "",
     estimatedMinutes: task?.estimated_minutes || 0,
     completionMode: task?.completion_mode || "coop",
+    isHabit: task?.is_habit || false,
   });
 
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>(
@@ -94,11 +95,12 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
         task_type_id: formData.taskTypeId || null,
         effort_level_id: formData.effortLevelId || null,
         location_context_id: formData.locationContextId || null,
-        schedule_date: formData.scheduleDate || null,
+        start_date: formData.startDate || null,
         estimated_minutes: formData.estimatedMinutes || null,
         tag_ids: selectedTagIds,
         checklist_items: checklistItems.filter((item) => item.title.trim()).map((item) => item.title.trim()),
         completion_mode: formData.completionMode || "solo",
+        is_habit: formData.isHabit || false,
       };
 
       const method = isEditing ? "PATCH" : "POST";
@@ -219,10 +221,17 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
         </div>
       )}
 
-      {/* 5. Due Date + Start Date */}
+      {/* 5. Start Date + Due Date */}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className={SECTION_LABEL}>Date</label>
+          <label className={SECTION_LABEL}>Start Date</label>
+          <DatePicker
+            value={formData.startDate}
+            onChange={(d) => setField("startDate", d)}
+          />
+        </div>
+        <div>
+          <label className={SECTION_LABEL}>Due Date</label>
           <DatePicker
             value={formData.dueDate}
             onChange={(d) => setField("dueDate", d)}

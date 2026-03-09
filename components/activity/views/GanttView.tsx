@@ -10,6 +10,7 @@ interface Task {
   id: string;
   title: string;
   due_date?: string;
+  start_date?: string;
   schedule_date?: string;
   created_at?: string;
   completed_at?: string | null;
@@ -78,7 +79,7 @@ export default function GanttView({ tasks, onSelect, timezone }: Props) {
     maxDate.setDate(maxDate.getDate() + 30); // minimum 30 days view
 
     for (const task of tasks) {
-      const schedDate = task.schedule_date || task.created_at;
+      const schedDate = task.start_date || task.schedule_date || task.created_at;
       const dueDate = task.due_date;
       if (schedDate) {
         const d = new Date(schedDate);
@@ -98,8 +99,8 @@ export default function GanttView({ tasks, onSelect, timezone }: Props) {
 
     // Sort tasks by due_date
     const sorted = [...tasks].sort((a, b) => {
-      const aDate = a.due_date || a.schedule_date || "9999";
-      const bDate = b.due_date || b.schedule_date || "9999";
+      const aDate = a.due_date || a.start_date || a.schedule_date || "9999";
+      const bDate = b.due_date || b.start_date || b.schedule_date || "9999";
       return aDate.localeCompare(bDate);
     });
 
@@ -130,7 +131,7 @@ export default function GanttView({ tasks, onSelect, timezone }: Props) {
     const positions = new Map<string, { taskId: string; left: number; top: number; width: number; height: number }>();
 
     sortedTasks.forEach((task, idx) => {
-      const schedDate = task.schedule_date || task.created_at;
+      const schedDate = task.start_date || task.schedule_date || task.created_at;
       const dueDate = task.due_date;
 
       let taskStart: Date;

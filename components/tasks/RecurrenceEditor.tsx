@@ -49,9 +49,15 @@ export function buildRRule(parsed: ParsedRule): string {
 interface RecurrenceEditorProps {
   value?: string;
   onChange: (rule: string) => void;
+  isHabit?: boolean;
+  recurrenceMode?: "fixed" | "flexible";
+  onModeChange?: (mode: "fixed" | "flexible") => void;
 }
 
-export default function RecurrenceEditor({ value, onChange }: RecurrenceEditorProps) {
+export default function RecurrenceEditor({ value, onChange, isHabit, recurrenceMode, onModeChange }: RecurrenceEditorProps) {
+  const [showModeOverride, setShowModeOverride] = useState(false);
+  const inferredMode = isHabit ? "flexible" : "fixed";
+  const effectiveMode = recurrenceMode || inferredMode;
   const [parsed, setParsed] = useState<ParsedRule>(() => parseRRule(value || ""));
 
   useEffect(() => {
@@ -156,6 +162,42 @@ export default function RecurrenceEditor({ value, onChange }: RecurrenceEditorPr
               className="w-16 bg-dungeon-800 border border-dungeon-700 rounded px-2 py-2 text-sm text-slate-100 text-center focus:outline-none focus:border-red-400 min-h-[44px]"
             />
           </div>
+        </div>
+      )}
+
+      {/* Recurrence mode indicator */}
+      {parsed.freq !== "NONE" && (
+        <div className="pt-1">
+          <div className="flex items-center gap-2 text-xs text-dungeon-500">
+            <span>
+              {effectiveMode === "fixed" ? "Next due: from schedule" : "Next due: after completion"}
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowModeOverride(!showModeOverride)}
+              className="text-dungeon-400 hover:text-slate-300 transition-colors"
+            >
+              (change)
+            </button>
+          </div>
+          {showModeOverride && (
+            <div className="flex gap-2 mt-2">
+              {(["fixed", "flexible"] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => onModeChange?.(mode)}
+                  className={`px-3 py-1.5 rounded text-xs font-medium transition-all ${
+                    effectiveMode === mode
+                      ? "bg-red-500/20 border border-red-500/50 text-red-300"
+                      : "bg-dungeon-800 border border-dungeon-700 text-dungeon-400 hover:text-slate-200"
+                  }`}
+                >
+                  {mode === "fixed" ? "On schedule" : "After completion"}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

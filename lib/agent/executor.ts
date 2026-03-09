@@ -262,6 +262,9 @@ async function createTask(supabase: Supabase, userId: string, input: Record<stri
     assigned_to: assigneeId,
     created_by: userId,
     recurrence_rule: recurrenceRule,
+    start_date: (input.start_date as string) || null,
+    is_habit: (input.is_habit as boolean) || false,
+    recurrence_mode: (input.recurrence_mode as string) || "fixed",
   };
   if (input.completion_mode && ["coop", "competitive"].includes(input.completion_mode as string)) {
     insertData.completion_mode = input.completion_mode;
@@ -337,6 +340,9 @@ async function updateTask(supabase: Supabase, userId: string, input: Record<stri
   if (input.title) updates.title = input.title;
   if (input.description) updates.description = input.description;
   if (input.due_date) updates.due_date = input.due_date;
+  if (input.start_date) { updates.start_date = input.start_date; updates.schedule_date = input.start_date; }
+  if (input.is_habit !== undefined) updates.is_habit = input.is_habit;
+  if (input.recurrence_mode) updates.recurrence_mode = input.recurrence_mode;
 
   // Resolve status/priority names to IDs
   if (input.status) {

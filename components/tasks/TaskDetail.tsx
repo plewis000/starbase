@@ -13,6 +13,7 @@ import {
   InlineTypePicker,
   InlineEffortPicker,
   InlineDatePicker,
+  InlineStartDatePicker,
   InlineLocationPicker,
   InlineTimeEstimate,
   InlineTagEditor,
@@ -356,25 +357,66 @@ export default function TaskDetail({
 
         {/* Meta information card */}
         <div className="bg-dungeon-800 border border-dungeon-700 rounded-lg p-4 space-y-4">
-          {/* Date — inline editable */}
+          {/* Dates — inline editable */}
           <div className="flex items-center gap-3">
             <span className="text-dungeon-500 text-sm">📅</span>
-            <div className="flex-1">
-              <p className="text-xs text-dungeon-400 mb-1">Date</p>
-              <div className="flex items-center gap-3">
-                <InlineDatePicker
+            <div className="flex-1 grid grid-cols-2 gap-3">
+              <div>
+                <p className="text-xs text-dungeon-400 mb-1">Start</p>
+                <InlineStartDatePicker
                   taskId={task.id}
-                  currentValue={task.due_date}
+                  currentValue={task.start_date}
                   onUpdated={handleFieldUpdated}
                 />
-                {task.due_date && (
-                  <span className={`text-xs font-medium ${getDateColor(task.due_date)}`}>
-                    {formatRelativeDate(task.due_date)}
-                  </span>
-                )}
+              </div>
+              <div>
+                <p className="text-xs text-dungeon-400 mb-1">Due</p>
+                <div className="flex items-center gap-2">
+                  <InlineDatePicker
+                    taskId={task.id}
+                    currentValue={task.due_date}
+                    onUpdated={handleFieldUpdated}
+                  />
+                  {task.due_date && (
+                    <span className={`text-xs font-medium ${getDateColor(task.due_date)}`}>
+                      {formatRelativeDate(task.due_date)}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           </div>
+
+          {/* Habit streak badge */}
+          {task.is_habit && (
+            <div className="flex items-center gap-3">
+              <span className="text-dungeon-500 text-sm">🔥</span>
+              <div className="flex-1">
+                <p className="text-xs text-dungeon-400 mb-1">Streak</p>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-semibold text-amber-400">
+                    {task.streak_current || 0} day{(task.streak_current || 0) !== 1 ? "s" : ""}
+                  </span>
+                  <span className="text-xs text-dungeon-500">
+                    Best: {task.streak_longest || 0}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Recurrence mode indicator */}
+          {task.recurrence_rule && (
+            <div className="flex items-center gap-3">
+              <span className="text-dungeon-500 text-sm">🔄</span>
+              <div className="flex-1">
+                <p className="text-xs text-dungeon-400 mb-1">Recurrence</p>
+                <span className="text-xs text-dungeon-500">
+                  {task.recurrence_mode === "flexible" ? "Next due: after completion" : "Next due: from schedule"}
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* Owners — multi-select toggle picker */}
           {config && (

@@ -398,6 +398,39 @@ export function InlineDatePicker({
   );
 }
 
+// ─── Start Date Picker ───────────────────────────────────────────────────
+
+export function InlineStartDatePicker({
+  taskId,
+  currentValue,
+  onUpdated,
+}: {
+  taskId: string;
+  currentValue?: string;
+  onUpdated: () => void;
+}) {
+  const [saving, setSaving] = useState(false);
+
+  const handleChange = async (dateStr: string) => {
+    setSaving(true);
+    try {
+      await patchTask(taskId, { start_date: dateStr || null });
+      onUpdated();
+    } catch (err) { console.error("Task update failed:", err instanceof Error ? err.message : err); }
+    setSaving(false);
+  };
+
+  return (
+    <div className={saving ? "opacity-60 pointer-events-none" : ""}>
+      <DatePicker
+        value={currentValue || ""}
+        onChange={handleChange}
+        showRelative
+      />
+    </div>
+  );
+}
+
 // ─── Schedule Date Picker ────────────────────────────────────────────────
 
 export function InlineScheduleDatePicker({

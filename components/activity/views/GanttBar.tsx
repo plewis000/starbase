@@ -6,6 +6,7 @@ interface Task {
   id: string;
   title: string;
   due_date?: string;
+  start_date?: string;
   schedule_date?: string;
   completed_at?: string | null;
   owners?: { id: string; full_name: string; avatar_url?: string | null }[];
