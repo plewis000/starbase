@@ -34,6 +34,7 @@ export const GET = withUser(async (_request, { supabase, user }) => {
     habitGoalsRes,
     topStreaksRes,
     recentActivityRes,
+    snoozedTasksRes,
   ] = await Promise.all([
     // Overdue tasks: due_date < today AND completed_at IS NULL
     platform(supabase)
@@ -129,10 +130,18 @@ export const GET = withUser(async (_request, { supabase, user }) => {
       .from("activity_log")
       .select("id, entity_type, action, performed_by, created_at, metadata")
       .in("performed_by", householdMemberIds)
-      .in("action", ["created", "completed", "checked_in"])
+      .in("action", ["created", "completed", "checked_in", "snoozed"])
       .in("entity_type", ["task", "habit_check_in", "goal"])
       .order("created_at", { ascending: false })
       .limit(10),
+
+    // Snoozed tasks count
+    platform(supabase)
+      .from("tasks")
+      .select("id", { count: "exact", head: true })
+      .contains("owner_ids", [user.id])
+      .gt("snoozed_until", today)
+      .is("completed_at", null),
   ]);
 
   // Extract counts
@@ -263,6 +272,7 @@ export const GET = withUser(async (_request, { supabase, user }) => {
       completed_today: completedTodayCount,
       due_this_week: dueThisWeekCount,
       in_progress: inProgressCount,
+      snoozed: snoozedTasksRes.count || 0,
     },
     goals_summary: {
       active_count: goalsList.length,

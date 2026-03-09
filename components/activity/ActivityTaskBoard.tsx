@@ -630,6 +630,8 @@ export default function ActivityTaskBoard({
             onHabitCheckIn={handleHabitCheckIn}
             completedTaskId={completedTaskId}
             onSelect={handleSelectTask}
+            activeTaskId={activeTaskId}
+            onTaskUpdated={() => fetchTasks(filtersRef.current)}
           />
         ) : tasks.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 text-center">
