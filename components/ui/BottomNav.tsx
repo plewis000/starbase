@@ -12,17 +12,18 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { href: "/dashboard", label: "Home", icon: "🏠" },
+  { href: "/routines", label: "Routines", icon: "🔄" },
   { href: "/tasks", label: "Tasks", icon: "📋" },
-  { href: "/goals", label: "Goals", icon: "🎯" },
-  { href: "/crawl", label: "Game", icon: "🎮" },
+  { href: "/projects", label: "Projects", icon: "🎯" },
   { href: "/calendar", label: "Calendar", icon: "📅" },
 ];
 
 const moreItems: NavItem[] = [
+  { href: "/crawl", label: "Game", icon: "🎮" },
   { href: "/budget", label: "Budget", icon: "💰" },
   { href: "/shopping", label: "Shopping", icon: "🛒" },
   { href: "/recipes", label: "Recipes", icon: "🍳" },
-  { href: "/chat", label: "Zev", icon: "💬" },
+  { href: "/comms", label: "Messages", icon: "💬" },
   { href: "/notifications", label: "Alerts", icon: "🔔" },
   { href: "/settings", label: "Settings", icon: "⚙️" },
 ];

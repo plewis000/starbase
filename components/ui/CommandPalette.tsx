@@ -72,7 +72,7 @@ export default function CommandPalette() {
         body: JSON.stringify({ title, is_habit: true, recurrence_rule: "FREQ=DAILY", recurrence_mode: "flexible" }),
       });
       setIsOpen(false);
-      router.push("/habits");
+      router.push("/routines");
     } catch { toast.error("Failed to create"); }
     setCreating(false);
   }, [router]);
@@ -157,9 +157,10 @@ export default function CommandPalette() {
     // Navigation
     const navItems = [
       { label: "Home", icon: "🏠", path: "/dashboard", keywords: ["home", "overview", "dash", "dashboard"] },
+      { label: "Routines", icon: "🔄", path: "/routines", keywords: ["routine", "habit", "daily", "chore", "recurring"] },
       { label: "Gamification", icon: "🎮", path: "/crawl", keywords: ["crawl", "xp", "level", "profile", "achievement", "gamif", "game"] },
       { label: "Tasks", icon: "📋", path: "/tasks", keywords: ["todo", "task"] },
-      { label: "Goals", icon: "🎯", path: "/goals", keywords: ["goal", "objective"] },
+      { label: "Projects", icon: "🎯", path: "/projects", keywords: ["project", "goal", "objective"] },
       { label: "Budget", icon: "💰", path: "/budget", keywords: ["budget", "money", "spend", "finance"] },
       { label: "Shopping", icon: "🛒", path: "/shopping", keywords: ["shop", "grocery", "list", "buy"] },
       { label: "Recipes", icon: "🍳", path: "/recipes", keywords: ["recipe", "meal", "plan", "cook", "food", "dinner", "ingredient"] },

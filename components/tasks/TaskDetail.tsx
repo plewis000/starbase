@@ -30,6 +30,7 @@ interface TaskDetailProps {
   onTaskUpdated?: () => void;
   onNavigatePrev?: () => void;
   onNavigateNext?: () => void;
+  context?: "routine" | "task" | "project-item" | "full";
 }
 
 // formatRelativeDate and getDateColor imported from @/lib/dateUtils
@@ -101,6 +102,7 @@ export default function TaskDetail({
   onTaskUpdated,
   onNavigatePrev,
   onNavigateNext,
+  context = "full",
 }: TaskDetailProps) {
   const [task, setTask] = useState<Task | null>(null);
   const pendingOwnerIdsRef = useRef<string[] | null>(null);
@@ -320,7 +322,7 @@ export default function TaskDetail({
         )}
 
         {/* Inline Status Picker */}
-        {config && (
+        {context !== "routine" && config && (
           <div>
             <p className="text-xs text-dungeon-400 mb-2 font-semibold uppercase tracking-wider">Status</p>
             <InlineStatusPicker
@@ -343,7 +345,7 @@ export default function TaskDetail({
         )}
 
         {/* Inline Priority Picker */}
-        {config && (
+        {context !== "routine" && config && (
           <div>
             <p className="text-xs text-dungeon-400 mb-2 font-semibold uppercase tracking-wider">Priority</p>
             <InlinePriorityPicker
@@ -357,7 +359,7 @@ export default function TaskDetail({
         )}
 
         {/* Inline Type Picker */}
-        {config && config.task_types.length > 0 && (
+        {(context === "project-item" || context === "full") && config && config.task_types.length > 0 && (
           <div>
             <p className="text-xs text-dungeon-400 mb-2 font-semibold uppercase tracking-wider">Type</p>
             <InlineTypePicker
@@ -371,7 +373,7 @@ export default function TaskDetail({
         )}
 
         {/* Inline Effort Level Picker */}
-        {config && config.effort_levels.length > 0 && (
+        {(context === "project-item" || context === "full") && config && config.effort_levels.length > 0 && (
           <div>
             <p className="text-xs text-dungeon-400 mb-2 font-semibold uppercase tracking-wider">Effort</p>
             <InlineEffortPicker
@@ -493,7 +495,7 @@ export default function TaskDetail({
           )}
 
           {/* Completion Mode — only for multi-owner tasks */}
-          {(task.owner_ids?.length || 0) > 1 && (
+          {(context === "project-item" || context === "full") && (task.owner_ids?.length || 0) > 1 && (
             <div className="flex items-start gap-3">
               <span className="text-dungeon-500 text-sm mt-1">🎮</span>
               <div className="flex-1">
@@ -523,7 +525,7 @@ export default function TaskDetail({
 
 
           {/* Time Estimate */}
-          <div className="flex items-start gap-3">
+          {(context === "project-item" || context === "full") && <div className="flex items-start gap-3">
             <span className="text-dungeon-500 text-sm mt-0.5">⏱️</span>
             <div className="flex-1">
               <p className="text-xs text-dungeon-400 mb-1">Time</p>
@@ -534,7 +536,7 @@ export default function TaskDetail({
                 onUpdated={handleFieldUpdated}
               />
             </div>
-          </div>
+          </div>}
 
           {/* Creator */}
           {task.creator && (
@@ -639,6 +641,7 @@ export default function TaskDetail({
         </div>
 
         {/* Checklist */}
+        {context !== "routine" && (
         <div className="bg-dungeon-800 border border-dungeon-700 rounded-lg p-4">
           <h3 className="text-sm font-semibold text-slate-100 mb-3">
             Checklist
@@ -649,9 +652,10 @@ export default function TaskDetail({
             onUpdate={fetchTask}
           />
         </div>
+        )}
 
         {/* Subtasks */}
-        {(task.subtask_progress || task.subtasks?.length) && (
+        {(context === "project-item" || context === "full") && (task.subtask_progress || task.subtasks?.length) && (
           <div>
             <h3 className="text-sm font-semibold text-slate-100 mb-3">Subtasks</h3>
             <SubtaskList parentTaskId={task.id} />
@@ -659,7 +663,9 @@ export default function TaskDetail({
         )}
 
         {/* Linked Items */}
+        {(context === "project-item" || context === "full") && (
         <EntityLinksSection entityType="task" entityId={task.id} />
+        )}
 
         {/* Discuss with Zev */}
         <a
@@ -671,10 +677,12 @@ export default function TaskDetail({
         </a>
 
         {/* Comments */}
+        {context !== "routine" && (
         <div className="bg-dungeon-800 border border-dungeon-700 rounded-lg p-4">
           <h3 className="text-sm font-semibold text-slate-100 mb-3">Comments</h3>
           <CommentThread entityType="task" entityId={task.id} />
         </div>
+        )}
 
         {/* Activity Log */}
         {task.activity.length > 0 && (

@@ -176,6 +176,44 @@ export const GET = withAuth(async (request, { supabase, user, ctx }) => {
     query = query.eq("template_id", templateId);
   }
 
+  // Recurrence filter (routines vs one-off tasks)
+  const hasRecurrence = params.get("has_recurrence");
+  if (hasRecurrence === "true") {
+    query = query.not("recurrence_rule", "is", null);
+  } else if (hasRecurrence === "false") {
+    query = query.is("recurrence_rule", null);
+  }
+
+  // Exclude goal-linked tasks (for standalone tasks view)
+  const excludeGoalLinked = params.get("exclude_goal_linked");
+  if (excludeGoalLinked === "true") {
+    // Fetch goal-linked task IDs and exclude them
+    const { data: goalTaskLinks } = await platform(supabase)
+      .from("goal_tasks")
+      .select("task_id");
+    const linkedIds = (goalTaskLinks || []).map((gt: any) => gt.task_id);
+    if (linkedIds.length > 0) {
+      // PostgREST doesn't support NOT IN directly, so use .not + .in
+      query = query.not("id", "in", `(${linkedIds.join(",")})`);
+    }
+  }
+
+  // Goal-scoped tasks (for project view)
+  const goalId = params.get("goal_id");
+  if (goalId && isValidUUID(goalId)) {
+    const { data: goalTaskLinks } = await platform(supabase)
+      .from("goal_tasks")
+      .select("task_id")
+      .eq("goal_id", goalId);
+    const linkedIds = (goalTaskLinks || []).map((gt: any) => gt.task_id);
+    if (linkedIds.length > 0) {
+      query = query.in("id", linkedIds);
+    } else {
+      // No tasks linked to this goal — return empty
+      return NextResponse.json({ tasks: [], total: 0 });
+    }
+  }
+
   // Exclude someday by default
   const includeSomeday = params.get("include_someday");
   if (includeSomeday !== "true") {

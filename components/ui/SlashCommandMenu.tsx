@@ -32,7 +32,8 @@ export default function SlashCommandMenu({ isOpen, onClose, onSwitchView, onCrea
     { command: "/filter:overdue", label: "Overdue Tasks", description: "Filter to overdue tasks", action: () => { onClose(); } },
     { command: "/chat", label: "Chat with Zev", description: "Open AI assistant", action: () => { router.push("/chat"); onClose(); } },
     { command: "/settings", label: "Settings", description: "Open settings page", action: () => { router.push("/settings"); onClose(); } },
-    { command: "/goals", label: "Goals", description: "Open goals page", action: () => { router.push("/goals"); onClose(); } },
+    { command: "/routines", label: "Routines", description: "Open routines page", action: () => { router.push("/routines"); onClose(); } },
+    { command: "/projects", label: "Projects", description: "Open projects page", action: () => { router.push("/projects"); onClose(); } },
   ];
 
   const filtered = commands.filter(

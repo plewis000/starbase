@@ -85,6 +85,9 @@ export default function TasksPage() {
             refreshTrigger={refreshTrigger}
             onCreateTask={() => setShowCreateModal(true)}
             onTaskListChange={handleTaskListChange}
+            extraParams={{ is_habit: "false", has_recurrence: "false", exclude_goal_linked: "true" }}
+            allowedViewModes={["list", "board", "today"]}
+            title="Tasks"
           />
         </div>
 
@@ -108,6 +111,9 @@ export default function TasksPage() {
           onSelectTask={handleSelectTask}
           refreshTrigger={refreshTrigger}
           onCreateTask={() => setShowCreateModal(true)}
+          extraParams={{ is_habit: "false", has_recurrence: "false", exclude_goal_linked: "true" }}
+          allowedViewModes={["list", "board", "today"]}
+          title="Tasks"
         />
 
         {/* Mobile task detail — full-screen slide-up panel */}

@@ -29,15 +29,16 @@ interface AppShellProps {
 
 const navItems: NavItem[] = [
   { href: "/dashboard", label: "Home", icon: "🏠" },
-  { href: "/comms", label: "Messages", icon: "💬" },
-  { href: "/crawl", label: "Gamification", icon: "🎮" },
+  { href: "/routines", label: "Routines", icon: "🔄" },
   { href: "/tasks", label: "Tasks", icon: "📋" },
+  { href: "/projects", label: "Projects", icon: "🎯" },
   { href: "/calendar", label: "Calendar", icon: "📅" },
+  { href: "/crawl", label: "Game", icon: "🎮" },
   { href: "/budget", label: "Budget", icon: "💰" },
-  { href: "/goals", label: "Goals", icon: "🎯" },
   { href: "/shopping", label: "Shopping", icon: "🛒" },
   { href: "/recipes", label: "Recipes", icon: "🍳" },
-  { href: "/notifications", label: "Notifications", icon: "🔔" },
+  { href: "/comms", label: "Messages", icon: "💬" },
+  { href: "/notifications", label: "Alerts", icon: "🔔" },
   { href: "/settings", label: "Settings", icon: "⚙️" },
 ];
 

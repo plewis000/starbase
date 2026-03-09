@@ -167,6 +167,7 @@ export default function DashboardPage() {
   const [dashData, setDashData] = useState<DashboardData | null>(null);
   const [householdData, setHouseholdData] = useState<HouseholdData | null>(null);
   const [shoppingLists, setShoppingLists] = useState<ShoppingListSummary[]>([]);
+  const [routinesData, setRoutinesData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<DashView>("personal");
   const [error, setError] = useState<string | null>(null);
@@ -183,13 +184,14 @@ export default function DashboardPage() {
           setDisplayName(u.full_name || u.email || "there");
         }
 
-        const [dashRes, allTasksRes, crawlRes, suggestionsRes, shoppingRes, householdRes] = await Promise.all([
+        const [dashRes, allTasksRes, crawlRes, suggestionsRes, shoppingRes, householdRes, routinesRes] = await Promise.all([
           fetch("/api/dashboard"),
           fetch("/api/tasks?limit=1"),
           fetch("/api/gamification"),
           fetch("/api/ai/suggestions?status=pending&limit=3"),
           fetch("/api/shopping"),
           fetch("/api/dashboard/household"),
+          fetch("/api/routines/week"),
         ]);
 
         if (dashRes.ok) {
@@ -211,6 +213,10 @@ export default function DashboardPage() {
         }
         if (householdRes.ok) {
           setHouseholdData(await householdRes.json());
+        }
+        if (routinesRes.ok) {
+          const rd = await routinesRes.json();
+          setRoutinesData(rd.routines || []);
         }
 
         setTodayDate(
@@ -464,6 +470,83 @@ export default function DashboardPage() {
         )}
 
         {/* ── PERSONAL VIEW ── */}
+
+        {/* Day Progress */}
+        {view === "personal" && (ts || routinesData.length > 0) && (() => {
+          const tasksDoneToday = ts?.completed_today || 0;
+          const tasksDueToday = ts?.due_today || 0;
+          const routinesDone = routinesData.filter((r: any) => r.period_satisfied).length;
+          const routinesTotal = routinesData.length;
+          const totalDone = tasksDoneToday + routinesDone;
+          const totalItems = tasksDueToday + routinesTotal;
+          if (totalItems === 0) return null;
+          const pct = Math.round((totalDone / totalItems) * 100);
+          return (
+            <div className="dcc-card p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-dungeon-400">Day Progress</span>
+                <span className="text-sm font-bold text-slate-100 font-mono">{totalDone}/{totalItems}</span>
+              </div>
+              <div className="w-full h-2.5 bg-dungeon-800 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${pct === 100 ? "bg-green-500" : "bg-crimson-500"}`}
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Routines Due Today */}
+        {view === "personal" && routinesData.length > 0 && (() => {
+          const todayRoutines = routinesData.filter((r: any) => !r.period_satisfied);
+          const doneCount = routinesData.filter((r: any) => r.period_satisfied).length;
+          const totalCount = routinesData.length;
+          if (totalCount === 0) return null;
+          return (
+            <section className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-slate-100 dcc-heading tracking-wide">Today&apos;s Routines</h2>
+                <Link href="/routines" className="text-xs text-dungeon-500 hover:text-crimson-400 transition-colors font-mono">
+                  {doneCount}/{totalCount} done &rarr;
+                </Link>
+              </div>
+              {todayRoutines.length > 0 ? (
+                <div className="dcc-card p-3 space-y-1">
+                  {todayRoutines.slice(0, 8).map((r: any) => (
+                    <div key={r.id} className="flex items-center gap-3 py-1.5 px-2 rounded hover:bg-dungeon-800/50 transition-colors">
+                      <button
+                        onClick={async () => {
+                          const today = new Date();
+                          const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+                          try {
+                            await fetch("/api/routines/check", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ task_id: r.id, date: dateStr, action: "check" }),
+                            });
+                            setRoutinesData((prev: any[]) => prev.map((pr: any) => pr.id === r.id ? { ...pr, period_satisfied: true } : pr));
+                          } catch {}
+                        }}
+                        className="w-5 h-5 rounded-full border-2 border-dungeon-600 hover:border-green-500 transition-colors flex-shrink-0"
+                      />
+                      <span className="text-sm text-slate-200 flex-1 min-w-0 truncate">{r.title}</span>
+                      {r.streak_current > 0 && (
+                        <span className="text-[10px] text-amber-400 font-mono flex-shrink-0">{r.streak_current}d</span>
+                      )}
+                      <span className="text-[10px] text-dungeon-600 font-mono flex-shrink-0">{r.frequency_name}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="dcc-card p-4 text-center">
+                  <span className="text-green-400 text-sm font-medium">All routines done for today!</span>
+                </div>
+              )}
+            </section>
+          );
+        })()}
+
         {/* Crawler Status Card */}
         {view === "personal" && crawler && (
           <div className="space-y-3">
@@ -687,11 +770,11 @@ export default function DashboardPage() {
           <section className="space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-slate-100 dcc-heading tracking-wide">Habits</h2>
-              <Link href="/habits" className="text-xs text-dungeon-500 hover:text-crimson-400 transition-colors font-mono">
+              <Link href="/routines" className="text-xs text-dungeon-500 hover:text-crimson-400 transition-colors font-mono">
                 View all &rarr;
               </Link>
             </div>
-            <Link href="/habits" className="block">
+            <Link href="/routines" className="block">
               <div className="dcc-card-hover p-5">
                 <div className="flex items-center gap-6">
                   {/* Completion ring */}
@@ -784,10 +867,10 @@ export default function DashboardPage() {
         {/* Quick Action Buttons */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           <QuickActionButton href="/chat" icon="💬" label="Ask Zev" />
+          <QuickActionButton href="/routines" icon="🔄" label="Routines" />
           <QuickActionButton href="/tasks" icon="📋" label="Tasks" />
-          <QuickActionButton href="/goals" icon="🎯" label="Goals" />
+          <QuickActionButton href="/projects" icon="🎯" label="Projects" />
           <QuickActionButton href="/crawl" icon="🎮" label="Gamification" />
-          <QuickActionButton href="/budget" icon="💰" label="Budget" />
         </div>
 
         {error && (

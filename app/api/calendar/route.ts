@@ -32,18 +32,18 @@ export const GET = withUser(async (request: NextRequest, { supabase, user }) => 
   try {
     const { data: tasks } = await platform(supabase)
       .from("tasks")
-      .select("id, title, due_date, status_id, priority_id, completed_at")
+      .select("id, title, due_date, status_id, priority_id, completed_at, is_habit, recurrence_rule")
       .gte("due_date", start)
       .lte("due_date", end)
       .in("created_by", memberIds);
 
     for (const t of tasks || []) {
       items.push({
-        type: "task",
+        type: t.is_habit || t.recurrence_rule ? "habit" : "task",
         id: t.id,
         title: t.title,
         date: t.due_date,
-        color: t.completed_at ? "#22c55e" : "#ef4444",
+        color: t.completed_at ? "#22c55e" : t.is_habit || t.recurrence_rule ? "#8b5cf6" : "#ef4444",
         meta: { status_id: t.status_id, completed: !!t.completed_at },
       });
     }

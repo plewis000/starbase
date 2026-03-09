@@ -59,6 +59,12 @@ interface ActivityTaskBoardProps {
   onCreateTask?: () => void;
   /** Exposes the ordered list of visible task IDs for navigation */
   onTaskListChange?: (taskIds: string[]) => void;
+  /** Extra query params appended to every task fetch */
+  extraParams?: Record<string, string>;
+  /** Restrict available view modes */
+  allowedViewModes?: ViewMode[];
+  /** Custom page title */
+  title?: string;
 }
 
 export default function ActivityTaskBoard({
@@ -70,6 +76,9 @@ export default function ActivityTaskBoard({
   refreshTrigger = 0,
   onCreateTask,
   onTaskListChange,
+  extraParams,
+  allowedViewModes,
+  title = "Tasks",
 }: ActivityTaskBoardProps) {
   const apiFetch = customFetch || ((url: string, init?: RequestInit) =>
     fetch(url, {
@@ -233,8 +242,13 @@ export default function ActivityTaskBoard({
     if (f.hideDoneDays) params.append("hide_done_days", f.hideDoneDays.toString());
     if (timezone) params.append("tz", timezone);
     params.append("limit", "100");
+    if (extraParams) {
+      for (const [key, val] of Object.entries(extraParams)) {
+        params.append(key, val);
+      }
+    }
     return params.toString();
-  }, [timezone]);
+  }, [timezone, extraParams]);
 
   // Fetch tasks
   const fetchTasks = useCallback(async (f: ActivityFilters) => {
@@ -532,7 +546,7 @@ export default function ActivityTaskBoard({
       {/* Header bar */}
       <div className="flex-shrink-0 px-4 py-3 border-b border-dungeon-800 bg-dungeon-950/80 backdrop-blur-sm">
         <div className="flex items-center gap-2 min-w-0 flex-wrap">
-          <h1 className="text-lg font-bold text-slate-100 tracking-wide flex-shrink-0">Tasks</h1>
+          <h1 className="text-lg font-bold text-slate-100 tracking-wide flex-shrink-0">{title}</h1>
           <span className="text-xs text-slate-500 font-mono flex-shrink-0">{total} total</span>
 
           <div className="flex items-center gap-0.5 bg-dungeon-900 border border-dungeon-800 rounded-lg p-0.5 overflow-x-auto flex-shrink-0">
@@ -543,7 +557,7 @@ export default function ActivityTaskBoard({
               { key: "timeline" as ViewMode, icon: "═", label: "Timeline" },
               { key: "gantt" as ViewMode, icon: "▐", label: "Gantt" },
               { key: "calendar" as ViewMode, icon: "📅", label: "Cal" },
-            ]).map(({ key, icon, label }) => (
+            ]).filter(({ key }) => !allowedViewModes || allowedViewModes.includes(key)).map(({ key, icon, label }) => (
               <button
                 key={key}
                 onClick={() => handleViewModeChange(key)}

@@ -186,21 +186,44 @@ export default function CalendarView({ items, timezone, onItemClick, initialDate
               </span>
 
               {/* Item dots/chips */}
-              <div className="flex flex-wrap gap-0.5 mt-0.5">
-                {dayItems.slice(0, 3).map((item, i) => (
-                  <div
-                    key={`${item.id}-${i}`}
-                    className="w-full truncate text-[9px] leading-tight px-1 py-0.5 rounded"
-                    style={{ backgroundColor: (item.color || "#64748b") + "20", color: item.color || "#94a3b8" }}
-                    title={item.title}
-                  >
-                    {item.title}
+              {(() => {
+                const dotItems = dayItems.filter((item) => item.type === "habit");
+                const entryItems = dayItems.filter((item) => item.type !== "habit");
+                return (
+                  <div className="mt-0.5">
+                    {dotItems.length > 0 && (
+                      <div className="flex gap-0.5 mb-0.5 flex-wrap">
+                        {dotItems.slice(0, 6).map((item, i) => (
+                          <div
+                            key={`dot-${item.id}-${i}`}
+                            className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: item.color || "#8b5cf6" }}
+                            title={item.title}
+                          />
+                        ))}
+                        {dotItems.length > 6 && (
+                          <span className="text-[7px] text-dungeon-600">+{dotItems.length - 6}</span>
+                        )}
+                      </div>
+                    )}
+                    <div className="flex flex-wrap gap-0.5">
+                      {entryItems.slice(0, 3).map((item, i) => (
+                        <div
+                          key={`${item.id}-${i}`}
+                          className="w-full truncate text-[9px] leading-tight px-1 py-0.5 rounded"
+                          style={{ backgroundColor: (item.color || "#64748b") + "20", color: item.color || "#94a3b8" }}
+                          title={item.title}
+                        >
+                          {item.title}
+                        </div>
+                      ))}
+                      {entryItems.length > 3 && (
+                        <span className="text-[9px] text-dungeon-500">+{entryItems.length - 3}</span>
+                      )}
+                    </div>
                   </div>
-                ))}
-                {dayItems.length > 3 && (
-                  <span className="text-[9px] text-dungeon-500">+{dayItems.length - 3}</span>
-                )}
-              </div>
+                );
+              })()}
 
               {/* Popover */}
               {popoverDay === key && dayItems.length > 0 && (
