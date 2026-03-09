@@ -44,10 +44,91 @@ const SNOOZE_OPTIONS = [
   { label: "Next Week", value: "next_week" },
 ];
 
+// ─── Mini Calendar for Snooze ──────────────────────────────────────────
+
+function snoozeDaysInMonth(year: number, month: number): number {
+  return new Date(year, month + 1, 0).getDate();
+}
+
+function snoozeFormatDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function SnoozeCalendar({ onSelect }: { onSelect: (date: string) => void }) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const [viewDate, setViewDate] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
+
+  const year = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+  const totalDays = snoozeDaysInMonth(year, month);
+  const firstDow = new Date(year, month, 1).getDay();
+
+  const prevMonth = () => setViewDate(new Date(year, month - 1, 1));
+  const nextMonth = () => setViewDate(new Date(year, month + 1, 1));
+
+  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+  const cells: (number | null)[] = [];
+  for (let i = 0; i < firstDow; i++) cells.push(null);
+  for (let d = 1; d <= totalDays; d++) cells.push(d);
+
+  return (
+    <div className="p-2 w-[240px]">
+      {/* Month/Year nav */}
+      <div className="flex items-center justify-between mb-2 px-1">
+        <button onClick={prevMonth} className="p-1 text-dungeon-400 hover:text-slate-100 transition-colors">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6" /></svg>
+        </button>
+        <span className="text-[11px] font-semibold text-slate-200">{MONTHS[month]} {year}</span>
+        <button onClick={nextMonth} className="p-1 text-dungeon-400 hover:text-slate-100 transition-colors">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6" /></svg>
+        </button>
+      </div>
+
+      {/* Day headers */}
+      <div className="grid grid-cols-7 gap-0.5 mb-1">
+        {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
+          <div key={d} className="text-center text-[9px] font-medium text-dungeon-500 py-0.5">{d}</div>
+        ))}
+      </div>
+
+      {/* Day cells */}
+      <div className="grid grid-cols-7 gap-0.5">
+        {cells.map((day, i) => {
+          if (day === null) return <div key={`e-${i}`} />;
+          const cellDate = new Date(year, month, day);
+          const isToday = cellDate.getTime() === today.getTime();
+          const isPast = cellDate <= today;
+
+          return (
+            <button
+              key={day}
+              disabled={isPast}
+              onClick={() => onSelect(snoozeFormatDate(cellDate))}
+              className={`w-7 h-7 rounded text-[11px] font-medium transition-all ${
+                isPast
+                  ? "text-dungeon-700 cursor-not-allowed"
+                  : isToday
+                  ? "text-amber-400 bg-amber-500/10"
+                  : "text-slate-300 hover:bg-amber-500/20 hover:text-amber-300"
+              }`}
+            >
+              {day}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function SnoozeMenu({ taskId, onSnooze }: { taskId: string; onSnooze: (taskId: string, until: string) => void }) {
   const [open, setOpen] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [customDate, setCustomDate] = useState("");
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -92,30 +173,14 @@ function SnoozeMenu({ taskId, onSnooze }: { taskId: string; onSnooze: (taskId: s
                 Pick a date...
               </button>
             ) : (
-              <div className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                <input
-                  type="date"
-                  value={customDate}
-                  min={new Date(Date.now() + 86400000).toISOString().split("T")[0]}
-                  onChange={(e) => setCustomDate(e.target.value)}
-                  className="w-full px-2 py-1.5 bg-dungeon-900 border border-dungeon-600 rounded text-xs text-slate-100 focus:outline-none focus:border-red-400/50"
-                  autoFocus
-                />
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (customDate) {
-                      onSnooze(taskId, customDate);
-                      setOpen(false);
-                      setShowDatePicker(false);
-                      setCustomDate("");
-                    }
+              <div onClick={(e) => e.stopPropagation()}>
+                <SnoozeCalendar
+                  onSelect={(date) => {
+                    onSnooze(taskId, date);
+                    setOpen(false);
+                    setShowDatePicker(false);
                   }}
-                  disabled={!customDate}
-                  className="w-full mt-1.5 px-2 py-1.5 bg-red-400 hover:bg-red-500 disabled:bg-dungeon-700 disabled:cursor-not-allowed text-slate-950 text-xs font-medium rounded transition-colors"
-                >
-                  Snooze
-                </button>
+                />
               </div>
             )}
           </div>
