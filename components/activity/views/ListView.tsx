@@ -29,7 +29,7 @@ interface Task {
   subtask_progress?: { done: number; total: number };
 }
 
-type GroupBy = "none" | "assignee" | "priority" | "status";
+type GroupBy = "none" | "assignee" | "priority" | "status" | "type";
 
 interface Props {
   tasks: Task[];
@@ -500,6 +500,7 @@ function groupTasks(tasks: Task[], groupBy: GroupBy): { label: string; tasks: Ta
       case "status": key = task.status?.name || "No Status"; break;
       case "priority": key = task.priority?.name || "No Priority"; break;
       case "assignee": key = task.assignee?.full_name || "Unassigned"; break;
+      case "type": key = task.task_type?.name || "No Type"; break;
     }
     if (!groups[key]) groups[key] = [];
     groups[key].push(task);

@@ -388,9 +388,15 @@ export const POST = withAuth(async (request, { supabase, user, ctx }) => {
   }
 
   // 3. Insert tag associations
-  if (tag_ids && Array.isArray(tag_ids) && tag_ids.length > 0) {
+  const allTagIds = [...(tag_ids && Array.isArray(tag_ids) ? tag_ids : [])];
+  // Auto-add "Recurring" tag for tasks with recurrence rules
+  const RECURRING_TAG_ID = "3bd462c2-8607-4ddd-816c-c5096de5f02d";
+  if (recurrence_rule && !allTagIds.includes(RECURRING_TAG_ID)) {
+    allTagIds.push(RECURRING_TAG_ID);
+  }
+  if (allTagIds.length > 0) {
     await platform(supabase).from("task_tags").insert(
-      tag_ids.map((tagId: string) => ({
+      allTagIds.map((tagId: string) => ({
         task_id: task.id,
         tag_id: tagId,
       }))
