@@ -10,6 +10,7 @@ import { isValidUUID } from "@/lib/validation";
 import { updateTaskSchema } from "@/lib/schemas";
 import { inferFrequencyName } from "@/lib/habit-tasks";
 import { awardXp, checkAchievements, hasXpBeenAwarded } from "@/lib/gamification";
+import { recalculateTaskStreak } from "@/lib/streak-engine";
 import { getHouseholdMemberIds, verifyTaskHouseholdAccess } from "@/lib/household";
 
 // =============================================================
@@ -141,38 +142,28 @@ export const GET = withAuth(async (_request, { supabase, user, ctx }, params) =>
     };
   }
 
-  // Habit enrichment: only query extra data when the task is a habit
+  // Habit enrichment: for habit-tasks, add completion history from recurrence chain + linked goals
   let habitData: Record<string, unknown> = {};
   if (rawTask.is_habit) {
-    const today = new Date().toISOString().split("T")[0];
+    const sourceId = rawTask.recurrence_source_id || rawTask.id;
 
-    // checked_today
-    const { data: todayCompletion } = await platform(supabase)
-      .from("task_completions")
-      .select("id")
-      .eq("task_id", id!)
-      .eq("completed_date", today)
-      .eq("completed_by", user.id)
-      .limit(1);
-
-    // check_in_history — last 90 days
+    // Completion history from recurrence chain (last 90 days)
     const cutoff90 = new Date();
     cutoff90.setDate(cutoff90.getDate() - 90);
     const cutoff90Str = cutoff90.toISOString().split("T")[0];
-    const { data: history } = await platform(supabase)
-      .from("task_completions")
-      .select("id, completed_date, note, mood, value, completed_at")
-      .eq("task_id", id!)
-      .gte("completed_date", cutoff90Str)
-      .order("completed_date", { ascending: false });
+    const { data: chainHistory } = await platform(supabase)
+      .from("tasks")
+      .select("id, due_date, completed_at, completion_note, completion_mood")
+      .or(`id.eq.${sourceId},recurrence_source_id.eq.${sourceId}`)
+      .not("completed_at", "is", null)
+      .gte("due_date", cutoff90Str)
+      .order("due_date", { ascending: false });
 
-    // Rename completed_date → check_date in results
-    const checkInHistory = (history || []).map((h: any) => ({
+    const checkInHistory = (chainHistory || []).map((h: any) => ({
       id: h.id,
-      check_date: h.completed_date,
-      note: h.note,
-      mood: h.mood,
-      value: h.value,
+      check_date: h.due_date,
+      note: h.completion_note,
+      mood: h.completion_mood,
       completed_at: h.completed_at,
     }));
 
@@ -192,7 +183,6 @@ export const GET = withAuth(async (_request, { supabase, user, ctx }, params) =>
     }
 
     habitData = {
-      checked_today: (todayCompletion && todayCompletion.length > 0) || false,
       check_in_history: checkInHistory,
       linked_goals: linkedGoals,
       frequency_name: inferFrequencyName(rawTask.recurrence_rule),
@@ -379,6 +369,17 @@ export const PATCH = withAuth(async (request, { supabase, user, ctx }, params) =
   // Handle recurrence on completion
   let nextRecurrenceId: string | null = null;
   if (isCompletingTask && currentTask.recurrence_rule) {
+    // Recalculate streak for habit-tasks before creating next instance
+    if (currentTask.is_habit) {
+      const freqType = currentTask.recurrence_rule?.includes("FREQ=WEEKLY") ? "weekly" as const
+        : currentTask.recurrence_rule?.includes("FREQ=MONTHLY") ? "monthly" as const
+        : "daily" as const;
+      const streakResult = await recalculateTaskStreak(supabase, id!, 1, freqType);
+      // Pass updated streak to the next instance
+      (currentTask as any).streak_current = streakResult.current_streak;
+      (currentTask as any).streak_longest = streakResult.longest_streak;
+    }
+
     nextRecurrenceId = await createNextRecurrence(
       supabase,
       { ...currentTask, ...updatedTask },

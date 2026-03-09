@@ -244,7 +244,7 @@ async function executeCommand(
     const { recalculateTaskStreak } = await import("@/lib/streak-engine");
     const { inferTargetType } = await import("@/lib/habit-tasks");
     const targetType = inferTargetType(habit.recurrence_rule);
-    const streakResult = await recalculateTaskStreak(supabase, habit.id, 1, targetType, habit.start_date || today);
+    const streakResult = await recalculateTaskStreak(supabase, habit.id, 1, targetType);
 
     return { response: `Checked in: **${habit.title}** ✓ (🔥 ${streakResult.current_streak} day streak)`, data: habit };
   }

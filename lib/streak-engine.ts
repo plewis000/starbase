@@ -270,26 +270,45 @@ function calculateCompletionRate(
 // ---- TASK-BASED STREAK (Unified System) ----
 
 /**
- * Recalculate and persist streak data for a habit-task (unified system).
- * Reads from task_completions instead of habit_check_ins.
+ * Recalculate and persist streak data for a habit-task.
+ * Reads from the recurrence chain: all completed task instances sharing the same
+ * recurrence_source_id. Each completed instance's due_date counts as a "check-in" date.
  */
 export async function recalculateTaskStreak(
   supabase: SupabaseClient,
   taskId: string,
   targetCount: number,
-  targetType: "daily" | "weekly" | "monthly",
-  startedOn: string
+  targetType: "daily" | "weekly" | "monthly"
 ): Promise<StreakResult> {
-  const { data: completions } = await platform(supabase)
-    .from("task_completions")
-    .select("completed_date")
-    .eq("task_id", taskId)
-    .order("completed_date", { ascending: true });
+  // Get the recurrence source to find the full chain
+  const { data: task } = await platform(supabase)
+    .from("tasks")
+    .select("id, recurrence_source_id, created_at")
+    .eq("id", taskId)
+    .single();
 
-  const dates = (completions || []).map((c: { completed_date: string }) => c.completed_date);
+  if (!task) {
+    return { current_streak: 0, longest_streak: 0, total_completions: 0, last_completed_at: null, completion_rate_30d: 0, completion_rate_7d: 0 };
+  }
+
+  const sourceId = task.recurrence_source_id || task.id;
+
+  // Get all completed instances in the chain
+  const { data: completedTasks } = await platform(supabase)
+    .from("tasks")
+    .select("due_date, completed_at")
+    .or(`id.eq.${sourceId},recurrence_source_id.eq.${sourceId}`)
+    .not("completed_at", "is", null)
+    .not("due_date", "is", null)
+    .order("due_date", { ascending: true });
+
+  const dates = (completedTasks || []).map((t: { due_date: string }) => t.due_date);
+
+  // Use the earliest due_date as startedOn, or task creation date
+  const startedOn = dates.length > 0 ? dates[0] : toDateStr(new Date(task.created_at));
   const result = calculateStreak(dates, targetCount, targetType, startedOn);
 
-  // Update denormalized streak fields on the task
+  // Update denormalized streak fields on the current task
   await platform(supabase)
     .from("tasks")
     .update({

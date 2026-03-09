@@ -498,7 +498,7 @@ async function checkInHabit(supabase: Supabase, userId: string, input: Record<st
     if (task) {
       const targetType = inferTargetType(task.recurrence_rule);
       const streakResult = await recalculateTaskStreak(
-        supabase, taskId, 1, targetType, task.start_date || checkDate
+        supabase, taskId, 1, targetType
       );
       return { success: true, data: { check_in: data, streak: streakResult, message: `Habit checked in for ${checkDate}` } };
     }

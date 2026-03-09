@@ -11,7 +11,6 @@ interface Task {
   is_habit?: boolean;
   streak_current?: number;
   streak_longest?: number;
-  checked_today?: boolean;
   frequency_name?: string;
   recurrence_rule?: string;
   status_id?: string;
@@ -31,7 +30,6 @@ interface Task {
 interface Props {
   tasks: Task[];
   onQuickComplete: (id: string) => void;
-  onHabitCheckIn: (id: string) => void;
   completedTaskId: string | null;
   onSelect?: (id: string) => void;
   activeTaskId?: string;
@@ -198,7 +196,7 @@ function formatMinutes(mins: number): string {
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
-export default function TodayView({ tasks, onQuickComplete, onHabitCheckIn, completedTaskId, onSelect, activeTaskId, onTaskUpdated }: Props) {
+export default function TodayView({ tasks, onQuickComplete, completedTaskId, onSelect, activeTaskId, onTaskUpdated }: Props) {
   const toast = useToast();
   const today = new Date().toISOString().split("T")[0];
 
@@ -207,15 +205,13 @@ export default function TodayView({ tasks, onQuickComplete, onHabitCheckIn, comp
   const snoozedTasks = tasks.filter((t) => t.snoozed_until && t.snoozed_until > today);
   const [showSnoozed, setShowSnoozed] = useState(false);
 
-  // Split into habits and regular tasks
+  // Split into habits and regular tasks (visual grouping only — same completion flow)
   const habits = activeTasks.filter((t) => t.is_habit);
   const regularTasks = activeTasks.filter((t) => !t.is_habit);
 
-  // Count completions
-  const habitsDone = habits.filter((t) => t.checked_today).length;
-  const tasksDone = regularTasks.filter((t) => !!t.completed_at).length;
-  const totalItems = habits.length + regularTasks.length;
-  const totalDone = habitsDone + tasksDone;
+  // Count completions — unified: everything uses completed_at
+  const totalItems = activeTasks.length;
+  const totalDone = activeTasks.filter((t) => !!t.completed_at).length;
   const completionRate = totalItems > 0 ? Math.round((totalDone / totalItems) * 100) : 0;
 
   const handleSnooze = async (taskId: string, until: string) => {
@@ -362,80 +358,71 @@ export default function TodayView({ tasks, onQuickComplete, onHabitCheckIn, comp
       {habits.length > 0 && (
         <div>
           <h2 className="text-xs font-semibold text-dungeon-400 uppercase tracking-wider mb-3">
-            Habits ({habitsDone}/{habits.length})
+            Habits ({habits.filter(h => !!h.completed_at).length}/{habits.length})
           </h2>
           <div className="space-y-1.5">
-            {habits.map((habit) => (
-              <div
-                key={habit.id}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg border cursor-pointer transition-all hover:bg-dungeon-800/50 group ${
-                  habit.checked_today
-                    ? "bg-dungeon-900/50 border-dungeon-800/50"
-                    : "bg-dungeon-900 border-dungeon-800 hover:border-dungeon-700"
-                } ${habit.id === activeTaskId ? "border-red-500/50 bg-red-900/10" : ""}`}
-              >
-                {/* Check-in button */}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onHabitCheckIn(habit.id);
-                  }}
-                  className={`w-8 h-8 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
-                    habit.checked_today
-                      ? "border-emerald-400 bg-emerald-400/20 text-emerald-400"
-                      : "border-dungeon-600 hover:border-red-400/50 text-dungeon-600 hover:text-red-400/50"
-                  }`}
-                >
-                  {habit.checked_today ? (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                    </svg>
-                  ) : null}
-                </button>
-
-                {/* Title + meta */}
+            {habits.map((task) => {
+              const isDone = !!task.completed_at;
+              return (
                 <div
-                  className="flex-1 min-w-0"
-                  onClick={() => onSelect?.(habit.id)}
+                  key={task.id}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg border cursor-pointer transition-all hover:bg-dungeon-800/50 group ${
+                    isDone
+                      ? "bg-dungeon-900/50 border-dungeon-800/50"
+                      : "bg-dungeon-900 border-dungeon-800 hover:border-dungeon-700"
+                  } ${task.id === activeTaskId ? "border-red-500/50 bg-red-900/10" : ""}`}
                 >
-                  <span
-                    className={`text-sm font-medium truncate block ${
-                      habit.checked_today ? "text-dungeon-500 line-through" : "text-slate-100"
+                  {/* Complete button — same as tasks */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onQuickComplete(task.id);
+                    }}
+                    className={`w-8 h-8 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+                      isDone
+                        ? "border-emerald-400 bg-emerald-400/20 text-emerald-400"
+                        : "border-dungeon-600 hover:border-red-400/50 text-dungeon-600 hover:text-red-400/50"
                     }`}
                   >
-                    {habit.title}
-                  </span>
-                  {renderMeta(habit, true)}
+                    {isDone ? (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    ) : null}
+                  </button>
+
+                  {/* Title + meta */}
+                  <div className="flex-1 min-w-0" onClick={() => onSelect?.(task.id)}>
+                    <span className={`text-sm font-medium truncate block ${isDone ? "text-dungeon-500 line-through" : "text-slate-100"}`}>
+                      {task.title}
+                    </span>
+                    {renderMeta(task, true)}
+                  </div>
+
+                  {/* Tags */}
+                  {task.tags && task.tags.length > 0 && (
+                    <div className="flex gap-1 flex-shrink-0">
+                      {task.tags.filter(t => t.name !== "Recurring").slice(0, 2).map((tag) => (
+                        <span key={tag.id} className="px-1.5 py-0.5 rounded text-[10px] font-medium text-dungeon-400 bg-dungeon-800 border border-dungeon-700">
+                          {tag.name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Streak badge */}
+                  {(task.streak_current || 0) > 0 && (
+                    <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-400/10 border border-amber-400/20 flex-shrink-0">
+                      <span className="text-xs">🔥</span>
+                      <span className="text-xs font-bold text-amber-400">{task.streak_current}</span>
+                    </div>
+                  )}
+
+                  {/* Snooze */}
+                  {!isDone && <SnoozeMenu taskId={task.id} onSnooze={handleSnooze} />}
                 </div>
-
-                {/* Tags */}
-                {habit.tags && habit.tags.length > 0 && (
-                  <div className="flex gap-1 flex-shrink-0">
-                    {habit.tags.filter(t => t.name !== "Recurring").slice(0, 2).map((tag) => (
-                      <span
-                        key={tag.id}
-                        className="px-1.5 py-0.5 rounded text-[10px] font-medium text-dungeon-400 bg-dungeon-800 border border-dungeon-700"
-                      >
-                        {tag.name}
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                {/* Streak */}
-                {(habit.streak_current || 0) > 0 && (
-                  <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-400/10 border border-amber-400/20 flex-shrink-0">
-                    <span className="text-xs">🔥</span>
-                    <span className="text-xs font-bold text-amber-400">{habit.streak_current}</span>
-                  </div>
-                )}
-
-                {/* Snooze */}
-                {!habit.checked_today && (
-                  <SnoozeMenu taskId={habit.id} onSnooze={handleSnooze} />
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -444,7 +431,7 @@ export default function TodayView({ tasks, onQuickComplete, onHabitCheckIn, comp
       {regularTasks.length > 0 && (
         <div>
           <h2 className="text-xs font-semibold text-dungeon-400 uppercase tracking-wider mb-3">
-            Tasks ({tasksDone}/{regularTasks.length})
+            Tasks ({regularTasks.filter(t => !!t.completed_at).length}/{regularTasks.length})
           </h2>
           <div className="space-y-1.5">
             {regularTasks.map((task) => {
@@ -478,15 +465,8 @@ export default function TodayView({ tasks, onQuickComplete, onHabitCheckIn, comp
                   </button>
 
                   {/* Title + meta */}
-                  <div
-                    className="flex-1 min-w-0"
-                    onClick={() => onSelect?.(task.id)}
-                  >
-                    <span
-                      className={`text-sm font-medium truncate block ${
-                        isDone ? "text-dungeon-500 line-through" : "text-slate-100"
-                      }`}
-                    >
+                  <div className="flex-1 min-w-0" onClick={() => onSelect?.(task.id)}>
+                    <span className={`text-sm font-medium truncate block ${isDone ? "text-dungeon-500 line-through" : "text-slate-100"}`}>
                       {task.title}
                     </span>
                     {renderMeta(task, false)}
@@ -496,14 +476,8 @@ export default function TodayView({ tasks, onQuickComplete, onHabitCheckIn, comp
                   {task.owners && task.owners.length > 1 && (
                     <div className="flex -space-x-1.5 flex-shrink-0">
                       {task.owners.slice(0, 3).map((o) => (
-                        <div
-                          key={o.id}
-                          className="w-5 h-5 rounded-full bg-dungeon-700 border border-dungeon-900 flex items-center justify-center"
-                          title={o.full_name}
-                        >
-                          <span className="text-[8px] font-bold text-dungeon-400">
-                            {o.full_name?.split(" ").map(n => n[0]).join("").slice(0, 2)}
-                          </span>
+                        <div key={o.id} className="w-5 h-5 rounded-full bg-dungeon-700 border border-dungeon-900 flex items-center justify-center" title={o.full_name}>
+                          <span className="text-[8px] font-bold text-dungeon-400">{o.full_name?.split(" ").map(n => n[0]).join("").slice(0, 2)}</span>
                         </div>
                       ))}
                     </div>
@@ -528,10 +502,7 @@ export default function TodayView({ tasks, onQuickComplete, onHabitCheckIn, comp
                   {task.tags && task.tags.length > 0 && (
                     <div className="flex gap-1 flex-shrink-0">
                       {task.tags.filter(t => t.name !== "Recurring").slice(0, 2).map((tag) => (
-                        <span
-                          key={tag.id}
-                          className="px-1.5 py-0.5 rounded text-[10px] font-medium text-dungeon-400 bg-dungeon-800 border border-dungeon-700"
-                        >
+                        <span key={tag.id} className="px-1.5 py-0.5 rounded text-[10px] font-medium text-dungeon-400 bg-dungeon-800 border border-dungeon-700">
                           {tag.name}
                         </span>
                       ))}
@@ -539,9 +510,7 @@ export default function TodayView({ tasks, onQuickComplete, onHabitCheckIn, comp
                   )}
 
                   {/* Snooze */}
-                  {!isDone && (
-                    <SnoozeMenu taskId={task.id} onSnooze={handleSnooze} />
-                  )}
+                  {!isDone && <SnoozeMenu taskId={task.id} onSnooze={handleSnooze} />}
                 </div>
               );
             })}

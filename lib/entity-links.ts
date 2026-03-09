@@ -150,7 +150,7 @@ async function completeEntity(
           .eq("id", entityId)
           .single();
         if (task) {
-          await recalculateTaskStreak(supabase, entityId, 1, inferTargetType(task.recurrence_rule), task.start_date || today);
+          await recalculateTaskStreak(supabase, entityId, 1, inferTargetType(task.recurrence_rule));
         }
       } catch (err) {
         console.error("[entity-links] Streak recalc error:", err);

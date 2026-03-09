@@ -688,7 +688,7 @@ async function handleHabit(supabase: Supabase, userId: string, options: Record<s
   const { inferTargetType } = await import("@/lib/habit-tasks");
   const targetType = inferTargetType(match.recurrence_rule);
   const streakResult = await recalculateTaskStreak(
-    supabase, match.id, 1, targetType, match.start_date || today
+    supabase, match.id, 1, targetType
   );
   const newStreak = streakResult.current_streak;
 

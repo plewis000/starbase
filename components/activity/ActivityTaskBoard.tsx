@@ -318,41 +318,7 @@ export default function ActivityTaskBoard({
     }
   }, [tasks, config, fetchTasks, apiBasePath]);
 
-  // Habit check-in handler (for TodayView)
-  const handleHabitCheckIn = useCallback(async (taskId: string) => {
-    const task = tasks.find((t) => t.id === taskId);
-    if (!task) return;
-    const today = new Date().toISOString().split("T")[0];
-    const wasChecked = !!(task as any).checked_today;
-
-    // Optimistic update
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === taskId ? { ...t, checked_today: !wasChecked } as any : t
-      )
-    );
-
-    try {
-      if (wasChecked) {
-        await apiFetch(`${apiBasePath}/${taskId}/completions?date=${today}`, { method: "DELETE" });
-      } else {
-        await apiFetch(`${apiBasePath}/${taskId}/completions`, {
-          method: "POST",
-          body: JSON.stringify({ completed_date: today }),
-        });
-        // Fire-and-forget entity link sync
-        fetch("/api/entity-links/sync", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ entity_type: "habit", entity_id: taskId }),
-        }).catch(() => {});
-        setCompletedTaskId(taskId);
-        setTimeout(() => setCompletedTaskId(null), 2000);
-      }
-    } catch {
-      fetchTasks(filtersRef.current);
-    }
-  }, [tasks, fetchTasks, apiBasePath]);
+  // Habit check-in is now handled by handleQuickComplete — same flow for all tasks
 
   // Quick create handler (extended with priority, assignee, tags)
   const handleQuickCreate = useCallback(async (
@@ -627,7 +593,6 @@ export default function ActivityTaskBoard({
           <TodayView
             tasks={tasks}
             onQuickComplete={handleQuickComplete}
-            onHabitCheckIn={handleHabitCheckIn}
             completedTaskId={completedTaskId}
             onSelect={handleSelectTask}
             activeTaskId={activeTaskId}
