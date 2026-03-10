@@ -109,7 +109,7 @@ export const GET = withAuth(async (request, { supabase, user }, params) => {
       ...enriched,
       milestones: milestonesRes.data || [],
       linked_habits: linkedHabits,
-      linked_tasks: regularTasks,
+      linked_tasks: allLinkedTasks,
       sub_goals: subgoalsRes.data || [],
       activity: activityRes.data || [],
     },

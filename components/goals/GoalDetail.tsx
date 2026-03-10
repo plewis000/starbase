@@ -181,7 +181,6 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated, onSelectTas
   const totalTasks = linkedTasks.length;
   const doneTasks = linkedTasks.filter((t) => t.completed_at).length;
   const donePercent = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
-  const inProgressTasks = linkedTasks.filter((t) => !t.completed_at && t.status_id).length - linkedTasks.filter((t) => !t.completed_at).length + linkedTasks.filter((t) => !t.completed_at).length; // all non-done
   const today = new Date().toISOString().split("T")[0];
   const overdueTasks = linkedTasks.filter((t) => !t.completed_at && t.due_date && t.due_date < today);
   const upcomingDeadlines = linkedTasks
@@ -313,6 +312,41 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated, onSelectTas
                 <div className={`text-lg font-bold ${overdueTasks.length > 0 ? "text-amber-400" : "text-dungeon-500"}`}>{overdueTasks.length}</div>
                 <div className="text-xs text-dungeon-400">Overdue</div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Task List */}
+        {totalTasks > 0 && (
+          <div>
+            <h3 className="text-sm font-semibold text-slate-100 mb-3">
+              Tasks ({doneTasks}/{totalTasks} done)
+            </h3>
+            <div className="space-y-1.5">
+              {linkedTasks
+                .sort((a, b) => (a.completed_at && !b.completed_at ? 1 : !a.completed_at && b.completed_at ? -1 : 0))
+                .map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => onSelectTask?.(t.id)}
+                  className="w-full flex items-center gap-3 p-2.5 bg-dungeon-900 rounded-lg border border-dungeon-800 hover:border-dungeon-600 transition-colors text-left"
+                >
+                  <div className={`w-4 h-4 rounded-full flex-shrink-0 ${
+                    t.completed_at ? "bg-red-400" : "bg-dungeon-600"
+                  }`} />
+                  <span className={`text-sm flex-1 min-w-0 truncate ${t.completed_at ? "text-dungeon-400 line-through" : "text-slate-100"}`}>
+                    {t.title}
+                  </span>
+                  {t.is_habit && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-dungeon-800 text-dungeon-400 flex-shrink-0">routine</span>
+                  )}
+                  {t.due_date && !t.completed_at && (
+                    <span className={`text-xs flex-shrink-0 ${t.due_date < today ? "text-amber-400" : "text-dungeon-500"}`}>
+                      {new Date(t.due_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                    </span>
+                  )}
+                </button>
+              ))}
             </div>
           </div>
         )}
