@@ -79,14 +79,20 @@ export async function GET(request: NextRequest) {
       .gt("confidence", 0.15);
 
     if (staleObs && staleObs.length > 0) {
+      // Group by rounded new confidence to batch updates
+      const confGroups = new Map<number, string[]>();
       for (const obs of staleObs) {
         const newConf = Math.round((obs.confidence * 0.95) * 100) / 100;
+        if (!confGroups.has(newConf)) confGroups.set(newConf, []);
+        confGroups.get(newConf)!.push(obs.id);
+      }
+      for (const [newConf, ids] of confGroups) {
         await platform(supabase)
           .from("ai_observations")
           .update({ confidence: newConf })
-          .eq("id", obs.id);
-        decayed++;
+          .in("id", ids);
       }
+      decayed = staleObs.length;
     }
   } catch (err) {
     errors.push(`observation decay: ${err}`);

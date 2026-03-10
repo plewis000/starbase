@@ -584,8 +584,16 @@ async function updateGoalProgress(supabase: Supabase, userId: string, input: Rec
   }
 
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if (input.progress_value !== undefined) updates.progress_value = Number(input.progress_value);
-  if (input.current_value !== undefined) updates.current_value = Number(input.current_value);
+  if (input.progress_value !== undefined) {
+    const pv = typeof input.progress_value === "number" ? input.progress_value : parseFloat(String(input.progress_value));
+    if (Number.isNaN(pv)) return { success: false, error: "progress_value must be a number" };
+    updates.progress_value = pv;
+  }
+  if (input.current_value !== undefined) {
+    const cv = typeof input.current_value === "number" ? input.current_value : parseFloat(String(input.current_value));
+    if (Number.isNaN(cv)) return { success: false, error: "current_value must be a number" };
+    updates.current_value = cv;
+  }
 
   const { data, error } = await platform(supabase)
     .from("goals")

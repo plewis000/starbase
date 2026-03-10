@@ -258,30 +258,44 @@ export const GET = withAuth(async (request: NextRequest, { supabase, user, ctx }
       completionsMap[c.task_id].push(c.completed_date);
     }
 
-    // Also check completed recurrence instances
-    for (const r of routines || []) {
-      const sourceId = r.recurrence_source_id || r.id;
-      let instanceQuery = platform(supabase)
+    // Also check completed recurrence instances — batched query
+    const sourceIds = (routines || []).map((r: any) => r.recurrence_source_id || r.id);
+    const uniqueSourceIds = [...new Set(sourceIds)];
+
+    if (uniqueSourceIds.length > 0) {
+      // Fetch all completed instances across all routines in one query
+      // Use yearStartStr as the floor for routines without due_date
+      const sourceIdFilter = uniqueSourceIds.map((id: string) => `id.eq.${id},recurrence_source_id.eq.${id}`).join(",");
+      const { data: allCompletedInstances } = await platform(supabase)
         .from("tasks")
-        .select("due_date")
-        .or(`id.eq.${sourceId},recurrence_source_id.eq.${sourceId}`)
+        .select("id, recurrence_source_id, due_date")
+        .or(sourceIdFilter)
         .not("completed_at", "is", null)
         .not("due_date", "is", null)
+        .gte("due_date", yearStartStr)
         .lte("due_date", yearEndStr);
 
-      // Only count completions for THIS or future occurrence, not previous ones
-      if (r.due_date) {
-        instanceQuery = instanceQuery.gte("due_date", r.due_date);
-      } else {
-        instanceQuery = instanceQuery.gte("due_date", yearStartStr);
+      // Build a map from sourceId -> completed due_dates
+      const instancesBySource: Record<string, string[]> = {};
+      for (const inst of allCompletedInstances || []) {
+        const srcId = inst.recurrence_source_id || inst.id;
+        if (!instancesBySource[srcId]) instancesBySource[srcId] = [];
+        instancesBySource[srcId].push(inst.due_date);
       }
 
-      const { data: completedInstances } = await instanceQuery;
+      // Map instances back to routines, respecting per-routine due_date floor
+      for (const r of routines || []) {
+        const sourceId = r.recurrence_source_id || r.id;
+        const instances = instancesBySource[sourceId] || [];
+        const floor = r.due_date || yearStartStr;
 
-      for (const inst of completedInstances || []) {
-        if (!completionsMap[r.id]) completionsMap[r.id] = [];
-        if (!completionsMap[r.id].includes(inst.due_date)) {
-          completionsMap[r.id].push(inst.due_date);
+        for (const dueDate of instances) {
+          if (dueDate >= floor) {
+            if (!completionsMap[r.id]) completionsMap[r.id] = [];
+            if (!completionsMap[r.id].includes(dueDate)) {
+              completionsMap[r.id].push(dueDate);
+            }
+          }
         }
       }
     }
