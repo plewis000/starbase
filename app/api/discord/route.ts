@@ -877,9 +877,9 @@ async function handleDashboard(supabase: Supabase, userId: string, webhookUrl: s
 
   const [overdueResult, todayResult, activeGoals, activeHabits, streaks] = await Promise.all([
     platform(supabase).from("tasks").select("id", { count: "exact", head: true })
-      .eq("assigned_to", userId).is("completed_at", null).lt("due_date", today),
+      .contains("owner_ids", [userId]).is("completed_at", null).lt("due_date", today),
     platform(supabase).from("tasks").select("id, title, due_date", { count: "exact" })
-      .eq("assigned_to", userId).is("completed_at", null).eq("due_date", today).limit(5),
+      .contains("owner_ids", [userId]).is("completed_at", null).eq("due_date", today).limit(5),
     platform(supabase).from("goals").select("id", { count: "exact", head: true })
       .eq("owner_id", userId).eq("status", "active"),
     platform(supabase).from("tasks").select("id", { count: "exact", head: true })
