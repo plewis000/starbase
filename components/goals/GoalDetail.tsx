@@ -5,8 +5,6 @@ import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import CommentThread from "@/components/ui/CommentThread";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import EntityLinksSection from "@/components/ui/EntityLinksSection";
-import GanttView from "@/components/activity/views/GanttView";
-import SubtaskList from "@/components/tasks/SubtaskList";
 import { useToast } from "@/components/ui/Toast";
 
 interface Milestone {
@@ -57,6 +55,7 @@ interface GoalDetailProps {
   goalId: string;
   onClose: () => void;
   onGoalUpdated?: () => void;
+  onSelectTask?: (taskId: string) => void;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -66,17 +65,13 @@ const STATUS_COLORS: Record<string, string> = {
   abandoned: "text-dungeon-400 bg-dungeon-400/10",
 };
 
-export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetailProps) {
+export default function GoalDetail({ goalId, onClose, onGoalUpdated, onSelectTask }: GoalDetailProps) {
   const toast = useToast();
   const [goal, setGoal] = useState<GoalFull | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [confirmAbandoned, setConfirmAbandoned] = useState(false);
   const [togglingMilestone, setTogglingMilestone] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"overview" | "project">("overview");
-  const [addingTask, setAddingTask] = useState(false);
-  const [newTaskTitle, setNewTaskTitle] = useState("");
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchGoal = async () => {
@@ -181,54 +176,18 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
   const completedMilestones = milestones.filter((m) => m.completed_at).length;
   const linkedTasks = goal.linked_tasks || [];
   const progressPercent = Math.min(100, Math.round(goal.progress_value));
-  const isProject = linkedTasks.length > 0 || goal.progress_type === "task_driven";
 
-  // Build task tree: top-level tasks + subtasks grouped by parent
-  const topLevelTasks = linkedTasks.filter((t) => !t.parent_task_id || !linkedTasks.some((lt) => lt.id === t.parent_task_id));
-  const subtasksByParent = new Map<string, LinkedTask[]>();
-  for (const t of linkedTasks) {
-    if (t.parent_task_id && linkedTasks.some((lt) => lt.id === t.parent_task_id)) {
-      const existing = subtasksByParent.get(t.parent_task_id) || [];
-      existing.push(t);
-      subtasksByParent.set(t.parent_task_id, existing);
-    }
-  }
-
-  const handleAddTaskToGoal = async () => {
-    const title = newTaskTitle.trim();
-    if (!title || addingTask) return;
-    setAddingTask(true);
-    try {
-      // Create the task
-      const taskRes = await fetch("/api/tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title }),
-      });
-      if (!taskRes.ok) throw new Error("Failed to create task");
-      const { task } = await taskRes.json();
-
-      // Link it to the goal
-      await fetch(`/api/goals/${goalId}/tasks`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ task_id: task.id }),
-      });
-
-      setNewTaskTitle("");
-      // Re-fetch goal
-      const goalRes = await fetch(`/api/goals/${goalId}`);
-      if (goalRes.ok) {
-        const data = await goalRes.json();
-        setGoal(data.goal);
-      }
-      onGoalUpdated?.();
-    } catch {
-      toast.error("Failed to add task");
-    } finally {
-      setAddingTask(false);
-    }
-  };
+  // Task summary stats
+  const totalTasks = linkedTasks.length;
+  const doneTasks = linkedTasks.filter((t) => t.completed_at).length;
+  const donePercent = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
+  const inProgressTasks = linkedTasks.filter((t) => !t.completed_at && t.status_id).length - linkedTasks.filter((t) => !t.completed_at).length + linkedTasks.filter((t) => !t.completed_at).length; // all non-done
+  const today = new Date().toISOString().split("T")[0];
+  const overdueTasks = linkedTasks.filter((t) => !t.completed_at && t.due_date && t.due_date < today);
+  const upcomingDeadlines = linkedTasks
+    .filter((t) => !t.completed_at && t.due_date)
+    .sort((a, b) => (a.due_date! > b.due_date! ? 1 : -1))
+    .slice(0, 5);
 
   return (
     <div className="h-full overflow-y-auto">
@@ -254,25 +213,6 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
         </div>
         <h2 className="text-xl font-bold text-slate-100 mt-2">{goal.title}</h2>
       </div>
-
-      {/* Tab bar — only show Project tab when there are linked tasks */}
-      {isProject && (
-        <div className="flex border-b border-dungeon-800 px-6">
-          {(["overview", "project"] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
-                activeTab === tab
-                  ? "border-red-400 text-red-400"
-                  : "border-transparent text-dungeon-400 hover:text-slate-200"
-              }`}
-            >
-              {tab === "overview" ? "Overview" : "Project"}
-            </button>
-          ))}
-        </div>
-      )}
 
       <div className="p-6 space-y-6">
         {/* Description */}
@@ -352,154 +292,55 @@ export default function GoalDetail({ goalId, onClose, onGoalUpdated }: GoalDetai
           </div>
         )}
 
-        {/* Linked Tasks — overview mode: simple list */}
-        {linkedTasks.length > 0 && activeTab === "overview" && (
+        {/* Task Summary Stats */}
+        {totalTasks > 0 && (
           <div>
-            <h3 className="text-sm font-semibold text-slate-100 mb-3">
-              Linked Tasks ({linkedTasks.filter((t) => t.completed_at).length}/{linkedTasks.length} done)
-            </h3>
+            <h3 className="text-sm font-semibold text-slate-100 mb-3">Task Summary</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="bg-dungeon-900 rounded-lg border border-dungeon-800 p-3 text-center">
+                <div className="text-lg font-bold text-slate-100">{totalTasks}</div>
+                <div className="text-xs text-dungeon-400">Total</div>
+              </div>
+              <div className="bg-dungeon-900 rounded-lg border border-dungeon-800 p-3 text-center">
+                <div className="text-lg font-bold text-red-400">{doneTasks}</div>
+                <div className="text-xs text-dungeon-400">Done ({donePercent}%)</div>
+              </div>
+              <div className="bg-dungeon-900 rounded-lg border border-dungeon-800 p-3 text-center">
+                <div className="text-lg font-bold text-blue-400">{totalTasks - doneTasks}</div>
+                <div className="text-xs text-dungeon-400">Remaining</div>
+              </div>
+              <div className="bg-dungeon-900 rounded-lg border border-dungeon-800 p-3 text-center">
+                <div className={`text-lg font-bold ${overdueTasks.length > 0 ? "text-amber-400" : "text-dungeon-500"}`}>{overdueTasks.length}</div>
+                <div className="text-xs text-dungeon-400">Overdue</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Upcoming Deadlines */}
+        {upcomingDeadlines.length > 0 && (
+          <div>
+            <h3 className="text-sm font-semibold text-slate-100 mb-3">Upcoming Deadlines</h3>
             <div className="space-y-2">
-              {linkedTasks.map((t) => (
-                <div key={t.id} className="flex items-center gap-3 p-3 bg-dungeon-900 rounded-lg border border-dungeon-800">
-                  <div className={`w-4 h-4 rounded-full flex-shrink-0 ${
-                    t.completed_at ? "bg-red-400" : "bg-dungeon-600"
-                  }`} />
-                  <span className={`text-sm ${t.completed_at ? "text-dungeon-400 line-through" : "text-slate-100"}`}>
-                    {t.title}
-                  </span>
-                  {t.due_date && !t.completed_at && (
-                    <span className="text-xs text-dungeon-500 ml-auto">
-                      {new Date(t.due_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Project tab — task tree + Gantt */}
-        {activeTab === "project" && (
-          <div className="space-y-6">
-            {/* Task tree */}
-            <div>
-              <h3 className="text-sm font-semibold text-slate-100 mb-3">
-                Tasks ({linkedTasks.filter((t) => t.completed_at).length}/{linkedTasks.length} done)
-              </h3>
-              <div className="space-y-1">
-                {topLevelTasks.map((t) => {
-                  const subs = subtasksByParent.get(t.id) || [];
-                  return (
-                    <div key={t.id}>
-                      <div className="flex items-center gap-2 p-2.5 bg-dungeon-900 rounded-lg border border-dungeon-800 hover:border-dungeon-600 transition-colors">
-                        <div className={`w-4 h-4 rounded-full flex-shrink-0 ${
-                          t.completed_at ? "bg-red-400" : "bg-dungeon-700 border border-dungeon-600"
-                        }`} />
-                        <span className={`text-sm font-medium flex-1 ${t.completed_at ? "text-dungeon-400 line-through" : "text-slate-100"}`}>
-                          {t.title}
-                        </span>
-                        {t.due_date && !t.completed_at && (
-                          <span className="text-[10px] text-dungeon-500">
-                            {new Date(t.due_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                          </span>
-                        )}
-                        {subs.length > 0 && (
-                          <span className="text-[10px] text-dungeon-500 font-medium">
-                            {subs.filter((s) => s.completed_at).length}/{subs.length}
-                          </span>
-                        )}
-                      </div>
-                      {subs.length > 0 && (
-                        <div className="ml-6 mt-1 space-y-1">
-                          {subs.map((sub) => (
-                            <div key={sub.id} className="flex items-center gap-2 p-2 bg-dungeon-950 rounded border border-dungeon-800/50">
-                              <div className={`w-3 h-3 rounded-full flex-shrink-0 ${
-                                sub.completed_at ? "bg-red-400" : "bg-dungeon-700 border border-dungeon-600"
-                              }`} />
-                              <span className={`text-xs flex-1 ${sub.completed_at ? "text-dungeon-500 line-through" : "text-slate-200"}`}>
-                                {sub.title}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Add task inline */}
-              <div className="flex gap-2 mt-3">
-                <input
-                  type="text"
-                  value={newTaskTitle}
-                  onChange={(e) => setNewTaskTitle(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") { e.preventDefault(); handleAddTaskToGoal(); }
-                  }}
-                  placeholder="Add task to project..."
-                  disabled={addingTask}
-                  className="flex-1 bg-dungeon-800 border border-dungeon-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-dungeon-500 focus:outline-none focus:border-red-400 disabled:opacity-50"
-                />
-                <button
-                  onClick={handleAddTaskToGoal}
-                  disabled={addingTask || !newTaskTitle.trim()}
-                  className="px-3 py-2 text-xs font-medium bg-red-400 hover:bg-red-500 text-slate-950 rounded transition-colors disabled:opacity-50"
-                >
-                  Add
-                </button>
-              </div>
-            </div>
-
-            {/* Gantt view */}
-            {linkedTasks.some((t) => t.due_date || t.start_date) && (
-              <div>
-                <h3 className="text-sm font-semibold text-slate-100 mb-3">Timeline</h3>
-                <div className="bg-dungeon-950 rounded-lg border border-dungeon-800 p-2" style={{ minHeight: "200px" }}>
-                  <GanttView tasks={linkedTasks} onSelect={setSelectedTaskId} />
-                </div>
-              </div>
-            )}
-
-            {/* Selected task subtasks */}
-            {selectedTaskId && (
-              <div>
-                <h3 className="text-sm font-semibold text-slate-100 mb-3">
-                  Subtasks
+              {upcomingDeadlines.map((t) => {
+                const isOverdue = t.due_date! < today;
+                return (
                   <button
-                    onClick={() => setSelectedTaskId(null)}
-                    className="ml-2 text-xs text-dungeon-500 hover:text-slate-300"
+                    key={t.id}
+                    onClick={() => onSelectTask?.(t.id)}
+                    className="w-full flex items-center gap-3 p-3 bg-dungeon-900 rounded-lg border border-dungeon-800 hover:border-dungeon-600 transition-colors text-left"
                   >
-                    (close)
+                    <span className="text-sm text-slate-100 flex-1 min-w-0 truncate">{t.title}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 ${
+                      isOverdue
+                        ? "bg-amber-400/10 text-amber-400"
+                        : "bg-dungeon-800 text-dungeon-400"
+                    }`}>
+                      {new Date(t.due_date! + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                    </span>
                   </button>
-                </h3>
-                <SubtaskList parentTaskId={selectedTaskId} />
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Add task CTA for task_driven goals with no tasks */}
-        {goal.progress_type === "task_driven" && linkedTasks.length === 0 && activeTab === "overview" && (
-          <div>
-            <h3 className="text-sm font-semibold text-slate-100 mb-3">Linked Tasks</h3>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newTaskTitle}
-                onChange={(e) => setNewTaskTitle(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddTaskToGoal(); } }}
-                placeholder="Add a task to this goal..."
-                disabled={addingTask}
-                className="flex-1 bg-dungeon-800 border border-dungeon-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-dungeon-500 focus:outline-none focus:border-red-400 disabled:opacity-50"
-              />
-              <button
-                onClick={handleAddTaskToGoal}
-                disabled={addingTask || !newTaskTitle.trim()}
-                className="px-3 py-2 text-sm font-medium bg-red-400 hover:bg-red-500 text-slate-950 rounded transition-colors disabled:opacity-50"
-              >
-                Add
-              </button>
+                );
+              })}
             </div>
           </div>
         )}

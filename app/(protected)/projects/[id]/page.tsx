@@ -197,14 +197,12 @@ export default function ProjectDetailPage() {
             ))}
           </div>
 
-          {viewMode !== "overview" && (
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-medium transition-colors"
-            >
-              + Task
-            </button>
-          )}
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-medium transition-colors"
+          >
+            + Task
+          </button>
         </div>
       </div>
 
@@ -212,11 +210,12 @@ export default function ProjectDetailPage() {
       <div className="flex-1 flex overflow-hidden">
         <div className="flex-1 overflow-auto">
           {viewMode === "overview" ? (
-            <div className="max-w-3xl mx-auto p-6">
+            <div className="p-6">
               <GoalDetail
                 goalId={goalId}
                 onClose={() => router.push("/projects")}
                 onGoalUpdated={() => setRefreshTrigger((p) => p + 1)}
+                onSelectTask={(id) => setSelectedTaskId(id)}
               />
             </div>
           ) : loading ? (
@@ -266,7 +265,7 @@ export default function ProjectDetailPage() {
         </div>
 
         {/* Task detail sidebar */}
-        {selectedTaskId && viewMode !== "overview" && (
+        {selectedTaskId && (
           <div className="w-[480px] flex-shrink-0 overflow-y-auto border-l border-dungeon-800">
             <TaskDetail
               taskId={selectedTaskId}
