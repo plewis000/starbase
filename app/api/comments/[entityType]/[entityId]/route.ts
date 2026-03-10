@@ -8,7 +8,7 @@ import { isValidUUID, validateEnum } from "@/lib/validation";
 import { createCommentSchema, parseBody } from "@/lib/schemas";
 import { createClient } from "@/lib/supabase/server";
 
-const VALID_ENTITY_TYPES = ["task", "goal", "habit"] as const;
+const VALID_ENTITY_TYPES = ["task", "goal", "habit", "thread"] as const;
 
 // Helper: enrich comments with author info from platform.users
 async function enrichCommentsWithAuthors(
