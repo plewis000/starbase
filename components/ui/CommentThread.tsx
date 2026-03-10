@@ -436,12 +436,12 @@ export default function CommentThread({
     const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
     if (mentionMatch) {
       const beforeMention = textBeforeCursor.slice(0, mentionMatch.index);
-      const newText = `${beforeMention}@${member.display_name} ${textAfterCursor}`;
+      const newText = `${beforeMention}@${member.full_name} ${textAfterCursor}`;
       setNewComment(newText);
 
       setTimeout(() => {
         if (inputRef.current) {
-          const newPos = beforeMention.length + member.display_name.length + 2;
+          const newPos = beforeMention.length + member.full_name.length + 2;
           inputRef.current.focus();
           inputRef.current.setSelectionRange(newPos, newPos);
         }
