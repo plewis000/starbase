@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
               body: sug.body?.slice(0, 300) || sug.title,
               event: "system",
               metadata: { category: sug.category, type: "ai_suggestion" },
-            }).catch(() => {});
+            }).catch((err) => console.error("[generate-suggestions] notification failed:", err));
             delivered++;
           }
         }

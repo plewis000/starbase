@@ -78,6 +78,7 @@ export async function GET(request: NextRequest) {
                 footer: { text: "Zev | The Keep" },
               }],
             }),
+            signal: AbortSignal.timeout(8000),
           });
           if (res.ok) sentCount++;
         } catch (err) {
@@ -110,7 +111,7 @@ export async function GET(request: NextRequest) {
         title: `Morning Briefing: ${summaryTitle}`,
         body: briefing.slice(0, 300),
         event: "daily_digest",
-      }).catch(() => {});
+      }).catch((err) => console.error("[daily-digest] notification failed:", err));
 
       results.push({ userId: user.id, sent: true });
     } catch (err) {

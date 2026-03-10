@@ -77,6 +77,7 @@ export async function GET(request: NextRequest) {
                 footer: { text: "Zev | Weekly Review" },
               }],
             }),
+            signal: AbortSignal.timeout(8000),
           });
           if (res.ok) sentCount++;
         } catch (err) {
@@ -103,7 +104,7 @@ export async function GET(request: NextRequest) {
         title: `Weekly Review: ${data.tasksCompleted} tasks, ${data.habitsCompletionRate}% habits`,
         body: review.slice(0, 300),
         event: "weekly_review",
-      }).catch(() => {});
+      }).catch((err) => console.error("[weekly-review] notification failed:", err));
 
       results.push({ userId: user.id, sent: true });
     } catch (err) {

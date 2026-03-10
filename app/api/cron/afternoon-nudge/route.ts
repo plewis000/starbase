@@ -215,6 +215,7 @@ export async function GET(request: NextRequest) {
                     footer: { text: "Zev | The Keep" },
                   }],
                 }),
+                signal: AbortSignal.timeout(8000),
               });
             } catch (err) {
               console.error(`[afternoon-nudge] Webhook failed for ${user.id}:`, err);

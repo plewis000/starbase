@@ -259,9 +259,14 @@ export const POST = withUser(async (request: NextRequest, { supabase, user }) =>
 
     // Extract final text response
     const textBlocks = response.content.filter((block) => block.type === "text");
-    const responseText = textBlocks
+    let responseText = textBlocks
       .map((b) => (b as { type: "text"; text: string }).text)
       .join("\n") || "Done.";
+
+    if (toolRounds >= MAX_TOOL_ROUNDS) {
+      console.warn(`[agent] Hit MAX_TOOL_ROUNDS (${MAX_TOOL_ROUNDS}) for conversation ${conversationId}`);
+      responseText += "\n\n*(Note: I hit my tool-use limit for this turn. If I didn't finish, just ask me to continue.)*";
+    }
 
     // Calculate cost
     const costs = MODEL_COSTS[model] || { input: 0, output: 0 };

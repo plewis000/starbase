@@ -147,9 +147,10 @@ export async function executeTool(
       default:
         return { success: false, error: `Unknown tool: ${toolName}` };
     }
-  } catch (err) {
+  } catch (err: unknown) {
     console.error(`Tool execution error (${toolName}):`, err);
-    return { success: false, error: "Tool execution failed" };
+    const message = err instanceof Error ? err.message : String(err);
+    return { success: false, error: `Tool ${toolName} failed: ${message.slice(0, 150)}` };
   }
 }
 
