@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import SnoozeMenu from "@/components/ui/SnoozeMenu";
 
 interface Routine {
   id: string;
@@ -137,6 +138,20 @@ export default function RoutineChecklist({ onSelectRoutine, selectedRoutineId, r
       return true;
     });
   }, [routines, scope, todayStr, weekEndStr, monthEndStr]);
+
+  const handleSnooze = async (routineId: string, until: string) => {
+    try {
+      const res = await fetch(`/api/tasks/${routineId}/snooze`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ until }),
+      });
+      if (!res.ok) throw new Error("Snooze failed");
+      fetchRoutines();
+    } catch (err) {
+      console.error("Snooze failed:", err);
+    }
+  };
 
   const handleCheck = async (routineId: string) => {
     const routine = routines.find((r) => r.id === routineId);
@@ -355,6 +370,13 @@ export default function RoutineChecklist({ onSelectRoutine, selectedRoutineId, r
 
           {/* Right side */}
           <div className="flex items-center gap-3 flex-shrink-0 mt-1">
+            {/* Snooze (only on unsatisfied, non-snoozed) */}
+            {!isDone && !(routine.snoozed_until && routine.snoozed_until > todayStr) && (
+              <div className="hidden sm:block opacity-0 group-hover:opacity-100 transition-opacity">
+                <SnoozeMenu taskId={routine.id} onSnooze={handleSnooze} />
+              </div>
+            )}
+
             {/* Mini 7-day dots */}
             <div className="hidden sm:flex items-center gap-0.5" title="Last 7 days">
               {dots.map((dot) => (
