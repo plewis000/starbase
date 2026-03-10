@@ -168,7 +168,7 @@ export const updateShoppingItemSchema = z.object({
 // ---- Comment Schemas ----
 
 export const createCommentSchema = z.object({
-  content: trimmedString(5000),
+  body: trimmedString(5000),
   parent_id: optionalUuid,
   mentions: z.array(z.string().uuid()).max(20).optional(),
 });

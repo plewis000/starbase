@@ -144,7 +144,7 @@ export const POST = withAuth(async (request: NextRequest, { supabase, user }, pa
   if (!parsed.ok) {
     return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
-  const { content, parent_id } = parsed.data;
+  const { body: content, parent_id } = parsed.data;
 
   // Validate parent_id if provided (must be a comment on same entity)
   if (parent_id) {
