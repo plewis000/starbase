@@ -74,13 +74,16 @@ export default function RoutineTimeline({ onSelectRoutine, refreshTrigger }: Pro
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Fetch 5 weeks to cover ~35 days of completions
-        const promises = [];
-        for (let weekOffset = -4; weekOffset <= 0; weekOffset++) {
-          const d = new Date(today);
-          d.setDate(d.getDate() + weekOffset * 7);
+        // Each API call returns year-wide completions. include_completed=true
+        // ensures retired/completed routines still show their history.
+        const promises = [
+          fetch(`/api/routines/week?date=${todayStr}&include_completed=true`).then((r) => r.json()),
+        ];
+        // If we're in the first 3 months, also fetch previous year for history
+        if (today.getMonth() < 3) {
+          const lastYear = new Date(today.getFullYear() - 1, 6, 1);
           promises.push(
-            fetch(`/api/routines/week?date=${toDateStr(d)}`).then((r) => r.json())
+            fetch(`/api/routines/week?date=${toDateStr(lastYear)}&include_completed=true`).then((r) => r.json())
           );
         }
         const results = await Promise.all(promises);
@@ -103,7 +106,7 @@ export default function RoutineTimeline({ onSelectRoutine, refreshTrigger }: Pro
       }
     };
     fetchData();
-  }, [today, refreshTrigger]);
+  }, [today, todayStr, refreshTrigger]);
 
   // Build flat completion event list, sorted newest first
   const events = useMemo(() => {

@@ -211,7 +211,11 @@ export default function RoutineChecklist({ onSelectRoutine, selectedRoutineId, r
     scopedRoutines.filter((r) => !r.period_satisfied && r.snoozed_until && r.snoozed_until > todayStr),
     [scopedRoutines, todayStr]
   );
-  const doneRoutines = scopedRoutines.filter((r) => r.period_satisfied);
+  // Only show routines completed TODAY in the done section.
+  // Routines satisfied earlier in the period (e.g. weekly done 3 days ago) are hidden —
+  // interact with those through the timeline view.
+  const doneRoutines = scopedRoutines.filter((r) => r.period_satisfied && r.satisfied_on === todayStr);
+  const hiddenSatisfiedCount = scopedRoutines.filter((r) => r.period_satisfied && r.satisfied_on !== todayStr).length;
 
   // Report ordered IDs for sidebar navigation
   useEffect(() => {
@@ -219,8 +223,9 @@ export default function RoutineChecklist({ onSelectRoutine, selectedRoutineId, r
   }, [dueRoutines, doneRoutines, onRoutineListChange]);
 
   const totalCount = scopedRoutines.length;
-  const doneCount = doneRoutines.length;
-  const completionRate = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
+  // Count ALL satisfied routines for progress (including ones satisfied earlier in the period)
+  const allSatisfiedCount = scopedRoutines.filter((r) => r.period_satisfied).length;
+  const completionRate = totalCount > 0 ? Math.round((allSatisfiedCount / totalCount) * 100) : 0;
 
   // Mini dots for last 7 days
   const getMiniDots = (routine: Routine) => {
@@ -463,7 +468,7 @@ export default function RoutineChecklist({ onSelectRoutine, selectedRoutineId, r
                 : `${dueRoutines.length} remaining`}
             </span>
             <span className={`text-sm font-bold font-mono ${completionRate === 100 ? "text-emerald-400" : "text-red-400"}`}>
-              {doneCount}/{totalCount}
+              {allSatisfiedCount}/{totalCount}
             </span>
           </div>
           <div className="w-full bg-dungeon-800 rounded-full h-2">
@@ -510,7 +515,7 @@ export default function RoutineChecklist({ onSelectRoutine, selectedRoutineId, r
         </div>
       )}
 
-      {/* Done section (collapsible) */}
+      {/* Done today section (collapsible) */}
       {doneRoutines.length > 0 && (
         <div>
           <button
@@ -528,10 +533,17 @@ export default function RoutineChecklist({ onSelectRoutine, selectedRoutineId, r
             >
               <polyline points="9 18 15 12 9 6" />
             </svg>
-            Done ({doneRoutines.length})
+            Done today ({doneRoutines.length})
           </button>
           {showDone && <div className="space-y-1.5">{doneRoutines.map((r) => renderRoutineRow(r, true))}</div>}
         </div>
+      )}
+
+      {/* Note about routines satisfied earlier in the period */}
+      {hiddenSatisfiedCount > 0 && (
+        <p className="text-[11px] text-dungeon-600 text-center">
+          {hiddenSatisfiedCount} routine{hiddenSatisfiedCount > 1 ? "s" : ""} already done this period — see Timeline for history
+        </p>
       )}
 
       {/* Empty state */}

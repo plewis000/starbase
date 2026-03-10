@@ -214,9 +214,10 @@ export const GET = withAuth(async (request: NextRequest, { supabase, user, ctx }
   const yearEndStr = toDateStr(yearEnd);
 
   const memberIds = await getHouseholdMemberIds(supabase, ctx.household_id);
+  const includeCompleted = params.get("include_completed") === "true";
 
-  // 1. Fetch all routines (habit tasks + recurring tasks)
-  const { data: routines, error: routinesError } = await platform(supabase)
+  // 1. Fetch routines (habit tasks + recurring tasks)
+  let routineQuery = platform(supabase)
     .from("tasks")
     .select(`
       *,
@@ -226,8 +227,14 @@ export const GET = withAuth(async (request: NextRequest, { supabase, user, ctx }
     .in("created_by", memberIds)
     .is("parent_task_id", null)
     .or("is_habit.eq.true,recurrence_rule.not.is.null")
-    .is("completed_at", null)
     .order("title");
+
+  // By default only active routines; timeline passes include_completed=true
+  if (!includeCompleted) {
+    routineQuery = routineQuery.is("completed_at", null);
+  }
+
+  const { data: routines, error: routinesError } = await routineQuery;
 
   if (routinesError) {
     console.error("Failed to fetch routines:", routinesError.message);

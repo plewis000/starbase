@@ -129,7 +129,7 @@ export default function RoutineMonthlyDots({ onSelectRoutine, refreshTrigger }: 
           const d = new Date(today);
           d.setDate(d.getDate() + weekOffset * 7);
           promises.push(
-            fetch(`/api/routines/week?date=${toDateStr(d)}`).then((r) => r.json())
+            fetch(`/api/routines/week?date=${toDateStr(d)}&include_completed=true`).then((r) => r.json())
           );
         }
         const results = await Promise.all(promises);
