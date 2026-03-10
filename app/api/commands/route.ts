@@ -165,8 +165,7 @@ async function executeCommand(
 
   // --- /habits ---
   if (lower === "habits") {
-    const now = new Date();
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const today = new Date().toISOString().split("T")[0];
     const { data: habits } = await platform(supabase)
       .from("tasks")
       .select("id, title, streak_current, streak_longest")
@@ -220,8 +219,7 @@ async function executeCommand(
     }
 
     const habit = habits[0];
-    const now = new Date();
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const today = new Date().toISOString().split("T")[0];
 
     // Check if already done today
     const { data: existing } = await platform(supabase)
@@ -271,8 +269,8 @@ async function executeCommand(
   // --- /budget ---
   if (lower === "budget") {
     const now = new Date();
-    const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
-    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
+    const monthStart = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-01`;
+    const monthEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0)).toISOString().split("T")[0];
 
     const { data: budgets } = await supabase
       .schema("finance")

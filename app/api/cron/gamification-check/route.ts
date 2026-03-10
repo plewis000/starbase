@@ -269,8 +269,8 @@ async function countAllHabitsStreak(
 
   // Get completions for the last 90 days
   const ninetyDaysAgo = new Date();
-  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-  const cutoffStr = `${ninetyDaysAgo.getFullYear()}-${String(ninetyDaysAgo.getMonth() + 1).padStart(2, "0")}-${String(ninetyDaysAgo.getDate()).padStart(2, "0")}`;
+  ninetyDaysAgo.setUTCDate(ninetyDaysAgo.getUTCDate() - 90);
+  const cutoffStr = ninetyDaysAgo.toISOString().split("T")[0];
 
   const { data: checkIns } = await platform(supabase)
     .from("task_completions")
@@ -325,9 +325,9 @@ async function countConsecutiveUnderBudgetMonths(
   const categoryIds = budgets.map(b => b.category_id);
 
   // Compute the full date range: 12 months back to start of current month
-  const earliestDate = new Date(now.getFullYear(), now.getMonth() - 12, 1);
+  const earliestDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 12, 1));
   const rangeStart = earliestDate.toISOString().split("T")[0];
-  const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const currentMonthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   const rangeEnd = currentMonthStart.toISOString().split("T")[0];
 
   // ONE query: fetch all transactions for this user across all budget categories for the full range
@@ -351,8 +351,8 @@ async function countConsecutiveUnderBudgetMonths(
   // Check consecutive months
   let streak = 0;
   for (let monthsBack = 1; monthsBack <= 12; monthsBack++) {
-    const checkDate = new Date(now.getFullYear(), now.getMonth() - monthsBack, 1);
-    const monthKey = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, "0")}`;
+    const checkDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - monthsBack, 1));
+    const monthKey = `${checkDate.getUTCFullYear()}-${String(checkDate.getUTCMonth() + 1).padStart(2, "0")}`;
 
     let allUnder = true;
     for (const budget of budgets) {
@@ -477,8 +477,8 @@ async function countPartyHabitSync(
 
   // Get completions for shared habits, last 30 days
   const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  const cutoffStr = `${thirtyDaysAgo.getFullYear()}-${String(thirtyDaysAgo.getMonth() + 1).padStart(2, "0")}-${String(thirtyDaysAgo.getDate()).padStart(2, "0")}`;
+  thirtyDaysAgo.setUTCDate(thirtyDaysAgo.getUTCDate() - 30);
+  const cutoffStr = thirtyDaysAgo.toISOString().split("T")[0];
 
   const { data: checkIns } = await platform(supabase)
     .from("task_completions")
