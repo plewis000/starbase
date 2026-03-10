@@ -254,14 +254,22 @@ export const GET = withAuth(async (request: NextRequest, { supabase, user, ctx }
     // Also check completed recurrence instances
     for (const r of routines || []) {
       const sourceId = r.recurrence_source_id || r.id;
-      const { data: completedInstances } = await platform(supabase)
+      let instanceQuery = platform(supabase)
         .from("tasks")
         .select("due_date")
         .or(`id.eq.${sourceId},recurrence_source_id.eq.${sourceId}`)
         .not("completed_at", "is", null)
         .not("due_date", "is", null)
-        .gte("due_date", yearStartStr)
         .lte("due_date", yearEndStr);
+
+      // Only count completions for THIS or future occurrence, not previous ones
+      if (r.due_date) {
+        instanceQuery = instanceQuery.gte("due_date", r.due_date);
+      } else {
+        instanceQuery = instanceQuery.gte("due_date", yearStartStr);
+      }
+
+      const { data: completedInstances } = await instanceQuery;
 
       for (const inst of completedInstances || []) {
         if (!completionsMap[r.id]) completionsMap[r.id] = [];
@@ -298,6 +306,7 @@ export const GET = withAuth(async (request: NextRequest, { supabase, user, ctx }
       is_habit: routine.is_habit,
       created_at: routine.created_at,
       due_date: routine.due_date,
+      snoozed_until: routine.snoozed_until || null,
       completions: satisfaction.completions,
       period_satisfied: satisfaction.period_satisfied,
       satisfied_on: satisfaction.satisfied_on,

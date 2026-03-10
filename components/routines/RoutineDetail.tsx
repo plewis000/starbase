@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import RecurrenceEditor from "@/components/tasks/RecurrenceEditor";
 import { useTaskConfig } from "@/hooks/useTaskConfig";
 import { InlineTagEditor } from "@/components/tasks/InlineFieldEditors";
+import SnoozeMenu from "@/components/ui/SnoozeMenu";
 
 interface RoutineData {
   id: string;
@@ -21,12 +22,15 @@ interface RoutineData {
   tags?: any[];
   created_at: string;
   completions: Record<string, boolean>;
+  snoozed_until?: string | null;
 }
 
 interface Props {
   routineId: string;
   onClose: () => void;
   onUpdated?: () => void;
+  onNavigatePrev?: () => void;
+  onNavigateNext?: () => void;
 }
 
 function getInitials(name?: string): string {
@@ -34,7 +38,7 @@ function getInitials(name?: string): string {
   return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
 }
 
-export default function RoutineDetail({ routineId, onClose, onUpdated }: Props) {
+export default function RoutineDetail({ routineId, onClose, onUpdated, onNavigatePrev, onNavigateNext }: Props) {
   const [routine, setRoutine] = useState<RoutineData | null>(null);
   const [loading, setLoading] = useState(true);
   const [editingTitle, setEditingTitle] = useState(false);
@@ -86,6 +90,34 @@ export default function RoutineDetail({ routineId, onClose, onUpdated }: Props) 
       fetchRoutine();
     } catch (err) {
       console.error("Patch failed:", err);
+    }
+  };
+
+  const handleSnooze = async (_taskId: string, until: string) => {
+    if (!routine) return;
+    try {
+      const res = await fetch(`/api/tasks/${routine.id}/snooze`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ until }),
+      });
+      if (!res.ok) throw new Error("Snooze failed");
+      onUpdated?.();
+      fetchRoutine();
+    } catch (err) {
+      console.error("Snooze failed:", err);
+    }
+  };
+
+  const handleUnsnooze = async () => {
+    if (!routine) return;
+    try {
+      const res = await fetch(`/api/tasks/${routine.id}/snooze`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Unsnooze failed");
+      onUpdated?.();
+      fetchRoutine();
+    } catch (err) {
+      console.error("Unsnooze failed:", err);
     }
   };
 
@@ -196,9 +228,31 @@ export default function RoutineDetail({ routineId, onClose, onUpdated }: Props) 
               </h1>
             )}
           </div>
-          <button onClick={onClose} className="text-dungeon-400 hover:text-slate-100 transition-colors p-1.5">
-            ✕
-          </button>
+          <div className="flex-shrink-0 flex items-center gap-1">
+            {(onNavigatePrev || onNavigateNext) && (
+              <>
+                <button
+                  onClick={onNavigatePrev}
+                  disabled={!onNavigatePrev}
+                  className="p-1.5 rounded text-dungeon-400 hover:text-slate-100 hover:bg-dungeon-800 transition-colors disabled:opacity-25 disabled:cursor-not-allowed"
+                  title="Previous routine"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15" /></svg>
+                </button>
+                <button
+                  onClick={onNavigateNext}
+                  disabled={!onNavigateNext}
+                  className="p-1.5 rounded text-dungeon-400 hover:text-slate-100 hover:bg-dungeon-800 transition-colors disabled:opacity-25 disabled:cursor-not-allowed"
+                  title="Next routine"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
+                </button>
+              </>
+            )}
+            <button onClick={onClose} className="text-dungeon-400 hover:text-slate-100 transition-colors p-1.5">
+              ✕
+            </button>
+          </div>
         </div>
       </div>
 
@@ -248,8 +302,42 @@ export default function RoutineDetail({ routineId, onClose, onUpdated }: Props) 
             </div>
           </div>
 
+          {/* Snooze banner */}
+          {routine.snoozed_until && routine.snoozed_until > new Date().toISOString().slice(0, 10) && (
+            <div className="bg-amber-500/10 border border-amber-400/20 rounded-lg px-4 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-sm">💤</span>
+                <span className="text-sm text-amber-300">
+                  Snoozed until{" "}
+                  {new Date(routine.snoozed_until + "T12:00:00").toLocaleDateString("en-US", {
+                    weekday: "short",
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </span>
+              </div>
+              <button
+                onClick={handleUnsnooze}
+                className="px-2 py-1 rounded text-xs font-medium text-amber-400 hover:bg-amber-400/20 transition-colors"
+              >
+                Unsnooze
+              </button>
+            </div>
+          )}
+
           {/* Meta card */}
           <div className="bg-dungeon-800 border border-dungeon-700 rounded-lg p-4 space-y-4">
+            {/* Snooze */}
+            {(!routine.snoozed_until || routine.snoozed_until <= new Date().toISOString().slice(0, 10)) && (
+              <div className="flex items-start gap-3">
+                <span className="text-dungeon-500 text-sm mt-0.5">💤</span>
+                <div className="flex-1">
+                  <p className="text-xs text-dungeon-400 mb-1">Snooze</p>
+                  <SnoozeMenu taskId={routine.id} onSnooze={handleSnooze} />
+                </div>
+              </div>
+            )}
+
             {/* Recurrence */}
             <div className="flex items-start gap-3">
               <span className="text-dungeon-500 text-sm mt-0.5">🔄</span>

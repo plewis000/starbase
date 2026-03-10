@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import RoutineChecklist from "@/components/routines/RoutineChecklist";
 import RoutineMonthlyDots from "@/components/routines/RoutineMonthlyDots";
 import RoutineTimeline from "@/components/routines/RoutineTimeline";
@@ -12,6 +12,25 @@ export default function RoutinesPage() {
   const [viewMode, setViewMode] = useState<ViewMode>("checklist");
   const [selectedRoutineId, setSelectedRoutineId] = useState<string | undefined>();
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const routineIdsRef = useRef<string[]>([]);
+
+  const handleRoutineListChange = useCallback((ids: string[]) => {
+    routineIdsRef.current = ids;
+  }, []);
+
+  const navigatePrev = selectedRoutineId ? (() => {
+    const idx = routineIdsRef.current.indexOf(selectedRoutineId);
+    if (idx > 0) setSelectedRoutineId(routineIdsRef.current[idx - 1]);
+  }) : undefined;
+
+  const navigateNext = selectedRoutineId ? (() => {
+    const idx = routineIdsRef.current.indexOf(selectedRoutineId);
+    if (idx >= 0 && idx < routineIdsRef.current.length - 1) setSelectedRoutineId(routineIdsRef.current[idx + 1]);
+  }) : undefined;
+
+  const selectedIdx = selectedRoutineId ? routineIdsRef.current.indexOf(selectedRoutineId) : -1;
+  const hasPrev = selectedIdx > 0;
+  const hasNext = selectedIdx >= 0 && selectedIdx < routineIdsRef.current.length - 1;
 
   const handleRoutineUpdated = useCallback(() => {
     setRefreshTrigger((p) => p + 1);
@@ -57,6 +76,7 @@ export default function RoutinesPage() {
                 onSelectRoutine={setSelectedRoutineId}
                 selectedRoutineId={selectedRoutineId}
                 refreshTrigger={refreshTrigger}
+                onRoutineListChange={handleRoutineListChange}
               />
             )}
             {viewMode === "dots" && (
@@ -81,6 +101,8 @@ export default function RoutinesPage() {
               routineId={selectedRoutineId}
               onClose={() => setSelectedRoutineId(undefined)}
               onUpdated={handleRoutineUpdated}
+              onNavigatePrev={hasPrev ? navigatePrev : undefined}
+              onNavigateNext={hasNext ? navigateNext : undefined}
             />
           </div>
         )}
@@ -121,6 +143,7 @@ export default function RoutinesPage() {
               onSelectRoutine={setSelectedRoutineId}
               selectedRoutineId={selectedRoutineId}
               refreshTrigger={refreshTrigger}
+              onRoutineListChange={handleRoutineListChange}
             />
           )}
           {viewMode === "dots" && (

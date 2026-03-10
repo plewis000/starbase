@@ -20,6 +20,7 @@ interface Routine {
   period_label: string;
   tags?: any[];
   due_date?: string;
+  snoozed_until?: string | null;
 }
 
 type Scope = "today" | "week" | "month" | "all";
@@ -28,6 +29,7 @@ interface Props {
   onSelectRoutine?: (id: string) => void;
   selectedRoutineId?: string;
   refreshTrigger?: number;
+  onRoutineListChange?: (ids: string[]) => void;
 }
 
 function toDateStr(d: Date): string {
@@ -87,11 +89,12 @@ const FREQ_COLORS: Record<string, { badge: string; dot: string }> = {
   yearly: { badge: "text-emerald-400 bg-emerald-400/10 border-emerald-400/20", dot: "bg-emerald-400" },
 };
 
-export default function RoutineChecklist({ onSelectRoutine, selectedRoutineId, refreshTrigger }: Props) {
+export default function RoutineChecklist({ onSelectRoutine, selectedRoutineId, refreshTrigger, onRoutineListChange }: Props) {
   const [routines, setRoutines] = useState<Routine[]>([]);
   const [loading, setLoading] = useState(true);
   const [checking, setChecking] = useState<string | null>(null);
   const [showDone, setShowDone] = useState(false);
+  const [showSnoozed, setShowSnoozed] = useState(false);
   const [scope, setScope] = useState<Scope>("today");
 
   const todayStr = useMemo(() => toDateStr(new Date()), []);
@@ -178,18 +181,28 @@ export default function RoutineChecklist({ onSelectRoutine, selectedRoutineId, r
     }
   };
 
-  // Split scoped routines into due / done, sorted by due_date (soonest first)
+  // Split scoped routines into due / snoozed / done, sorted by due_date (soonest first)
   const dueRoutines = useMemo(() =>
     scopedRoutines
-      .filter((r) => !r.period_satisfied)
+      .filter((r) => !r.period_satisfied && !(r.snoozed_until && r.snoozed_until > todayStr))
       .sort((a, b) => {
         const aDate = a.due_date || "9999-12-31";
         const bDate = b.due_date || "9999-12-31";
         return aDate.localeCompare(bDate);
       }),
-    [scopedRoutines]
+    [scopedRoutines, todayStr]
+  );
+  const snoozedRoutines = useMemo(() =>
+    scopedRoutines.filter((r) => !r.period_satisfied && r.snoozed_until && r.snoozed_until > todayStr),
+    [scopedRoutines, todayStr]
   );
   const doneRoutines = scopedRoutines.filter((r) => r.period_satisfied);
+
+  // Report ordered IDs for sidebar navigation
+  useEffect(() => {
+    onRoutineListChange?.([...dueRoutines, ...doneRoutines].map((r) => r.id));
+  }, [dueRoutines, doneRoutines, onRoutineListChange]);
+
   const totalCount = scopedRoutines.length;
   const doneCount = doneRoutines.length;
   const completionRate = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
@@ -290,7 +303,16 @@ export default function RoutineChecklist({ onSelectRoutine, selectedRoutineId, r
             {/* Row 2: Due date, owners, tags */}
             <div className="flex items-center gap-2 text-[11px] flex-wrap">
               {/* Due date or completion status */}
-              {isDone && routine.satisfied_on ? (
+              {routine.snoozed_until && routine.snoozed_until > todayStr ? (
+                <span className="text-amber-400/70">
+                  💤 Snoozed until{" "}
+                  {new Date(routine.snoozed_until + "T12:00:00").toLocaleDateString("en-US", {
+                    weekday: "short",
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </span>
+              ) : isDone && routine.satisfied_on ? (
                 <span className="text-emerald-500/70">
                   Done {routine.satisfied_on === todayStr
                     ? "today"
@@ -435,6 +457,34 @@ export default function RoutineChecklist({ onSelectRoutine, selectedRoutineId, r
       {dueRoutines.length > 0 && (
         <div className="space-y-1.5">
           {dueRoutines.map((r) => renderRoutineRow(r, false))}
+        </div>
+      )}
+
+      {/* Snoozed section (collapsible) */}
+      {snoozedRoutines.length > 0 && (
+        <div>
+          <button
+            onClick={() => setShowSnoozed(!showSnoozed)}
+            className="flex items-center gap-2 text-xs font-semibold text-amber-500/60 uppercase tracking-wider mb-3 hover:text-amber-400 transition-colors"
+          >
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              className={`transition-transform ${showSnoozed ? "rotate-90" : ""}`}
+            >
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+            Snoozed ({snoozedRoutines.length})
+          </button>
+          {showSnoozed && (
+            <div className="space-y-1.5 opacity-60">
+              {snoozedRoutines.map((r) => renderRoutineRow(r, false))}
+            </div>
+          )}
         </div>
       )}
 
