@@ -103,7 +103,7 @@ export const POST = withUser(async (request: NextRequest, { supabase, user }) =>
   if (!parsed.ok) {
     return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
-  const { type, content, source } = parsed.data;
+  const { type, body: content, source } = parsed.data;
 
   // Get household context (non-blocking — feedback works without a household)
   let householdId: string | null = null;

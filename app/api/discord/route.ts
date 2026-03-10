@@ -577,8 +577,7 @@ async function handleHabit(supabase: Supabase, userId: string, options: Record<s
     const { getDefaultStatusId } = await import("@/lib/habit-tasks");
     const statusId = await getDefaultStatusId(supabase);
 
-    const now = new Date();
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const today = new Date().toISOString().split("T")[0];
 
     const { data: newTask, error } = await platform(supabase)
       .from("tasks")
@@ -652,8 +651,7 @@ async function handleHabit(supabase: Supabase, userId: string, options: Record<s
   }
 
   // Check if already checked in today
-  const now = new Date();
-  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const today = new Date().toISOString().split("T")[0];
   const { data: existing } = await platform(supabase)
     .from("task_completions")
     .select("id")
@@ -737,14 +735,14 @@ async function handleBudget(supabase: Supabase, userId: string, options: Record<
   let startDate: string;
 
   if (period === "week") {
-    const day = now.getDay();
+    const day = now.getUTCDay();
     const sun = new Date(now);
-    sun.setDate(now.getDate() - day);
-    startDate = sun.toISOString().slice(0, 10);
+    sun.setUTCDate(now.getUTCDate() - day);
+    startDate = sun.toISOString().split("T")[0];
   } else if (period === "year") {
-    startDate = `${now.getFullYear()}-01-01`;
+    startDate = `${now.getUTCFullYear()}-01-01`;
   } else {
-    startDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+    startDate = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-01`;
   }
   const endDate = now.toISOString().slice(0, 10);
 
@@ -937,7 +935,7 @@ async function handleDashboard(supabase: Supabase, userId: string, webhookUrl: s
 
 async function handleUsage(supabase: Supabase, webhookUrl: string) {
   const now = new Date();
-  const startOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01T00:00:00Z`;
+  const startOfMonth = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-01T00:00:00Z`;
 
   const { data: messages } = await platform(supabase)
     .from("agent_messages")
@@ -1177,9 +1175,14 @@ async function runAgent(
   }
 
   const textBlocks = response.content.filter((b) => b.type === "text");
-  const responseText = textBlocks
+  let responseText = textBlocks
     .map((b) => (b as { type: "text"; text: string }).text)
     .join("\n") || "Done.";
+
+  if (toolRounds >= MAX_TOOL_ROUNDS) {
+    console.warn(`[discord] Hit MAX_TOOL_ROUNDS (${MAX_TOOL_ROUNDS}) for user ${userId}`);
+    responseText += "\n\n*(Note: I hit my tool-use limit for this turn. If I didn't finish, just ask me to continue.)*";
+  }
 
   const costs = MODEL_COSTS[model] || { input: 0, output: 0 };
   const costCents = ((totalInputTokens / 1000) * costs.input + (totalOutputTokens / 1000) * costs.output) * 100;
@@ -1192,7 +1195,7 @@ async function runAgent(
         role: "assistant",
         content: responseText,
         tokens_used: totalInputTokens + totalOutputTokens,
-        model: tier,
+        model,
         cost_cents: Math.round(costCents * 10000) / 10000,
       });
 

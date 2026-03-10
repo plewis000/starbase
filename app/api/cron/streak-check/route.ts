@@ -36,9 +36,8 @@ export async function GET(request: NextRequest) {
 
   // Check which ones had a completion yesterday
   const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  const y = yesterday;
-  const yesterdayStr = `${y.getFullYear()}-${String(y.getMonth() + 1).padStart(2, "0")}-${String(y.getDate()).padStart(2, "0")}`;
+  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+  const yesterdayStr = yesterday.toISOString().split("T")[0];
 
   const taskIds = atRisk.map(h => h.id);
   const { data: completions } = await platform(supabase)
@@ -61,7 +60,7 @@ export async function GET(request: NextRequest) {
       checkAchievements(supabase, ownerId, "custom", {
         custom_type: "streak_broken",
         min_length: habit.streak_current,
-      }).catch(() => {});
+      }).catch((err) => console.error("[streak-check] achievement check failed:", err));
     }
   }
 
@@ -81,7 +80,7 @@ export async function GET(request: NextRequest) {
       title: `${habits.length} streak${habits.length > 1 ? "s" : ""} at risk`,
       body: `Check in today or lose: ${names}${suffix}`,
       event: "streak_broken",
-    }).catch(() => {});
+    }).catch((err) => console.error("[streak-check] notification failed:", err));
   }
 
   const channelId = await findChannelByName(CHANNELS.GENERAL);

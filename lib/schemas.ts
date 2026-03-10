@@ -231,7 +231,7 @@ export const bulkTagUpdateSchema = z.object({
 
 export const createFeedbackSchema = z.object({
   type: z.enum(["bug", "wish", "feedback", "question"]),
-  content: trimmedString(5000),
+  body: trimmedString(5000),
   source: z.enum(["web_form", "chat", "discord", "system"]).default("web_form"),
 });
 
