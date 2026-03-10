@@ -321,28 +321,42 @@ async function countConsecutiveUnderBudgetMonths(
 
   if (!budgets || budgets.length === 0) return 0;
 
-  let streak = 0;
   const now = new Date();
+  const categoryIds = budgets.map(b => b.category_id);
 
-  // Check up to 12 months back
+  // Compute the full date range: 12 months back to start of current month
+  const earliestDate = new Date(now.getFullYear(), now.getMonth() - 12, 1);
+  const rangeStart = earliestDate.toISOString().split("T")[0];
+  const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const rangeEnd = currentMonthStart.toISOString().split("T")[0];
+
+  // ONE query: fetch all transactions for this user across all budget categories for the full range
+  const { data: allTransactions } = await supabase
+    .schema("finance")
+    .from("transactions")
+    .select("amount, category_id, date")
+    .eq("user_id", userId)
+    .in("category_id", categoryIds)
+    .gte("date", rangeStart)
+    .lt("date", rangeEnd);
+
+  // Group transactions by month+category
+  const spendingByMonthCategory = new Map<string, number>();
+  for (const t of allTransactions || []) {
+    const monthKey = (t.date as string).slice(0, 7); // "YYYY-MM"
+    const key = `${monthKey}:${t.category_id}`;
+    spendingByMonthCategory.set(key, (spendingByMonthCategory.get(key) || 0) + Math.abs(Number(t.amount)));
+  }
+
+  // Check consecutive months
+  let streak = 0;
   for (let monthsBack = 1; monthsBack <= 12; monthsBack++) {
     const checkDate = new Date(now.getFullYear(), now.getMonth() - monthsBack, 1);
-    const monthStart = checkDate.toISOString().split("T")[0];
-    const nextMonth = new Date(checkDate.getFullYear(), checkDate.getMonth() + 1, 1);
-    const monthEnd = nextMonth.toISOString().split("T")[0];
+    const monthKey = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, "0")}`;
 
     let allUnder = true;
     for (const budget of budgets) {
-      const { data: spending } = await supabase
-        .schema("finance")
-        .from("transactions")
-        .select("amount")
-        .eq("user_id", userId)
-        .eq("category_id", budget.category_id)
-        .gte("date", monthStart)
-        .lt("date", monthEnd);
-
-      const total = (spending || []).reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0);
+      const total = spendingByMonthCategory.get(`${monthKey}:${budget.category_id}`) || 0;
       if (total > Number(budget.amount)) {
         allUnder = false;
         break;

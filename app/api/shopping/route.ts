@@ -18,27 +18,29 @@ export const GET = withAuth(async (_request: NextRequest, { supabase, ctx }) => 
 
   if (error) { console.error(error.message); return NextResponse.json({ error: "Internal server error" }, { status: 500 }); }
 
-  // For each list, get item counts
-  const listsWithCounts = await Promise.all(
-    (lists || []).map(async (list) => {
-      const { count: totalCount } = await household(supabase)
+  // Fetch ALL shopping items for all lists in ONE query, then compute counts in memory
+  const listIds = (lists || []).map(l => l.id);
+  const { data: allItems } = listIds.length > 0
+    ? await household(supabase)
         .from("shopping_items")
-        .select("*", { count: "exact", head: true })
-        .eq("list_id", list.id);
+        .select("list_id, checked")
+        .in("list_id", listIds)
+    : { data: [] as { list_id: string; checked: boolean }[] };
 
-      const { count: checkedCount } = await household(supabase)
-        .from("shopping_items")
-        .select("*", { count: "exact", head: true })
-        .eq("list_id", list.id)
-        .eq("checked", true);
+  const totalByList = new Map<string, number>();
+  const checkedByList = new Map<string, number>();
+  for (const item of allItems || []) {
+    totalByList.set(item.list_id, (totalByList.get(item.list_id) || 0) + 1);
+    if (item.checked) {
+      checkedByList.set(item.list_id, (checkedByList.get(item.list_id) || 0) + 1);
+    }
+  }
 
-      return {
-        ...list,
-        total_items: totalCount || 0,
-        checked_items: checkedCount || 0,
-      };
-    })
-  );
+  const listsWithCounts = (lists || []).map(list => ({
+    ...list,
+    total_items: totalByList.get(list.id) || 0,
+    checked_items: checkedByList.get(list.id) || 0,
+  }));
 
   return NextResponse.json({ lists: listsWithCounts });
 });

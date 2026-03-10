@@ -61,40 +61,67 @@ export async function GET(request: NextRequest) {
   const userIds = Array.from(userWebhooks.keys());
   let sentCount = 0;
 
+  // Batch: fetch ALL overdue, due-today, and due-tomorrow tasks for all users in 3 queries
+  const { data: allOverdue } = await platform(supabase)
+    .from("tasks")
+    .select("id, title, due_date, owner_ids")
+    .lt("due_date", todayStr)
+    .in("status_id", openStatusIds)
+    .order("due_date", { ascending: true });
+
+  const { data: allDueToday } = await platform(supabase)
+    .from("tasks")
+    .select("id, title, due_date, owner_ids")
+    .eq("due_date", todayStr)
+    .in("status_id", openStatusIds)
+    .order("created_at", { ascending: true });
+
+  const { data: allDueTomorrow } = await platform(supabase)
+    .from("tasks")
+    .select("id, title, due_date, owner_ids")
+    .eq("due_date", tomorrowStr)
+    .in("status_id", openStatusIds)
+    .order("created_at", { ascending: true });
+
+  // Group tasks by user
+  const userIdSet = new Set(userIds);
+  const overdueByUser = new Map<string, typeof allOverdue>();
+  const dueTodayByUser = new Map<string, typeof allDueToday>();
+  const dueTomorrowByUser = new Map<string, typeof allDueTomorrow>();
+
+  for (const task of allOverdue || []) {
+    for (const ownerId of (task.owner_ids as string[]) || []) {
+      if (userIdSet.has(ownerId)) {
+        if (!overdueByUser.has(ownerId)) overdueByUser.set(ownerId, []);
+        overdueByUser.get(ownerId)!.push(task);
+      }
+    }
+  }
+  for (const task of allDueToday || []) {
+    for (const ownerId of (task.owner_ids as string[]) || []) {
+      if (userIdSet.has(ownerId)) {
+        if (!dueTodayByUser.has(ownerId)) dueTodayByUser.set(ownerId, []);
+        dueTodayByUser.get(ownerId)!.push(task);
+      }
+    }
+  }
+  for (const task of allDueTomorrow || []) {
+    for (const ownerId of (task.owner_ids as string[]) || []) {
+      if (userIdSet.has(ownerId)) {
+        if (!dueTomorrowByUser.has(ownerId)) dueTomorrowByUser.set(ownerId, []);
+        dueTomorrowByUser.get(ownerId)!.push(task);
+      }
+    }
+  }
+
   for (const userId of userIds) {
-    // Fetch overdue tasks for this user
-    const { data: overdue } = await platform(supabase)
-      .from("tasks")
-      .select("id, title, due_date")
-      .lt("due_date", todayStr)
-      .in("status_id", openStatusIds)
-      .contains("owner_ids", [userId])
-      .order("due_date", { ascending: true })
-      .limit(15);
+    const overdue = (overdueByUser.get(userId) || []).slice(0, 15);
+    const dueToday = (dueTodayByUser.get(userId) || []).slice(0, 15);
+    const dueTomorrow = (dueTomorrowByUser.get(userId) || []).slice(0, 10);
 
-    // Fetch tasks due today
-    const { data: dueToday } = await platform(supabase)
-      .from("tasks")
-      .select("id, title, due_date")
-      .eq("due_date", todayStr)
-      .in("status_id", openStatusIds)
-      .contains("owner_ids", [userId])
-      .order("created_at", { ascending: true })
-      .limit(15);
-
-    // Fetch tasks due tomorrow
-    const { data: dueTomorrow } = await platform(supabase)
-      .from("tasks")
-      .select("id, title, due_date")
-      .eq("due_date", tomorrowStr)
-      .in("status_id", openStatusIds)
-      .contains("owner_ids", [userId])
-      .order("created_at", { ascending: true })
-      .limit(10);
-
-    const overdueCount = overdue?.length || 0;
-    const todayCount = dueToday?.length || 0;
-    const tomorrowCount = dueTomorrow?.length || 0;
+    const overdueCount = overdue.length;
+    const todayCount = dueToday.length;
+    const tomorrowCount = dueTomorrow.length;
 
     if (overdueCount === 0 && todayCount === 0 && tomorrowCount === 0) {
       continue;
@@ -104,19 +131,19 @@ export async function GET(request: NextRequest) {
     const fields: { name: string; value: string; inline?: boolean }[] = [];
 
     if (overdueCount > 0) {
-      const lines = overdue!.slice(0, 8).map(t => `- **${t.title}** (due ${t.due_date})`);
+      const lines = overdue.slice(0, 8).map(t => `- **${t.title}** (due ${t.due_date})`);
       if (overdueCount > 8) lines.push(`...and ${overdueCount - 8} more`);
       fields.push({ name: `Overdue (${overdueCount})`, value: lines.join("\n") });
     }
 
     if (todayCount > 0) {
-      const lines = dueToday!.slice(0, 8).map(t => `- **${t.title}**`);
+      const lines = dueToday.slice(0, 8).map(t => `- **${t.title}**`);
       if (todayCount > 8) lines.push(`...and ${todayCount - 8} more`);
       fields.push({ name: `Due Today (${todayCount})`, value: lines.join("\n") });
     }
 
     if (tomorrowCount > 0) {
-      const lines = dueTomorrow!.slice(0, 5).map(t => `- ${t.title}`);
+      const lines = dueTomorrow.slice(0, 5).map(t => `- ${t.title}`);
       if (tomorrowCount > 5) lines.push(`...and ${tomorrowCount - 5} more`);
       fields.push({ name: `Due Tomorrow (${tomorrowCount})`, value: lines.join("\n") });
     }
@@ -144,6 +171,7 @@ export async function GET(request: NextRequest) {
             footer: { text: "The Keep" },
           }],
         }),
+        signal: AbortSignal.timeout(8000),
       });
 
       if (res.ok) {
