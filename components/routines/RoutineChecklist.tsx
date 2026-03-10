@@ -87,8 +87,6 @@ const FREQ_COLORS: Record<string, { badge: string; dot: string }> = {
   yearly: { badge: "text-emerald-400 bg-emerald-400/10 border-emerald-400/20", dot: "bg-emerald-400" },
 };
 
-const FREQ_ORDER = ["daily", "weekly", "biweekly", "monthly", "quarterly", "biannual", "yearly"];
-
 export default function RoutineChecklist({ onSelectRoutine, selectedRoutineId, refreshTrigger }: Props) {
   const [routines, setRoutines] = useState<Routine[]>([]);
   const [loading, setLoading] = useState(true);
@@ -180,23 +178,21 @@ export default function RoutineChecklist({ onSelectRoutine, selectedRoutineId, r
     }
   };
 
-  // Split scoped routines into due / done
-  const dueRoutines = scopedRoutines.filter((r) => !r.period_satisfied);
+  // Split scoped routines into due / done, sorted by due_date (soonest first)
+  const dueRoutines = useMemo(() =>
+    scopedRoutines
+      .filter((r) => !r.period_satisfied)
+      .sort((a, b) => {
+        const aDate = a.due_date || "9999-12-31";
+        const bDate = b.due_date || "9999-12-31";
+        return aDate.localeCompare(bDate);
+      }),
+    [scopedRoutines]
+  );
   const doneRoutines = scopedRoutines.filter((r) => r.period_satisfied);
   const totalCount = scopedRoutines.length;
   const doneCount = doneRoutines.length;
   const completionRate = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
-
-  // Group due routines by frequency
-  const groupedDue = useMemo(() => {
-    const groups: Record<string, Routine[]> = {};
-    for (const r of dueRoutines) {
-      const key = r.frequency;
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(r);
-    }
-    return groups;
-  }, [dueRoutines]);
 
   // Mini dots for last 7 days
   const getMiniDots = (routine: Routine) => {
@@ -317,16 +313,18 @@ export default function RoutineChecklist({ onSelectRoutine, selectedRoutineId, r
                 </>
               )}
 
-              {routine.tags && routine.tags.length > 0 && (
+              {routine.tags && routine.tags.length > 0 && routine.tags.some((t: any) => t.tag?.name) && (
                 <>
                   <span className="text-dungeon-700">·</span>
                   {routine.tags.slice(0, 2).map((tag: any) => (
-                    <span
-                      key={tag.id || tag.tag_id}
-                      className="px-1.5 py-0 rounded text-[10px] bg-dungeon-800 text-dungeon-400 border border-dungeon-700"
-                    >
-                      {tag.name || tag.tag_name}
-                    </span>
+                    tag.tag?.name ? (
+                      <span
+                        key={tag.id || tag.tag_id}
+                        className="px-1.5 py-0 rounded text-[10px] bg-dungeon-800 text-dungeon-400 border border-dungeon-700"
+                      >
+                        {tag.tag.name}
+                      </span>
+                    ) : null
                   ))}
                 </>
               )}
@@ -433,25 +431,10 @@ export default function RoutineChecklist({ onSelectRoutine, selectedRoutineId, r
         </div>
       )}
 
-      {/* Due section — grouped by frequency */}
+      {/* Due section — sorted by due date (soonest first) */}
       {dueRoutines.length > 0 && (
-        <div>
-          {FREQ_ORDER.map((freq) => {
-            const items = groupedDue[freq];
-            if (!items || items.length === 0) return null;
-            const freqColor = FREQ_COLORS[freq] || FREQ_COLORS.daily;
-            return (
-              <div key={freq} className="mb-5">
-                <div className="flex items-center gap-2 mb-2 px-1">
-                  <div className={`w-2 h-2 rounded-full ${freqColor.dot}`} />
-                  <h2 className="text-xs font-semibold text-dungeon-400 uppercase tracking-wider">
-                    {items[0]?.frequency_name || freq} ({items.length})
-                  </h2>
-                </div>
-                <div className="space-y-1.5">{items.map((r) => renderRoutineRow(r, false))}</div>
-              </div>
-            );
-          })}
+        <div className="space-y-1.5">
+          {dueRoutines.map((r) => renderRoutineRow(r, false))}
         </div>
       )}
 

@@ -4,6 +4,7 @@ import { platform } from "@/lib/supabase/schemas";
 import { recalculateTaskStreak } from "@/lib/streak-engine";
 import { inferTargetType } from "@/lib/habit-tasks";
 import { logActivity } from "@/lib/activity-log";
+import { getNextOccurrence, parseDateLocal, formatDateOnly } from "@/lib/recurrence";
 
 // POST /api/routines/check
 // Body: { task_id, date, action: "check" | "uncheck" }
@@ -36,7 +37,7 @@ export const POST = withAuth(async (request: NextRequest, { supabase, user }) =>
   // Verify task exists and is a routine
   const { data: task, error: taskError } = await platform(supabase)
     .from("tasks")
-    .select("id, title, recurrence_rule, is_habit, recurrence_source_id")
+    .select("id, title, recurrence_rule, is_habit, recurrence_source_id, due_date")
     .eq("id", task_id)
     .single();
 
@@ -78,6 +79,21 @@ export const POST = withAuth(async (request: NextRequest, { supabase, user }) =>
     // Recalculate streak
     const targetType = inferTargetType(task.recurrence_rule);
     const streakResult = await recalculateTaskStreak(supabase, task_id, 1, targetType);
+
+    // Advance due_date to the next occurrence
+    if (task.recurrence_rule && task.due_date) {
+      const currentDue = parseDateLocal(task.due_date);
+      const completionDate = parseDateLocal(date);
+      // Use the later of due_date or completion date as the anchor
+      const anchor = completionDate > currentDue ? completionDate : currentDue;
+      const nextDue = getNextOccurrence(task.recurrence_rule, anchor);
+      if (nextDue) {
+        await platform(supabase)
+          .from("tasks")
+          .update({ due_date: formatDateOnly(nextDue) })
+          .eq("id", task_id);
+      }
+    }
 
     // Log activity
     await logActivity(supabase, {
