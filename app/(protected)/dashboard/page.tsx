@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import OutcomesPanel from "@/components/dashboard/OutcomesPanel";
 import { DashboardSkeleton } from "@/components/ui/Skeleton";
@@ -241,7 +241,7 @@ export default function DashboardPage() {
   const ts = dashData?.tasks_summary;
   const hs = dashData?.habits_summary;
   const streaks = dashData?.streaks_leaderboard || [];
-  const totalShoppingItems = shoppingLists.reduce((a, l) => a + l.total_items, 0);
+  const totalShoppingItems = useMemo(() => shoppingLists.reduce((a, l) => a + l.total_items, 0), [shoppingLists]);
 
   // Status distribution for donut chart
   const statusCounts = ts ? {
@@ -279,7 +279,7 @@ export default function DashboardPage() {
   const habitsTotal = hs?.active_count || 0;
   const habitsPct = habitsTotal > 0 ? Math.round((habitsChecked / habitsTotal) * 100) : 0;
   const longestStreak = streaks.length > 0 ? streaks[0] : null;
-  const atRiskHabits = (hs?.habits || []).filter((h) => !h.checked_today && h.current_streak > 3);
+  const atRiskHabits = useMemo(() => (hs?.habits || []).filter((h) => !h.checked_today && h.current_streak > 3), [hs?.habits]);
 
   return (
     <div className="p-6">

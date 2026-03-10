@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import EmptyState from "@/components/ui/EmptyState";
 import Modal from "@/components/ui/Modal";
@@ -24,10 +24,11 @@ export default function RecipesPage() {
   const [mealPlan, setMealPlan] = useState<MealPlan | null>(null);
   const [mealPlanLoading, setMealPlanLoading] = useState(false);
 
-  const fetchRecipes = useCallback(async () => {
+  const fetchRecipes = useCallback(async (q?: string) => {
     try {
       const params = new URLSearchParams();
-      if (search) params.set("q", search);
+      const query = q !== undefined ? q : search;
+      if (query) params.set("q", query);
       const res = await fetch(`/api/recipes?${params}`);
       if (res.ok) {
         const data = await res.json();
@@ -40,7 +41,17 @@ export default function RecipesPage() {
     }
   }, [search]);
 
-  useEffect(() => { fetchRecipes(); }, [fetchRecipes]);
+  // Debounce search by 300ms
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      fetchRecipes();
+    }, 300);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [fetchRecipes]);
 
   const fetchRecipeDetail = async (id: string) => {
     try {

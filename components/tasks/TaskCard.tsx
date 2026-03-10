@@ -83,7 +83,7 @@ const getInitials = (fullName?: string): string => {
     .slice(0, 2);
 };
 
-export default function TaskCard({
+function TaskCard({
   task,
   onSelect,
   onQuickComplete,
@@ -314,3 +314,5 @@ export default function TaskCard({
     </div>
   );
 }
+
+export default React.memo(TaskCard);

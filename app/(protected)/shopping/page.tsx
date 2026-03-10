@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import EmptyState from "@/components/ui/EmptyState";
 import CompletionCelebration from "@/components/ui/CompletionCelebration";
@@ -388,7 +388,7 @@ export default function ShoppingPage() {
   };
 
   // Group items: unchecked by category, checked at bottom
-  const groupedItems = () => {
+  const groupedItems = useMemo(() => {
     if (!activeList?.items) return {};
     const groups: Record<string, ShoppingItem[]> = {};
     const unchecked = activeList.items.filter((i) => !i.checked);
@@ -414,7 +414,7 @@ export default function ShoppingPage() {
     }
 
     return groups;
-  };
+  }, [activeList?.items]);
 
   if (loading) {
     return (
@@ -425,9 +425,9 @@ export default function ShoppingPage() {
   }
 
   const items = activeList?.items || [];
-  const uncheckedCount = items.filter((i) => !i.checked).length;
-  const checkedCount = items.filter((i) => i.checked).length;
-  const grouped = groupedItems();
+  const uncheckedCount = useMemo(() => items.filter((i) => !i.checked).length, [items]);
+  const checkedCount = useMemo(() => items.filter((i) => i.checked).length, [items]);
+  const grouped = groupedItems;
 
   return (
     <div>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { useUserPreference } from "@/hooks/useUserPreferences";
 
@@ -450,10 +450,10 @@ function SavedViewsManager() {
     setSavedViews(next);
   };
 
-  const visibleViews = savedViews.map((v, i) => ({ view: v, idx: i })).filter(({ view }) => {
+  const visibleViews = useMemo(() => savedViews.map((v, i) => ({ view: v, idx: i })).filter(({ view }) => {
     const isArchived = (view as SavedView & { archived?: boolean }).archived;
     return showArchived ? isArchived : !isArchived;
-  });
+  }), [savedViews, showArchived]);
 
   return (
     <div className="dcc-card p-5 space-y-4">

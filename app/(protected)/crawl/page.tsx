@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
@@ -702,11 +702,13 @@ export default function CrawlPage() {
     { id: "leaderboard", label: "Leaderboard", icon: "📊" },
   ];
 
-  const filteredAchievements = achievementFilter === "all"
+  const filteredAchievements = useMemo(() => achievementFilter === "all"
     ? achievements
     : achievementFilter === "unlocked"
       ? achievements.filter(a => a.unlocked)
-      : achievements.filter(a => a.category === achievementFilter);
+      : achievements.filter(a => a.category === achievementFilter), [achievements, achievementFilter]);
+
+  const unlockedCount = useMemo(() => achievements.filter(a => a.unlocked).length, [achievements]);
 
   const crawlerStats = profile ? {
     str: profile.stat_str || 0,
@@ -1055,7 +1057,7 @@ export default function CrawlPage() {
 
             {/* Achievement count */}
             <p className="text-xs text-dungeon-500 font-mono">
-              {achievements.filter(a => a.unlocked).length}/{achievements.length} unlocked
+              {unlockedCount}/{achievements.length} unlocked
             </p>
 
             {/* Achievement Grid */}
