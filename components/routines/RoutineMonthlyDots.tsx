@@ -161,15 +161,7 @@ export default function RoutineMonthlyDots({ onSelectRoutine, refreshTrigger }: 
     fetchData();
   }, [today, refreshTrigger]);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-48">
-        <div className="animate-spin w-8 h-8 border-2 border-dungeon-700 border-t-red-500 rounded-full" />
-      </div>
-    );
-  }
-
-  // Group routines by frequency
+  // Group routines by frequency — must be before any conditional returns (React hooks rule)
   const grouped = useMemo(() => {
     const groups: Record<string, Routine[]> = {};
     for (const r of routines) {
@@ -178,6 +170,14 @@ export default function RoutineMonthlyDots({ onSelectRoutine, refreshTrigger }: 
     }
     return groups;
   }, [routines]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-48">
+        <div className="animate-spin w-8 h-8 border-2 border-dungeon-700 border-t-red-500 rounded-full" />
+      </div>
+    );
+  }
 
   return (
     <div>
