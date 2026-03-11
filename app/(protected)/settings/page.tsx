@@ -35,12 +35,8 @@ interface HouseholdData {
   members: { id: string; user_id: string; role: string; display_name?: string; email?: string; joined_at: string }[];
 }
 
-interface SavedView {
-  name: string;
-  icon?: string;
-  isDefault?: boolean;
-  filters: Record<string, string>;
-}
+// Import canonical SavedView type from ActivityFilterBar — single source of truth
+import type { SavedView } from "@/components/activity/ActivityFilterBar";
 
 const CONFIG_SECTIONS = [
   { group: "Tasks", items: [
@@ -439,20 +435,19 @@ function SavedViewsManager() {
 
   const handleArchive = (idx: number) => {
     const next = [...savedViews];
-    next[idx] = { ...next[idx], archived: true } as SavedView & { archived?: boolean };
+    next[idx] = { ...next[idx], archived: true };
     setSavedViews(next);
   };
 
   const handleRestore = (idx: number) => {
     const next = [...savedViews];
-    const { archived, ...rest } = next[idx] as SavedView & { archived?: boolean };
+    const { archived, ...rest } = next[idx];
     next[idx] = rest as SavedView;
     setSavedViews(next);
   };
 
   const visibleViews = useMemo(() => savedViews.map((v, i) => ({ view: v, idx: i })).filter(({ view }) => {
-    const isArchived = (view as SavedView & { archived?: boolean }).archived;
-    return showArchived ? isArchived : !isArchived;
+    return showArchived ? view.archived : !view.archived;
   }), [savedViews, showArchived]);
 
   return (
@@ -476,7 +471,7 @@ function SavedViewsManager() {
       ) : (
         <div className="space-y-2">
           {visibleViews.map(({ view, idx }) => {
-            const isArchived = (view as SavedView & { archived?: boolean }).archived;
+            const isArchived = view.archived;
             return (
             <div key={idx} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${isArchived ? "opacity-50" : "hover:bg-dungeon-800/50"}`}>
               <span className="text-sm">{view.icon || "📋"}</span>

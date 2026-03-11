@@ -22,8 +22,48 @@ export interface SavedView {
   icon: string;
   filters: Partial<ActivityFilters>;
   isDefault?: boolean;
-  mode?: string;  // scopes view to a mode. undefined = all modes
+  mode?: string;
+  archived?: boolean;
 }
+
+// ─── Canonical defaults ──────────────────────────────────────────────────
+// Every filter field has a single default value. When comparing views,
+// undefined / missing fields are treated as their default.
+
+export const DEFAULT_FILTERS: Required<Omit<ActivityFilters, "search">> & { search: string } = {
+  status: "All",
+  priority: "All",
+  due: "All",
+  owner: "",
+  sort: "due_date",
+  direction: "asc",
+  groupBy: "none",
+  hideDoneDays: 0,
+  search: "",
+};
+
+/** Normalize a partial filter object into its canonical form for comparison.
+ *  Strips `search` (never compared) and fills defaults. */
+export function normalizeFilters(f: Partial<ActivityFilters>): Omit<typeof DEFAULT_FILTERS, "search"> {
+  return {
+    status: f.status || DEFAULT_FILTERS.status,
+    priority: f.priority || DEFAULT_FILTERS.priority,
+    due: f.due || DEFAULT_FILTERS.due,
+    owner: f.owner || DEFAULT_FILTERS.owner,
+    sort: f.sort || DEFAULT_FILTERS.sort,
+    direction: f.direction || DEFAULT_FILTERS.direction,
+    groupBy: f.groupBy || DEFAULT_FILTERS.groupBy,
+    hideDoneDays: f.hideDoneDays ?? DEFAULT_FILTERS.hideDoneDays,
+  };
+}
+
+export function filtersEqual(a: Partial<ActivityFilters>, b: Partial<ActivityFilters>): boolean {
+  const na = normalizeFilters(a);
+  const nb = normalizeFilters(b);
+  return JSON.stringify(na) === JSON.stringify(nb);
+}
+
+// ─── Config helpers ──────────────────────────────────────────────────────
 
 interface ConfigData {
   statuses?: { id: string; name: string; color?: string; sort_order: number }[];
@@ -107,12 +147,12 @@ const SORT_OPTIONS = [
   { label: "Title", value: "title" },
 ];
 
-const GROUP_BY_OPTIONS = [
-  { label: "None", value: "none" },
-  { label: "Status", value: "status" },
-  { label: "Priority", value: "priority" },
-  { label: "Assignee", value: "assignee" },
-  { label: "Type", value: "type" },
+const GROUP_BY_OPTIONS: { label: string; value: GroupBy }[] = [
+  { label: "No grouping", value: "none" },
+  { label: "By Status", value: "status" },
+  { label: "By Priority", value: "priority" },
+  { label: "By Assignee", value: "assignee" },
+  { label: "By Type", value: "type" },
 ];
 
 const HIDE_DONE_OPTIONS = [
@@ -127,20 +167,18 @@ const HIDE_DONE_OPTIONS = [
 
 const EMOJI_PICKS = ["📋", "🔴", "📅", "📆", "🔥", "⭐", "🎯", "🏷️", "👤", "🚀", "💡", "🐛", "📌", "⚡", "🎨", "🔧"];
 
-// Count active non-default filters
+// Count active non-default filters (excluding sort/direction/groupBy which are display controls)
 function countActiveFilters(filters: ActivityFilters): number {
   let count = 0;
   if (filters.status && filters.status !== "All") count++;
   if (filters.priority && filters.priority !== "All") count++;
   if (filters.due && filters.due !== "All") count++;
   if (filters.owner === "me") count++;
-  if (filters.groupBy && filters.groupBy !== "none") count++;
   if (filters.hideDoneDays && filters.hideDoneDays !== 0) count++;
-  if (filters.search) count++;
   return count;
 }
 
-// Build list of active filter chips for display
+// Build removable filter chips
 function getActiveFilterChips(filters: ActivityFilters): { key: string; label: string; clear: Partial<ActivityFilters> }[] {
   const chips: { key: string; label: string; clear: Partial<ActivityFilters> }[] = [];
 
@@ -166,10 +204,6 @@ function getActiveFilterChips(filters: ActivityFilters): { key: string; label: s
   }
   if (filters.owner === "me") {
     chips.push({ key: "owner", label: "Mine only", clear: { owner: "" } });
-  }
-  if (filters.groupBy && filters.groupBy !== "none") {
-    const groupLabel = GROUP_BY_OPTIONS.find(o => o.value === filters.groupBy)?.label || filters.groupBy;
-    chips.push({ key: "groupBy", label: `Group: ${groupLabel}`, clear: { groupBy: "none" } });
   }
   if (filters.hideDoneDays && filters.hideDoneDays !== 0) {
     chips.push({
@@ -220,38 +254,27 @@ export default function ActivityFilterBar({
   }, [filters, onFilterChange]);
 
   const clearAllFilters = useCallback(() => {
-    const defaults: ActivityFilters = { status: "All", priority: "All", due: "All", owner: "", sort: "due_date", direction: "asc", search: "", groupBy: "none", hideDoneDays: 0 };
-    onFilterChange(defaults);
-    setActiveView("All Tasks");
+    onFilterChange({ ...DEFAULT_FILTERS });
+    setActiveView(null);
     if (searchRef.current) searchRef.current.value = "";
   }, [onFilterChange]);
 
-  // Remove a single filter chip
   const removeChip = useCallback((clear: Partial<ActivityFilters>) => {
     const next = { ...filters, ...clear };
     onFilterChange(next);
-    // If clearing search, also reset the input
     if ("search" in clear && searchRef.current) {
       searchRef.current.value = "";
     }
   }, [filters, onFilterChange]);
 
-  // Detect if current filters differ from active view's filters
+  // ─── View comparison — uses normalized equality ────────────────────────
   const activeViewData = activeView ? savedViews.find(v => v.name === activeView) : null;
-  const computedFiltersModified = (() => {
-    if (!activeViewData) return false;
-    const defaults: ActivityFilters = { status: "All", priority: "All", due: "All", owner: "", sort: "due_date", direction: "asc" };
-    const normalize = (f: Partial<ActivityFilters>) => {
-      const { search, ...rest } = { ...defaults, ...f };
-      return JSON.stringify(rest, Object.keys(rest).sort());
-    };
-    return normalize(filters) !== normalize(activeViewData.filters);
-  })();
-  const isModified = computedFiltersModified;
+  const isModified = activeViewData ? !filtersEqual(filters, activeViewData.filters) : false;
+  const isSeedView = !!(activeView && seedViewNames?.includes(activeView));
+  const seedModified = !!(activeView && isViewModifiedFromSeed?.(activeView));
 
   const applyView = useCallback((view: SavedView) => {
-    const defaults: ActivityFilters = { status: "All", priority: "All", due: "All", owner: "", sort: "due_date", direction: "asc", search: "" };
-    const next: ActivityFilters = { ...defaults, ...view.filters, search: "" };
+    const next: ActivityFilters = { ...DEFAULT_FILTERS, ...view.filters, search: "" };
     setActiveView(view.name);
     onFilterChange(next);
     if (searchRef.current) searchRef.current.value = "";
@@ -266,11 +289,13 @@ export default function ActivityFilterBar({
 
   const handleSaveView = useCallback(() => {
     if (!saveName.trim()) return;
+    const { search, ...viewFilters } = filters;
     onSaveView({
       name: saveName.trim(),
       icon: saveIcon,
-      filters: { ...filters, search: undefined },
+      filters: viewFilters,
     });
+    setActiveView(saveName.trim());
     setSaveName("");
     setSaveIcon("⭐");
     setShowSaveDialog(false);
@@ -295,7 +320,6 @@ export default function ActivityFilterBar({
     setEditingView(null);
   }, [editName, editIcon, editingView, savedViews, onSaveView, activeView]);
 
-  // Parse comma-separated filter string to array
   const statusSelected = filters.status && filters.status !== "All" ? filters.status.split(",") : [];
   const prioritySelected = filters.priority && filters.priority !== "All" ? filters.priority.split(",") : [];
 
@@ -309,15 +333,11 @@ export default function ActivityFilterBar({
     update("priority", value);
   }, [update]);
 
-  // Active view for the modification bar
-  const activeViewData2 = activeView ? savedViews.find(v => v.name === activeView) : null;
-  const isSeedView = !!(activeView && seedViewNames?.includes(activeView));
-  const seedModified = !!(activeView && isViewModifiedFromSeed?.(activeView));
-  const showModifiedBar = !!(activeViewData2 && onUpdateViewFilters && (isModified || seedModified));
+  const showModifiedBar = !!(activeViewData && onUpdateViewFilters && (isModified || seedModified));
 
   return (
     <div className="space-y-2">
-      {/* Saved views — horizontal scroll */}
+      {/* ─── Row 1: Saved views ─────────────────────────────────────────── */}
       <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-hide">
         {savedViews.map((view) => (
           <div key={view.name} className="relative group flex-shrink-0">
@@ -352,10 +372,6 @@ export default function ActivityFilterBar({
               >
                 <span>{view.icon}</span>
                 {view.name}
-                {/* Dot indicator for views modified from seed defaults */}
-                {seedViewNames?.includes(view.name) && isViewModifiedFromSeed?.(view.name) && (
-                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-crimson-500 rounded-full" />
-                )}
                 {onDeleteView && (
                   <span
                     onClick={(e) => { e.stopPropagation(); onDeleteView(view.name); if (activeView === view.name) setActiveView(null); }}
@@ -375,35 +391,37 @@ export default function ActivityFilterBar({
         >
           + Save View
         </button>
-
       </div>
 
-      {/* View modification bar — shows when active view's filters have been changed */}
-      {showModifiedBar && activeViewData2 && (
+      {/* ─── View modification bar ──────────────────────────────────────── */}
+      {showModifiedBar && activeViewData && (
         <div className="flex items-center gap-2 px-2.5 py-1.5 bg-dungeon-900/60 border border-dungeon-800 rounded-lg text-xs">
           {isModified ? (
             <>
               <span className="text-slate-400">
-                <span className="font-medium text-slate-300">{activeViewData2.name}</span> filters modified
+                <span className="font-medium text-slate-300">{activeViewData.name}</span> filters modified
               </span>
               <button
-                onClick={() => onUpdateViewFilters!(activeViewData2.name, { ...filters, search: undefined })}
+                onClick={() => {
+                  const { search, ...viewFilters } = filters;
+                  onUpdateViewFilters!(activeViewData.name, viewFilters);
+                }}
                 className="text-green-400 hover:text-green-300 font-medium transition-colors"
               >
                 Save to view
               </button>
               <span className="text-slate-700">|</span>
               <button
-                onClick={() => applyView(activeViewData2)}
+                onClick={() => applyView(activeViewData)}
                 className="text-slate-500 hover:text-slate-300 transition-colors"
               >
                 Discard
               </button>
-              {isSeedView && seedModified && onResetView && (
+              {isSeedView && onResetView && (
                 <>
                   <span className="text-slate-700">|</span>
                   <button
-                    onClick={() => onResetView(activeViewData2.name)}
+                    onClick={() => onResetView(activeViewData.name)}
                     className="text-amber-500 hover:text-amber-300 transition-colors"
                   >
                     Reset to default
@@ -414,31 +432,22 @@ export default function ActivityFilterBar({
           ) : seedModified ? (
             <>
               <span className="text-slate-400">
-                <span className="font-medium text-slate-300">{activeViewData2.name}</span> customized from default
+                <span className="font-medium text-slate-300">{activeViewData.name}</span> customized from default
               </span>
-              <button
-                onClick={() => setExpanded(true)}
-                className="text-crimson-400 hover:text-crimson-300 font-medium transition-colors"
-              >
-                Edit
-              </button>
               {onResetView && (
-                <>
-                  <span className="text-slate-700">|</span>
-                  <button
-                    onClick={() => onResetView(activeViewData2.name)}
-                    className="text-amber-500 hover:text-amber-300 transition-colors"
-                  >
-                    Reset to default
-                  </button>
-                </>
+                <button
+                  onClick={() => onResetView(activeViewData.name)}
+                  className="text-amber-500 hover:text-amber-300 transition-colors"
+                >
+                  Reset to default
+                </button>
               )}
             </>
           ) : null}
         </div>
       )}
 
-      {/* Save dialog with emoji picker */}
+      {/* ─── Save dialog ────────────────────────────────────────────────── */}
       {showSaveDialog && (
         <div className="flex gap-2 items-center">
           <div className="flex items-center gap-1 bg-dungeon-900 border border-dungeon-700 rounded px-2 py-1">
@@ -466,7 +475,7 @@ export default function ActivityFilterBar({
         </div>
       )}
 
-      {/* Compact filter row — Mine/All + Filters (with count badge) + search */}
+      {/* ─── Row 2: Controls — Mine/All | Filters | Sort | Group | Search ── */}
       <div className="flex items-center gap-2">
         {/* Mine / All toggle */}
         <div className="flex items-center gap-0.5 bg-dungeon-900 border border-dungeon-800 rounded-lg p-0.5 flex-shrink-0">
@@ -488,6 +497,7 @@ export default function ActivityFilterBar({
           </button>
         </div>
 
+        {/* Filter toggle + badge */}
         <button
           onClick={() => setExpanded(!expanded)}
           className={`relative px-2.5 py-1.5 rounded-lg text-xs border transition-all flex-shrink-0 ${
@@ -504,7 +514,6 @@ export default function ActivityFilterBar({
           )}
         </button>
 
-        {/* Clear all — only show when filters are active */}
         {activeFilterCount > 0 && (
           <button
             onClick={clearAllFilters}
@@ -514,17 +523,60 @@ export default function ActivityFilterBar({
           </button>
         )}
 
-        <input
-          type="text"
-          ref={searchRef}
-          defaultValue={filters.search || ""}
-          onChange={(e) => handleSearch(e.target.value)}
-          placeholder="Search..."
-          className="flex-1 min-w-0 bg-dungeon-900/80 border border-dungeon-800 rounded-lg px-3 py-1.5 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-crimson-500/50"
-        />
+        {/* Separator */}
+        <div className="w-px h-5 bg-dungeon-800 flex-shrink-0" />
+
+        {/* Sort control — always visible */}
+        <div className="flex items-center gap-0.5 flex-shrink-0">
+          <select
+            value={filters.sort || "due_date"}
+            onChange={(e) => update("sort", e.target.value)}
+            className="bg-dungeon-900 border border-dungeon-800 rounded-l-lg px-2 py-1.5 text-xs text-slate-400 focus:outline-none focus:border-crimson-500/50 cursor-pointer appearance-none"
+            title="Sort by"
+          >
+            {SORT_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => update("direction", filters.direction === "asc" ? "desc" : "asc")}
+            className="px-1.5 py-1.5 bg-dungeon-900 border border-l-0 border-dungeon-800 rounded-r-lg text-xs text-slate-500 hover:text-slate-200 transition-colors"
+            title={`Sort ${filters.direction === "asc" ? "ascending" : "descending"}`}
+          >
+            {filters.direction === "asc" ? "↑" : "↓"}
+          </button>
+        </div>
+
+        {/* Group control — always visible */}
+        <select
+          value={filters.groupBy || "none"}
+          onChange={(e) => update("groupBy", e.target.value)}
+          className="bg-dungeon-900 border border-dungeon-800 rounded-lg px-2 py-1.5 text-xs text-slate-400 focus:outline-none focus:border-crimson-500/50 cursor-pointer flex-shrink-0 appearance-none"
+          title="Group by"
+        >
+          {GROUP_BY_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+
+        {/* Search */}
+        <div className="flex-1 min-w-0 relative">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="absolute left-2.5 top-1/2 -translate-y-1/2 text-dungeon-600 pointer-events-none">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            type="text"
+            ref={searchRef}
+            defaultValue={filters.search || ""}
+            onChange={(e) => handleSearch(e.target.value)}
+            placeholder="Search tasks..."
+            className="w-full bg-dungeon-900/80 border border-dungeon-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-crimson-500/50"
+          />
+        </div>
       </div>
 
-      {/* Active filter chips — removable pills showing what's filtered */}
+      {/* ─── Active filter chips ────────────────────────────────────────── */}
       {filterChips.length > 0 && !expanded && (
         <div className="flex flex-wrap gap-1.5">
           {filterChips.map((chip) => (
@@ -544,10 +596,10 @@ export default function ActivityFilterBar({
         </div>
       )}
 
-      {/* Expanded filters */}
+      {/* ─── Expanded filters panel ─────────────────────────────────────── */}
       {expanded && (
-        <div className="space-y-2">
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+        <div className="bg-dungeon-900/40 border border-dungeon-800 rounded-lg p-3 space-y-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <MultiSelect
               label="Status"
               options={statusOptions}
@@ -560,33 +612,11 @@ export default function ActivityFilterBar({
               selected={prioritySelected}
               onChange={handlePriorityChange}
             />
-            <FilterSelect label="Due" value={filters.due || "All"} options={DUE_OPTIONS} onChange={(v) => update("due", v)} />
-            <FilterSelect label="Hide Done" value={String(filters.hideDoneDays || 0)} options={HIDE_DONE_OPTIONS} onChange={(v) => update("hideDoneDays", parseInt(v, 10) || undefined)} />
-            <div className="flex gap-1">
-              <div className="flex-1">
-                <FilterSelect label="Sort" value={filters.sort || "due_date"} options={SORT_OPTIONS} onChange={(v) => update("sort", v)} />
-              </div>
-              <button
-                onClick={() => update("direction", filters.direction === "asc" ? "desc" : "asc")}
-                className="self-end px-2.5 py-1.5 bg-dungeon-900 border border-dungeon-800 rounded text-xs text-slate-400 hover:text-slate-200"
-                title={`Sort ${filters.direction === "asc" ? "ascending" : "descending"}`}
-              >
-                {filters.direction === "asc" ? "↑" : "↓"}
-              </button>
-            </div>
-          </div>
-          {/* Group by */}
-          <div className="flex items-center gap-2">
-            <FilterSelect
-              label="Group By"
-              value={filters.groupBy || "none"}
-              options={GROUP_BY_OPTIONS}
-              onChange={(v) => update("groupBy", v)}
-            />
+            <FilterSelect label="Due Date" value={filters.due || "All"} options={DUE_OPTIONS} onChange={(v) => update("due", v)} />
+            <FilterSelect label="Completed Tasks" value={String(filters.hideDoneDays || 0)} options={HIDE_DONE_OPTIONS} onChange={(v) => update("hideDoneDays", parseInt(v, 10) || undefined)} />
           </div>
         </div>
       )}
-
     </div>
   );
 }
@@ -604,11 +634,11 @@ function FilterSelect({
 }) {
   return (
     <div>
-      <label className="block text-[10px] font-semibold text-slate-500 mb-0.5 uppercase tracking-wider">{label}</label>
+      <label className="block text-[10px] font-semibold text-slate-500 mb-1 uppercase tracking-wider">{label}</label>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full px-2 py-1.5 bg-dungeon-900 border border-dungeon-800 rounded text-xs text-slate-200 focus:outline-none focus:border-crimson-500 cursor-pointer"
+        className="w-full px-2.5 py-1.5 bg-dungeon-900 border border-dungeon-800 rounded-lg text-xs text-slate-200 focus:outline-none focus:border-crimson-500 cursor-pointer"
       >
         {options.map((o) => (
           <option key={o.value} value={o.value}>{o.label}</option>

@@ -8,7 +8,7 @@ import GanttView from "./views/GanttView";
 import TodayView from "./views/TodayView";
 import CalendarView, { type CalendarItem } from "@/components/ui/CalendarView";
 import QuickAddBar from "./QuickAddBar";
-import ActivityFilterBar, { type ActivityFilters, type SavedView, type GroupBy } from "./ActivityFilterBar";
+import ActivityFilterBar, { type ActivityFilters, type SavedView, type GroupBy, DEFAULT_FILTERS, filtersEqual } from "./ActivityFilterBar";
 import BulkActionBar from "./BulkActionBar";
 import CompletionCelebration from "@/components/ui/CompletionCelebration";
 import { useUserPreference } from "@/hooks/useUserPreferences";
@@ -98,15 +98,7 @@ export default function ActivityTaskBoard({
   const [config, setConfig] = useState<ConfigData | null>(null);
   const { value: persistedViewMode, setValue: setPersistedViewMode } = useUserPreference<ViewMode>("activity_view_mode", "list");
   const [viewMode, setViewModeLocal] = useState<ViewMode>(persistedViewMode || "list");
-  const [filters, setFilters] = useState<ActivityFilters>({
-    status: "All",
-    priority: "All",
-    due: "All",
-    search: "",
-    sort: "due_date",
-    direction: "asc",
-    owner: "",
-  });
+  const [filters, setFilters] = useState<ActivityFilters>({ ...DEFAULT_FILTERS });
   const { value: savedViews, setValue: setSavedViews, loading: savedViewsLoading } = useUserPreference<SavedView[]>("activity_saved_views", []);
   const { value: modeFilters, setValue: setModeFilters, loading: modeFiltersLoading } = useUserPreference<Record<string, Partial<ActivityFilters>>>("activity_mode_filters", {});
   const seededRef = useRef(false);
@@ -126,13 +118,13 @@ export default function ActivityTaskBoard({
     onTaskListChange?.(tasks.map((t) => t.id));
   }, [tasks, onTaskListChange]);
 
-  // Seed default views on first load if user has no saved views
+  // Single source of truth for seed views — used for seeding AND reset
   const SEED_VIEWS: SavedView[] = [
-    { name: "All Tasks", icon: "📋", filters: { status: "All", priority: "All", due: "All", owner: "", sort: "due_date", direction: "asc" } },
-    { name: "My Overdue", icon: "🔴", filters: { owner: "me", due: "overdue", status: "All", priority: "All", sort: "due_date", direction: "asc" } },
-    { name: "Due Today", icon: "📅", filters: { due: "today", status: "All", priority: "All", owner: "", sort: "priority_id", direction: "asc" } },
-    { name: "This Week", icon: "📆", filters: { due: "this_week", status: "All", priority: "All", owner: "", sort: "due_date", direction: "asc" } },
-    { name: "High Priority", icon: "🔥", filters: { priority: "Urgent,High", status: "All", due: "All", owner: "", sort: "due_date", direction: "asc" } },
+    { name: "All Tasks", icon: "📋", isDefault: true, filters: { sort: "due_date", direction: "asc" } },
+    { name: "My Overdue", icon: "🔴", isDefault: true, filters: { owner: "me", due: "overdue", sort: "due_date", direction: "asc" } },
+    { name: "Due Today", icon: "📅", isDefault: true, filters: { due: "today", sort: "priority_id", direction: "asc" } },
+    { name: "This Week", icon: "📆", isDefault: true, filters: { due: "this_week", sort: "due_date", direction: "asc" } },
+    { name: "High Priority", icon: "🔥", isDefault: true, filters: { priority: "Urgent,High", sort: "due_date", direction: "asc" } },
   ];
 
   useEffect(() => {
@@ -176,14 +168,13 @@ export default function ActivityTaskBoard({
     setPersistedViewMode(newMode);
     // Restore target mode's filters or defaults
     if (newMode === "today") {
-      // Today view always shows items due today (tasks + habits)
-      setFilters(prev => ({ status: "All", priority: "All", due: "today", owner: "", sort: "priority_id", direction: "asc", search: prev.search }));
+      setFilters(prev => ({ ...DEFAULT_FILTERS, due: "today", sort: "priority_id", search: prev.search }));
     } else {
       const restored = currentModeFilters?.[newMode];
       if (restored) {
-        setFilters(prev => ({ ...restored, search: prev.search }));
+        setFilters(prev => ({ ...DEFAULT_FILTERS, ...restored, search: prev.search }));
       } else {
-        setFilters(prev => ({ status: "All", priority: "All", due: "All", owner: "", sort: "due_date", direction: "asc", search: prev.search }));
+        setFilters(prev => ({ ...DEFAULT_FILTERS, search: prev.search }));
       }
     }
   }, [setModeFilters, setPersistedViewMode]);
@@ -194,13 +185,7 @@ export default function ActivityTaskBoard({
   const lastSelectedRef = useRef<string | null>(null);
   const fetchRef = useRef(0);
 
-  const defaultViews: SavedView[] = [
-    { name: "All Tasks", icon: "📋", isDefault: true, filters: { status: "All", priority: "All", due: "All", owner: "", sort: "due_date", direction: "asc" } },
-    { name: "My Overdue", icon: "🔴", isDefault: true, filters: { owner: "me", due: "overdue", status: "All", priority: "All", sort: "due_date", direction: "asc" } },
-    { name: "Due Today", icon: "📅", isDefault: true, filters: { due: "today", status: "All", priority: "All", owner: "", sort: "priority_id", direction: "asc" } },
-    { name: "This Week", icon: "📆", isDefault: true, filters: { due: "this_week", status: "All", priority: "All", owner: "", sort: "due_date", direction: "asc" } },
-    { name: "High Priority", icon: "🔥", isDefault: true, filters: { priority: "Urgent,High", status: "All", due: "All", owner: "", sort: "due_date", direction: "asc" } },
-  ];
+  // defaultViews removed — SEED_VIEWS is now the single source of truth
 
   // Fetch config on mount
   useEffect(() => {
@@ -390,22 +375,21 @@ export default function ActivityTaskBoard({
   }, [setSavedViews]);
 
   const handleUpdateViewFilters = useCallback((viewName: string, newFilters: Partial<ActivityFilters>) => {
+    const { search, ...viewFilters } = newFilters as ActivityFilters;
     const current = savedViewsRef.current;
     setSavedViews(current.map((v) =>
-      v.name === viewName ? { ...v, filters: { ...newFilters } } : v
+      v.name === viewName ? { ...v, filters: { ...viewFilters } } : v
     ));
   }, [setSavedViews]);
 
   const handleResetView = useCallback((viewName: string) => {
-    // Check if it's a seeded view — if so, restore to seed defaults
     const seed = SEED_VIEWS.find(v => v.name === viewName);
     if (seed) {
       const current = savedViewsRef.current;
       setSavedViews(current.map((v) =>
         v.name === viewName ? { ...v, filters: { ...seed.filters } } : v
       ));
-      // Also reset current filters to the seed values
-      setFilters({ ...seed.filters, search: "" } as ActivityFilters);
+      setFilters({ ...DEFAULT_FILTERS, ...seed.filters, search: "" });
     }
   }, [setSavedViews]);
 
@@ -530,13 +514,13 @@ export default function ActivityTaskBoard({
     onSelectTask?.(taskId);
   }, [onSelectTask]);
 
-  // Check if a view has been modified from its seed defaults
+  // Check if a view has been modified from its seed defaults — uses normalized comparison
   const isViewModifiedFromSeed = useCallback((viewName: string) => {
     const seed = SEED_VIEWS.find(v => v.name === viewName);
-    if (!seed) return false; // Not a seeded view, no "reset" concept
+    if (!seed) return false;
     const current = savedViewsRef.current.find(v => v.name === viewName);
     if (!current) return false;
-    return JSON.stringify(seed.filters) !== JSON.stringify(current.filters);
+    return !filtersEqual(seed.filters, current.filters);
   }, []);
 
   const activeViews = savedViews.filter((v: any) => !v.archived);
