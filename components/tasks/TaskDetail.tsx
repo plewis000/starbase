@@ -6,7 +6,7 @@ import ChecklistWidget from "./ChecklistWidget";
 import CommentThread from "@/components/ui/CommentThread";
 import EntityLinksSection from "@/components/ui/EntityLinksSection";
 import CompletionCreditModal, { needsCreditModal } from "./CompletionCreditModal";
-import { formatRelativeDate, getDateColor } from "@/lib/dateUtils";
+import { formatRelativeDate } from "@/lib/dateUtils";
 import {
   InlineStatusPicker,
   InlinePriorityPicker,
@@ -33,7 +33,7 @@ interface TaskDetailProps {
   context?: "routine" | "task" | "project-item" | "full";
 }
 
-// formatRelativeDate and getDateColor imported from @/lib/dateUtils
+// formatRelativeDate imported from @/lib/dateUtils
 
 const formatRelativeTime = (dateString: string): string => {
   const date = new Date(dateString);

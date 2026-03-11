@@ -392,7 +392,7 @@ export function InlineDatePicker({
       <DatePicker
         value={currentValue || ""}
         onChange={handleChange}
-        showRelative
+        compact
       />
     </div>
   );
@@ -425,7 +425,7 @@ export function InlineStartDatePicker({
       <DatePicker
         value={currentValue || ""}
         onChange={handleChange}
-        showRelative
+        compact
       />
     </div>
   );
@@ -458,7 +458,7 @@ export function InlineScheduleDatePicker({
       <DatePicker
         value={currentValue || ""}
         onChange={handleChange}
-        showRelative
+        compact
       />
     </div>
   );
