@@ -283,9 +283,35 @@ export const GET = withAuth(async (request, { supabase, user, ctx }) => {
     subtask_progress: subtaskCountMap[t.id] || undefined,
   }));
 
+  // Fetch linked goals (projects) for all returned tasks
+  let goalMap: Record<string, { id: string; title: string }[]> = {};
+  if (taskIds.length > 0) {
+    const { data: goalLinks } = await platform(supabase)
+      .from("goal_tasks")
+      .select("task_id, goal_id")
+      .in("task_id", taskIds);
+
+    if (goalLinks && goalLinks.length > 0) {
+      const goalIds = [...new Set(goalLinks.map((gl: any) => gl.goal_id))];
+      const { data: goals } = await platform(supabase)
+        .from("goals")
+        .select("id, title")
+        .in("id", goalIds);
+
+      const goalLookup = new Map((goals || []).map((g: any) => [g.id, g]));
+      for (const gl of goalLinks) {
+        const goal = goalLookup.get(gl.goal_id);
+        if (!goal) continue;
+        if (!goalMap[gl.task_id]) goalMap[gl.task_id] = [];
+        goalMap[gl.task_id].push({ id: goal.id, title: goal.title });
+      }
+    }
+  }
+
   // Add frequency name for habit-tasks (UI display only)
   const finalTasks = tasksWithProgress.map((t: any) => ({
     ...t,
+    linked_goals: goalMap[t.id] || [],
     ...(t.is_habit && t.recurrence_rule
       ? { frequency_name: inferFrequencyName(t.recurrence_rule) }
       : {}),

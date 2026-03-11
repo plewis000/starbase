@@ -32,6 +32,7 @@ interface Task {
   tags?: any[];
   checklist_items?: { id: string; title: string; checked: boolean; sort_order: number }[];
   subtask_progress?: { done: number; total: number };
+  linked_goals?: { id: string; title: string }[];
 }
 
 interface ConfigData {

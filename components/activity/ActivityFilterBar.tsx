@@ -3,7 +3,7 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import MultiSelect from "@/components/ui/MultiSelect";
 
-export type GroupBy = "none" | "assignee" | "priority" | "status" | "type";
+export type GroupBy = "none" | "assignee" | "priority" | "status" | "type" | "project";
 
 export interface ActivityFilters {
   status?: string;
@@ -153,6 +153,7 @@ const GROUP_BY_OPTIONS: { label: string; value: GroupBy }[] = [
   { label: "By Priority", value: "priority" },
   { label: "By Assignee", value: "assignee" },
   { label: "By Type", value: "type" },
+  { label: "By Project", value: "project" },
 ];
 
 const HIDE_DONE_OPTIONS = [

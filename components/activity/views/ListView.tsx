@@ -27,9 +27,10 @@ interface Task {
   tags?: any[];
   checklist_items?: { id: string; title: string; checked: boolean; sort_order: number }[];
   subtask_progress?: { done: number; total: number };
+  linked_goals?: { id: string; title: string }[];
 }
 
-type GroupBy = "none" | "assignee" | "priority" | "status" | "type";
+type GroupBy = "none" | "assignee" | "priority" | "status" | "type" | "project";
 
 interface Props {
   tasks: Task[];
@@ -495,19 +496,46 @@ function groupTasks(tasks: Task[], groupBy: GroupBy): { label: string; tasks: Ta
   if (!groupBy || groupBy === "none") return [{ label: "", tasks }];
 
   const groups: Record<string, Task[]> = {};
-  for (const task of tasks) {
-    let key = "Ungrouped";
-    switch (groupBy) {
-      case "status": key = task.status?.name || "No Status"; break;
-      case "priority": key = task.priority?.name || "No Priority"; break;
-      case "assignee": key = task.assignee?.full_name || "Unassigned"; break;
-      case "type": key = task.task_type?.name || "No Type"; break;
+
+  if (groupBy === "project") {
+    // Tasks can belong to multiple projects — place each in its primary project group
+    // Tasks with no project go into "No Project"
+    for (const task of tasks) {
+      const goals = task.linked_goals;
+      if (!goals || goals.length === 0) {
+        const key = "No Project";
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(task);
+      } else {
+        // Use first linked goal as the group (most tasks have one project)
+        const key = goals[0].title;
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(task);
+      }
     }
-    if (!groups[key]) groups[key] = [];
-    groups[key].push(task);
+  } else {
+    for (const task of tasks) {
+      let key = "Ungrouped";
+      switch (groupBy) {
+        case "status": key = task.status?.name || "No Status"; break;
+        case "priority": key = task.priority?.name || "No Priority"; break;
+        case "assignee": key = task.assignee?.full_name || "Unassigned"; break;
+        case "type": key = task.task_type?.name || "No Type"; break;
+      }
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(task);
+    }
   }
 
-  return Object.entries(groups).map(([label, tasks]) => ({ label, tasks }));
+  // Sort groups: named groups first alphabetically, then "No X" / "Ungrouped" at end
+  return Object.entries(groups)
+    .sort(([a], [b]) => {
+      const aIsEmpty = a.startsWith("No ") || a === "Ungrouped";
+      const bIsEmpty = b.startsWith("No ") || b === "Ungrouped";
+      if (aIsEmpty !== bIsEmpty) return aIsEmpty ? 1 : -1;
+      return a.localeCompare(b);
+    })
+    .map(([label, tasks]) => ({ label, tasks }));
 }
 
 export default function ListView({ tasks, onQuickComplete, completedTaskId, config, onSelect, activeTaskId, selectedTaskIds, onToggleSelect, groupBy, totalCount, onSelectAll, bulkMode, onToggleBulkMode, onTaskUpdated }: Props) {
