@@ -85,7 +85,7 @@ export default function TasksPage() {
             refreshTrigger={refreshTrigger}
             onCreateTask={() => setShowCreateModal(true)}
             onTaskListChange={handleTaskListChange}
-            extraParams={{ is_habit: "false", has_recurrence: "false", exclude_goal_linked: "true" }}
+            extraParams={{ is_habit: "false", has_recurrence: "false" }}
             allowedViewModes={["list", "board", "today"]}
             title="Tasks"
           />
@@ -111,7 +111,7 @@ export default function TasksPage() {
           onSelectTask={handleSelectTask}
           refreshTrigger={refreshTrigger}
           onCreateTask={() => setShowCreateModal(true)}
-          extraParams={{ is_habit: "false", has_recurrence: "false", exclude_goal_linked: "true" }}
+          extraParams={{ is_habit: "false", has_recurrence: "false" }}
           allowedViewModes={["list", "board", "today"]}
           title="Tasks"
         />
