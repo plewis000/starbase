@@ -394,18 +394,11 @@ export default function TaskDetail({
             <span className="text-dungeon-500 text-sm">📅</span>
             <div className="flex-1">
               <p className="text-xs text-dungeon-400 mb-1">Due</p>
-              <div className="flex items-center gap-2">
-                <InlineDatePicker
-                  taskId={task.id}
-                  currentValue={task.due_date}
-                  onUpdated={handleFieldUpdated}
-                />
-                {task.due_date && (
-                  <span className={`text-xs font-medium ${getDateColor(task.due_date)}`}>
-                    {formatRelativeDate(task.due_date)}
-                  </span>
-                )}
-              </div>
+              <InlineDatePicker
+                taskId={task.id}
+                currentValue={task.due_date}
+                onUpdated={handleFieldUpdated}
+              />
             </div>
           </div>
 

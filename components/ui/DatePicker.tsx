@@ -5,7 +5,7 @@ import React, { useState, useMemo, useRef, useEffect } from "react";
 // ─── Helpers ─────────────────────────────────────────────────────────────
 
 function toDateStr(d: Date): string {
-  return d.toISOString().split("T")[0];
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function parseDate(s: string): Date {
@@ -159,6 +159,7 @@ export default function DatePicker({ value, onChange, showRelative = true }: Dat
   const containerRef = useRef<HTMLDivElement>(null);
 
   const presets = useMemo(() => getPresets(), []);
+  const matchesPreset = presets.some((p) => p.value === value);
   const rel = useMemo(() => (showRelative && value ? relativeLabel(value) : null), [value, showRelative]);
 
   // Close calendar on outside click
@@ -227,9 +228,16 @@ export default function DatePicker({ value, onChange, showRelative = true }: Dat
         </button>
       </div>
 
-      {/* Relative label */}
-      {rel && (
+      {/* Relative label — only show when a custom date is picked (not a preset) */}
+      {rel && !matchesPreset && (
         <span className={`text-xs font-medium ${rel.color}`}>{rel.text}</span>
+      )}
+
+      {/* Show actual date below presets for clarity */}
+      {value && (
+        <span className="text-[11px] text-dungeon-500">
+          {parseDate(value).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+        </span>
       )}
 
       {/* Calendar dropdown */}
