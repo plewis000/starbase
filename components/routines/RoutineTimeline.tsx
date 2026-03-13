@@ -143,11 +143,16 @@ export default function RoutineTimeline({ onSelectRoutine, refreshTrigger }: Pro
     return groups;
   }, [events]);
 
-  // Get unique frequencies for filter
+  // Get unique frequencies for filter, sorted chronologically
   const frequencies = useMemo(() => {
+    const order = ["daily", "weekly", "biweekly", "monthly", "quarterly", "biannual", "yearly"];
     const set = new Set<string>();
     for (const r of routines) set.add(r.frequency);
-    return Array.from(set).sort();
+    return Array.from(set).sort((a, b) => {
+      const ai = order.indexOf(a);
+      const bi = order.indexOf(b);
+      return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+    });
   }, [routines]);
 
   if (loading) {

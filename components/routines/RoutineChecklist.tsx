@@ -119,10 +119,14 @@ export default function RoutineChecklist({ onSelectRoutine, selectedRoutineId, r
     fetchRoutines();
   }, [fetchRoutines, refreshTrigger]);
 
-  // Filter routines by scope using due_date
+  // Filter routines by scope using due_date.
+  // Period-satisfied routines are always included so they appear in the
+  // "Completed this period" collapsible regardless of scope.
   const scopedRoutines = useMemo(() => {
     if (scope === "all") return routines;
     return routines.filter((r) => {
+      // Always include satisfied routines so they show in the completed section
+      if (r.period_satisfied) return true;
       if (!r.due_date) {
         // No due_date: daily routines are always "today", others show in their period
         if (r.frequency === "daily") return true;
@@ -211,11 +215,8 @@ export default function RoutineChecklist({ onSelectRoutine, selectedRoutineId, r
     scopedRoutines.filter((r) => !r.period_satisfied && r.snoozed_until && r.snoozed_until > todayStr),
     [scopedRoutines, todayStr]
   );
-  // Only show routines completed TODAY in the done section.
-  // Routines satisfied earlier in the period (e.g. weekly done 3 days ago) are hidden —
-  // interact with those through the timeline view.
-  const doneRoutines = scopedRoutines.filter((r) => r.period_satisfied && r.satisfied_on === todayStr);
-  const hiddenSatisfiedCount = scopedRoutines.filter((r) => r.period_satisfied && r.satisfied_on !== todayStr).length;
+  // All completed routines for this scope (done today + done earlier in period)
+  const doneRoutines = scopedRoutines.filter((r) => r.period_satisfied);
 
   // Report ordered IDs for sidebar navigation
   useEffect(() => {
@@ -515,12 +516,12 @@ export default function RoutineChecklist({ onSelectRoutine, selectedRoutineId, r
         </div>
       )}
 
-      {/* Done today section (collapsible) */}
+      {/* Completed section (collapsible) */}
       {doneRoutines.length > 0 && (
         <div>
           <button
             onClick={() => setShowDone(!showDone)}
-            className="flex items-center gap-2 text-xs font-semibold text-dungeon-500 uppercase tracking-wider mb-3 hover:text-dungeon-400 transition-colors"
+            className="flex items-center gap-2 text-xs font-semibold text-emerald-600/60 uppercase tracking-wider mb-3 hover:text-emerald-500 transition-colors"
           >
             <svg
               width="12"
@@ -533,17 +534,10 @@ export default function RoutineChecklist({ onSelectRoutine, selectedRoutineId, r
             >
               <polyline points="9 18 15 12 9 6" />
             </svg>
-            Done today ({doneRoutines.length})
+            Completed ({doneRoutines.length})
           </button>
           {showDone && <div className="space-y-1.5">{doneRoutines.map((r) => renderRoutineRow(r, true))}</div>}
         </div>
-      )}
-
-      {/* Note about routines satisfied earlier in the period */}
-      {hiddenSatisfiedCount > 0 && (
-        <p className="text-[11px] text-dungeon-600 text-center">
-          {hiddenSatisfiedCount} routine{hiddenSatisfiedCount > 1 ? "s" : ""} already done this period — see Timeline for history
-        </p>
       )}
 
       {/* Empty state */}
